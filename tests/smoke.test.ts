@@ -11,6 +11,7 @@ import { getUserMaxes, getUserStarts, saveUserMaxes } from "../src/lib/maxes";
 import { findWendlerSquatWeek1MainSets, getWeekId, getDay, resolveWorkout } from "../src/lib/programs/queries";
 import { loadSeedFile, seedJsonPath } from "../src/lib/db/seed";
 import { resolveSetKg } from "../src/lib/calc/loads";
+import { tipDisclaimer, tipFor } from "../src/lib/tips";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-smoke-"));
@@ -142,6 +143,21 @@ describe("seed schema + weight engine", () => {
     const workout = resolveWorkout({ dayId: day!.id, userId: created.user.id, unit: "kg" });
     const squat = workout?.exercises.find((e) => e.exerciseKey === "squat");
     expect(squat?.sets.map((s) => s.weightKg)).toEqual([60, 60, 60, 60, 60]);
+  });
+});
+
+describe("korean exercise tips", () => {
+  it("loads official tips with cue/mistake/alternative/sheet and disclaimer", () => {
+    expect(tipDisclaimer()).toContain("전문가");
+    const squat = tipFor("squat");
+    const canonical = tipFor("back_squat");
+    expect(squat?.cue).toBeTruthy();
+    expect(squat?.mistake).toBeTruthy();
+    expect(squat?.alternative).toBeTruthy();
+    expect(squat?.sheet.split(/[.。]/).filter(Boolean).length).toBeGreaterThanOrEqual(1);
+    expect(canonical?.sheet).toBe(squat?.sheet);
+    expect(tipFor("ohp")?.name).toBe("오버헤드프레스");
+    expect(tipFor("bench")?.exerciseId).toBe("bench_press");
   });
 });
 

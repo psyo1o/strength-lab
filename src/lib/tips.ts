@@ -6,6 +6,8 @@ export type Tip = {
   mistake: string;
   alternative: string;
   sheet: string;
+  name?: string;
+  exerciseId?: string;
 };
 
 type TipFile = {
@@ -27,6 +29,11 @@ const TIP_ALIASES: Record<string, string> = {
   back_squat: "squat",
   bench: "bench_press",
   bench_press: "bench",
+  rdl: "stiff_leg_deadlift",
+  clean: "squat_clean",
+  clean_jerk: "split_jerk",
+  jerk: "split_jerk",
+  snatch: "squat_snatch",
 };
 
 export function tipFor(exerciseKey: string): Tip | null {

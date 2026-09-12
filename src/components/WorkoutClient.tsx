@@ -141,8 +141,26 @@ export function WorkoutClient({
         </button>
       </div>
 
-      <BottomSheet open={tipOpen} title={current.exercise.nameKo} onClose={() => setTipOpen(false)}>
-        <p className="text-base leading-relaxed">{tip?.sheet || current.exercise.tipsKo}</p>
+      <BottomSheet open={tipOpen} title={tip?.name || current.exercise.nameKo} onClose={() => setTipOpen(false)}>
+        {tip ? (
+          <div className="space-y-3 text-base leading-relaxed">
+            <p>{tip.sheet}</p>
+            <p>
+              <span className="font-black">큐 · </span>
+              {tip.cue}
+            </p>
+            <p>
+              <span className="font-black">실수 · </span>
+              {tip.mistake}
+            </p>
+            <p>
+              <span className="font-black">대안 · </span>
+              {tip.alternative}
+            </p>
+          </div>
+        ) : (
+          <p className="text-base leading-relaxed">{current.exercise.tipsKo || "이 종목 팁이 아직 없습니다."}</p>
+        )}
         <p className="mt-4 text-xs text-[var(--muted)]">{disclaimer}</p>
       </BottomSheet>
 
