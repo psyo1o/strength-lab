@@ -79,6 +79,24 @@ docker compose up --build -d
 
 5. 브라우저: [http://192.168.50.3:7001](http://192.168.50.3:7001)
 
+**운동 사진/영상 (오프라인):** Commons를 핫링크하지 마세요. 파일을 NAS에 복사합니다.
+
+```bash
+mkdir -p /volume1/docker/strength-lab/media
+# 예: back_squat.webp, bench_press.webp
+cp my-photo.webp /volume1/docker/strength-lab/media/back_squat.webp
+```
+
+`docker-compose.yml`에서 아래 줄을 켜면 컨테이너 `/data/media`로 붙습니다.
+
+```yaml
+volumes:
+  - strength-lab-data:/data
+  - /volume1/docker/strength-lab/media:/data/media
+```
+
+앱은 `/exercises/{id}.webp`(이미지에 넣은 파일) 다음 `/api/media/{id}.webp`(`/data/media`)를 봅니다. 없으면 팁 시트에 **미디어 없음**. TJ Strength 영상은 넣지 마세요.
+
 공유 폴더에 DB를 직접 남기려면 volumes를 다음처럼 바꿉니다.
 
 ```yaml
@@ -101,6 +119,8 @@ Publish at **http://192.168.50.3:7001**. Compose maps **host 7001 → container 
 5. Open http://192.168.50.3:7001
 
 If DSM already uses 7001, change only the **host** side of `"7001:3000"` (e.g. `"7002:3000"`). Leave container port 3000 as-is.
+
+Exercise media: copy `{id}.webp` into a host folder and bind-mount it to `/data/media` (see `docker-compose.yml`). Do not hotlink Wikimedia Commons. Do not bundle TJ Strength videos.
 
 ---
 

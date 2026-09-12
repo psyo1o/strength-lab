@@ -1,21 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { parseVideoUrl, type TipMediaFields } from "@/lib/media";
+import { isLocalAssetUrl, parseVideoUrl, type TipMediaFields } from "@/lib/media";
 
 export function TipMedia({
   imageUrl,
   videoUrl,
   credit,
+  license,
+  sourcePage,
   alt,
+  hasDeclaredUrl,
 }: TipMediaFields & { imageUrl: string }) {
-  const video = parseVideoUrl(videoUrl);
-  const [src, setSrc] = useState(imageUrl);
+  const parsed = parseVideoUrl(videoUrl);
+  const video =
+    parsed?.kind === "mp4"
+      ? isLocalAssetUrl(parsed.src) || parsed.src.startsWith("/exercises/") || parsed.src.startsWith("/api/media/")
+        ? parsed
+        : null
+      : parsed;
+  const poster = isLocalAssetUrl(imageUrl) ? imageUrl : "";
+  const [src, setSrc] = useState(poster);
   const [imgReady, setImgReady] = useState(false);
-  const [imgFailed, setImgFailed] = useState(false);
+  const [imgFailed, setImgFailed] = useState(!poster);
   const [playing, setPlaying] = useState(false);
   const [enlarged, setEnlarged] = useState(false);
   const file = imageUrl.split("/").pop() || "";
+  const showCredit = Boolean(hasDeclaredUrl && (credit || (license && license !== "empty") || sourcePage));
 
   return (
     <div className="space-y-1">
@@ -57,7 +68,7 @@ export function TipMedia({
             }}
             aria-label={video ? "영상 재생" : imgFailed || !imgReady ? "미디어 없음" : "사진 확대"}
           >
-            {!imgFailed ? (
+            {src && !imgFailed ? (
               <img
                 src={src}
                 alt={alt || ""}
@@ -82,7 +93,11 @@ export function TipMedia({
           </button>
         ) : null}
       </div>
-      {credit ? <p className="text-xs text-[var(--muted)]">{credit}</p> : null}
+      {showCredit ? (
+        <p className="text-xs text-[var(--muted)]">
+          {[credit, license && license !== "empty" ? license : "", sourcePage].filter(Boolean).join(" · ")}
+        </p>
+      ) : null}
     </div>
   );
 }

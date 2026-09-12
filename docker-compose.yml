@@ -14,9 +14,13 @@ services:
       NODE_ENV: production
       PORT: 3000
     volumes:
-      # SQLite + optional exercise media at /data/media (or bind-mount a host folder).
-      # Example: /volume1/docker/strength-lab/media:/data/media
+      # SQLite at /data/app.db. Exercise photos/videos at /data/media (MEDIA_PATH).
       - strength-lab-data:/data
+      # Drop local files on the NAS (no Commons hotlink, no TJ Strength clips):
+      # mkdir -p /volume1/docker/strength-lab/media
+      # cp back_squat.webp /volume1/docker/strength-lab/media/
+      # then uncomment:
+      # - /volume1/docker/strength-lab/media:/data/media
 
 volumes:
   strength-lab-data:

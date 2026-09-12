@@ -149,7 +149,10 @@ export function WorkoutClient({
               imageUrl={tip.imageUrl || `/exercises/${tip.exerciseId || current.exercise.exerciseKey}.webp`}
               videoUrl={tip.videoUrl}
               credit={tip.credit}
+              license={tip.license}
+              sourcePage={tip.sourcePage}
               alt={tip.alt}
+              hasDeclaredUrl={tip.hasDeclaredUrl}
             />
             <p>
               <span className="font-black">큐 · </span>

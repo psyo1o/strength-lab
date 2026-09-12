@@ -13,14 +13,16 @@
       ],
       "oneRmField": "squat",
       "category": "main",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "bench_press": {
       "id": "bench_press",
@@ -31,14 +33,16 @@
       ],
       "oneRmField": "bench",
       "category": "main",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "deadlift": {
       "id": "deadlift",
@@ -50,14 +54,16 @@
       ],
       "oneRmField": "deadlift",
       "category": "main",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "ohp": {
       "id": "ohp",
@@ -69,14 +75,16 @@
       ],
       "oneRmField": "ohp",
       "category": "main",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "front_squat": {
       "id": "front_squat",
@@ -85,14 +93,16 @@
         "프론트스쿼트"
       ],
       "category": "accessory",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "close_grip_bench": {
       "id": "close_grip_bench",
@@ -103,14 +113,16 @@
         "클로즈그립벤치"
       ],
       "category": "accessory",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "incline_bench": {
       "id": "incline_bench",
@@ -120,14 +132,16 @@
         "바벨 인클라인 벤치 프레스"
       ],
       "category": "accessory",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "stiff_leg_deadlift": {
       "id": "stiff_leg_deadlift",
@@ -137,14 +151,16 @@
         "루마니안 데드리프트"
       ],
       "category": "accessory",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "barbell_row": {
       "id": "barbell_row",
@@ -154,14 +170,16 @@
         "벤트오버 로우"
       ],
       "category": "accessory",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "chin_up": {
       "id": "chin_up",
@@ -171,14 +189,16 @@
       ],
       "category": "accessory",
       "bodyweight": true,
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "pull_up": {
       "id": "pull_up",
@@ -188,14 +208,16 @@
       ],
       "category": "accessory",
       "bodyweight": true,
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "power_clean": {
       "id": "power_clean",
@@ -204,14 +226,16 @@
         "파워 클린"
       ],
       "category": "accessory",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "abs": {
       "id": "abs",
@@ -221,14 +245,16 @@
       ],
       "category": "accessory",
       "optional": true,
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "free_accessory": {
       "id": "free_accessory",
@@ -236,70 +262,80 @@
       "aliases": [],
       "category": "accessory",
       "optional": true,
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "squat_clean": {
       "id": "squat_clean",
       "name": "스쿼트 클린",
       "aliases": [],
       "category": "olympic",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "power_snatch": {
       "id": "power_snatch",
       "name": "파워 스네치",
       "aliases": [],
       "category": "olympic",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "squat_snatch": {
       "id": "squat_snatch",
       "name": "스쿼트 스네치",
       "aliases": [],
       "category": "olympic",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     },
     "split_jerk": {
       "id": "split_jerk",
       "name": "스플릿 저크",
       "aliases": [],
       "category": "olympic",
-      "imageUrl": "",
-      "videoUrl": "",
-      "credit": "",
-      "license": "",
-      "licenseUrl": "",
-      "sourcePage": "",
-      "alt": "",
-      "origin": ""
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     }
   },
   "aliases_to_id": {}

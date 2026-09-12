@@ -17,6 +17,8 @@ export type Tip = {
   sourcePage?: string;
   alt?: string;
   origin?: string;
+  media?: TipMediaFields | null;
+  hasDeclaredUrl?: boolean;
 };
 
 type TipFile = {

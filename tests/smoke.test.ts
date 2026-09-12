@@ -11,8 +11,8 @@ import { getUserMaxes, getUserStarts, saveUserMaxes } from "../src/lib/maxes";
 import { findWendlerSquatWeek1MainSets, getWeekId, getDay, resolveWorkout } from "../src/lib/programs/queries";
 import { loadSeedFile, seedDraftsP1Path, seedJsonPath } from "../src/lib/db/seed";
 import { resolveSetKg } from "../src/lib/calc/loads";
-import { tipDisclaimer, tipFor } from "../src/lib/tips";
-import { localExerciseImagePath, parseVideoUrl, resolveTipMedia } from "../src/lib/media";
+import { loadTips, tipDisclaimer, tipFor } from "../src/lib/tips";
+import { isLocalAssetUrl, localExerciseImagePath, parseVideoUrl, resolveTipMedia } from "../src/lib/media";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-smoke-"));
@@ -231,9 +231,22 @@ describe("korean exercise tips", () => {
     expect(squat?.credit === undefined || typeof squat?.credit === "string").toBe(true);
     expect(localExerciseImagePath("back_squat")).toBe("/exercises/back_squat.webp");
     expect(localExerciseImagePath("squat")).toBe("/exercises/back_squat.webp");
+    expect(squat?.hasDeclaredUrl).toBeFalsy();
+    expect(squat?.media?.imageUrl == null || squat?.media?.imageUrl === "").toBe(true);
+    expect(squat?.media?.videoUrl == null || squat?.media?.videoUrl === "").toBe(true);
+    expect(JSON.stringify(loadTips().tips)).not.toMatch(/https?:\/\/[^"]*(wikimedia|commons|tjstrength)/i);
+    expect(isLocalAssetUrl("https://commons.wikimedia.org/foo.jpg")).toBe(false);
+    expect(isLocalAssetUrl("/exercises/back_squat.webp")).toBe(true);
     const media = resolveTipMedia({ imageUrl: "", videoUrl: "", credit: "" }, "back_squat");
     expect(media.imageUrl).toBe("/exercises/back_squat.webp");
+    expect(media.hasDeclaredUrl).toBe(false);
     expect(media.videoUrl).toBeUndefined();
+    const credited = resolveTipMedia(
+      { imageUrl: "/exercises/back_squat.webp", videoUrl: null, credit: "본인 촬영", license: "self_shot" },
+      "back_squat",
+    );
+    expect(credited.hasDeclaredUrl).toBe(true);
+    expect(credited.credit).toBe("본인 촬영");
     expect(parseVideoUrl("")).toBeNull();
     const yt = parseVideoUrl("https://youtu.be/abcdefghijk");
     expect(yt?.kind).toBe("youtube");
