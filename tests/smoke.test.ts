@@ -9,9 +9,10 @@ import { resetDbConnection } from "../src/lib/db/client";
 import { loginUser, registerUser } from "../src/lib/auth";
 import { getUserMaxes, getUserStarts, saveUserMaxes } from "../src/lib/maxes";
 import { findWendlerSquatWeek1MainSets, getWeekId, getDay, resolveWorkout } from "../src/lib/programs/queries";
-import { loadSeedFile, seedJsonPath } from "../src/lib/db/seed";
+import { loadSeedFile, seedDraftsP1Path, seedJsonPath } from "../src/lib/db/seed";
 import { resolveSetKg } from "../src/lib/calc/loads";
 import { tipDisclaimer, tipFor } from "../src/lib/tips";
+import { localExerciseImagePath, parseVideoUrl, resolveTipMedia } from "../src/lib/media";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-smoke-"));
@@ -220,6 +221,57 @@ describe("korean exercise tips", () => {
     expect(canonical?.sheet).toBe(squat?.sheet);
     expect(tipFor("ohp")?.name).toBe("오버헤드프레스");
     expect(tipFor("bench")?.exerciseId).toBe("bench_press");
+  });
+
+  it("treats imageUrl videoUrl credit as optional and prefers local /exercises/{id}.webp", () => {
+    const squat = tipFor("squat");
+    expect(squat).toBeTruthy();
+    expect(squat?.imageUrl === undefined || typeof squat?.imageUrl === "string").toBe(true);
+    expect(squat?.videoUrl === undefined || typeof squat?.videoUrl === "string").toBe(true);
+    expect(squat?.credit === undefined || typeof squat?.credit === "string").toBe(true);
+    expect(localExerciseImagePath("back_squat")).toBe("/exercises/back_squat.webp");
+    expect(localExerciseImagePath("squat")).toBe("/exercises/back_squat.webp");
+    const media = resolveTipMedia({ imageUrl: "", videoUrl: "", credit: "" }, "back_squat");
+    expect(media.imageUrl).toBe("/exercises/back_squat.webp");
+    expect(media.videoUrl).toBeUndefined();
+    expect(parseVideoUrl("")).toBeNull();
+    expect(parseVideoUrl("https://youtu.be/abcdefghijk")?.kind).toBe("youtube");
+    expect(parseVideoUrl("/exercises/back_squat.mp4")?.kind).toBe("mp4");
+  });
+});
+
+describe("P1 programs", () => {
+  it("loads each P1 program week 1 without platePlan", () => {
+    const raw = JSON.parse(fs.readFileSync(seedJsonPath(), "utf8"));
+    const ids = [
+      "daily-undulating",
+      "juggernaut",
+      "cowboy",
+      "rehab",
+      "bob-takano",
+      "catalyst",
+      "torokhtiy",
+      "lbeb",
+    ];
+    const loaded = loadSeedFile();
+    for (const id of ids) {
+      const p = raw.programs.find((row: { id: string }) => row.id === id);
+      expect(p, id).toBeTruthy();
+      expect(p.weeks[0].days.length).toBeGreaterThan(0);
+      const hasPercent = JSON.stringify(p.weeks[0]).includes('"percent"');
+      expect(hasPercent, id).toBe(true);
+      expect(JSON.stringify(p)).not.toMatch(/"platePlan"\s*:/);
+      expect(loaded.programs.some((row) => row.slug === id)).toBe(true);
+    }
+    const j = raw.programs.find((p: { id: string }) => p.id === "juggernaut");
+    const squatMain = j.weeks[0].days[0].exercises.find((e: { role: string }) => e.role === "main");
+    expect(squatMain.sets).toHaveLength(5);
+    expect(squatMain.sets[0]).toEqual(expect.objectContaining({ percent: 60, of: "1RM", reps: 10 }));
+    const cow = raw.programs.find((p: { id: string }) => p.id === "cowboy");
+    expect(cow.weeks[0].days).toHaveLength(3);
+    const dup = raw.programs.find((p: { id: string }) => p.id === "daily-undulating");
+    expect(dup.weeks[0].days).toHaveLength(6);
+    expect(typeof seedDraftsP1Path()).toBe("string");
   });
 });
 

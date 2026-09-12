@@ -7,6 +7,7 @@ import type { ResolvedExercise } from "@/lib/programs/queries";
 import type { Tip } from "@/lib/tips";
 import { BottomSheet } from "./BottomSheet";
 import { RestTimer } from "./RestTimer";
+import { TipMedia } from "./TipMedia";
 
 const ROLE: Record<string, string> = {
   warmup: "워밍업",
@@ -144,7 +145,11 @@ export function WorkoutClient({
       <BottomSheet open={tipOpen} title={tip?.name || current.exercise.nameKo} onClose={() => setTipOpen(false)}>
         {tip ? (
           <div className="space-y-3 text-base leading-relaxed">
-            <p>{tip.sheet}</p>
+            <TipMedia
+              imageUrl={tip.imageUrl || `/exercises/${tip.exerciseId || current.exercise.exerciseKey}.webp`}
+              videoUrl={tip.videoUrl}
+              credit={tip.credit}
+            />
             <p>
               <span className="font-black">큐 · </span>
               {tip.cue}
@@ -159,7 +164,10 @@ export function WorkoutClient({
             </p>
           </div>
         ) : (
-          <p className="text-base leading-relaxed">{current.exercise.tipsKo || "이 종목 팁이 아직 없습니다."}</p>
+          <div className="space-y-3 text-base leading-relaxed">
+            <TipMedia imageUrl={`/exercises/${current.exercise.exerciseKey}.webp`} />
+            <p>{current.exercise.tipsKo || "이 종목 팁이 아직 없습니다."}</p>
+          </div>
         )}
         <p className="mt-4 text-xs text-[var(--muted)]">{disclaimer}</p>
       </BottomSheet>

@@ -45,6 +45,8 @@ export type PublicSeedProgram = {
   sortOrder?: number;
   startWeight?: { enabled: boolean };
   progression?: Record<string, { addKg: number }>;
+  extraOneRmFields?: Record<string, { label: string }>;
+  weekRules?: string[];
   weeks: PublicSeedWeek[];
 };
 

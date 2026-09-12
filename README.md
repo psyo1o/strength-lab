@@ -15,7 +15,7 @@
 - 1RM을 kg로 저장, 화면만 kg/lb 전환
 - 프로그램 → 주 → 일 → 세트(중량×반복). 큰 버튼, 완료 체크, 휴식 타이머
 - 5/3/1은 `MROUND(1RM × 0.9 × pct/100, 2.5)` — TM을 먼저 반올림하지 않음. QA: 1RM 155 → W1 85% = 117.5 (120 아님). 200kg W1 = 117.5 / 135 / 152.5
-- 원판 계산기, Epley 1RM 헬퍼, 한국어 종목 팁
+- 원판 계산기, Epley 1RM 헬퍼, 한국어 종목 팁(사진/영상 선택, `public/exercises/{id}.webp`)
 - SQLite 파일을 볼륨에 보관 (`/data`)
 
 프로그램 완성도는 [CHANGELOG.md](./CHANGELOG.md)를 보세요.
@@ -42,6 +42,10 @@ DATABASE_PATH=./data/app.db npx tsx src/lib/db/seed.ts
 ```
 
 `data/seed.json`이 있으면 그 파일을 넣고, 없으면 카탈로그 코드에서 생성합니다. 빈 DB는 첫 기동 때 자동 시드됩니다.
+
+운동 사진: `public/exercises/` 에 `{canonicalId}.webp` 를 넣으면 오프라인 NAS에서도 팁 시트에 나옵니다. 방법은 [public/exercises/README.md](./public/exercises/README.md). TJ Strength 영상을 스크랩·동봉하지 마세요.
+
+P1 초안 JSON은 `seed-drafts/seed.p1.json` (또는 `SEED_P1_PATH`) — 있으면 프로그램 slug를 덮어씁니다.
 
 ---
 
@@ -104,7 +108,7 @@ If DSM already uses 7001, change only the **host** side of `"7001:3000"` (e.g. `
 
 Self-hosted Next.js + SQLite strength app. Copy `.env.example` → `.env`, set `AUTH_SECRET`, then `docker compose up --build`. Persist `/data`. Korean UI by default. Personal NAS use only; not affiliated with TJ Strength. See CHANGELOG for full vs template-only programs.
 
-Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads (`MROUND(1RM×0.9×pct/100, 2.5)` on the product — 200kg → 117.5/135/152.5; 155kg W1 85% → 117.5), start-weight override on Stronglifts, and kg/lb plate math.
+Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads (`MROUND(1RM×0.9×pct/100, 2.5)` on the product — 200kg → 117.5/135/152.5; 155kg W1 85% → 117.5), start-weight override on Stronglifts, kg/lb plate math, optional tip media fields, and P1 Juggernaut load.
 
 ---
 

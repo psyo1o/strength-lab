@@ -1,3 +1,14 @@
+import {
+  bobTakanoP1,
+  catalystP1,
+  cowboyP1,
+  dailyUndulatingProgram,
+  juggernautP1,
+  lbebP1,
+  rehabP1,
+  torokhtiyP1,
+} from "./p1-programs";
+
 export type SeedSet = {
   setNumber: number;
   percentBase: "1rm" | "tm" | "ten_rm" | "none";
@@ -42,6 +53,8 @@ export type SeedProgram = {
   tmFactor?: number;
   startWeight?: { enabled: boolean };
   progression?: Record<string, { addKg: number }>;
+  extraOneRmFields?: Record<string, { label: string }>;
+  weekRules?: string[];
   weeks: SeedWeek[];
 };
 
@@ -107,6 +120,22 @@ function placeholder(exerciseKey: string, nameNote: string, setsCount = 3, reps 
       reps,
       restSec: 60,
       noteKo: "작업중량 · 플레이스홀더",
+    })),
+  };
+}
+
+function bodyweight(exerciseKey: string, nameNote: string, setsCount = 3, reps = 10): SeedExercise {
+  return {
+    exerciseKey,
+    role: "assistance",
+    notesKo: nameNote,
+    sets: Array.from({ length: setsCount }, (_, i) => ({
+      setNumber: i + 1,
+      percentBase: "none",
+      percent: null,
+      reps,
+      restSec: 60,
+      noteKo: "체중 · 밴드 허용",
     })),
   };
 }
@@ -433,6 +462,15 @@ export const EXERCISES: SeedExerciseDef[] = [
     tipsKo: "약점 부위를 고른다. 통증 있으면 중단.",
     tipsEn: "Pick a weak point. Stop if it hurts.",
   },
+  {
+    key: "rehab_target",
+    nameKo: "재활 목표 종목",
+    nameEn: "Rehab target",
+    group: "assistance",
+    isMax: true,
+    tipsKo: "치료/코치가 지정한 목표 동작만. 통증 구간은 하지 않는다.",
+    tipsEn: "Only the prescribed target pattern. Skip pain.",
+  },
 ];
 
 function wendlerDay(dayNumber: number, nameKo: string, lift: string, week: 1 | 2 | 3 | 4): SeedDay {
@@ -524,13 +562,13 @@ function rehabProgram(): SeedProgram {
   const delorme = (key: string): SeedExercise => ({
     exerciseKey: key,
     role: "main",
-    notesKo: "DeLorme — 10RM(≈75% 1RM)의 50 / 75 / 100%",
+    notesKo: "DeLorme — 10RM(≈75% 1RM)의 50 / 75 / 100% × 10. 통증 구간은 스킵.",
     sets: sets([50, 75, 100], 10, "ten_rm", { restSec: 120 }),
   });
   const dapre = (key: string): SeedExercise => ({
     exerciseKey: key,
     role: "main",
-    notesKo: "DAPRE — 3세트 AMRAP 후 4세트 중량 조절",
+    notesKo: "DAPRE — 3세트 AMRAP로 4세트·다음 세션 중량을 수동 조절 (앱이 자동 증감하지 않음)",
     sets: [
       { setNumber: 1, percentBase: "ten_rm", percent: 50, reps: 10, restSec: 120, noteKo: "" },
       { setNumber: 2, percentBase: "ten_rm", percent: 75, reps: 6, restSec: 120, noteKo: "" },
@@ -550,7 +588,7 @@ function rehabProgram(): SeedProgram {
         reps: 6,
         amrap: true,
         restSec: 180,
-        noteKo: "조절 세트 (3세트 반복 수에 따라 ±)",
+        noteKo: "조절 세트 (3세트 0–2회 −2.5 / 3–4 유지 / 5–7 +2.5 / 8+ +5)",
       },
     ],
   });
@@ -562,31 +600,46 @@ function rehabProgram(): SeedProgram {
     category: "재활",
     completeness: "working",
     descriptionKo:
-      "10RM을 1RM의 75%로 추정합니다. DeLorme은 점증 3세트, DAPRE는 3세트 AMRAP로 다음 중량을 정하는 단순 진행입니다. 통증 있으면 즉시 중단하세요.",
-    descriptionEn: "Simple DeLorme and DAPRE progressions using estimated 10RM (75% of 1RM).",
+      "공개 지식 DeLorme(50/75/100% 10RM ×10)과 DAPRE(50×10 / 75×6 / 100 AMRAP / 조절 세트). 10RM≈75% 1RM. 자동 증감은 없고 노트 규칙으로 수동 조절. 통증 있으면 중단.",
+    descriptionEn: "DeLorme and DAPRE using estimated 10RM (75% of 1RM). Manual DAPRE adjustment.",
     sortOrder: 20,
     weeks: [1, 2, 3, 4].map((w) => ({
       weekNumber: w,
       nameKo: `${w}주차`,
-      notesKo: w > 1 ? "지난주 10RM이 편하면 2.5kg 올려 재추정." : "통증 없는 가동 범위만.",
+      notesKo: w > 1 ? "지난주 10RM이 편하면 2.5kg 올려 재추정. 찌릿하면 즉시 중단." : "통증 없는 가동 범위만.",
       days: [
         {
           dayNumber: 1,
           nameKo: "DeLorme 하체",
           notesKo: "스쿼트·RDL 중심 재활 용량.",
-          exercises: [delorme("squat"), delorme("rdl"), placeholder("plank", "코어", 3, 20)],
+          exercises: [
+            delorme("squat"),
+            delorme("rdl"),
+            bodyweight("plank", "코어 — 호흡 유지", 3, 20),
+            bodyweight("abs", "복근", 2, 12),
+          ],
         },
         {
           dayNumber: 2,
           nameKo: "DAPRE 상체",
-          notesKo: "벤치·프레스 용량 테스트.",
-          exercises: [dapre("bench"), dapre("ohp"), placeholder("face_pull", "견갑", 3, 15)],
+          notesKo: "벤치·프레스 용량 테스트. 4세트는 3세트 반복 수로 수동 조절.",
+          exercises: [
+            dapre("bench"),
+            dapre("ohp"),
+            bodyweight("face_pull", "견갑 외회전", 3, 15),
+            { exerciseKey: "barbell_row", role: "assistance", sets: nSets(3, 50, 10, "1rm", { restSec: 90 }) },
+          ],
         },
         {
           dayNumber: 3,
           nameKo: "DeLorme 힌지 / 전면",
           notesKo: "데드·프론트스쿼트 저강도.",
-          exercises: [delorme("deadlift"), delorme("front_squat"), placeholder("back_extension", "후면", 3, 10)],
+          exercises: [
+            delorme("deadlift"),
+            delorme("front_squat"),
+            bodyweight("back_extension", "후면 체인", 3, 10),
+            bodyweight("chin_up", "수직 당기기", 3, 6),
+          ],
         },
       ],
     })),
@@ -600,11 +653,6 @@ function dupProgram(): SeedProgram {
     { h: 75, s: 90, p: 65 },
     { h: 65, s: 70, p: 55 },
   ];
-  const lifts = [
-    ["squat", "bench"],
-    ["deadlift", "ohp"],
-    ["front_squat", "bench"],
-  ] as const;
 
   return {
     slug: "dup",
@@ -613,50 +661,48 @@ function dupProgram(): SeedProgram {
     category: "주기화",
     completeness: "working",
     descriptionKo:
-      "같은 주 안에 비대(고반복)·근력(고중량)·파워(빠른 속도)를 하루에 나눠 배치합니다. %1RM 기반 셸이며 4주차는 가벼운 회복 주입니다.",
-    descriptionEn: "Hypertrophy / strength / power days with %1RM shells.",
+      "공개 지식 DUP: 같은 주에 비대(4×8)·근력(5×3 AMRAP)·파워(빠른 3s)를 요일로 나눕니다. %1RM, 4주는 회복. 자동 진행·RPE 조절은 없습니다.",
+    descriptionEn: "Hypertrophy / strength / power days with %1RM. Approximate public-knowledge DUP.",
     sortOrder: 30,
     weeks: blocks.map((b, wi) => ({
       weekNumber: wi + 1,
       nameKo: wi === 3 ? "4주차 — 회복" : `${wi + 1}주차`,
-      notesKo: "컨디션에 따라 본세트 1세트 가감.",
+      notesKo: "컨디션에 따라 본세트 1세트 가감. 파워 데이는 바 속도 우선.",
       days: [
         {
           dayNumber: 1,
           nameKo: "비대 데이",
           notesKo: `${b.h}% 1RM × 8`,
-          exercises: lifts[0].map((k) => ({
-            exerciseKey: k,
-            role: "main" as const,
-            sets: nSets(4, b.h, 8, "1rm", { restSec: 90 }),
-          })),
+          exercises: [
+            { exerciseKey: "squat", role: "main", sets: nSets(4, b.h, 8, "1rm", { restSec: 90 }) },
+            { exerciseKey: "bench", role: "main", sets: nSets(4, b.h, 8, "1rm", { restSec: 90 }) },
+            { exerciseKey: "barbell_row", role: "assistance", sets: nSets(3, Math.max(45, b.h - 15), 10, "1rm") },
+            bodyweight("abs", "복근", 3, 12),
+          ],
         },
         {
           dayNumber: 2,
           nameKo: "근력 데이",
           notesKo: `${b.s}% 1RM × 3`,
-          exercises: lifts[1].map((k) => ({
-            exerciseKey: k,
-            role: "main" as const,
-            sets: nSets(5, b.s, 3, "1rm", { lastAmrap: true, restSec: 180 }),
-          })),
+          exercises: [
+            { exerciseKey: "deadlift", role: "main", sets: nSets(5, b.s, 3, "1rm", { lastAmrap: true, restSec: 180 }) },
+            { exerciseKey: "ohp", role: "main", sets: nSets(5, b.s, 3, "1rm", { lastAmrap: true, restSec: 180 }) },
+            { exerciseKey: "front_squat", role: "assistance", sets: nSets(3, Math.max(50, b.s - 15), 5, "1rm") },
+          ],
         },
         {
           dayNumber: 3,
           nameKo: "파워 데이",
           notesKo: `${b.p}% 1RM × 3 — 바 속도를 우선`,
           exercises: [
-            {
-              exerciseKey: "power_clean",
-              role: "main",
-              sets: nSets(6, b.p, 3, "1rm", { restSec: 90 }),
-            },
+            { exerciseKey: "power_clean", role: "main", sets: nSets(6, b.p, 3, "1rm", { restSec: 90 }) },
             {
               exerciseKey: "squat",
               role: "main",
               notesKo: "점프 스쿼트 느낌으로 빠르게",
               sets: nSets(5, b.p, 3, "1rm", { restSec: 90 }),
             },
+            bodyweight("chin_up", "수직 당기기", 3, 6),
           ],
         },
       ],
@@ -665,11 +711,31 @@ function dupProgram(): SeedProgram {
 }
 
 function juggernautProgram(): SeedProgram {
-  const wave = [
-    { name: "10s 축적", pct: 60, sets: 4, reps: 10, amrap: true },
-    { name: "10s 강화", pct: 65, sets: 3, reps: 10, amrap: true },
-    { name: "10s 실현", pct: 70, sets: 1, reps: 10, amrap: true },
-    { name: "딜로드", pct: 50, sets: 3, reps: 5, amrap: false },
+  const waves = [
+    { label: "10s", rows: [
+      { name: "축적", pct: 60, sets: 4, reps: 10, amrap: true },
+      { name: "강화", pct: 65, sets: 3, reps: 10, amrap: true },
+      { name: "실현", pct: 70, sets: 1, reps: 10, amrap: true },
+      { name: "딜로드", pct: 50, sets: 3, reps: 5, amrap: false },
+    ]},
+    { label: "8s", rows: [
+      { name: "축적", pct: 65, sets: 5, reps: 8, amrap: true },
+      { name: "강화", pct: 70, sets: 3, reps: 8, amrap: true },
+      { name: "실현", pct: 75, sets: 1, reps: 8, amrap: true },
+      { name: "딜로드", pct: 50, sets: 3, reps: 5, amrap: false },
+    ]},
+    { label: "5s", rows: [
+      { name: "축적", pct: 75, sets: 6, reps: 5, amrap: true },
+      { name: "강화", pct: 80, sets: 4, reps: 5, amrap: true },
+      { name: "실현", pct: 85, sets: 1, reps: 5, amrap: true },
+      { name: "딜로드", pct: 50, sets: 3, reps: 5, amrap: false },
+    ]},
+    { label: "3s", rows: [
+      { name: "축적", pct: 80, sets: 7, reps: 3, amrap: true },
+      { name: "강화", pct: 85, sets: 5, reps: 3, amrap: true },
+      { name: "실현", pct: 90, sets: 1, reps: 3, amrap: true },
+      { name: "딜로드", pct: 50, sets: 3, reps: 5, amrap: false },
+    ]},
   ];
   const days = [
     { n: 1, name: "스쿼트", key: "squat" },
@@ -677,6 +743,52 @@ function juggernautProgram(): SeedProgram {
     { n: 3, name: "데드", key: "deadlift" },
     { n: 4, name: "OHP", key: "ohp" },
   ];
+  const assist = (key: string): SeedExercise[] => {
+    if (key === "squat") {
+      return [
+        { exerciseKey: "front_squat", role: "assistance", sets: nSets(3, 50, 8, "1rm") },
+        { exerciseKey: "barbell_row", role: "assistance", sets: nSets(4, 50, 8, "1rm") },
+      ];
+    }
+    if (key === "bench") {
+      return [
+        { exerciseKey: "close_grip_bench", role: "assistance", sets: nSets(3, 55, 8, "1rm") },
+        bodyweight("chin_up", "수직 당기기", 3, 8),
+      ];
+    }
+    if (key === "deadlift") {
+      return [
+        { exerciseKey: "stiff_leg_deadlift", role: "assistance", sets: nSets(3, 50, 8, "1rm") },
+        bodyweight("abs", "복근", 3, 12),
+      ];
+    }
+    return [
+      { exerciseKey: "incline_bench", role: "assistance", sets: nSets(3, 50, 8, "1rm") },
+      bodyweight("pull_up", "수직 당기기", 3, 6),
+    ];
+  };
+  const weeks = waves.flatMap((wave, wi) =>
+    wave.rows.map((w, ri) => ({
+      weekNumber: wi * 4 + ri + 1,
+      nameKo: `${wi * 4 + ri + 1}주차 — ${wave.label} ${w.name}`,
+      notesKo: w.amrap
+        ? "마지막 세트 AMRAP. 다음 웨이브 용량 가늠용이며 자동 재계산은 없습니다."
+        : "가볍게 움직임을 유지.",
+      days: days.map((d) => ({
+        dayNumber: d.n,
+        nameKo: d.name,
+        exercises: [
+          { exerciseKey: d.key, role: "warmup" as const, sets: sets([40, 50], [5, 5], "1rm", { restSec: 60 }) },
+          {
+            exerciseKey: d.key,
+            role: "main" as const,
+            sets: nSets(w.sets, w.pct, w.reps, "1rm", { lastAmrap: w.amrap, restSec: 150 }),
+          },
+          ...assist(d.key),
+        ],
+      })),
+    })),
+  );
   return {
     slug: "juggernaut",
     nameKo: "Juggernaut Method",
@@ -684,31 +796,10 @@ function juggernautProgram(): SeedProgram {
     category: "파워리프팅",
     completeness: "working",
     descriptionKo:
-      "10s 웨이브 4주 셸입니다(전체 16주 중 첫 블록). 마지막 세트 AMRAP로 다음 웨이브 용량을 가늠합니다. 8s/5s/3s는 같은 골격으로 확장하세요.",
-    descriptionEn: "Usable 10s-wave shell (4 weeks). 8s/5s/3s not fully expanded.",
+      "공개 지식 Juggernaut 16주(10s→8s→5s→3s, 각 축적/강화/실현/딜로드). 주 4일 스쿼트/벤치/데드/OHP. AMRAP 재계산·유료 변형은 없습니다.",
+    descriptionEn: "16-week 10s/8s/5s/3s waves. Approximate public-knowledge structure, not the paid product.",
     sortOrder: 40,
-    weeks: wave.map((w, i) => ({
-      weekNumber: i + 1,
-      nameKo: `${i + 1}주차 — ${w.name}`,
-      notesKo: w.amrap ? "마지막 세트 AMRAP." : "가볍게 움직임을 유지.",
-      days: days.map((d) => ({
-        dayNumber: d.n,
-        nameKo: d.name,
-        exercises: [
-          {
-            exerciseKey: d.key,
-            role: "warmup",
-            sets: sets([40, 50], [5, 5], "1rm", { restSec: 60 }),
-          },
-          {
-            exerciseKey: d.key,
-            role: "main",
-            sets: nSets(w.sets, w.pct, w.reps, "1rm", { lastAmrap: w.amrap, restSec: 150 }),
-          },
-          placeholder("barbell_row", "보조 당기기", 3, 10),
-        ],
-      })),
-    })),
+    weeks,
   };
 }
 
@@ -721,13 +812,13 @@ function cowboyProgram(): SeedProgram {
     category: "파워리프팅",
     completeness: "working",
     descriptionKo:
-      "주 4일 스쿼트/벤치/데드/프레스 볼륨 셸. 상한 %1RM으로 작업하며 4주는 회복. 원본 스프레드시트의 모든 변형을 재현하지는 않습니다.",
-    descriptionEn: "Usable 4-day volume shell. Not a full spreadsheet clone.",
+      "공개 지식 주 4일 볼륨(5×5 전후) 스쿼트/벤치/데드/프레스. 4주는 회복. Wendler 원본·시트 변형의 복제가 아닙니다.",
+    descriptionEn: "4-day volume 5x5-style shell. Approximate; not a spreadsheet clone.",
     sortOrder: 50,
     weeks: weeks.map((pct, i) => ({
       weekNumber: i + 1,
       nameKo: i === 3 ? "4주차 — 회복" : `${i + 1}주차`,
-      notesKo: `${pct}% 전후 작업.`,
+      notesKo: `${pct}% 1RM 전후 작업.`,
       days: [
         {
           dayNumber: 1,
@@ -735,7 +826,8 @@ function cowboyProgram(): SeedProgram {
           exercises: [
             { exerciseKey: "squat", role: "main", sets: nSets(5, pct, 5, "1rm") },
             { exerciseKey: "front_squat", role: "main", sets: nSets(3, pct - 10, 5, "1rm") },
-            placeholder("lunge", "단측", 3, 8),
+            { exerciseKey: "barbell_row", role: "assistance", sets: nSets(4, 50, 8, "1rm") },
+            bodyweight("lunge", "단측", 3, 8),
           ],
         },
         {
@@ -743,8 +835,9 @@ function cowboyProgram(): SeedProgram {
           nameKo: "벤치 볼륨",
           exercises: [
             { exerciseKey: "bench", role: "main", sets: nSets(5, pct, 5, "1rm") },
-            { exerciseKey: "ohp", role: "main", sets: nSets(3, pct - 5, 5, "1rm") },
-            placeholder("dip", "푸시", 3, 8),
+            { exerciseKey: "ohp", role: "main", sets: nSets(3, Math.max(50, pct - 5), 5, "1rm") },
+            { exerciseKey: "close_grip_bench", role: "assistance", sets: nSets(3, 55, 8, "1rm") },
+            bodyweight("dip", "푸시", 3, 8),
           ],
         },
         {
@@ -753,16 +846,18 @@ function cowboyProgram(): SeedProgram {
           exercises: [
             { exerciseKey: "deadlift", role: "main", sets: nSets(3, pct, 5, "1rm") },
             { exerciseKey: "rdl", role: "main", sets: nSets(3, 60, 8, "1rm") },
-            placeholder("back_extension", "후면", 3, 10),
+            bodyweight("back_extension", "후면", 3, 10),
+            bodyweight("abs", "복근", 3, 12),
           ],
         },
         {
           dayNumber: 4,
           nameKo: "프레스 + 라이트 스쿼트",
           exercises: [
-            { exerciseKey: "ohp", role: "main", sets: nSets(5, pct - 5, 5, "1rm") },
+            { exerciseKey: "ohp", role: "main", sets: nSets(5, Math.max(50, pct - 5), 5, "1rm") },
             { exerciseKey: "squat", role: "main", notesKo: "라이트", sets: nSets(3, 55, 5, "1rm") },
-            placeholder("chin_up", "풀", 3, 8),
+            bodyweight("chin_up", "풀", 3, 8),
+            { exerciseKey: "incline_bench", role: "assistance", sets: nSets(3, 50, 8, "1rm") },
           ],
         },
       ],
@@ -1012,7 +1107,7 @@ function madcow(): SeedProgram {
   };
 }
 
-function olympicTemplate(
+function olympicBlock(
   slug: string,
   nameKo: string,
   nameEn: string,
@@ -1020,136 +1115,85 @@ function olympicTemplate(
   descriptionKo: string,
   flavor: "takano" | "catalyst" | "torokhtiy" | "lbeb",
 ): SeedProgram {
-  const sn = flavor === "torokhtiy" ? [60, 70, 75] : [55, 65, 70];
-  const cj = flavor === "catalyst" ? [60, 70, 75] : [55, 65, 72];
-  const sq = flavor === "takano" ? [70, 75, 80] : [65, 70, 75];
-
-  const techDay = (week: number): SeedDay => ({
-    dayNumber: 3,
-    nameKo: "테크닉 / 라이트",
-    notesKo: " incomplete 템플릿 — 코칭 큐만 참고.",
-    exercises: [
-      {
-        exerciseKey: "muscle_snatch",
-        role: "technique",
-        sets: nSets(4, 40 + week, 3, "1rm", { restSec: 90 }),
-      },
-      {
-        exerciseKey: "power_snatch",
-        role: "technique",
-        sets: nSets(4, 50 + week, 2, "1rm"),
-      },
-      {
-        exerciseKey: "power_jerk",
-        role: "technique",
-        sets: nSets(4, 55 + week, 2, "1rm"),
-      },
-    ],
-  });
+  const sn = flavor === "torokhtiy" ? [60, 70, 78] : flavor === "catalyst" ? [55, 65, 72] : [55, 65, 72];
+  const cj = flavor === "catalyst" ? [60, 70, 78] : flavor === "takano" ? [55, 65, 75] : [55, 65, 72];
+  const sq = flavor === "takano" ? [70, 78, 85] : flavor === "torokhtiy" ? [70, 78, 85] : [65, 72, 80];
+  const pull = flavor === "torokhtiy" ? 95 : flavor === "takano" ? 90 : 85;
+  const deadPct = flavor === "lbeb" ? 70 : 55;
+  const bump = (week: number, base: number[], taper: number) =>
+    base.map((p) => p + (week === 4 ? -taper : (week - 1) * 2));
 
   return {
     slug,
     nameKo,
     nameEn,
     category: "역도",
-    completeness: "template",
+    completeness: "working",
     descriptionKo,
-    descriptionEn: "Structured week/day Olympic template — incomplete vs a full coaching cycle.",
+    descriptionEn: "4-week public-knowledge Olympic block. Approximate — not an official coaching cycle.",
     sortOrder,
     weeks: [1, 2, 3, 4].map((w) => ({
       weekNumber: w,
-      nameKo: w === 4 ? "4주차 — 테이퍼 셸" : `${w}주차`,
-      notesKo: "템플릿 전용. 볼륨/강도를 개인 코칭에 맞게 수정하세요.",
+      nameKo: w === 4 ? "4주차 — 테이퍼" : `${w}주차`,
+      notesKo:
+        w === 4
+          ? "테이퍼. 공식 장기 주기화가 아니며 퍼센트는 공개 지식 근사입니다."
+          : "워밍업 후 메인. 공식 코칭 사이클이 아닌 공개 지식 골격입니다.",
       days: [
         {
           dayNumber: 1,
           nameKo: "스네치 + 스쿼트",
-          notesKo: "불완전 템플릿",
+          notesKo: flavor === "torokhtiy" ? "스네치 강도 강조" : "스네치 경로 + 백스쿼트",
           exercises: [
+            { exerciseKey: "snatch", role: "warmup", sets: sets([40, 50], [3, 2], "1rm", { restSec: 60 }) },
             {
               exerciseKey: "snatch",
               role: "main",
-              sets: sets(
-                sn.map((p) => p + (w === 4 ? -10 : w - 1)),
-                2,
-                "1rm",
-                { restSec: 150 },
-              ),
+              sets: sets(bump(w, sn, 10), 2, "1rm", { restSec: 150 }),
             },
-            {
-              exerciseKey: "ohs",
-              role: "main",
-              sets: nSets(3, 55 + w, 3, "1rm"),
-            },
-            {
-              exerciseKey: "squat",
-              role: "main",
-              sets: sets(
-                sq.map((p) => p + (w === 4 ? -15 : 0)),
-                3,
-                "1rm",
-              ),
-            },
-            {
-              exerciseKey: "snatch_pull",
-              role: "assistance",
-              sets: nSets(4, 80, 3, "1rm"),
-            },
+            { exerciseKey: "ohs", role: "main", sets: nSets(3, 50 + w * 2, 3, "1rm") },
+            { exerciseKey: "squat", role: "main", sets: sets(bump(w, sq, 12), 3, "1rm") },
+            { exerciseKey: "snatch_pull", role: "assistance", sets: nSets(4, pull, 3, "1rm") },
           ],
         },
         {
           dayNumber: 2,
           nameKo: "클린&저크 + 프론트스쿼트",
-          notesKo: "불완전 템플릿",
+          notesKo: flavor === "catalyst" ? "C&J 테크닉 강조" : "컴페티션 리프트",
           exercises: [
+            { exerciseKey: "clean_jerk", role: "warmup", sets: sets([40, 50], [2, 1], "1rm", { restSec: 75 }) },
             {
               exerciseKey: "clean_jerk",
               role: "main",
-              sets: sets(
-                cj.map((p) => p + (w === 4 ? -10 : w - 1)),
-                [2, 2, 1],
-                "1rm",
-                { restSec: 180 },
-              ),
+              sets: sets(bump(w, cj, 10), [2, 2, 1], "1rm", { restSec: 180 }),
             },
-            {
-              exerciseKey: "jerk",
-              role: "main",
-              sets: nSets(4, 65 + w, 2, "1rm"),
-            },
-            {
-              exerciseKey: "front_squat",
-              role: "main",
-              sets: nSets(4, 70, 3, "1rm"),
-            },
-            {
-              exerciseKey: "clean_pull",
-              role: "assistance",
-              sets: nSets(4, 85, 3, "1rm"),
-            },
+            { exerciseKey: "jerk", role: "main", sets: nSets(4, 62 + w * 2, 2, "1rm") },
+            { exerciseKey: "front_squat", role: "main", sets: nSets(4, flavor === "takano" ? 75 : 70, 3, "1rm") },
+            { exerciseKey: "clean_pull", role: "assistance", sets: nSets(4, pull, 3, "1rm") },
           ],
         },
-        techDay(w),
+        {
+          dayNumber: 3,
+          nameKo: "테크닉 / 라이트",
+          notesKo: "가벼운 전환 드릴. 속도 우선.",
+          exercises: [
+            { exerciseKey: "muscle_snatch", role: "technique", sets: nSets(4, 38 + w, 3, "1rm", { restSec: 90 }) },
+            { exerciseKey: "power_snatch", role: "technique", sets: nSets(4, 50 + w, 2, "1rm") },
+            { exerciseKey: "power_jerk", role: "technique", sets: nSets(4, 55 + w, 2, "1rm") },
+            { exerciseKey: "push_press", role: "assistance", sets: nSets(3, 60, 3, "1rm") },
+            bodyweight("abs", "복근", 3, 12),
+          ],
+        },
         {
           dayNumber: 4,
-          nameKo: flavor === "lbeb" ? "볼륨 / 하이브리드" : "컴페티션 리프트",
-          notesKo: "불완전 템플릿",
+          nameKo: flavor === "lbeb" ? "볼륨 / 하이브리드" : "파워 + 풀",
+          notesKo: flavor === "lbeb" ? "데드·하이브리드 볼륨" : "파워 변형 + 경량 데드",
           exercises: [
-            {
-              exerciseKey: "power_clean",
-              role: "main",
-              sets: nSets(5, 60 + w, 2, "1rm"),
-            },
-            {
-              exerciseKey: "push_press",
-              role: "main",
-              sets: nSets(4, 65, 3, "1rm"),
-            },
-            {
-              exerciseKey: "deadlift",
-              role: "main",
-              sets: nSets(3, flavor === "lbeb" ? 70 : 60, 5, "1rm"),
-            },
+            { exerciseKey: "power_clean", role: "main", sets: nSets(5, 58 + w, 2, "1rm") },
+            { exerciseKey: "power_snatch", role: "main", sets: nSets(4, 55 + w, 2, "1rm") },
+            { exerciseKey: "push_press", role: "main", sets: nSets(4, 65, 3, "1rm") },
+            { exerciseKey: "deadlift", role: "main", sets: nSets(3, deadPct, flavor === "lbeb" ? 5 : 3, "1rm") },
+            bodyweight("chin_up", "수직 당기기", 3, 6),
           ],
         },
       ],
@@ -1162,45 +1206,17 @@ export function buildSeed(): SeedFile {
     exercises: EXERCISES,
     programs: [
       wendlerProgram(),
-      rehabProgram(),
-      dupProgram(),
-      juggernautProgram(),
-      cowboyProgram(),
+      rehabP1(),
+      dailyUndulatingProgram(),
+      juggernautP1(),
+      cowboyP1(),
       startingStrength(),
       stronglifts(),
       madcow(),
-      olympicTemplate(
-        "takano",
-        "Bob Takano",
-        "Bob Takano",
-        90,
-        "타카노 스타일 주 4일 역도 골격(스네치/C&J/스쿼트/풀). 주·일 구조만 제공하며 완전한 장기 주기화는 아닙니다. 불완전 템플릿으로 표시됩니다.",
-        "takano",
-      ),
-      olympicTemplate(
-        "catalyst",
-        "Catalyst Athletics",
-        "Catalyst Athletics",
-        100,
-        "Catalyst 스타일 테크닉+컴페티션 리프트 주간 골격. 실제 Catalyst 유료/공개 프로그램의 복제가 아니며 불완전 템플릿입니다.",
-        "catalyst",
-      ),
-      olympicTemplate(
-        "torokhtiy",
-        "Torokhtiy",
-        "Torokhtiy",
-        110,
-        "토로흐티 스타일의 컴페티션 리프트 중심 주간 골격. 공식 앱/프로그램과 무관하며 불완전 템플릿입니다.",
-        "torokhtiy",
-      ),
-      olympicTemplate(
-        "lbeb",
-        "LBEB",
-        "LBEB",
-        120,
-        "LBEB 역도/하이브리드 주 4일 골격. 원본 스프레드시트의 세부 파동을 재현하지 않는 불완전 템플릿입니다.",
-        "lbeb",
-      ),
+      bobTakanoP1(),
+      catalystP1(),
+      torokhtiyP1(),
+      lbebP1(),
     ],
   };
 }

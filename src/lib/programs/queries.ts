@@ -25,6 +25,12 @@ export function listPrograms(): ProgramRow[] {
 const SLUG_ALIASES: Record<string, string[]> = {
   "wendler-531": ["wendler-531", "jim-wendler-531"],
   "jim-wendler-531": ["jim-wendler-531", "wendler-531"],
+  dup: ["daily-undulating", "dup"],
+  "daily-undulating": ["daily-undulating", "dup"],
+  "rehab-delorme-dapre": ["rehab", "rehab-delorme-dapre"],
+  rehab: ["rehab", "rehab-delorme-dapre"],
+  takano: ["bob-takano", "takano"],
+  "bob-takano": ["bob-takano", "takano"],
 };
 
 export function resolveProgramSlug(slug: string): string {

@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getUserMaxes, getUserStarts, MAX_GROUPS, START_WEIGHT_KEYS } from "@/lib/maxes";
+import { P1_META } from "@/lib/programs/p1-meta";
 import { displayWeight } from "@/lib/calc/round";
 import { getSqlite } from "@/lib/db/client";
 import { Nav } from "@/components/Nav";
@@ -44,6 +45,14 @@ export default async function MaxesPage() {
         groups={[
           { title: "파워리프팅", fields: toFields([...MAX_GROUPS.pl, "barbell_row"]) },
           { title: "역도", fields: toFields(MAX_GROUPS.olympic) },
+          {
+            title: "프로그램 추가 1RM",
+            fields: toFields(
+              [...new Set(Object.values(P1_META).flatMap((m) => (m.extraOneRmFields ?? []).map((f) => f.key)))].filter(
+                (k) => !(MAX_GROUPS.pl as readonly string[]).includes(k) && !(MAX_GROUPS.olympic as readonly string[]).includes(k),
+              ),
+            ),
+          },
         ]}
       />
       <Nav current="/maxes" />

@@ -12,7 +12,15 @@
         "로우바스쿼트"
       ],
       "oneRmField": "squat",
-      "category": "main"
+      "category": "main",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "bench_press": {
       "id": "bench_press",
@@ -22,7 +30,15 @@
         "벤치 프레스"
       ],
       "oneRmField": "bench",
-      "category": "main"
+      "category": "main",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "deadlift": {
       "id": "deadlift",
@@ -33,7 +49,15 @@
         "컨벤데드리프트"
       ],
       "oneRmField": "deadlift",
-      "category": "main"
+      "category": "main",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "ohp": {
       "id": "ohp",
@@ -44,7 +68,15 @@
         "밀리터리 프레스"
       ],
       "oneRmField": "ohp",
-      "category": "main"
+      "category": "main",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "front_squat": {
       "id": "front_squat",
@@ -52,7 +84,15 @@
       "aliases": [
         "프론트스쿼트"
       ],
-      "category": "accessory"
+      "category": "accessory",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "close_grip_bench": {
       "id": "close_grip_bench",
@@ -62,7 +102,15 @@
         "클로즈그립 벤치프레스",
         "클로즈그립벤치"
       ],
-      "category": "accessory"
+      "category": "accessory",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "incline_bench": {
       "id": "incline_bench",
@@ -71,7 +119,15 @@
         "인클라인 벤치프레스",
         "바벨 인클라인 벤치 프레스"
       ],
-      "category": "accessory"
+      "category": "accessory",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "stiff_leg_deadlift": {
       "id": "stiff_leg_deadlift",
@@ -80,7 +136,15 @@
         "스티프 레그 데드리프트",
         "루마니안 데드리프트"
       ],
-      "category": "accessory"
+      "category": "accessory",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "barbell_row": {
       "id": "barbell_row",
@@ -89,7 +153,15 @@
         "바벨 로우",
         "벤트오버 로우"
       ],
-      "category": "accessory"
+      "category": "accessory",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "chin_up": {
       "id": "chin_up",
@@ -98,7 +170,15 @@
         "친 업"
       ],
       "category": "accessory",
-      "bodyweight": true
+      "bodyweight": true,
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "pull_up": {
       "id": "pull_up",
@@ -107,7 +187,15 @@
         "풀 업"
       ],
       "category": "accessory",
-      "bodyweight": true
+      "bodyweight": true,
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "power_clean": {
       "id": "power_clean",
@@ -115,7 +203,15 @@
       "aliases": [
         "파워 클린"
       ],
-      "category": "accessory"
+      "category": "accessory",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "abs": {
       "id": "abs",
@@ -124,38 +220,86 @@
         "복근"
       ],
       "category": "accessory",
-      "optional": true
+      "optional": true,
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "free_accessory": {
       "id": "free_accessory",
       "name": "자유 보조운동",
       "aliases": [],
       "category": "accessory",
-      "optional": true
+      "optional": true,
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "squat_clean": {
       "id": "squat_clean",
       "name": "스쿼트 클린",
       "aliases": [],
-      "category": "olympic"
+      "category": "olympic",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "power_snatch": {
       "id": "power_snatch",
       "name": "파워 스네치",
       "aliases": [],
-      "category": "olympic"
+      "category": "olympic",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "squat_snatch": {
       "id": "squat_snatch",
       "name": "스쿼트 스네치",
       "aliases": [],
-      "category": "olympic"
+      "category": "olympic",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     },
     "split_jerk": {
       "id": "split_jerk",
       "name": "스플릿 저크",
       "aliases": [],
-      "category": "olympic"
+      "category": "olympic",
+      "imageUrl": "",
+      "videoUrl": "",
+      "credit": "",
+      "license": "",
+      "licenseUrl": "",
+      "sourcePage": "",
+      "alt": "",
+      "origin": ""
     }
   },
   "aliases_to_id": {}

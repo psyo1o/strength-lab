@@ -6,7 +6,22 @@ import { buildSeed, type SeedFile } from "../programs/catalog";
 import type { PublicSeedFile } from "../programs/seed-schema";
 
 export function seedJsonPath(): string {
-  return path.join(process.cwd(), "data", "seed.json");
+  return process.env.SEED_JSON_PATH || path.join(process.cwd(), "data", "seed.json");
+}
+
+/** Data-bot drop path. If present, programs in this file override/add by slug. */
+export function seedDraftsP1Path(): string {
+  return process.env.SEED_P1_PATH || path.join(process.cwd(), "seed-drafts", "seed.p1.json");
+}
+
+export function mergeSeedPrograms(base: SeedFile, overlay: SeedFile): SeedFile {
+  const bySlug = new Map(base.programs.map((p) => [p.slug, p]));
+  for (const p of overlay.programs) bySlug.set(p.slug, p);
+  const exercises = overlay.exercises?.length ? overlay.exercises : base.exercises;
+  return {
+    exercises,
+    programs: [...bySlug.values()].sort((a, b) => a.sortOrder - b.sortOrder),
+  };
 }
 
 function ofToBase(of: string | null | undefined): SeedFile["programs"][number]["weeks"][number]["days"][number]["exercises"][number]["sets"][number]["percentBase"] {
@@ -75,6 +90,9 @@ function normalizeSeed(raw: unknown): SeedFile {
           tmFactor: Number(p.tmFactor ?? fallback?.tmFactor ?? 0.9),
           startWeight: (p.startWeight as { enabled: boolean } | undefined) ?? fallback?.startWeight,
           progression: (p.progression as Record<string, { addKg: number }> | undefined) ?? fallback?.progression,
+          extraOneRmFields:
+            (p.extraOneRmFields as Record<string, { label: string }> | undefined) ?? fallback?.extraOneRmFields,
+          weekRules: (p.weekRules as string[] | undefined) ?? fallback?.weekRules,
           sortOrder: Number(p.sortOrder ?? fallback?.sortOrder ?? idx * 10),
           weeks,
         };
@@ -108,6 +126,8 @@ function toPublicSeed(seed: SeedFile): PublicSeedFile {
       sortOrder: p.sortOrder,
       ...(p.startWeight ? { startWeight: p.startWeight } : {}),
       ...(p.progression ? { progression: p.progression } : {}),
+      ...(p.extraOneRmFields ? { extraOneRmFields: p.extraOneRmFields } : {}),
+      ...(p.weekRules ? { weekRules: p.weekRules } : {}),
       weeks: p.weeks.map((w) => ({
         week: w.weekNumber,
         nameKo: w.nameKo,
@@ -153,10 +173,14 @@ function toPublicSeed(seed: SeedFile): PublicSeedFile {
 
 export function loadSeedFile(): SeedFile {
   const file = seedJsonPath();
-  if (fs.existsSync(file)) {
-    return normalizeSeed(JSON.parse(fs.readFileSync(file, "utf8")));
+  let seed = fs.existsSync(file)
+    ? normalizeSeed(JSON.parse(fs.readFileSync(file, "utf8")))
+    : buildSeed();
+  const draft = seedDraftsP1Path();
+  if (fs.existsSync(draft)) {
+    seed = mergeSeedPrograms(seed, normalizeSeed(JSON.parse(fs.readFileSync(draft, "utf8"))));
   }
-  return buildSeed();
+  return seed;
 }
 
 export function writeSeedJson(seed: SeedFile = buildSeed()) {

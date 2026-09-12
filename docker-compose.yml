@@ -10,10 +10,12 @@ services:
     environment:
       AUTH_SECRET: ${AUTH_SECRET:-change-me-to-a-long-random-secret}
       DATABASE_PATH: /data/app.db
+      MEDIA_PATH: /data/media
       NODE_ENV: production
       PORT: 3000
     volumes:
-      # Synology: replace with /volume1/docker/strength-lab:/data
+      # SQLite + optional exercise media at /data/media (or bind-mount a host folder).
+      # Example: /volume1/docker/strength-lab/media:/data/media
       - strength-lab-data:/data
 
 volumes:
