@@ -4,6 +4,8 @@ services:
     container_name: strength-lab
     restart: unless-stopped
     ports:
+      # Host 7001 → Next.js in the container (PORT=3000).
+      # If DSM already uses 7001, change only the left number.
       - "7001:3000"
     environment:
       AUTH_SECRET: ${AUTH_SECRET:-change-me-to-a-long-random-secret}

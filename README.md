@@ -47,16 +47,24 @@ DATABASE_PATH=./data/app.db npx tsx src/lib/db/seed.ts
 
 ## Docker / Synology Container Manager
 
-1. 이 저장소를 NAS 폴더에 둡니다. 예: `/volume1/docker/strength-lab`
-2. `.env.example`을 `.env`로 복사하고 `AUTH_SECRET`을 설정합니다.
+대상 NAS: `192.168.50.3`. 게시 URL: **http://192.168.50.3:7001**  
+`docker-compose.yml`은 **호스트 7001 → 컨테이너 3000**(Next.js `PORT`)입니다. LAN IP는 앱 코드에 넣지 않습니다.
+
+### 한국어 절차
+
+1. 저장소를 NAS 폴더에 둡니다. 예: `/volume1/docker/strength-lab`
+2. `.env.example`을 `.env`로 복사하고 `AUTH_SECRET`을 긴 랜덤 문자열로 바꿉니다.
 
 ```bash
 openssl rand -hex 32
 ```
 
 3. **Container Manager → 프로젝트 → 생성**
-   - 경로: 위 폴더 (안에 `docker-compose.yml`이 있어야 함)
+   - 경로: 위 폴더 (`docker-compose.yml`이 있어야 함)
    - 프로젝트 이름: `strength-lab`
+   - 이미지는 compose의 `build: .`로 **로컬 빌드**됩니다 (레지스트리 풀 아님)
+   - 포트: `7001:3000`
+   - 볼륨: `strength-lab-data` → 컨테이너 `/data` (SQLite `DATABASE_PATH=/data/app.db`)
    - 빌드 후 시작
 4. 또는 SSH:
 
@@ -65,27 +73,36 @@ cd /volume1/docker/strength-lab
 docker compose up --build -d
 ```
 
-5. 브라우저: `http://192.168.50.3:7001` (호스트 7001 → 컨테이너 3000)
+5. 브라우저: [http://192.168.50.3:7001](http://192.168.50.3:7001)
 
-데이터가 남는 경로:
-
-- 기본: Docker 볼륨 `strength-lab-data` → 컨테이너 `/data`
-- 공유 폴더에 직접 남기려면 `docker-compose.yml`의 volumes를 다음처럼 바꿉니다.
+공유 폴더에 DB를 직접 남기려면 volumes를 다음처럼 바꿉니다.
 
 ```yaml
 volumes:
   - /volume1/docker/strength-lab/data:/data
 ```
 
-`7001`이 DSM에서 이미 쓰이면 `docker-compose.yml`의 `"7001:3000"`만 다른 호스트 포트로 바꾸면 됩니다. 앱 코드에 LAN IP는 넣지 않습니다.
+**포트 충돌:** DSM에서 7001이 이미 쓰이면 `docker-compose.yml`의 `"7001:3000"`에서 **앞 숫자(호스트)** 만 바꾸세요. 예: `"7002:3000"` → `http://192.168.50.3:7002`. 컨테이너 쪽 3000은 그대로 둡니다.
 
-HTTPS(리버스 프록시)를 쓰면 쿠키를 위해 `.env`에 `COOKIE_SECURE=1`을 넣을 수 있습니다. 홈 LAN HTTP만 쓰면 넣지 마세요.
+HTTPS(리버스 프록시)를 쓰면 `.env`에 `COOKIE_SECURE=1`을 넣을 수 있습니다. 홈 LAN HTTP만 쓰면 넣지 마세요.
+
+### English (Synology)
+
+Publish at **http://192.168.50.3:7001**. Compose maps **host 7001 → container 3000**. Do not put the LAN IP in application code.
+
+1. Copy the repo onto the NAS (e.g. `/volume1/docker/strength-lab`).
+2. Copy `.env.example` → `.env` and set `AUTH_SECRET`.
+3. **Container Manager → Project → Create** from that folder. The image is built from `Dockerfile` (`build: .`). Persist SQLite with the `/data` volume. Port mapping is `7001:3000`.
+4. Or SSH: `docker compose up --build -d`
+5. Open http://192.168.50.3:7001
+
+If DSM already uses 7001, change only the **host** side of `"7001:3000"` (e.g. `"7002:3000"`). Leave container port 3000 as-is.
 
 ---
 
 ## English (short)
 
-Self-hosted Next.js + SQLite strength app. Copy `.env.example` → `.env`, set `AUTH_SECRET`, then `docker compose up --build`. Persist `/data`. Host port **7001** maps to the app on 3000 (`http://192.168.50.3:7001`). Korean UI by default. Personal NAS use only; not affiliated with TJ Strength. See CHANGELOG for full vs template-only programs.
+Self-hosted Next.js + SQLite strength app. Copy `.env.example` → `.env`, set `AUTH_SECRET`, then `docker compose up --build`. Persist `/data`. Korean UI by default. Personal NAS use only; not affiliated with TJ Strength. See CHANGELOG for full vs template-only programs.
 
 Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads, and kg/lb plate math. Loads round to 2.5 kg (or 5 lb).
 
