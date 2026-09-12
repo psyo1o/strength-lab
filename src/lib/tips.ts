@@ -9,8 +9,8 @@ export type Tip = {
   sheet: string;
   name?: string;
   exerciseId?: string;
-  imageUrl?: string;
-  videoUrl?: string;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
   credit?: string;
   license?: string;
   licenseUrl?: string;
