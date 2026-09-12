@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { getProgram, listDays, listWeeks } from "@/lib/programs/queries";
 import { Nav } from "@/components/Nav";
+import { PinProgramButton } from "@/components/PinProgramButton";
 
 export const runtime = "nodejs";
 
 export default async function ProgramPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const user = await getCurrentUser();
   const program = getProgram(slug);
   if (!program) notFound();
   const weeks = listWeeks(slug);
@@ -23,6 +26,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
         </p>
       ) : null}
       <p className="mt-3 text-sm text-[var(--muted)]">{program.description_ko}</p>
+      <PinProgramButton slug={program.slug} pinned={user?.currentProgram === program.slug} />
       <div className="mt-6 space-y-5">
         {weeks.map((w) => {
           const days = listDays(w.id);

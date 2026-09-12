@@ -31,14 +31,16 @@ export function PlateCalc({ unit }: { unit: "kg" | "lb" }) {
       </label>
       <div className="card p-4">
         <div className="text-sm text-[var(--muted)]">로드 가능</div>
-        <div className="text-4xl font-black">
+        <div className="text-5xl font-black tabular-nums">
           {result.loadable}
           {unit}
         </div>
-        <div className="mt-3 text-sm">
-          한쪽: <span className="font-bold">{formatPerSide(result.perSide, unit)}</span>
+        <div className="mt-3 text-2xl font-black">
+          바 {result.bar}
+          {unit}
         </div>
-        <ul className="mt-3 space-y-1 text-sm">
+        <div className="mt-3 text-lg font-bold">한쪽 {formatPerSide(result.perSide, unit)}</div>
+        <ul className="mt-3 space-y-2 text-2xl font-black">
           {result.perSide.map((p) => (
             <li key={p.weight} className="flex justify-between">
               <span>

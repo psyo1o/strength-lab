@@ -40,12 +40,16 @@ body {
   color: #1a1204;
   font-weight: 800;
   border-radius: 0.9rem;
-  min-height: 52px;
+  min-height: 56px;
 }
 
 .btn-ghost {
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: 0.9rem;
-  min-height: 48px;
+  min-height: 56px;
+}
+
+input[type="number"] {
+  font-variant-numeric: tabular-nums;
 }

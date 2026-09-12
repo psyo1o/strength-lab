@@ -9,6 +9,8 @@ export type SessionUser = {
   id: number;
   email: string;
   unit: "kg" | "lb";
+  currentProgram: string | null;
+  lastSession: string | null;
 };
 
 function authSecret(): string {
@@ -53,19 +55,32 @@ export function userFromSession(sessionId: string | undefined | null): SessionUs
   if (!sessionId) return null;
   const row = getSqlite()
     .prepare(
-      `SELECT u.id, u.email, u.unit, s.expires_at
+      `SELECT u.id, u.email, u.unit, u.current_program, u.last_session, s.expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.id = ?`,
     )
     .get(sessionId) as
-    | { id: number; email: string; unit: "kg" | "lb"; expires_at: number }
+    | {
+        id: number;
+        email: string;
+        unit: "kg" | "lb";
+        current_program: string | null;
+        last_session: string | null;
+        expires_at: number;
+      }
     | undefined;
   if (!row) return null;
   if (row.expires_at < Date.now()) {
     destroySession(sessionId);
     return null;
   }
-  return { id: row.id, email: row.email, unit: row.unit };
+  return {
+    id: row.id,
+    email: row.email,
+    unit: row.unit,
+    currentProgram: row.current_program,
+    lastSession: row.last_session,
+  };
 }
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
@@ -104,25 +119,59 @@ export function registerUser(email: string, password: string): { user: SessionUs
   const info = getSqlite()
     .prepare("INSERT INTO users (email, password_hash, unit, created_at) VALUES (?, ?, 'kg', ?)")
     .run(normalized, hashPassword(password), Date.now());
-  const user: SessionUser = { id: Number(info.lastInsertRowid), email: normalized, unit: "kg" };
+  const user: SessionUser = {
+    id: Number(info.lastInsertRowid),
+    email: normalized,
+    unit: "kg",
+    currentProgram: null,
+    lastSession: null,
+  };
   return { user };
 }
 
 export function loginUser(email: string, password: string): { user: SessionUser } | { error: string } {
   const normalized = email.trim().toLowerCase();
   const row = getSqlite()
-    .prepare("SELECT id, email, password_hash, unit FROM users WHERE email = ?")
+    .prepare("SELECT id, email, password_hash, unit, current_program, last_session FROM users WHERE email = ?")
     .get(normalized) as
-    | { id: number; email: string; password_hash: string; unit: "kg" | "lb" }
+    | {
+        id: number;
+        email: string;
+        password_hash: string;
+        unit: "kg" | "lb";
+        current_program: string | null;
+        last_session: string | null;
+      }
     | undefined;
   if (!row || !verifyPassword(password, row.password_hash)) {
     return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
   }
-  return { user: { id: row.id, email: row.email, unit: row.unit } };
+  return {
+    user: {
+      id: row.id,
+      email: row.email,
+      unit: row.unit,
+      currentProgram: row.current_program,
+      lastSession: row.last_session,
+    },
+  };
 }
 
 export function updateUserUnit(userId: number, unit: "kg" | "lb") {
   getSqlite().prepare("UPDATE users SET unit = ? WHERE id = ?").run(unit, userId);
+}
+
+export function updateUserPrefs(
+  userId: number,
+  prefs: { unit?: "kg" | "lb"; currentProgram?: string | null; lastSession?: string | null },
+) {
+  if (prefs.unit) updateUserUnit(userId, prefs.unit);
+  if (prefs.currentProgram !== undefined) {
+    getSqlite().prepare("UPDATE users SET current_program = ? WHERE id = ?").run(prefs.currentProgram, userId);
+  }
+  if (prefs.lastSession !== undefined) {
+    getSqlite().prepare("UPDATE users SET last_session = ? WHERE id = ?").run(prefs.lastSession, userId);
+  }
 }
 
 export { SESSION_COOKIE };

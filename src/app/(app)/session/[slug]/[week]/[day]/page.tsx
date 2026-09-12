@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getDay, getProgram, getWeekId, resolveWorkout } from "@/lib/programs/queries";
-import { Nav } from "@/components/Nav";
 import { UnitToggle } from "@/components/UnitToggle";
 import { WorkoutClient } from "@/components/WorkoutClient";
 import { loadTips, tipDisclaimer } from "@/lib/tips";
@@ -58,9 +57,10 @@ export default async function SessionPage({
           tips={loadTips().tips}
           disclaimer={tipDisclaimer()}
           unit={user.unit}
+          sessionPath={`/session/${slug}/${week}/${day}`}
+          programSlug={program.slug}
         />
       </div>
-      <Nav current="/session" />
     </main>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { calculatePlates, formatPerSide } from "@/lib/calc/plates";
+import { useEffect, useMemo, useState } from "react";
+import { calculatePlates, defaultBar, formatPerSide } from "@/lib/calc/plates";
 import { displayWeight } from "@/lib/calc/round";
 import type { ResolvedExercise } from "@/lib/programs/queries";
 import type { Tip } from "@/lib/tips";
@@ -28,11 +28,15 @@ export function WorkoutClient({
   tips,
   disclaimer,
   unit,
+  sessionPath,
+  programSlug,
 }: {
   exercises: ResolvedExercise[];
   tips: Record<string, Tip>;
   disclaimer: string;
   unit: "kg" | "lb";
+  sessionPath: string;
+  programSlug: string;
 }) {
   const flat = useMemo<FlatSet[]>(() => {
     const rows: FlatSet[] = [];
@@ -49,157 +53,133 @@ export function WorkoutClient({
   });
   const [cursor, setCursor] = useState(() => Math.max(0, flat.findIndex((r) => !r.set.done)));
   const [rest, setRest] = useState({ running: false, seconds: 90 });
-  const [tipKey, setTipKey] = useState<string | null>(null);
+  const [tipOpen, setTipOpen] = useState(false);
   const [plateOpen, setPlateOpen] = useState(false);
+
+  useEffect(() => {
+    void fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lastSession: sessionPath, currentProgram: programSlug }),
+    });
+  }, [sessionPath, programSlug]);
 
   const current = flat[cursor] ?? flat[0];
   if (!current) return null;
   const tip = tips[current.exercise.exerciseKey];
+  const bar = defaultBar(unit);
 
-  async function mark(completed: boolean) {
+  function markDone() {
     const id = current.set.id;
-    setDone((d) => ({ ...d, [id]: completed }));
+    if (done[id]) {
+      setDone((d) => ({ ...d, [id]: false }));
+      void fetch("/api/sets/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ setId: id, completed: false }),
+      });
+      return;
+    }
+    setDone((d) => ({ ...d, [id]: true }));
     void fetch("/api/sets/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ setId: id, completed }),
+      body: JSON.stringify({ setId: id, completed: true }),
     });
-    if (completed) {
-      setRest({ running: true, seconds: current.set.restSec || 90 });
-      const next = flat.findIndex((r, i) => i > cursor && !done[r.set.id]);
-      if (next >= 0) setCursor(next);
-    }
+    setRest({ running: true, seconds: current.set.restSec || 90 });
+    const next = flat.findIndex((r, i) => i > cursor && !done[r.set.id] && r.set.id !== id);
+    if (next >= 0) setCursor(next);
   }
 
   const plates =
     current.set.weightKg != null
-      ? calculatePlates(displayWeight(current.set.weightKg, unit), unit)
+      ? calculatePlates(displayWeight(current.set.weightKg, unit), unit, bar)
       : null;
 
   return (
-    <div className="space-y-4 pb-36">
-      <div className="text-xs font-bold uppercase tracking-wide text-[var(--accent)]">
-        {ROLE[current.exercise.role] ?? current.exercise.role} · {current.index}/{current.total}
-      </div>
-      <div className="flex items-start justify-between gap-2">
-        <h2 className="text-3xl font-black leading-none">{current.exercise.nameKo}</h2>
-        <button type="button" className="btn-ghost tap px-4 text-base font-black" onClick={() => setTipKey(current.exercise.exerciseKey)}>
-          팁
+    <div className="pb-36">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-bold text-[var(--accent)]">
+            {ROLE[current.exercise.role] ?? current.exercise.role} · 세트 {current.index}/{current.total}
+          </div>
+          <h2 className="text-3xl font-black leading-tight">{current.exercise.nameKo}</h2>
+        </div>
+        <button
+          type="button"
+          aria-label="운동 팁"
+          className="tap flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg-elev)] text-2xl font-black text-[var(--accent)]"
+          onClick={() => setTipOpen(true)}
+        >
+          ?
         </button>
       </div>
-      {current.exercise.notesKo ? <p className="text-sm text-[var(--muted)]">{current.exercise.notesKo}</p> : null}
 
-      <button type="button" onClick={() => current.set.display && setPlateOpen(true)} className="card tap w-full p-5 text-left">
-        <div className="text-5xl font-black tabular-nums">
+      <button
+        type="button"
+        onClick={() => current.set.display && setPlateOpen(true)}
+        className="card mt-5 w-full p-6 text-left"
+      >
+        <div className="text-6xl font-black leading-none tabular-nums tracking-tight">
           {current.set.display ?? "—"}
-          <span className="ml-2 text-2xl text-[var(--muted)]">
-            × {current.set.reps}
-            {current.set.amrap ? "+" : ""}
-          </span>
         </div>
-        <div className="mt-2 text-sm text-[var(--muted)]">
+        <div className="mt-2 text-3xl font-black text-[var(--muted)]">
+          × {current.set.reps}
+          {current.set.amrap ? "+" : ""}
+        </div>
+        <div className="mt-3 text-sm text-[var(--muted)]">
           {current.set.percent != null
             ? `${current.set.percent}% ${current.set.percentBase === "tm" ? "TM" : current.set.percentBase === "ten_rm" ? "10RM" : "1RM"}`
             : "작업중량"}
-          {current.set.plates ? ` · 한쪽 ${current.set.plates}` : ""}
-          {current.set.noteKo ? ` · ${current.set.noteKo}` : ""}
         </div>
-        <div className="mt-1 text-xs text-[var(--accent)]">탭하면 원판 구성</div>
       </button>
 
-      <div className="space-y-2">
-        {current.exercise.sets.map((s, i) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => setCursor(flat.findIndex((r) => r.set.id === s.id))}
-            className={`card tap flex w-full items-center gap-3 px-3 text-left ${
-              s.id === current.set.id ? "border-[var(--accent)]" : ""
-            } ${done[s.id] ? "opacity-60" : ""}`}
-          >
-            <span
-              className={`flex h-14 w-14 items-center justify-center rounded-xl text-lg font-black ${
-                done[s.id] ? "bg-[var(--ok)] text-[#04210f]" : "bg-[var(--bg-elev)] text-[var(--accent)]"
-              }`}
-            >
-              {done[s.id] ? "✓" : i + 1}
-            </span>
-            <span className="text-xl font-black">
-              {s.display ?? "—"} × {s.reps}
-              {s.amrap ? "+" : ""}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <RestTimer
-        seconds={rest.seconds}
-        running={rest.running}
-        onStop={() => setRest((r) => ({ ...r, running: false }))}
-      />
-
-      <div className="fixed inset-x-0 bottom-16 z-30 mx-auto flex max-w-lg gap-3 px-4">
-        <button
-          type="button"
-          className="btn-ghost tap flex-1 text-base font-black"
-          onClick={() => setCursor(Math.max(0, cursor - 1))}
-        >
-          이전
-        </button>
-        <button
-          type="button"
-          className="btn-primary tap flex-[2] text-base"
-          onClick={() => mark(!done[current.set.id])}
-        >
-          {done[current.set.id] ? "취소" : "완료 / 다음"}
+      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg bg-[#0f1117]/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
+        <RestTimer
+          seconds={rest.seconds}
+          running={rest.running}
+          onStop={() => setRest((r) => ({ ...r, running: false }))}
+        />
+        <button type="button" className="btn-primary tap w-full text-xl" onClick={markDone}>
+          {done[current.set.id] ? "완료 취소" : "완료 / 다음"}
         </button>
       </div>
 
-      <BottomSheet open={Boolean(tipKey)} title="운동 팁" onClose={() => setTipKey(null)}>
-        {tip ? (
-          <div className="space-y-3 text-sm leading-relaxed">
-            <p>{tip.sheet}</p>
-            <p>
-              <span className="font-bold">큐: </span>
-              {tip.cue}
-            </p>
-            <p>
-              <span className="font-bold">실수: </span>
-              {tip.mistake}
-            </p>
-            <p>
-              <span className="font-bold">대안: </span>
-              {tip.alternative}
-            </p>
-            <p className="text-xs text-[var(--muted)]">{disclaimer}</p>
-          </div>
-        ) : (
-          <p>{current.exercise.tipsKo}</p>
-        )}
+      <BottomSheet open={tipOpen} title={current.exercise.nameKo} onClose={() => setTipOpen(false)}>
+        <p className="text-base leading-relaxed">{tip?.sheet || current.exercise.tipsKo}</p>
+        <p className="mt-4 text-xs text-[var(--muted)]">{disclaimer}</p>
       </BottomSheet>
 
       <BottomSheet open={plateOpen} title="원판" onClose={() => setPlateOpen(false)}>
         {plates ? (
           <div>
-            <div className="text-4xl font-black">
+            <div className="text-5xl font-black tabular-nums">
               {plates.loadable}
               {unit}
             </div>
-            <p className="mt-2 text-lg font-bold">한쪽 {formatPerSide(plates.perSide, unit)}</p>
-            <ul className="mt-3 space-y-1">
-              {plates.perSide.map((p) => (
-                <li key={p.weight} className="flex justify-between text-lg font-black">
-                  <span>
-                    {p.weight}
-                    {unit}
-                  </span>
-                  <span>× {p.count}</span>
-                </li>
-              ))}
+            <div className="mt-4 text-2xl font-black">
+              바 {plates.bar}
+              {unit}
+            </div>
+            <ul className="mt-4 space-y-2">
+              {plates.perSide.length === 0 ? (
+                <li className="text-xl font-bold text-[var(--muted)]">원판 없음</li>
+              ) : (
+                plates.perSide.map((p) => (
+                  <li key={p.weight} className="flex justify-between text-3xl font-black tabular-nums">
+                    <span>
+                      {p.weight}
+                      {unit}
+                    </span>
+                    <span>× {p.count}</span>
+                  </li>
+                ))
+              )}
             </ul>
+            <p className="mt-3 text-sm text-[var(--muted)]">한쪽 {formatPerSide(plates.perSide, unit)}</p>
           </div>
         ) : (
-          <p>중량을 먼저 계산하세요.</p>
+          <p>1RM을 저장하면 원판이 계산됩니다.</p>
         )}
       </BottomSheet>
     </div>

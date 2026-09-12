@@ -7,6 +7,8 @@ export const users = sqliteTable("users", {
   unit: text("unit", { enum: ["kg", "lb"] })
     .notNull()
     .default("kg"),
+  currentProgram: text("current_program"),
+  lastSession: text("last_session"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 

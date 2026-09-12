@@ -21,6 +21,8 @@ function applySchema(raw: Database.Database) {
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       unit TEXT NOT NULL DEFAULT 'kg',
+      current_program TEXT,
+      last_session TEXT,
       created_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS sessions (
@@ -88,6 +90,12 @@ function applySchema(raw: Database.Database) {
       rest_sec INTEGER,
       note_ko TEXT NOT NULL DEFAULT ''
     );
+  `);
+  const userCols = raw.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  const names = new Set(userCols.map((c) => c.name));
+  if (!names.has("current_program")) raw.exec("ALTER TABLE users ADD COLUMN current_program TEXT");
+  if (!names.has("last_session")) raw.exec("ALTER TABLE users ADD COLUMN last_session TEXT");
+  raw.exec(`
     CREATE TABLE IF NOT EXISTS set_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

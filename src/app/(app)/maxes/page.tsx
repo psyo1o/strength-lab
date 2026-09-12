@@ -40,7 +40,7 @@ export default async function MaxesPage() {
           { title: "역도", fields: toFields(MAX_GROUPS.olympic) },
         ]}
       />
-      <Nav current="/settings" />
+      <Nav current="/maxes" />
     </main>
   );
 }

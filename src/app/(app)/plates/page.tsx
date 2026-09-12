@@ -18,7 +18,7 @@ export default async function PlatesPage() {
         <UnitToggle unit={user.unit} />
       </div>
       <PlateCalc unit={user.unit} />
-      <Nav current="/plates" />
+      <Nav current="/settings" />
     </main>
   );
 }
