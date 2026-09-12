@@ -5,6 +5,7 @@ export type P1Meta = {
   phases?: P1Phase[];
   classes?: P1Phase[];
   unavailableWeeks?: number[];
+  listedBlocks?: string[];
 };
 
 export const P1_META: Record<string, P1Meta> = {
@@ -31,6 +32,9 @@ export const P1_META: Record<string, P1Meta> = {
   },
   lbeb: {
     unavailableWeeks: [7, 8, 9, 10, 11, 12],
+  },
+  catalyst: {
+    listedBlocks: ["기본 12주 (이 시드)", "피킹 블록 — 미확장", "볼륨 블록 — 미확장", "컨피던스 블록 — 미확장"],
   },
 };
 

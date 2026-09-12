@@ -286,10 +286,43 @@ describe("P1 programs", () => {
     const squatMain = j.weeks[0].days[0].exercises.find((e: { role: string }) => e.role === "main");
     expect(squatMain.sets).toHaveLength(5);
     expect(squatMain.sets[0]).toEqual(expect.objectContaining({ percent: 60, of: "1RM", reps: 10 }));
+    const jInt = j.weeks[1].days[0].exercises.find((e: { role: string }) => e.role === "main");
+    expect(jInt.sets[0]).toEqual(expect.objectContaining({ percent: 67.5, of: "1RM" }));
     const cow = raw.programs.find((p: { id: string }) => p.id === "cowboy");
     expect(cow.weeks[0].days).toHaveLength(3);
+    expect(cow.weekRules).toHaveLength(13);
+    const mon = cow.weeks[0].days[0].exercises.find((e: { role: string }) => e.role === "main");
+    expect(mon.sets).toEqual(expect.arrayContaining([expect.objectContaining({ percent: 60, reps: 10, of: "1RM" })]));
+    expect(mon.sets).toHaveLength(5);
+    const wed = cow.weeks[0].days[1].exercises.find((e: { role: string }) => e.role === "main");
+    expect(wed.sets.map((s: { percent: number }) => s.percent)).toEqual([55, 60, 65, 70, 75]);
     const dup = raw.programs.find((p: { id: string }) => p.id === "daily-undulating");
     expect(dup.weeks[0].days).toHaveLength(6);
+    expect(dup.extraOneRmFields.front_squat.label).toBe("프론트 스쿼트");
+    const wu = dup.weeks[0].days[0].exercises.find((e: { role: string }) => e.role === "warmup");
+    expect(wu.sets.map((s: { percent: number; reps: number }) => [s.percent, s.reps])).toEqual([
+      [35, 8],
+      [42, 5],
+      [49, 3],
+      [56, 1],
+      [63, 1],
+    ]);
+    const rehab = raw.programs.find((p: { id: string }) => p.id === "rehab");
+    const delorme = rehab.weeks[0].days[0].exercises.find((e: { exerciseId: string }) => e.exerciseId === "rehab_target");
+    expect(delorme.sets.map((s: { percent: number; reps: number; of: string }) => [s.percent, s.reps, s.of])).toEqual([
+      [50, 10, "10RM"],
+      [75, 10, "10RM"],
+      [100, 10, "10RM"],
+    ]);
+    const dapre = rehab.weeks[0].days[1].exercises.find((e: { exerciseId: string }) => e.exerciseId === "rehab_target");
+    expect(dapre.sets.map((s: { percent: number; reps: number }) => [s.percent, s.reps])).toEqual([
+      [50, 12],
+      [75, 8],
+      [100, 6],
+    ]);
+    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks[0].nameKo).toMatch(/Class III/);
+    expect(raw.programs.find((p: { id: string }) => p.id === "torokhtiy").weeks[0].days).toHaveLength(5);
+    expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").weeks[6].days).toHaveLength(0);
     expect(typeof seedDraftsP1Path()).toBe("string");
   });
 });

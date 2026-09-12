@@ -31,6 +31,13 @@ export function ProgramWeekList({
 
   return (
     <div className="mt-6 space-y-5">
+      {meta?.listedBlocks?.length ? (
+        <ul className="list-disc space-y-1 pl-5 text-sm text-[var(--muted)]">
+          {meta.listedBlocks.map((b) => (
+            <li key={b}>{b}</li>
+          ))}
+        </ul>
+      ) : null}
       {pickers.length ? (
         <div className="flex flex-wrap gap-2">
           {pickers.map((p) => (
