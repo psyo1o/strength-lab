@@ -10,6 +10,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DOCKER_BUILD=1
 ENV AUTH_SECRET=build-time-placeholder-not-used-at-runtime
 ENV DATABASE_PATH=/tmp/build.db
 RUN npm run build
