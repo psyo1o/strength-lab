@@ -44,7 +44,8 @@ export default async function DashboardPage() {
             <div key={k} className="card p-3 text-center">
               <div className="text-[10px] text-[var(--muted)]">{labels[k]}</div>
               <div className="text-lg font-black">
-                {maxes[k] ? displayWeight(maxes[k], user.unit) : "—"}
+                {maxes[k] ? `${displayWeight(maxes[k], user.unit)}` : "—"}
+                {maxes[k] ? <span className="text-[10px] text-[var(--muted)]"> {user.unit}</span> : null}
               </div>
             </div>
           ))}

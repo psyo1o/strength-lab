@@ -42,6 +42,15 @@ export default async function SessionPage({
         <p className="mt-3 rounded-xl bg-[#2a1d12] p-3 text-sm">불완전 템플릿 — 참고용 골격입니다.</p>
       ) : null}
       {workout.notesKo ? <p className="mt-3 text-sm text-[var(--muted)]">{workout.notesKo}</p> : null}
+      {workout.exercises.some((e) => e.sets.some((s) => s.percentBase !== "none" && s.weightKg == null)) ? (
+        <p className="mt-3 rounded-xl border border-[var(--line)] bg-[#2a1d12] p-3 text-sm">
+          중량이 비어 있습니다.{" "}
+          <Link href="/maxes" className="font-bold text-[var(--accent)]">
+            1RM을 먼저 저장
+          </Link>
+          하세요.
+        </p>
+      ) : null}
       <div className="mt-5">
         <WorkoutClient exercises={workout.exercises} />
       </div>
