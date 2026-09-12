@@ -235,8 +235,14 @@ describe("korean exercise tips", () => {
     expect(media.imageUrl).toBe("/exercises/back_squat.webp");
     expect(media.videoUrl).toBeUndefined();
     expect(parseVideoUrl("")).toBeNull();
-    expect(parseVideoUrl("https://youtu.be/abcdefghijk")?.kind).toBe("youtube");
+    const yt = parseVideoUrl("https://youtu.be/abcdefghijk");
+    expect(yt?.kind).toBe("youtube");
+    if (yt?.kind === "youtube") {
+      expect(yt.embedSrc).toContain("autoplay=0");
+      expect(yt.embedSrc).toContain("fs=0");
+    }
     expect(parseVideoUrl("/exercises/back_squat.mp4")?.kind).toBe("mp4");
+    expect(seedDraftsP1Path()).toMatch(/seed-drafts[/\\]seed\.p1\.json$/);
   });
 });
 

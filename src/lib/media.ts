@@ -75,7 +75,7 @@ export function parseVideoUrl(url?: string | null): ParsedVideo | null {
     return {
       kind: "youtube",
       id: yt[1],
-      embedSrc: `https://www.youtube.com/embed/${yt[1]}?rel=0&modestbranding=1&playsinline=1`,
+      embedSrc: `https://www.youtube.com/embed/${yt[1]}?rel=0&modestbranding=1&playsinline=1&autoplay=0&fs=0`,
     };
   }
   const vm = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
@@ -83,7 +83,7 @@ export function parseVideoUrl(url?: string | null): ParsedVideo | null {
     return {
       kind: "vimeo",
       id: vm[1],
-      embedSrc: `https://player.vimeo.com/video/${vm[1]}?playsinline=1`,
+      embedSrc: `https://player.vimeo.com/video/${vm[1]}?playsinline=1&autoplay=0`,
     };
   }
   return { kind: "mp4", src: u };
