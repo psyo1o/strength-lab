@@ -259,7 +259,24 @@ export function resolveWorkout(opts: {
   };
 }
 
+export class SetNotFoundError extends Error {
+  constructor() {
+    super("set not found");
+    this.name = "SetNotFoundError";
+  }
+}
+
+export function programSetExists(programSetId: number): boolean {
+  const row = getSqlite()
+    .prepare("SELECT id FROM program_sets WHERE id = ?")
+    .get(programSetId) as { id: number } | undefined;
+  return Boolean(row);
+}
+
 export function toggleSetLog(userId: number, programSetId: number, completed: boolean) {
+  if (!Number.isInteger(programSetId) || programSetId <= 0 || !programSetExists(programSetId)) {
+    throw new SetNotFoundError();
+  }
   if (completed) {
     getSqlite()
       .prepare(

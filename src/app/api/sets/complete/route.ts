@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { toggleSetLog } from "@/lib/programs/queries";
+import { SetNotFoundError, toggleSetLog } from "@/lib/programs/queries";
 
 export const runtime = "nodejs";
 
@@ -8,6 +8,17 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  toggleSetLog(user.id, Number(body.setId), Boolean(body.completed));
+  const setId = Number(body.setId);
+  if (!Number.isInteger(setId) || setId <= 0) {
+    return NextResponse.json({ error: "invalid setId" }, { status: 400 });
+  }
+  try {
+    toggleSetLog(user.id, setId, Boolean(body.completed));
+  } catch (err) {
+    if (err instanceof SetNotFoundError || (err instanceof Error && err.name === "SetNotFoundError")) {
+      return NextResponse.json({ error: "set not found" }, { status: 404 });
+    }
+    throw err;
+  }
   return NextResponse.json({ ok: true });
 }
