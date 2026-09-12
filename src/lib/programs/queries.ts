@@ -1,8 +1,9 @@
 import { getSqlite } from "../db/client";
 import { resolveSetKg } from "../calc/loads";
+import { START_WEIGHT_PROGRAMS, sessionIncrementKg, startRefPercent } from "../calc/linear";
 import { displayWeight, formatWeight, type WeightUnit } from "../calc/round";
 import { calculatePlates, formatPerSide } from "../calc/plates";
-import { getUserMaxes, resolveOneRm } from "../maxes";
+import { getUserMaxes, getUserStarts, resolveOneRm, resolveStartKg } from "../maxes";
 
 export type ProgramRow = {
   slug: string;
@@ -111,7 +112,30 @@ export function resolveWorkout(opts: {
     .get(opts.dayId) as { id: number; name_ko: string; notes_ko: string } | undefined;
   if (!day) return null;
 
+  const dayMeta = getSqlite()
+    .prepare(
+      `SELECT p.slug AS slug, w.week_number AS week_number, d.day_number AS day_number
+       FROM program_days d
+       JOIN program_weeks w ON w.id = d.week_id
+       JOIN programs p ON p.slug = w.program_slug
+       WHERE d.id = ?`,
+    )
+    .get(opts.dayId) as { slug: string; week_number: number; day_number: number } | undefined;
+  const programSlug = dayMeta?.slug ?? "";
+  const preferStart = START_WEIGHT_PROGRAMS.has(programSlug);
+
   const maxes = getUserMaxes(opts.userId);
+  const starts = getUserStarts(opts.userId);
+  const priorCountStmt = getSqlite().prepare(
+    `SELECT COUNT(*) AS c
+     FROM program_exercises pe
+     JOIN program_days d ON d.id = pe.day_id
+     JOIN program_weeks w ON w.id = d.week_id
+     WHERE w.program_slug = ?
+       AND pe.exercise_key = ?
+       AND pe.role = 'main'
+       AND (w.week_number < ? OR (w.week_number = ? AND d.day_number < ?))`,
+  );
   const doneRows = getSqlite()
     .prepare("SELECT program_set_id FROM set_logs WHERE user_id = ? AND completed = 1")
     .all(opts.userId) as { program_set_id: number }[];
@@ -145,22 +169,44 @@ export function resolveWorkout(opts: {
     notesKo: day.notes_ko,
     exercises: exercises.map((ex) => {
       const oneRmKg = resolveOneRm(maxes, ex.exercise_key);
-      const sets = (
-        setStmt.all(ex.id) as {
-          id: number;
-          set_number: number;
-          percent_base: string;
-          percent: number | null;
-          reps: number;
-          amrap: number;
-          rest_sec: number | null;
-          note_ko: string;
-        }[]
-      ).map((s) => {
+      const startKg = resolveStartKg(starts, ex.exercise_key);
+      const prior =
+        preferStart && dayMeta
+          ? (
+              priorCountStmt.get(
+                programSlug,
+                ex.exercise_key,
+                dayMeta.week_number,
+                dayMeta.week_number,
+                dayMeta.day_number,
+              ) as { c: number }
+            ).c
+          : 0;
+      const addKg = preferStart ? sessionIncrementKg(programSlug, ex.exercise_key) * prior : 0;
+      const rawSets = setStmt.all(ex.id) as {
+        id: number;
+        set_number: number;
+        percent_base: string;
+        percent: number | null;
+        reps: number;
+        amrap: number;
+        rest_sec: number | null;
+        note_ko: string;
+      }[];
+      const topPercent = startRefPercent(
+        programSlug,
+        Math.max(0, ...rawSets.map((s) => s.percent ?? 0)),
+      );
+      const sets = rawSets.map((s) => {
         const weightKg = resolveSetKg({
           oneRmKg,
+          startKg,
           percentBase: s.percent_base,
+          of: s.percent_base,
           percent: s.percent,
+          preferStart,
+          topPercent,
+          addKg,
         });
         const plates =
           weightKg != null

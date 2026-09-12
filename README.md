@@ -104,7 +104,7 @@ If DSM already uses 7001, change only the **host** side of `"7001:3000"` (e.g. `
 
 Self-hosted Next.js + SQLite strength app. Copy `.env.example` → `.env`, set `AUTH_SECRET`, then `docker compose up --build`. Persist `/data`. Korean UI by default. Personal NAS use only; not affiliated with TJ Strength. See CHANGELOG for full vs template-only programs.
 
-Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads, and kg/lb plate math. Loads round to 2.5 kg (or 5 lb).
+Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads (MROUND 1RM×0.9×pct to 2.5 kg), start-weight override on Stronglifts, and kg/lb plate math.
 
 ---
 
@@ -113,6 +113,6 @@ Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads, and 
 - Next.js App Router, TypeScript, Tailwind
 - SQLite + Drizzle schema + `better-sqlite3`
 - Credential auth, httpOnly session cookies
-- Seed: `data/seed.json`
+- Seed: `data/seed.json` (`meta` → `oneRmFields` → `loadRules` → `programs[]` → `weeks[]` → `days[]` → `exercises[]` → `sets[]` with `percent` + `of`: TM|1RM). No `platePlan` on sets.
 
 Architecture: **programs → weeks → days → exercises → sets**.

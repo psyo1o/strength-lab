@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
+import { setLoadRules } from "../calc/loads";
 import { buildSeed, type SeedFile } from "../programs/catalog";
+import type { PublicSeedFile } from "../programs/seed-schema";
 
 export function seedJsonPath(): string {
   return path.join(process.cwd(), "data", "seed.json");
@@ -15,12 +17,25 @@ function ofToBase(of: string | null | undefined): SeedFile["programs"][number]["
   return "none";
 }
 
+function applyRulesFrom(raw: Record<string, unknown>) {
+  const rules = raw.loadRules as { roundKg?: number; tmFactor?: number; barKg?: number } | undefined;
+  const meta = raw.meta as { rounding_kg?: number } | undefined;
+  setLoadRules({
+    roundKg: rules?.roundKg ?? meta?.rounding_kg ?? 2.5,
+    tmFactor: rules?.tmFactor ?? 0.9,
+    barKg: rules?.barKg ?? 20,
+  });
+}
+
 function normalizeSeed(raw: unknown): SeedFile {
   const data = raw as Record<string, unknown>;
-  if (data && Array.isArray(data.exercises) && Array.isArray(data.programs)) {
+  if (data && Array.isArray(data.programs)) {
+    applyRulesFrom(data);
     const first = (data.programs as { slug?: string; id?: string }[])[0];
-    if (first?.slug) return data as unknown as SeedFile;
-    if (first?.id) {
+    if (first?.slug && !first.id && Array.isArray(data.exercises)) {
+      return data as unknown as SeedFile;
+    }
+    if (first?.id || first?.slug) {
       const internal = buildSeed();
       const programs = (data.programs as Record<string, unknown>[]).map((p, idx) => {
         const weeks = ((p.weeks as Record<string, unknown>[]) || []).map((w) => ({
@@ -33,7 +48,7 @@ function normalizeSeed(raw: unknown): SeedFile {
             notesKo: String(d.notesKo ?? ""),
             exercises: ((d.exercises as Record<string, unknown>[]) || []).map((ex) => ({
               exerciseKey: String(ex.exerciseId ?? ex.exerciseKey),
-              role: (ex.role as "main") || "main",
+              role: (String(ex.role || "main") as SeedFile["programs"][number]["weeks"][number]["days"][number]["exercises"][number]["role"]),
               notesKo: String(ex.notesKo ?? ""),
               sets: ((ex.sets as Record<string, unknown>[]) || []).map((s, i) => ({
                 setNumber: Number(s.setNumber ?? i + 1),
@@ -56,6 +71,10 @@ function normalizeSeed(raw: unknown): SeedFile {
           completeness: (p.completeness as "full") ?? fallback?.completeness ?? "template",
           descriptionKo: String(p.descriptionKo ?? fallback?.descriptionKo ?? ""),
           descriptionEn: String(p.descriptionEn ?? fallback?.descriptionEn ?? ""),
+          usesTM: Boolean(p.usesTM ?? fallback?.usesTM ?? String(p.id ?? p.slug).includes("531")),
+          tmFactor: Number(p.tmFactor ?? fallback?.tmFactor ?? 0.9),
+          startWeight: (p.startWeight as { enabled: boolean } | undefined) ?? fallback?.startWeight,
+          progression: (p.progression as Record<string, { addKg: number }> | undefined) ?? fallback?.progression,
           sortOrder: Number(p.sortOrder ?? fallback?.sortOrder ?? idx * 10),
           weeks,
         };
@@ -66,7 +85,7 @@ function normalizeSeed(raw: unknown): SeedFile {
   return buildSeed();
 }
 
-function toPublicSeed(seed: SeedFile) {
+function toPublicSeed(seed: SeedFile): PublicSeedFile {
   return {
     meta: { units: "kg", rounding_kg: 2.5 },
     oneRmFields: {
@@ -84,9 +103,11 @@ function toPublicSeed(seed: SeedFile) {
       completeness: p.completeness,
       descriptionKo: p.descriptionKo,
       descriptionEn: p.descriptionEn,
-      usesTM: p.slug.includes("531"),
-      tmFactor: 0.9,
+      usesTM: p.usesTM ?? p.slug.includes("531"),
+      tmFactor: p.tmFactor ?? 0.9,
       sortOrder: p.sortOrder,
+      ...(p.startWeight ? { startWeight: p.startWeight } : {}),
+      ...(p.progression ? { progression: p.progression } : {}),
       weeks: p.weeks.map((w) => ({
         week: w.weekNumber,
         nameKo: w.nameKo,
@@ -99,21 +120,30 @@ function toPublicSeed(seed: SeedFile) {
             exerciseId: ex.exerciseKey,
             role: ex.role,
             notesKo: ex.notesKo,
-            sets: ex.sets.map((s) => ({
-              reps: s.reps,
-              percent: s.percent,
-              of:
+            sets: ex.sets.map((s) => {
+              const of =
                 s.percentBase === "tm"
                   ? "TM"
                   : s.percentBase === "1rm"
                     ? "1RM"
                     : s.percentBase === "ten_rm"
                       ? "10RM"
-                      : null,
-              amrap: Boolean(s.amrap),
-              restSec: s.restSec ?? null,
-              noteKo: s.noteKo ?? "",
-            })),
+                      : undefined;
+              const row: {
+                reps: number;
+                percent?: number;
+                of?: "TM" | "1RM" | "10RM";
+                amrap?: boolean;
+                restSec?: number | null;
+                noteKo?: string;
+              } = { reps: s.reps };
+              if (s.percent != null) row.percent = s.percent;
+              if (of) row.of = of;
+              if (s.amrap) row.amrap = true;
+              if (s.restSec != null) row.restSec = s.restSec;
+              if (s.noteKo) row.noteKo = s.noteKo;
+              return row;
+            }),
           })),
         })),
       })),

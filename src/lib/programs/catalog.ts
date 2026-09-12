@@ -38,6 +38,10 @@ export type SeedProgram = {
   descriptionKo: string;
   descriptionEn: string;
   sortOrder: number;
+  usesTM?: boolean;
+  tmFactor?: number;
+  startWeight?: { enabled: boolean };
+  progression?: Record<string, { addKg: number }>;
   weeks: SeedWeek[];
 };
 
@@ -384,6 +388,51 @@ export const EXERCISES: SeedExerciseDef[] = [
     tipsKo: "클린 그립, 강한 신전. 어깨를 귀까지 으쓱.",
     tipsEn: "Clean grip, full extension and shrug.",
   },
+  {
+    key: "close_grip_bench",
+    nameKo: "클로즈그립 벤치",
+    nameEn: "Close-Grip Bench",
+    group: "assistance",
+    isMax: false,
+    tipsKo: "손은 어깨 안쪽. 팔꿈치가 과도하게 벌어지지 않게.",
+    tipsEn: "Hands inside shoulders, elbows tucked.",
+  },
+  {
+    key: "incline_bench",
+    nameKo: "인클라인 벤치",
+    nameEn: "Incline Bench",
+    group: "assistance",
+    isMax: false,
+    tipsKo: "벤치는 30° 전후. 바가 쇄골~상흉으로.",
+    tipsEn: "About 30°, bar to upper chest.",
+  },
+  {
+    key: "stiff_leg_deadlift",
+    nameKo: "스티프 레그 데드",
+    nameEn: "Stiff-Leg Deadlift",
+    group: "assistance",
+    isMax: false,
+    tipsKo: "무릎은 거의 고정, 힙 힌지로만. 허리가 둥글어지면 즉시 멈춘다.",
+    tipsEn: "Soft-locked knees, hinge only, stop if the back rounds.",
+  },
+  {
+    key: "abs",
+    nameKo: "복근",
+    nameEn: "Abs",
+    group: "assistance",
+    isMax: false,
+    tipsKo: "골반을 말고 갈비뼈를 내린다. 목으로 당기지 말 것.",
+    tipsEn: "Posterior tilt, ribs down, do not yank the neck.",
+  },
+  {
+    key: "free_accessory",
+    nameKo: "자유 보조",
+    nameEn: "Free Accessory",
+    group: "assistance",
+    isMax: false,
+    tipsKo: "약점 부위를 고른다. 통증 있으면 중단.",
+    tipsEn: "Pick a weak point. Stop if it hurts.",
+  },
 ];
 
 function wendlerDay(dayNumber: number, nameKo: string, lift: string, week: 1 | 2 | 3 | 4): SeedDay {
@@ -470,7 +519,9 @@ function wendlerProgram(): SeedProgram {
       "Training Max = 0.9×1RM. 1주 65/75/85%×5, 2주 70/80/90%×3, 3주 75/85/95%(5/3/1), 4주 딜로드. 워밍업 + BBB 5×10 + 보조 플레이스홀더. 메인 4대: 스쿼트/벤치/데드/OHP.",
     descriptionEn:
       "Full working 5/3/1: TM=0.9×1RM, classic weekly percents, warmups, BBB, assistance placeholders.",
-    sortOrder: 10,
+    usesTM: true,
+    tmFactor: 0.9,
+    sortOrder: 1,
     weeks: [1, 2, 3, 4].map((w) => ({
       weekNumber: w,
       nameKo: weekNames[w - 1],
@@ -731,24 +782,24 @@ function cowboyProgram(): SeedProgram {
 }
 
 function startingStrength(): SeedProgram {
-  const a = (bump: number): SeedDay => ({
+  const a = (): SeedDay => ({
     dayNumber: 0,
     nameKo: "Workout A",
-    notesKo: "다음 세션 스쿼트/데드 +2.5~5kg, 벤치 +2.5kg (성공 시).",
+    notesKo: "시작중량이 있으면 그 값. 없으면 시트 %1RM. 성공 시 스쿼트 +2.5kg, 데드 +5kg, 벤치 +2.5kg.",
     exercises: [
-      { exerciseKey: "squat", role: "main", sets: nSets(3, 80 + bump, 5, "1rm", { restSec: 180 }) },
-      { exerciseKey: "bench", role: "main", sets: nSets(3, 75 + bump, 5, "1rm", { restSec: 150 }) },
-      { exerciseKey: "deadlift", role: "main", sets: nSets(1, 80 + bump, 5, "1rm", { restSec: 180 }) },
+      { exerciseKey: "squat", role: "main", sets: nSets(3, 80, 5, "1rm", { restSec: 180 }) },
+      { exerciseKey: "bench", role: "main", sets: nSets(3, 75, 5, "1rm", { restSec: 150 }) },
+      { exerciseKey: "deadlift", role: "main", sets: nSets(1, 80, 5, "1rm", { restSec: 180 }) },
     ],
   });
-  const b = (bump: number, dayNumber: number): SeedDay => ({
-    dayNumber,
+  const b = (): SeedDay => ({
+    dayNumber: 0,
     nameKo: "Workout B",
-    notesKo: "다음 세션 스쿼트 +2.5~5kg, 프레스 +2.5kg. 파워클린은 기술 우선.",
+    notesKo: "시작중량이 있으면 그 값. 성공 시 스쿼트 +2.5kg, 프레스 +2.5kg. 파워클린은 기술 우선.",
     exercises: [
-      { exerciseKey: "squat", role: "main", sets: nSets(3, 80 + bump, 5, "1rm", { restSec: 180 }) },
-      { exerciseKey: "ohp", role: "main", sets: nSets(3, 70 + bump, 5, "1rm", { restSec: 150 }) },
-      { exerciseKey: "power_clean", role: "main", sets: nSets(5, 65 + bump, 3, "1rm", { restSec: 120 }) },
+      { exerciseKey: "squat", role: "main", sets: nSets(3, 80, 5, "1rm", { restSec: 180 }) },
+      { exerciseKey: "ohp", role: "main", sets: nSets(3, 70, 5, "1rm", { restSec: 150 }) },
+      { exerciseKey: "power_clean", role: "main", sets: nSets(5, 65, 3, "1rm", { restSec: 120 }) },
     ],
   });
 
@@ -766,32 +817,39 @@ function startingStrength(): SeedProgram {
     category: "초급 근력",
     completeness: "working",
     descriptionKo:
-      "A: 스쿼트 3×5 · 벤치 3×5 · 데드 1×5. B: 스쿼트 3×5 · 프레스 3×5 · 파워클린 5×3. 중량은 1RM%로 시드되며, 성공한 세션마다 상체는 +2.5kg, 하체는 +2.5~5kg 올리는 선형 진행입니다.",
-    descriptionEn: "Classic A/B novice linear progression with %1RM seeded loads.",
-    sortOrder: 60,
+      "A: 스쿼트 3×5 · 벤치 3×5 · 데드 1×5. B: 스쿼트 3×5 · 프레스 3×5 · 파워클린 5×3. 시작중량 필드가 있으면 그 값을 쓰고, 없으면 시트 %1RM(스쿼트·데드 80%, 벤치 75%, OHP 70%). 세션마다 스쿼트 +2.5kg, 데드 +5kg, 상체 +2.5kg.",
+    descriptionEn: "A/B novice LP. Start-weight field wins; sheet %1RM is fallback. Squat +2.5 / dead +5 / upper +2.5 per session.",
+    sortOrder: 2,
+    startWeight: { enabled: true },
+    progression: {
+      squat: { addKg: 2.5 },
+      bench: { addKg: 2.5 },
+      deadlift: { addKg: 5 },
+      ohp: { addKg: 2.5 },
+      power_clean: { addKg: 2.5 },
+    },
     weeks: pattern.map((days, wi) => ({
       weekNumber: wi + 1,
       nameKo: `${wi + 1}주차`,
       notesKo: "주 3회, A/B 교대. 실패 시 중량 유지 후 재시도.",
       days: days.map((kind, di) => {
-        const bump = wi * 1.5;
-        const day = kind === "A" ? a(bump) : b(bump, 0);
-        return { ...day, dayNumber: di + 1, nameKo: `${kind === "A" ? "Workout A" : "Workout B"}` };
+        const day = kind === "A" ? a() : b();
+        return { ...day, dayNumber: di + 1, nameKo: kind === "A" ? "Workout A" : "Workout B" };
       }),
     })),
   };
 }
 
 function stronglifts(): SeedProgram {
-  const a = (bump: number): SeedExercise[] => [
-    { exerciseKey: "squat", role: "main", sets: nSets(5, 70 + bump, 5, "1rm", { restSec: 180 }) },
-    { exerciseKey: "bench", role: "main", sets: nSets(5, 70 + bump, 5, "1rm", { restSec: 150 }) },
-    { exerciseKey: "barbell_row", role: "main", sets: nSets(5, 60 + bump, 5, "1rm", { restSec: 120 }) },
+  const a = (): SeedExercise[] => [
+    { exerciseKey: "squat", role: "main", sets: nSets(5, 50, 5, "1rm", { restSec: 180 }) },
+    { exerciseKey: "bench", role: "main", sets: nSets(5, 50, 5, "1rm", { restSec: 150 }) },
+    { exerciseKey: "barbell_row", role: "main", sets: nSets(5, 50, 5, "1rm", { restSec: 120 }) },
   ];
-  const b = (bump: number): SeedExercise[] => [
-    { exerciseKey: "squat", role: "main", sets: nSets(5, 70 + bump, 5, "1rm", { restSec: 180 }) },
-    { exerciseKey: "ohp", role: "main", sets: nSets(5, 65 + bump, 5, "1rm", { restSec: 150 }) },
-    { exerciseKey: "deadlift", role: "main", sets: nSets(1, 75 + bump, 5, "1rm", { restSec: 180 }) },
+  const b = (): SeedExercise[] => [
+    { exerciseKey: "squat", role: "main", sets: nSets(5, 50, 5, "1rm", { restSec: 180 }) },
+    { exerciseKey: "ohp", role: "main", sets: nSets(5, 50, 5, "1rm", { restSec: 150 }) },
+    { exerciseKey: "deadlift", role: "main", sets: nSets(1, 50, 5, "1rm", { restSec: 180 }) },
   ];
   const pattern: ("A" | "B")[][] = [
     ["A", "B", "A"],
@@ -806,9 +864,17 @@ function stronglifts(): SeedProgram {
     category: "초급 근력",
     completeness: "working",
     descriptionKo:
-      "A: 스쿼트/벤치/로우 5×5. B: 스쿼트/OHP 5×5 + 데드 1×5. 시드 중량은 1RM의 약 70%부터 주차별 소폭 상승합니다. 5×5 성공 시 +2.5kg.",
-    descriptionEn: "A/B 5x5 with %1RM progression shells.",
-    sortOrder: 70,
+      "A: 스쿼트/벤치/로우 5×5. B: 스쿼트/OHP 5×5 + 데드 1×5. 시작중량 필드가 있으면 그 값을 쓰고, 없으면 시트 기준 1RM의 약 50%. 5×5 성공 시 +2.5kg(데드 +5kg).",
+    descriptionEn: "A/B 5x5. Start-weight field wins; sheet fallback ~50% 1RM.",
+    sortOrder: 3,
+    startWeight: { enabled: true },
+    progression: {
+      squat: { addKg: 2.5 },
+      bench: { addKg: 2.5 },
+      deadlift: { addKg: 5 },
+      ohp: { addKg: 2.5 },
+      barbell_row: { addKg: 2.5 },
+    },
     weeks: pattern.map((days, wi) => ({
       weekNumber: wi + 1,
       nameKo: `${wi + 1}주차`,
@@ -817,14 +883,25 @@ function stronglifts(): SeedProgram {
         dayNumber: di + 1,
         nameKo: kind === "A" ? "Workout A" : "Workout B",
         notesKo: kind === "A" ? "스쿼트 · 벤치 · 로우" : "스쿼트 · 프레스 · 데드",
-        exercises: kind === "A" ? a(wi * 1.25) : b(wi * 1.25),
+        exercises: kind === "A" ? a() : b(),
       })),
     })),
   };
 }
 
 function madcow(): SeedProgram {
-  const weeks = [0, 2.5, 5, -5];
+  /** Week-1 top ≈ 80% 1RM. Ramps are 12.5% of that top. Each week ×1.025. */
+  const top1rm = 80;
+  const pct = (fracOfTop: number, weekIndex: number) =>
+    Number((top1rm * fracOfTop * Math.pow(1.025, weekIndex)).toFixed(2));
+  const ramp = (fracs: number[], weekIndex: number, reps: number | number[] = 5, restSec = 150) =>
+    sets(
+      fracs.map((f) => pct(f, weekIndex)),
+      reps,
+      "1rm",
+      { restSec },
+    );
+
   return {
     slug: "madcow-5x5",
     nameKo: "Madcow 5x5",
@@ -832,13 +909,14 @@ function madcow(): SeedProgram {
     category: "중급 근력",
     completeness: "working",
     descriptionKo:
-      "월: 램핑 5×5(탑세트). 수: 라이트 스쿼트 + 프레스 + 데드. 금: 램핑 후 헤비 트리플 + 백오프. 퍼센트는 1RM 기준 실사용 셸입니다.",
-    descriptionEn: "Mon/Wed/Fri Madcow ramps with %1RM working weights.",
-    sortOrder: 80,
-    weeks: weeks.map((bump, wi) => ({
+      "월: 12.5% 램핑 5×5(탑세트). 수: 라이트 스쿼트 + 프레스 + 데드. 금: 램핑 후 헤비 트리플 + 백오프. 매주 탑 ×1.025. 시작중량이 있으면 탑세트로 사용하고, 없으면 1RM의 약 80%를 1주차 탑으로 둡니다.",
+    descriptionEn: "Mon/Wed/Fri Madcow. Week-1 12.5% ramps of top; weekly ×1.025. Start-weight field is the top set.",
+    sortOrder: 4,
+    startWeight: { enabled: true },
+    weeks: [0, 1, 2, 3].map((wi) => ({
       weekNumber: wi + 1,
-      nameKo: wi === 3 ? "4주차 — 라이트" : `${wi + 1}주차`,
-      notesKo: "금요일 트리플이 편하면 다음 주 월요일 탑세트를 올린다.",
+      nameKo: `${wi + 1}주차`,
+      notesKo: "금요일 트리플이 편하면 다음 주 월요일 탑이 자연스럽게 오른다(×1.025).",
       days: [
         {
           dayNumber: 1,
@@ -847,17 +925,17 @@ function madcow(): SeedProgram {
             {
               exerciseKey: "squat",
               role: "main",
-              sets: sets([50, 60, 70, 75, 80].map((p) => p + bump), 5, "1rm", { restSec: 180 }),
+              sets: ramp([0.5, 0.625, 0.75, 0.875, 1], wi, 5, 180),
             },
             {
               exerciseKey: "bench",
               role: "main",
-              sets: sets([50, 60, 70, 75, 80].map((p) => p + bump), 5, "1rm", { restSec: 150 }),
+              sets: ramp([0.5, 0.625, 0.75, 0.875, 1], wi, 5, 150),
             },
             {
               exerciseKey: "barbell_row",
               role: "main",
-              sets: sets([45, 55, 65, 70, 75].map((p) => p + bump), 5, "1rm", { restSec: 120 }),
+              sets: ramp([0.5, 0.625, 0.75, 0.875, 1], wi, 5, 120),
             },
           ],
         },
@@ -868,18 +946,18 @@ function madcow(): SeedProgram {
             {
               exerciseKey: "squat",
               role: "main",
-              notesKo: "월요일 탑의 약 80%",
-              sets: sets([40, 50, 60, 65].map((p) => p + bump), 5, "1rm"),
+              notesKo: "월요일 탑의 약 80%까지",
+              sets: ramp([0.5, 0.6, 0.7, 0.8], wi, 5, 150),
             },
             {
               exerciseKey: "ohp",
               role: "main",
-              sets: sets([50, 60, 70, 75].map((p) => p + bump), 5, "1rm"),
+              sets: ramp([0.5, 0.625, 0.75, 0.875], wi, 5, 150),
             },
             {
               exerciseKey: "deadlift",
               role: "main",
-              sets: sets([50, 60, 70, 80].map((p) => p + bump), [5, 5, 5, 5], "1rm", { restSec: 180 }),
+              sets: ramp([0.5, 0.625, 0.75, 1], wi, 5, 180),
             },
           ],
         },
@@ -891,11 +969,11 @@ function madcow(): SeedProgram {
               exerciseKey: "squat",
               role: "main",
               sets: [
-                ...sets([50, 60, 70, 75].map((p) => p + bump), 5, "1rm"),
+                ...ramp([0.5, 0.625, 0.75, 0.875], wi, 5, 180),
                 {
                   setNumber: 5,
                   percentBase: "1rm",
-                  percent: 85 + bump,
+                  percent: pct(1.025, wi),
                   reps: 3,
                   restSec: 180,
                   noteKo: "헤비 트리플",
@@ -903,7 +981,7 @@ function madcow(): SeedProgram {
                 {
                   setNumber: 6,
                   percentBase: "1rm",
-                  percent: 65 + bump,
+                  percent: pct(0.8, wi),
                   reps: 8,
                   restSec: 120,
                   noteKo: "백오프",
@@ -914,11 +992,11 @@ function madcow(): SeedProgram {
               exerciseKey: "bench",
               role: "main",
               sets: [
-                ...sets([50, 60, 70, 75].map((p) => p + bump), 5, "1rm"),
+                ...ramp([0.5, 0.625, 0.75, 0.875], wi, 5, 150),
                 {
                   setNumber: 5,
                   percentBase: "1rm",
-                  percent: 85 + bump,
+                  percent: pct(1.025, wi),
                   reps: 3,
                   restSec: 180,
                   noteKo: "헤비 트리플",
@@ -926,8 +1004,9 @@ function madcow(): SeedProgram {
                 {
                   setNumber: 6,
                   percentBase: "1rm",
-                  percent: 65 + bump,
+                  percent: pct(0.8, wi),
                   reps: 8,
+                  restSec: 120,
                   noteKo: "백오프",
                 },
               ],
@@ -935,7 +1014,7 @@ function madcow(): SeedProgram {
             {
               exerciseKey: "barbell_row",
               role: "main",
-              sets: sets([50, 60, 70, 75].map((p) => p + bump), 5, "1rm"),
+              sets: ramp([0.5, 0.625, 0.75, 0.875], wi, 5, 120),
             },
           ],
         },

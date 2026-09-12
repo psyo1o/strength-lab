@@ -95,6 +95,10 @@ function applySchema(raw: Database.Database) {
   const names = new Set(userCols.map((c) => c.name));
   if (!names.has("current_program")) raw.exec("ALTER TABLE users ADD COLUMN current_program TEXT");
   if (!names.has("last_session")) raw.exec("ALTER TABLE users ADD COLUMN last_session TEXT");
+  const maxCols = raw.prepare("PRAGMA table_info(user_maxes)").all() as { name: string }[];
+  if (!maxCols.some((c) => c.name === "start_kg")) {
+    raw.exec("ALTER TABLE user_maxes ADD COLUMN start_kg REAL");
+  }
   raw.exec(`
     CREATE TABLE IF NOT EXISTS set_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

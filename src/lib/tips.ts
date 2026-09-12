@@ -22,9 +22,16 @@ export function loadTips(): TipFile {
   return cached;
 }
 
+const TIP_ALIASES: Record<string, string> = {
+  squat: "back_squat",
+  back_squat: "squat",
+  bench: "bench_press",
+  bench_press: "bench",
+};
+
 export function tipFor(exerciseKey: string): Tip | null {
   const file = loadTips();
-  return file.tips[exerciseKey] ?? null;
+  return file.tips[exerciseKey] ?? file.tips[TIP_ALIASES[exerciseKey]] ?? null;
 }
 
 export function tipDisclaimer(): string {

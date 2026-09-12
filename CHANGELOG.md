@@ -20,9 +20,9 @@
 | 일간 파동형 주기화 | 비대 / 근력 / 파워 데이 %1RM 셸. |
 | Juggernaut Method | 10s 웨이브 4주 셸 (8s/5s/3s 미확장). |
 | Cowboy Method | 주 4일 볼륨 셸. |
-| Starting Strength A/B | A/B 선형 진행, %1RM 시드 중량. |
-| Stronglifts 5x5 | A/B 5×5 + 데드 1×5. |
-| Madcow 5x5 | 월/수/금 램핑·트리플·백오프. |
+| Starting Strength A/B | A/B 선형 진행. 시작중량 우선, 없으면 %1RM. 스쿼트 +2.5 / 데드 +5 / 상체 +2.5. |
+| Stronglifts 5x5 | A/B 5×5 + 데드 1×5. 시작중량 우선, 없으면 ~50% 1RM. |
+| Madcow 5x5 | 월/수/금 12.5% 램핑·트리플·백오프. 매주 ×1.025. 시작중량=탑세트. |
 
 ### 템플릿 전용 (template) — 불완전
 
@@ -42,7 +42,7 @@
 ### 앱 기능
 
 - 이메일/비밀번호 가입·로그인 (세션 쿠키), 다중 사용자
-- PL·역도 1RM (kg 저장, kg/lb 표시)
+- PL·역도 1RM + SS/SL/Madcow 시작중량 (kg 저장, kg/lb 표시)
 - 세션: 프로그램 → 주/일 → 중량×반복, 큰 탭, 완료 체크, 휴식 타이머
 - 원판 계산기, Epley 1RM 헬퍼, 종목 팁(한국어)
 - `data/seed.json` + 부팅 시 시드

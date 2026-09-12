@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getDay, getProgram, getWeekId, resolveWorkout } from "@/lib/programs/queries";
 import { UnitToggle } from "@/components/UnitToggle";
 import { WorkoutClient } from "@/components/WorkoutClient";
-import { loadTips, tipDisclaimer } from "@/lib/tips";
+import { tipDisclaimer, tipFor } from "@/lib/tips";
 
 export const runtime = "nodejs";
 
@@ -46,7 +46,7 @@ export default async function SessionPage({
         <p className="mt-3 rounded-xl border border-[var(--line)] bg-[#2a1d12] p-3 text-sm">
           중량이 비어 있습니다.{" "}
           <Link href="/maxes" className="font-bold text-[var(--accent)]">
-            1RM을 먼저 저장
+            1RM 또는 시작중량을 먼저 저장
           </Link>
           하세요.
         </p>
@@ -54,7 +54,11 @@ export default async function SessionPage({
       <div className="mt-5">
         <WorkoutClient
           exercises={workout.exercises}
-          tips={loadTips().tips}
+          tips={Object.fromEntries(
+            workout.exercises
+              .map((e) => [e.exerciseKey, tipFor(e.exerciseKey)] as const)
+              .filter((row): row is [string, NonNullable<ReturnType<typeof tipFor>>] => row[1] != null),
+          )}
           disclaimer={tipDisclaimer()}
           unit={user.unit}
           sessionPath={`/session/${slug}/${week}/${day}`}

@@ -7,8 +7,10 @@ import { wendlerMainSets, trainingMaxKg } from "../src/lib/calc/wendler";
 import { roundLoad } from "../src/lib/calc/round";
 import { resetDbConnection } from "../src/lib/db/client";
 import { loginUser, registerUser } from "../src/lib/auth";
-import { getUserMaxes, saveUserMaxes } from "../src/lib/maxes";
-import { findWendlerSquatWeek1MainSets } from "../src/lib/programs/queries";
+import { getUserMaxes, getUserStarts, saveUserMaxes } from "../src/lib/maxes";
+import { findWendlerSquatWeek1MainSets, getWeekId, getDay, resolveWorkout } from "../src/lib/programs/queries";
+import { loadSeedFile, seedJsonPath } from "../src/lib/db/seed";
+import { resolveSetKg } from "../src/lib/calc/loads";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-smoke-"));
@@ -53,6 +55,93 @@ describe("auth + 1RM + 5/3/1", () => {
     expect(registerUser("a@b.co", "short")).toHaveProperty("error");
     expect(registerUser("ok@b.co", "password123")).toHaveProperty("user");
     expect(registerUser("ok@b.co", "password123")).toHaveProperty("error");
+  });
+});
+
+describe("seed schema + weight engine", () => {
+  it("reads public seed.json (meta / oneRmFields / loadRules / programs)", () => {
+    const raw = JSON.parse(fs.readFileSync(seedJsonPath(), "utf8"));
+    expect(raw.meta.units).toBe("kg");
+    expect(raw.meta.rounding_kg).toBe(2.5);
+    expect(raw.oneRmFields.squat.label).toBe("스쿼트");
+    expect(raw.oneRmFields.bench.label).toBe("벤치프레스");
+    expect(raw.oneRmFields.deadlift.label).toBe("데드리프트");
+    expect(raw.oneRmFields.ohp.label).toBe("오버헤드프레스");
+    expect(raw.loadRules.tmFactor).toBe(0.9);
+    expect(JSON.stringify(raw)).not.toContain("platePlan");
+    const ids = raw.programs.map((p: { id: string }) => p.id);
+    expect(ids).toEqual(expect.arrayContaining(["jim-wendler-531", "starting-strength", "stronglifts-5x5", "madcow-5x5"]));
+    const w531 = raw.programs.find((p: { id: string }) => p.id === "jim-wendler-531");
+    expect(w531.usesTM).toBe(true);
+    expect(w531.tmFactor).toBe(0.9);
+    const squatMain = w531.weeks[0].days[3].exercises.find((e: { role: string }) => e.role === "main");
+    expect(squatMain.sets.map((s: { percent: number; of: string }) => [s.percent, s.of])).toEqual([
+      [65, "TM"],
+      [75, "TM"],
+      [85, "TM"],
+    ]);
+    expect(squatMain.sets[2].amrap).toBe(true);
+    const squatBbb = w531.weeks[0].days[3].exercises.find((e: { role: string }) => e.role === "bbb");
+    expect(squatBbb.sets).toHaveLength(5);
+    expect(squatBbb.sets[0]).toEqual(expect.objectContaining({ reps: 10, percent: 50, of: "TM" }));
+    const deload = w531.weeks[3].days[0].exercises.find((e: { role: string }) => e.role === "main");
+    expect(deload.sets.map((s: { percent: number }) => s.percent)).toEqual([40, 50, 60]);
+    const sl = raw.programs.find((p: { id: string }) => p.id === "stronglifts-5x5");
+    expect(sl.weeks[0].days[0].exercises[0].sets[0].percent).toBe(50);
+    const mc = raw.programs.find((p: { id: string }) => p.id === "madcow-5x5");
+    expect(mc.weeks[0].days[0].exercises[0].sets.map((s: { percent: number }) => s.percent)).toEqual([
+      40, 50, 60, 70, 80,
+    ]);
+    expect(mc.weeks[1].days[0].exercises[0].sets[4].percent).toBe(82);
+    expect(loadSeedFile().programs.some((p) => p.slug === "jim-wendler-531")).toBe(true);
+  });
+
+  it("resolves TM percents with 2.5kg rounding; start weight wins on linear", () => {
+    expect(resolveSetKg({ oneRmKg: 200, percent: 65, of: "TM" })).toBe(117.5);
+    expect(resolveSetKg({ oneRmKg: 200, percent: 75, of: "TM" })).toBe(135);
+    expect(resolveSetKg({ oneRmKg: 200, percent: 85, of: "TM" })).toBe(152.5);
+    expect(resolveSetKg({ oneRmKg: 200, percent: 70, of: "1RM" })).toBe(140);
+    expect(resolveSetKg({ oneRmKg: 40, percent: 50, of: "TM" })).toBe(20);
+    expect(
+      resolveSetKg({ oneRmKg: 200, startKg: 60, percent: 50, of: "1RM", preferStart: true, topPercent: 50 }),
+    ).toBe(60);
+    expect(
+      resolveSetKg({
+        oneRmKg: 200,
+        startKg: 80,
+        percent: 40,
+        of: "1RM",
+        preferStart: true,
+        topPercent: 80,
+      }),
+    ).toBe(40);
+    expect(
+      resolveSetKg({
+        oneRmKg: 200,
+        startKg: 60,
+        percent: 80,
+        of: "1RM",
+        preferStart: true,
+        topPercent: 80,
+        addKg: 2.5,
+      }),
+    ).toBe(62.5);
+  });
+
+  it("uses start weight on Stronglifts week 1 squat", () => {
+    const created = registerUser("sl@example.com", "password123");
+    if ("error" in created) throw new Error(created.error);
+    saveUserMaxes(created.user.id, [
+      { exerciseKey: "squat", value: 200, startValue: 60, unit: "kg" },
+    ]);
+    expect(getUserMaxes(created.user.id).squat).toBe(200);
+    expect(getUserStarts(created.user.id).squat).toBe(60);
+    const weekId = getWeekId("stronglifts-5x5", 1);
+    expect(weekId).toBeTruthy();
+    const day = getDay(weekId!, 1);
+    const workout = resolveWorkout({ dayId: day!.id, userId: created.user.id, unit: "kg" });
+    const squat = workout?.exercises.find((e) => e.exerciseKey === "squat");
+    expect(squat?.sets.map((s) => s.weightKg)).toEqual([60, 60, 60, 60, 60]);
   });
 });
 

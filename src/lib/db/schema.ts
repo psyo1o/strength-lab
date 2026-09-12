@@ -29,6 +29,7 @@ export const userMaxes = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     exerciseKey: text("exercise_key").notNull(),
     oneRmKg: real("one_rm_kg").notNull(),
+    startKg: real("start_kg"),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
   (t) => [uniqueIndex("user_maxes_user_ex").on(t.userId, t.exerciseKey)],

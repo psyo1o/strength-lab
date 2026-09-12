@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getUserMaxes, MAX_GROUPS } from "@/lib/maxes";
+import { getUserMaxes, getUserStarts, MAX_GROUPS, START_WEIGHT_KEYS } from "@/lib/maxes";
 import { displayWeight } from "@/lib/calc/round";
 import { getSqlite } from "@/lib/db/client";
 import { Nav } from "@/components/Nav";
@@ -12,8 +12,10 @@ export default async function MaxesPage() {
   const user = await getCurrentUser();
   if (!user) return null;
   const maxes = getUserMaxes(user.id);
+  const starts = getUserStarts(user.id);
+  const startSet = new Set<string>(START_WEIGHT_KEYS);
   const rows = getSqlite()
-    .prepare(`SELECT key, name_ko, "group" FROM exercises WHERE is_max = 1`)
+    .prepare(`SELECT key, name_ko, "group" FROM exercises`)
     .all() as { key: string; name_ko: string; group: string }[];
   const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
 
@@ -22,6 +24,8 @@ export default async function MaxesPage() {
       key,
       nameKo: byKey[key]?.name_ko ?? key,
       value: maxes[key] ? displayWeight(maxes[key], user.unit) : "",
+      showStart: startSet.has(key),
+      startValue: starts[key] ? displayWeight(starts[key], user.unit) : "",
     }));
 
   return (
@@ -29,14 +33,16 @@ export default async function MaxesPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-black">1RM</h1>
-          <p className="text-sm text-[var(--muted)]">저장은 항상 kg. 화면만 {user.unit}.</p>
+          <p className="text-sm text-[var(--muted)]">
+            저장은 항상 kg. 화면만 {user.unit}. SS/SL/Madcow는 시작중량이 있으면 그 값을 씁니다.
+          </p>
         </div>
         <UnitToggle unit={user.unit} />
       </div>
       <MaxesForm
         unit={user.unit}
         groups={[
-          { title: "파워리프팅", fields: toFields(MAX_GROUPS.pl) },
+          { title: "파워리프팅", fields: toFields([...MAX_GROUPS.pl, "barbell_row"]) },
           { title: "역도", fields: toFields(MAX_GROUPS.olympic) },
         ]}
       />
