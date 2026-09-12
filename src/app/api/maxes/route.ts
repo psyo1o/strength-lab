@@ -5,6 +5,13 @@ import type { WeightUnit } from "@/lib/calc/round";
 
 export const runtime = "nodejs";
 
+/** JSON may send number, null, or "" from form clients. */
+function optionalNumber(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -23,10 +30,10 @@ export async function PUT(req: Request) {
   const entries = Array.isArray(body.entries) ? body.entries : [];
   saveUserMaxes(
     user.id,
-    entries.map((e: { exerciseKey: string; value: number; startValue?: number | null }) => ({
-      exerciseKey: String(e.exerciseKey),
+    entries.map((e: { exerciseKey?: unknown; value?: unknown; startValue?: unknown }) => ({
+      exerciseKey: String(e.exerciseKey ?? ""),
       value: Number(e.value),
-      startValue: e.startValue == null || e.startValue === "" ? null : Number(e.startValue),
+      startValue: optionalNumber(e.startValue),
       unit,
     })),
   );
