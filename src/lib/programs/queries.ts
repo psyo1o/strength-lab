@@ -73,6 +73,8 @@ export type ResolvedSet = {
   display: string | null;
   plates: string | null;
   done: boolean;
+  usedStart: boolean;
+  loadLabel: string;
 };
 
 export type ResolvedExercise = {
@@ -225,6 +227,22 @@ export function resolveWorkout(opts: {
           display: weightKg != null ? formatWeight(weightKg, opts.unit) : null,
           plates,
           done: done.has(s.id),
+          usedStart: Boolean(preferStart && startKg),
+          loadLabel: (() => {
+            if (preferStart && startKg) {
+              if (s.percent != null && topPercent > 0 && Math.abs(s.percent - topPercent) > 0.05) {
+                const frac = Math.round((s.percent / topPercent) * 1000) / 10;
+                return `${frac % 1 === 0 ? String(frac) : frac}% 시작`;
+              }
+              return "시작중량";
+            }
+            if (s.percent != null) {
+              const base =
+                s.percent_base === "tm" ? "TM" : s.percent_base === "ten_rm" ? "10RM" : "1RM";
+              return `${s.percent}% ${base}`;
+            }
+            return "작업중량";
+          })(),
         };
       });
       return {

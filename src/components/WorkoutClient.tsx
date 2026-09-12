@@ -127,11 +127,7 @@ export function WorkoutClient({
           × {current.set.reps}
           {current.set.amrap ? "+" : ""}
         </div>
-        <div className="mt-3 text-sm text-[var(--muted)]">
-          {current.set.percent != null
-            ? `${current.set.percent}% ${current.set.percentBase === "tm" ? "TM" : current.set.percentBase === "ten_rm" ? "10RM" : "1RM"}`
-            : "작업중량"}
-        </div>
+        <div className="mt-3 text-sm text-[var(--muted)]">{current.set.loadLabel}</div>
       </button>
 
       <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg bg-[#0f1117]/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
