@@ -112,6 +112,8 @@ describe("seed schema + weight engine", () => {
     expect(resolveSetKg({ oneRmKg: 200, percent: 65, of: "TM" })).toBe(117.5);
     expect(resolveSetKg({ oneRmKg: 200, percent: 75, of: "TM" })).toBe(135);
     expect(resolveSetKg({ oneRmKg: 200, percent: 85, of: "TM" })).toBe(152.5);
+    expect(resolveSetKg({ oneRmKg: 155, percent: 85, of: "TM" })).toBe(117.5);
+    expect(wendlerMainSets(155, 1, "kg").map((s) => s.weightKg)[2]).toBe(117.5);
     expect(resolveSetKg({ oneRmKg: 200, percent: 70, of: "1RM" })).toBe(140);
     expect(resolveSetKg({ oneRmKg: 40, percent: 50, of: "TM" })).toBe(20);
     expect(
@@ -158,11 +160,11 @@ describe("seed schema + weight engine", () => {
 });
 
 describe("canonical exercises", () => {
-  it("lists required P0 ids and squat/bench aliases", () => {
+  it("lists required P0 ids and squat/bench oneRm fields", () => {
     const raw = JSON.parse(fs.readFileSync(path.join(process.cwd(), "data", "exercises.canonical.json"), "utf8"));
-    expect(raw.aliases.squat).toBe("back_squat");
-    expect(raw.aliases.bench).toBe("bench_press");
-    expect(raw.ids).toEqual(
+    expect(raw.exercises.back_squat.oneRmField).toBe("squat");
+    expect(raw.exercises.bench_press.oneRmField).toBe("bench");
+    expect(Object.keys(raw.exercises)).toEqual(
       expect.arrayContaining([
         "back_squat",
         "bench_press",
@@ -193,6 +195,7 @@ describe("seed schema example", () => {
     expect(raw.oneRmFields.squat.label).toBe("스쿼트");
     expect(raw.oneRmFields.ohp.label).toBe("오버헤드프레스");
     expect(raw.loadRules.noPlatePlanOnSets).toBe(true);
+    expect(raw.loadRules.tmDefault.roundTM).toBe(false);
     expect(raw.programs.map((p: { id: string }) => p.id)).toEqual([
       "jim-wendler-531",
       "starting-strength",

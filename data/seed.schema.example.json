@@ -50,13 +50,14 @@
     ],
     "tmDefault": {
       "formula": "0.9 * 1RM",
-      "roundTM": true,
-      "tmRounding": "round_nearest_2_5",
+      "roundTM": false,
+      "compute": "MROUND(1RM * 0.9 * percent/100, 2.5)",
+      "note": "Round the product only. Do not pre-round TM then multiply. QA: 1RM 155 → W1 85% = 117.5 (not 120). 1RM 200 → W1 117.5/135/152.5.",
       "programs": [
         "jim-wendler-531"
       ]
     },
-    "computeKg": "round_nearest_2_5(baseKg * percent / 100)",
+    "computeKg": "MROUND(1RM * 0.9 * percent/100, 2.5) for of=TM; MROUND(1RM * percent/100, 2.5) for of=1RM",
     "noPlatePlanOnSets": true,
     "plateCalculator": "runtime"
   },
@@ -83,7 +84,7 @@
         60
       ]
     },
-    "TM": "0.9 * 1RM, then round nearest 2.5",
+    "TM": "MROUND(1RM * 0.9 * percent/100, 2.5) on the product — do not pre-round TM",
     "BBB": "P0 placeholder 5x10 @ 50% TM, same lift",
     "platePlan": "not on sets — runtime calculator",
     "exerciseIds": "owned by this seed (exercises.canonical.json)",
@@ -421,8 +422,8 @@
     ]
   },
   "assumptions": [
-    "세트 kg = round_nearest_2.5(base * percent/100); TM programs round TM itself to 2.5 first",
-    "5/3/1 TM = 0.9 * 1RM (matches sheet OP*0.9*pct)",
+    "세트 kg = MROUND(1RM * 0.9 * percent/100, 2.5) for TM — 곱한 뒤에만 2.5 반올림. TM을 먼저 반올림하지 않음",
+    "5/3/1 QA: 1RM 155 → W1 85% = 117.5 (not 120). 1RM 200 → W1 117.5/135/152.5",
     "platePlan NOT on sets — runtime plate calculator",
     "exercise canonical ids owned by seed (exercises.canonical.json)",
     "BBB is P0 placeholder even though TJ sheet uses CGBP/front squat/incline/SLDL assistance",

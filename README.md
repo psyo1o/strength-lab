@@ -14,7 +14,7 @@
 - 이메일 + 비밀번호 가입/로그인 (세션 쿠키). 여러 계정 가능
 - 1RM을 kg로 저장, 화면만 kg/lb 전환
 - 프로그램 → 주 → 일 → 세트(중량×반복). 큰 버튼, 완료 체크, 휴식 타이머
-- 5/3/1은 Training Max와 주차 %가 실제 kg로 계산되고 원판 구성까지 표시
+- 5/3/1은 `MROUND(1RM × 0.9 × pct/100, 2.5)` — TM을 먼저 반올림하지 않음. QA: 1RM 155 → W1 85% = 117.5 (120 아님). 200kg W1 = 117.5 / 135 / 152.5
 - 원판 계산기, Epley 1RM 헬퍼, 한국어 종목 팁
 - SQLite 파일을 볼륨에 보관 (`/data`)
 
@@ -104,7 +104,7 @@ If DSM already uses 7001, change only the **host** side of `"7001:3000"` (e.g. `
 
 Self-hosted Next.js + SQLite strength app. Copy `.env.example` → `.env`, set `AUTH_SECRET`, then `docker compose up --build`. Persist `/data`. Korean UI by default. Personal NAS use only; not affiliated with TJ Strength. See CHANGELOG for full vs template-only programs.
 
-Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads (MROUND 1RM×0.9×pct to 2.5 kg), start-weight override on Stronglifts, and kg/lb plate math.
+Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads (`MROUND(1RM×0.9×pct/100, 2.5)` on the product — 200kg → 117.5/135/152.5; 155kg W1 85% → 117.5), start-weight override on Stronglifts, and kg/lb plate math.
 
 ---
 
