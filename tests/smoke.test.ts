@@ -183,6 +183,28 @@ describe("canonical exercises", () => {
   });
 });
 
+describe("seed schema example", () => {
+  it("documents meta / oneRmFields / P0 programs without set platePlan", () => {
+    const raw = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "data", "seed.schema.example.json"), "utf8"),
+    );
+    expect(raw.meta.units).toBe("kg");
+    expect(raw.meta.rounding_kg).toBe(2.5);
+    expect(raw.oneRmFields.squat.label).toBe("스쿼트");
+    expect(raw.oneRmFields.ohp.label).toBe("오버헤드프레스");
+    expect(raw.loadRules.noPlatePlanOnSets).toBe(true);
+    expect(raw.programs.map((p: { id: string }) => p.id)).toEqual([
+      "jim-wendler-531",
+      "starting-strength",
+      "stronglifts-5x5",
+      "madcow-5x5",
+    ]);
+    expect(raw.programs[0].usesTM).toBe(true);
+    expect(raw.programs[0].tmFactor).toBe(0.9);
+    expect(JSON.stringify(raw.programs)).not.toMatch(/"platePlan"\s*:/);
+  });
+});
+
 describe("korean exercise tips", () => {
   it("loads official tips with cue/mistake/alternative/sheet and disclaimer", () => {
     expect(tipDisclaimer()).toContain("전문가");

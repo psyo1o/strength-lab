@@ -1,41 +1,437 @@
 {
-  "meta": { "units": "kg", "rounding_kg": 2.5 },
+  "$schema_note": "TJ Strength → Strength Lab seed. Personal NAS only. No commercial redistrib of source text.",
+  "version": "0.2.0",
+  "meta": {
+    "source": "스트렝스 프로그램 Ver 8.0b by TJ 스트렝스",
+    "attribution_url": "https://youtube.com/tjstrength0423",
+    "notice": "Personal NAS seed only. No commercial redistrib of original workbook text.",
+    "units": "kg",
+    "rounding_kg": 2.5,
+    "rounding_rule": "round_nearest_2_5"
+  },
   "oneRmFields": {
-    "squat": { "label": "스쿼트" },
-    "bench": { "label": "벤치프레스" },
-    "deadlift": { "label": "데드리프트" },
-    "ohp": { "label": "오버헤드프레스" }
+    "squat": {
+      "label": "스쿼트",
+      "aliases": [
+        "로우바 스쿼트",
+        "백 스쿼트"
+      ]
+    },
+    "bench": {
+      "label": "벤치프레스",
+      "aliases": [
+        "벤치",
+        "벤치 프레스"
+      ]
+    },
+    "deadlift": {
+      "label": "데드리프트",
+      "aliases": [
+        "데드",
+        "컨벤셔널 데드리프트"
+      ]
+    },
+    "ohp": {
+      "label": "오버헤드프레스",
+      "aliases": [
+        "오버헤드 프레스",
+        "프레스"
+      ]
+    }
   },
   "loadRules": {
-    "roundKg": 2.5,
-    "tmFactor": 0.9,
-    "barKg": 20
+    "percentOf": [
+      "1RM",
+      "TM",
+      "working",
+      "weeklyTop",
+      "mondayTop",
+      "nextWeekTop"
+    ],
+    "tmDefault": {
+      "formula": "0.9 * 1RM",
+      "roundTM": true,
+      "tmRounding": "round_nearest_2_5",
+      "programs": [
+        "jim-wendler-531"
+      ]
+    },
+    "computeKg": "round_nearest_2_5(baseKg * percent / 100)",
+    "noPlatePlanOnSets": true,
+    "plateCalculator": "runtime"
+  },
+  "decisions": {
+    "531_percents": {
+      "W1": [
+        65,
+        75,
+        85
+      ],
+      "W2": [
+        70,
+        80,
+        90
+      ],
+      "W3": [
+        75,
+        85,
+        95
+      ],
+      "W4": [
+        40,
+        50,
+        60
+      ]
+    },
+    "TM": "0.9 * 1RM, then round nearest 2.5",
+    "BBB": "P0 placeholder 5x10 @ 50% TM, same lift",
+    "platePlan": "not on sets — runtime calculator",
+    "exerciseIds": "owned by this seed (exercises.canonical.json)",
+    "SS_progression": "upper +2.5kg / lower +5kg (squat sheet uses +2.5)",
+    "Stronglifts": "same linear progression family as SS",
+    "Madcow": "standard % ramp with 12.5% interval, 5RM=0.87*1RM, weekly *1.025"
   },
   "programs": [
     {
       "id": "jim-wendler-531",
+      "sheet": "Jim Wendler 531",
+      "title": "Jim Wendler 5/3/1 (Simplest Strength)",
+      "priority": "P0",
+      "cycleWeeks": 4,
       "usesTM": true,
       "tmFactor": 0.9,
+      "mainLifts": [
+        "back_squat",
+        "bench_press",
+        "deadlift",
+        "ohp"
+      ],
+      "bbb": {
+        "enabled": true,
+        "placeholder": true,
+        "sets": 5,
+        "reps": 10,
+        "percent": 50,
+        "of": "TM",
+        "pairing": "same_lift"
+      },
       "weeks": [
         {
           "week": 1,
+          "label": "5s week",
           "days": [
             {
               "day": 1,
+              "name": "Press day",
               "exercises": [
                 {
                   "exerciseId": "ohp",
+                  "name": "오버헤드프레스",
+                  "role": "main",
                   "sets": [
-                    { "reps": 5, "percent": 65, "of": "TM" },
-                    { "reps": 5, "percent": 75, "of": "TM" },
-                    { "reps": 5, "percent": 85, "of": "TM", "amrap": true }
+                    {
+                      "set": 1,
+                      "reps": 8,
+                      "percent": 32.5,
+                      "of": "TM",
+                      "kind": "warmup",
+                      "amrap": false
+                    },
+                    {
+                      "set": 2,
+                      "reps": 5,
+                      "percent": 39.0,
+                      "of": "TM",
+                      "kind": "warmup",
+                      "amrap": false
+                    },
+                    {
+                      "set": 3,
+                      "reps": 3,
+                      "percent": 45.5,
+                      "of": "TM",
+                      "kind": "warmup",
+                      "amrap": false
+                    },
+                    {
+                      "set": 4,
+                      "reps": 1,
+                      "percent": 52.0,
+                      "of": "TM",
+                      "kind": "warmup",
+                      "amrap": false
+                    },
+                    {
+                      "set": 5,
+                      "reps": 1,
+                      "percent": 58.5,
+                      "of": "TM",
+                      "kind": "warmup",
+                      "amrap": false
+                    },
+                    {
+                      "set": 6,
+                      "reps": 5,
+                      "percent": 65,
+                      "of": "TM",
+                      "kind": "work",
+                      "amrap": false
+                    },
+                    {
+                      "set": 7,
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "TM",
+                      "kind": "work",
+                      "amrap": false
+                    },
+                    {
+                      "set": 8,
+                      "reps": 5,
+                      "percent": 85,
+                      "of": "TM",
+                      "kind": "work",
+                      "amrap": true
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "ohp",
+                  "name": "오버헤드프레스",
+                  "role": "bbb_placeholder",
+                  "sets": [
+                    {
+                      "set": 1,
+                      "reps": 10,
+                      "percent": 50,
+                      "of": "TM",
+                      "kind": "bbb",
+                      "amrap": false
+                    },
+                    {
+                      "set": 2,
+                      "reps": 10,
+                      "percent": 50,
+                      "of": "TM",
+                      "kind": "bbb",
+                      "amrap": false
+                    },
+                    {
+                      "set": 3,
+                      "reps": 10,
+                      "percent": 50,
+                      "of": "TM",
+                      "kind": "bbb",
+                      "amrap": false
+                    },
+                    {
+                      "set": 4,
+                      "reps": 10,
+                      "percent": 50,
+                      "of": "TM",
+                      "kind": "bbb",
+                      "amrap": false
+                    },
+                    {
+                      "set": 5,
+                      "reps": 10,
+                      "percent": 50,
+                      "of": "TM",
+                      "kind": "bbb",
+                      "amrap": false
+                    }
                   ]
                 }
               ]
             }
           ]
+        },
+        {
+          "week": 2,
+          "label": "3s week",
+          "mainPercentsOfTM": [
+            70,
+            80,
+            90
+          ]
+        },
+        {
+          "week": 3,
+          "label": "5/3/1 week",
+          "mainPercentsOfTM": [
+            75,
+            85,
+            95
+          ]
+        },
+        {
+          "week": 4,
+          "label": "deload",
+          "mainPercentsOfTM": [
+            40,
+            50,
+            60
+          ]
         }
       ]
+    },
+    {
+      "id": "starting-strength",
+      "priority": "P0",
+      "usesTM": false,
+      "progression": {
+        "type": "linear_add_kg_per_session",
+        "upperKg": 2.5,
+        "lowerKg": 5,
+        "squatKg": 2.5,
+        "note": "Approved: upper +2.5 / lower +5. Sheet: squat +2.5/session, deadlift +5/session, bench/ohp +2.5. Sheet squat increment is 2.5 not 5 — documented mismatch vs 'lower +5' for squat specifically."
+      },
+      "dayTemplates": {
+        "A": {
+          "name": "A",
+          "exercises": [
+            {
+              "exerciseId": "back_squat",
+              "name": "스쿼트",
+              "role": "main",
+              "work": "3x5",
+              "warmup": true
+            },
+            {
+              "exerciseId": "bench_press",
+              "name": "벤치프레스",
+              "role": "main",
+              "work": "3x5",
+              "warmup": true
+            },
+            {
+              "exerciseId": "deadlift",
+              "name": "데드리프트",
+              "role": "main",
+              "work": "1x5",
+              "warmup": true
+            }
+          ]
+        },
+        "B": {
+          "name": "B",
+          "exercises": [
+            {
+              "exerciseId": "back_squat",
+              "name": "스쿼트",
+              "role": "main",
+              "work": "3x5",
+              "warmup": true
+            },
+            {
+              "exerciseId": "ohp",
+              "name": "오버헤드프레스",
+              "role": "main",
+              "work": "3x5",
+              "warmup": true,
+              "sheetAltWork": "5x3 on some Wed columns"
+            },
+            {
+              "exerciseId": "chin_up",
+              "name": "친업",
+              "role": "accessory",
+              "work": "3xAMRAP",
+              "loadMode": "bodyweight"
+            }
+          ]
+        }
+      },
+      "weeks": "[see seed.p0.json — week 1 Mon/Wed/Fri fully populated]"
+    },
+    {
+      "id": "stronglifts-5x5",
+      "priority": "P0",
+      "dayTemplates": {
+        "A": {
+          "name": "A",
+          "exercises": [
+            {
+              "exerciseId": "back_squat",
+              "work": "5x5"
+            },
+            {
+              "exerciseId": "bench_press",
+              "work": "5x5"
+            },
+            {
+              "exerciseId": "barbell_row",
+              "work": "5x5"
+            }
+          ]
+        },
+        "B": {
+          "name": "B",
+          "exercises": [
+            {
+              "exerciseId": "back_squat",
+              "work": "5x5"
+            },
+            {
+              "exerciseId": "ohp",
+              "work": "5x5"
+            },
+            {
+              "exerciseId": "deadlift",
+              "work": "1x5"
+            }
+          ]
+        }
+      },
+      "progression": {
+        "squatKg": 2.5,
+        "benchKg": 2.5,
+        "ohpKg": 2.5,
+        "barbell_rowKg": 2.5,
+        "deadliftKg": 5,
+        "deadliftKgAfter100": 2.5,
+        "onFail": "retry_same_then_deload_10pct"
+      },
+      "weeks": "[see seed.p0.json — week 1 A/B/A]"
+    },
+    {
+      "id": "madcow-5x5",
+      "priority": "P0",
+      "setIntervalDefault": 0.125,
+      "estimated5RM": "0.87 * 1RM",
+      "weeklyProgression": 1.025,
+      "weeks": "[see seed.p0.json — week 1 Mon/Wed/Fri]"
     }
+  ],
+  "priorityPlan": {
+    "P0": [
+      "jim-wendler-531",
+      "starting-strength",
+      "stronglifts-5x5",
+      "madcow-5x5"
+    ],
+    "P1": [
+      "daily-undulating",
+      "juggernaut",
+      "cowboy",
+      "bob-takano",
+      "catalyst",
+      "torokhtiy",
+      "lbeb",
+      "rehab"
+    ]
+  },
+  "assumptions": [
+    "세트 kg = round_nearest_2.5(base * percent/100); TM programs round TM itself to 2.5 first",
+    "5/3/1 TM = 0.9 * 1RM (matches sheet OP*0.9*pct)",
+    "platePlan NOT on sets — runtime plate calculator",
+    "exercise canonical ids owned by seed (exercises.canonical.json)",
+    "BBB is P0 placeholder even though TJ sheet uses CGBP/front squat/incline/SLDL assistance",
+    "원문 셀 장문 텍스트는 시드에 덤프하지 않음"
+  ],
+  "unknowns_resolved": [
+    "531 W4 deload 40/50/60 — confirmed in sheet 'Week 4 (deload)'",
+    "BBB P0 yes as placeholder",
+    "platePlan — runtime only",
+    "canonical ids — seed-owned"
   ]
 }

@@ -43,9 +43,21 @@
     "bench": "bench_press"
   },
   "oneRmFields": {
-    "squat": { "label": "스쿼트", "exerciseId": "back_squat" },
-    "bench": { "label": "벤치프레스", "exerciseId": "bench_press" },
-    "deadlift": { "label": "데드리프트", "exerciseId": "deadlift" },
-    "ohp": { "label": "오버헤드프레스", "exerciseId": "ohp" }
+    "squat": {
+      "label": "스쿼트",
+      "exerciseId": "back_squat"
+    },
+    "bench": {
+      "label": "벤치프레스",
+      "exerciseId": "bench_press"
+    },
+    "deadlift": {
+      "label": "데드리프트",
+      "exerciseId": "deadlift"
+    },
+    "ohp": {
+      "label": "오버헤드프레스",
+      "exerciseId": "ohp"
+    }
   }
 }
