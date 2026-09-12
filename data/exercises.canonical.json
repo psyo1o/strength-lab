@@ -33,7 +33,10 @@
     "back_extension",
     "hanging_leg_raise",
     "curl",
-    "tricep_ext"
+    "tricep_ext",
+    "squat_clean",
+    "squat_snatch",
+    "split_jerk"
   ],
   "aliases": {
     "squat": "back_squat",

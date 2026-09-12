@@ -85,6 +85,17 @@ describe("seed schema + weight engine", () => {
     const squatBbb = w531.weeks[0].days[3].exercises.find((e: { role: string }) => e.role === "bbb");
     expect(squatBbb.sets).toHaveLength(5);
     expect(squatBbb.sets[0]).toEqual(expect.objectContaining({ reps: 10, percent: 50, of: "TM" }));
+    expect(w531.weeks[0].days.map((d: { nameKo: string }) => d.nameKo)).toEqual([
+      "월요일 — 오버헤드프레스",
+      "화요일 — 데드리프트",
+      "목요일 — 벤치프레스",
+      "금요일 — 스쿼트",
+    ]);
+    expect(w531.weeks[0].days[0].exercises.map((e: { role: string }) => e.role)).toEqual([
+      "warmup",
+      "main",
+      "bbb",
+    ]);
     const deload = w531.weeks[3].days[0].exercises.find((e: { role: string }) => e.role === "main");
     expect(deload.sets.map((s: { percent: number }) => s.percent)).toEqual([40, 50, 60]);
     const sl = raw.programs.find((p: { id: string }) => p.id === "stronglifts-5x5");
@@ -143,6 +154,32 @@ describe("seed schema + weight engine", () => {
     const workout = resolveWorkout({ dayId: day!.id, userId: created.user.id, unit: "kg" });
     const squat = workout?.exercises.find((e) => e.exerciseKey === "squat");
     expect(squat?.sets.map((s) => s.weightKg)).toEqual([60, 60, 60, 60, 60]);
+  });
+});
+
+describe("canonical exercises", () => {
+  it("lists required P0 ids and squat/bench aliases", () => {
+    const raw = JSON.parse(fs.readFileSync(path.join(process.cwd(), "data", "exercises.canonical.json"), "utf8"));
+    expect(raw.aliases.squat).toBe("back_squat");
+    expect(raw.aliases.bench).toBe("bench_press");
+    expect(raw.ids).toEqual(
+      expect.arrayContaining([
+        "back_squat",
+        "bench_press",
+        "deadlift",
+        "ohp",
+        "front_squat",
+        "power_clean",
+        "close_grip_bench",
+        "incline_bench",
+        "stiff_leg_deadlift",
+        "barbell_row",
+        "chin_up",
+        "pull_up",
+        "abs",
+        "free_accessory",
+      ]),
+    );
   });
 });
 

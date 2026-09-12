@@ -472,21 +472,10 @@ function wendlerDay(dayNumber: number, nameKo: string, lift: string, week: 1 | 2
     exercises.push({
       exerciseKey: lift,
       role: "bbb",
-      notesKo: "Boring But Big 5×10 @ 50% TM — 플레이스홀더 중량",
+      notesKo: "기본 보조: Boring But Big 5×10 @ 50% TM. 시트 보조는 이후 토글.",
       sets: nSets(5, 50, 10, "tm", { restSec: 90 }),
     });
   }
-
-  const assist =
-    lift === "squat"
-      ? [placeholder("lunge", "레그 보조", 3, 8), placeholder("hanging_leg_raise", "코어", 3, 10)]
-      : lift === "bench"
-        ? [placeholder("dip", "푸시 보조", 3, 8), placeholder("face_pull", "후면", 3, 15)]
-        : lift === "deadlift"
-          ? [placeholder("rdl", "힌지 보조", 3, 8), placeholder("back_extension", "후면 체인", 3, 10)]
-          : [placeholder("chin_up", "풀 보조", 3, 8), placeholder("plank", "코어", 3, 30)];
-
-  exercises.push(...assist);
 
   return {
     dayNumber,
@@ -498,10 +487,10 @@ function wendlerDay(dayNumber: number, nameKo: string, lift: string, week: 1 | 2
 
 function wendlerProgram(): SeedProgram {
   const dayDefs = [
-    { n: 1, name: "오버헤드프레스 데이", lift: "ohp" },
-    { n: 2, name: "데드리프트 데이", lift: "deadlift" },
-    { n: 3, name: "벤치프레스 데이", lift: "bench" },
-    { n: 4, name: "스쿼트 데이", lift: "squat" },
+    { n: 1, name: "월요일 — 오버헤드프레스", lift: "ohp" },
+    { n: 2, name: "화요일 — 데드리프트", lift: "deadlift" },
+    { n: 3, name: "목요일 — 벤치프레스", lift: "bench" },
+    { n: 4, name: "금요일 — 스쿼트", lift: "squat" },
   ];
   const weekNames = [
     "1주차 — 5s",
@@ -516,9 +505,9 @@ function wendlerProgram(): SeedProgram {
     category: "파워리프팅",
     completeness: "full",
     descriptionKo:
-      "Training Max = 0.9×1RM. 1주 65/75/85%×5, 2주 70/80/90%×3, 3주 75/85/95%(5/3/1), 4주 딜로드. 워밍업 + BBB 5×10 + 보조 플레이스홀더. 메인 4대: 스쿼트/벤치/데드/OHP.",
+      "Training Max = 0.9×1RM. 월 OHP / 화 데드 / 목 벤치 / 금 스쿼트. 1주 65/75/85%×5, 2주 70/80/90%×3, 3주 75/85/95%(5/3/1), 4주 딜로드. 워밍업 + 기본 보조 BBB 5×10 @ 50% TM.",
     descriptionEn:
-      "Full working 5/3/1: TM=0.9×1RM, classic weekly percents, warmups, BBB, assistance placeholders.",
+      "TM=0.9×1RM. Mon OHP / Tue DL / Thu Bench / Fri Squat. BBB 5×10 @ 50% TM is the default assistance.",
     usesTM: true,
     tmFactor: 0.9,
     sortOrder: 1,
