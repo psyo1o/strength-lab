@@ -1,0 +1,51 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { getDay, getProgram, getWeekId, resolveWorkout } from "@/lib/programs/queries";
+import { Nav } from "@/components/Nav";
+import { UnitToggle } from "@/components/UnitToggle";
+import { WorkoutClient } from "@/components/WorkoutClient";
+
+export const runtime = "nodejs";
+
+export default async function SessionPage({
+  params,
+}: {
+  params: Promise<{ slug: string; week: string; day: string }>;
+}) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const { slug, week, day } = await params;
+  const program = getProgram(slug);
+  const weekId = getWeekId(slug, Number(week));
+  if (!program || !weekId) notFound();
+  const dayRow = getDay(weekId, Number(day));
+  if (!dayRow) notFound();
+  const workout = resolveWorkout({ dayId: dayRow.id, userId: user.id, unit: user.unit });
+  if (!workout) notFound();
+
+  return (
+    <main className="px-4 pt-6">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <Link href={`/programs/${slug}`} className="text-sm font-bold text-[var(--accent)]">
+            ← {program.name_ko}
+          </Link>
+          <h1 className="mt-1 text-2xl font-black">{workout.nameKo}</h1>
+          <p className="text-sm text-[var(--muted)]">
+            {week}주차 · {day}일
+          </p>
+        </div>
+        <UnitToggle unit={user.unit} />
+      </div>
+      {program.completeness === "template" ? (
+        <p className="mt-3 rounded-xl bg-[#2a1d12] p-3 text-sm">불완전 템플릿 — 참고용 골격입니다.</p>
+      ) : null}
+      {workout.notesKo ? <p className="mt-3 text-sm text-[var(--muted)]">{workout.notesKo}</p> : null}
+      <div className="mt-5">
+        <WorkoutClient exercises={workout.exercises} />
+      </div>
+      <Nav current="/session" />
+    </main>
+  );
+}

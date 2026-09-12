@@ -1,0 +1,220 @@
+import { getSqlite } from "../db/client";
+import { resolveSetKg } from "../calc/loads";
+import { displayWeight, formatWeight, type WeightUnit } from "../calc/round";
+import { calculatePlates, formatPerSide } from "../calc/plates";
+import { getUserMaxes, resolveOneRm } from "../maxes";
+
+export type ProgramRow = {
+  slug: string;
+  name_ko: string;
+  name_en: string;
+  category: string;
+  completeness: "full" | "working" | "template";
+  description_ko: string;
+  description_en: string;
+  sort_order: number;
+};
+
+export function listPrograms(): ProgramRow[] {
+  return getSqlite()
+    .prepare("SELECT * FROM programs ORDER BY sort_order, slug")
+    .all() as ProgramRow[];
+}
+
+export function getProgram(slug: string): ProgramRow | undefined {
+  return getSqlite().prepare("SELECT * FROM programs WHERE slug = ?").get(slug) as
+    | ProgramRow
+    | undefined;
+}
+
+export function listWeeks(slug: string) {
+  return getSqlite()
+    .prepare(
+      "SELECT id, week_number, name_ko, notes_ko FROM program_weeks WHERE program_slug = ? ORDER BY week_number",
+    )
+    .all(slug) as { id: number; week_number: number; name_ko: string; notes_ko: string }[];
+}
+
+export function listDays(weekId: number) {
+  return getSqlite()
+    .prepare(
+      "SELECT id, day_number, name_ko, notes_ko FROM program_days WHERE week_id = ? ORDER BY day_number",
+    )
+    .all(weekId) as { id: number; day_number: number; name_ko: string; notes_ko: string }[];
+}
+
+export type ResolvedSet = {
+  id: number;
+  setNumber: number;
+  percentBase: string;
+  percent: number | null;
+  reps: number;
+  amrap: boolean;
+  restSec: number | null;
+  noteKo: string;
+  weightKg: number | null;
+  display: string | null;
+  plates: string | null;
+  done: boolean;
+};
+
+export type ResolvedExercise = {
+  id: number;
+  exerciseKey: string;
+  nameKo: string;
+  role: string;
+  notesKo: string;
+  tipsKo: string;
+  oneRmKg: number | null;
+  sets: ResolvedSet[];
+};
+
+export function getWeekId(slug: string, weekNumber: number): number | null {
+  const row = getSqlite()
+    .prepare("SELECT id FROM program_weeks WHERE program_slug = ? AND week_number = ?")
+    .get(slug, weekNumber) as { id: number } | undefined;
+  return row?.id ?? null;
+}
+
+export function getDay(weekId: number, dayNumber: number) {
+  return getSqlite()
+    .prepare("SELECT id, day_number, name_ko, notes_ko FROM program_days WHERE week_id = ? AND day_number = ?")
+    .get(weekId, dayNumber) as
+    | { id: number; day_number: number; name_ko: string; notes_ko: string }
+    | undefined;
+}
+
+export function resolveWorkout(opts: {
+  dayId: number;
+  userId: number;
+  unit: WeightUnit;
+}): { nameKo: string; notesKo: string; exercises: ResolvedExercise[] } | null {
+  const day = getSqlite()
+    .prepare("SELECT id, name_ko, notes_ko FROM program_days WHERE id = ?")
+    .get(opts.dayId) as { id: number; name_ko: string; notes_ko: string } | undefined;
+  if (!day) return null;
+
+  const maxes = getUserMaxes(opts.userId);
+  const doneRows = getSqlite()
+    .prepare("SELECT program_set_id FROM set_logs WHERE user_id = ? AND completed = 1")
+    .all(opts.userId) as { program_set_id: number }[];
+  const done = new Set(doneRows.map((r) => r.program_set_id));
+
+  const exercises = getSqlite()
+    .prepare(
+      `SELECT pe.id, pe.exercise_key, pe.role, pe.notes_ko, pe.sort_order,
+              e.name_ko, e.tips_ko
+       FROM program_exercises pe
+       JOIN exercises e ON e.key = pe.exercise_key
+       WHERE pe.day_id = ?
+       ORDER BY pe.sort_order`,
+    )
+    .all(opts.dayId) as {
+    id: number;
+    exercise_key: string;
+    role: string;
+    notes_ko: string;
+    name_ko: string;
+    tips_ko: string;
+  }[];
+
+  const setStmt = getSqlite().prepare(
+    `SELECT id, set_number, percent_base, percent, reps, amrap, rest_sec, note_ko
+     FROM program_sets WHERE exercise_id = ? ORDER BY set_number`,
+  );
+
+  return {
+    nameKo: day.name_ko,
+    notesKo: day.notes_ko,
+    exercises: exercises.map((ex) => {
+      const oneRmKg = resolveOneRm(maxes, ex.exercise_key);
+      const sets = (
+        setStmt.all(ex.id) as {
+          id: number;
+          set_number: number;
+          percent_base: string;
+          percent: number | null;
+          reps: number;
+          amrap: number;
+          rest_sec: number | null;
+          note_ko: string;
+        }[]
+      ).map((s) => {
+        const weightKg = resolveSetKg({
+          oneRmKg,
+          percentBase: s.percent_base,
+          percent: s.percent,
+        });
+        const plates =
+          weightKg != null
+            ? formatPerSide(calculatePlates(displayWeight(weightKg, opts.unit), opts.unit).perSide, opts.unit)
+            : null;
+        return {
+          id: s.id,
+          setNumber: s.set_number,
+          percentBase: s.percent_base,
+          percent: s.percent,
+          reps: s.reps,
+          amrap: Boolean(s.amrap),
+          restSec: s.rest_sec,
+          noteKo: s.note_ko,
+          weightKg,
+          display: weightKg != null ? formatWeight(weightKg, opts.unit) : null,
+          plates,
+          done: done.has(s.id),
+        };
+      });
+      return {
+        id: ex.id,
+        exerciseKey: ex.exercise_key,
+        nameKo: ex.name_ko,
+        role: ex.role,
+        notesKo: ex.notes_ko,
+        tipsKo: ex.tips_ko,
+        oneRmKg,
+        sets,
+      };
+    }),
+  };
+}
+
+export function toggleSetLog(userId: number, programSetId: number, completed: boolean) {
+  if (completed) {
+    getSqlite()
+      .prepare(
+        `INSERT INTO set_logs (user_id, program_set_id, completed, completed_at)
+         VALUES (?, ?, 1, ?)
+         ON CONFLICT(user_id, program_set_id) DO UPDATE SET completed = 1, completed_at = excluded.completed_at`,
+      )
+      .run(userId, programSetId, Date.now());
+  } else {
+    getSqlite()
+      .prepare("DELETE FROM set_logs WHERE user_id = ? AND program_set_id = ?")
+      .run(userId, programSetId);
+  }
+}
+
+export function findWendlerSquatWeek1MainSets(userId: number) {
+  const maxes = getUserMaxes(userId);
+  const rows = getSqlite()
+    .prepare(
+      `SELECT ps.percent, ps.reps, ps.amrap, ps.percent_base
+       FROM programs p
+       JOIN program_weeks w ON w.program_slug = p.slug
+       JOIN program_days d ON d.week_id = w.id
+       JOIN program_exercises pe ON pe.day_id = d.id
+       JOIN program_sets ps ON ps.exercise_id = pe.id
+       WHERE p.slug = 'wendler-531' AND w.week_number = 1
+         AND pe.exercise_key = 'squat' AND pe.role = 'main'
+       ORDER BY ps.set_number`,
+    )
+    .all() as { percent: number; reps: number; amrap: number; percent_base: string }[];
+  return rows.map((r) => ({
+    ...r,
+    weightKg: resolveSetKg({
+      oneRmKg: maxes.squat,
+      percentBase: r.percent_base,
+      percent: r.percent,
+    }),
+  }));
+}
