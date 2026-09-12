@@ -46,7 +46,7 @@ export function RestTimer({
           </div>
         </div>
         <button type="button" onClick={onStop} className="btn-ghost tap px-4 text-sm font-bold">
-          닫기
+          건너뛰기
         </button>
       </div>
     </div>

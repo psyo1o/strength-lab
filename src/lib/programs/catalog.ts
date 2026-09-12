@@ -400,8 +400,16 @@ function wendlerDay(dayNumber: number, nameKo: string, lift: string, week: 1 | 2
     {
       exerciseKey: lift,
       role: "warmup",
-      notesKo: "워밍업 — TM 기준",
-      sets: sets([40, 50, 60], [5, 5, 3], "tm", { restSec: 60 }),
+      notesKo: "워밍업 — 첫 본세트의 50/60/70/80/90% × 8/5/3/1/1 (바만이면 20kg)",
+      sets: sets(
+        (() => {
+          const first = week === 1 ? 65 : week === 2 ? 70 : week === 3 ? 75 : 40;
+          return [0.5, 0.6, 0.7, 0.8, 0.9].map((f) => Number((first * f).toFixed(1)));
+        })(),
+        [8, 5, 3, 1, 1],
+        "tm",
+        { restSec: 45 },
+      ),
     },
     {
       exerciseKey: lift,
@@ -453,7 +461,7 @@ function wendlerProgram(): SeedProgram {
     "4주차 — 딜로드",
   ];
   return {
-    slug: "wendler-531",
+    slug: "jim-wendler-531",
     nameKo: "Jim Wendler 5/3/1 Simplest Strength",
     nameEn: "Jim Wendler 5/3/1 Simplest Strength",
     category: "파워리프팅",

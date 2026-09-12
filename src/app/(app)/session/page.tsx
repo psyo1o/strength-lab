@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function SessionIndex() {
-  redirect("/programs/wendler-531");
+  redirect("/programs/jim-wendler-531");
 }

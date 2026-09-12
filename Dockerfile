@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libsqlite3-0 \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/data/seed.json ./data/seed.json
+COPY --from=builder /app/data ./data
 COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

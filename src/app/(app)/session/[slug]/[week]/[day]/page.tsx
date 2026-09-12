@@ -5,6 +5,7 @@ import { getDay, getProgram, getWeekId, resolveWorkout } from "@/lib/programs/qu
 import { Nav } from "@/components/Nav";
 import { UnitToggle } from "@/components/UnitToggle";
 import { WorkoutClient } from "@/components/WorkoutClient";
+import { loadTips, tipDisclaimer } from "@/lib/tips";
 
 export const runtime = "nodejs";
 
@@ -52,7 +53,12 @@ export default async function SessionPage({
         </p>
       ) : null}
       <div className="mt-5">
-        <WorkoutClient exercises={workout.exercises} />
+        <WorkoutClient
+          exercises={workout.exercises}
+          tips={loadTips().tips}
+          disclaimer={tipDisclaimer()}
+          unit={user.unit}
+        />
       </div>
       <Nav current="/session" />
     </main>

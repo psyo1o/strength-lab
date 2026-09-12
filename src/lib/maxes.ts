@@ -53,11 +53,16 @@ export function saveUserMaxes(
 }
 
 const FALLBACK: Record<string, string[]> = {
-  barbell_row: ["deadlift", "bench"],
+  barbell_row: ["deadlift", "bench", "bench_press"],
   rdl: ["deadlift"],
-  lunge: ["squat"],
+  stiff_leg_deadlift: ["deadlift"],
+  lunge: ["squat", "back_squat"],
   snatch_pull: ["snatch", "deadlift"],
   clean_pull: ["clean", "deadlift"],
+  back_squat: ["squat"],
+  squat: ["back_squat"],
+  bench_press: ["bench"],
+  bench: ["bench_press"],
 };
 
 export function resolveOneRm(maxes: MaxMap, exerciseKey: string): number | null {

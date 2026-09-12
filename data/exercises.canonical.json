@@ -1,0 +1,48 @@
+{
+  "ids": [
+    "back_squat",
+    "bench_press",
+    "deadlift",
+    "ohp",
+    "front_squat",
+    "power_clean",
+    "close_grip_bench",
+    "incline_bench",
+    "stiff_leg_deadlift",
+    "barbell_row",
+    "chin_up",
+    "pull_up",
+    "abs",
+    "free_accessory",
+    "clean_jerk",
+    "clean",
+    "jerk",
+    "power_jerk",
+    "snatch",
+    "power_snatch",
+    "muscle_snatch",
+    "push_press",
+    "ohs",
+    "snatch_pull",
+    "clean_pull",
+    "rdl",
+    "lunge",
+    "dip",
+    "face_pull",
+    "plank",
+    "back_extension",
+    "hanging_leg_raise",
+    "curl",
+    "tricep_ext"
+  ],
+  "aliases": {
+    "squat": "back_squat",
+    "bench": "bench_press"
+  },
+  "oneRmFields": {
+    "squat": { "label": "스쿼트", "exerciseId": "back_squat" },
+    "bench": { "label": "벤치프레스", "exerciseId": "bench_press" },
+    "deadlift": { "label": "데드리프트", "exerciseId": "deadlift" },
+    "ohp": { "label": "오버헤드프레스", "exerciseId": "ohp" }
+  }
+}

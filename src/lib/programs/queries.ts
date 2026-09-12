@@ -21,18 +21,34 @@ export function listPrograms(): ProgramRow[] {
     .all() as ProgramRow[];
 }
 
+const SLUG_ALIASES: Record<string, string[]> = {
+  "wendler-531": ["wendler-531", "jim-wendler-531"],
+  "jim-wendler-531": ["jim-wendler-531", "wendler-531"],
+};
+
+export function resolveProgramSlug(slug: string): string {
+  const row = getSqlite()
+    .prepare(
+      `SELECT slug FROM programs WHERE slug = ? OR slug IN (${(SLUG_ALIASES[slug] ?? [slug]).map(() => "?").join(",")})`,
+    )
+    .get(slug, ...(SLUG_ALIASES[slug] ?? [slug])) as { slug: string } | undefined;
+  return row?.slug ?? slug;
+}
+
 export function getProgram(slug: string): ProgramRow | undefined {
-  return getSqlite().prepare("SELECT * FROM programs WHERE slug = ?").get(slug) as
+  const key = resolveProgramSlug(slug);
+  return getSqlite().prepare("SELECT * FROM programs WHERE slug = ?").get(key) as
     | ProgramRow
     | undefined;
 }
 
 export function listWeeks(slug: string) {
+  const key = resolveProgramSlug(slug);
   return getSqlite()
     .prepare(
       "SELECT id, week_number, name_ko, notes_ko FROM program_weeks WHERE program_slug = ? ORDER BY week_number",
     )
-    .all(slug) as { id: number; week_number: number; name_ko: string; notes_ko: string }[];
+    .all(key) as { id: number; week_number: number; name_ko: string; notes_ko: string }[];
 }
 
 export function listDays(weekId: number) {
@@ -70,9 +86,10 @@ export type ResolvedExercise = {
 };
 
 export function getWeekId(slug: string, weekNumber: number): number | null {
+  const key = resolveProgramSlug(slug);
   const row = getSqlite()
     .prepare("SELECT id FROM program_weeks WHERE program_slug = ? AND week_number = ?")
-    .get(slug, weekNumber) as { id: number } | undefined;
+    .get(key, weekNumber) as { id: number } | undefined;
   return row?.id ?? null;
 }
 
@@ -204,7 +221,7 @@ export function findWendlerSquatWeek1MainSets(userId: number) {
        JOIN program_days d ON d.week_id = w.id
        JOIN program_exercises pe ON pe.day_id = d.id
        JOIN program_sets ps ON ps.exercise_id = pe.id
-       WHERE p.slug = 'wendler-531' AND w.week_number = 1
+       WHERE p.slug IN ('jim-wendler-531', 'wendler-531') AND w.week_number = 1
          AND pe.exercise_key = 'squat' AND pe.role = 'main'
        ORDER BY ps.set_number`,
     )

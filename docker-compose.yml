@@ -4,7 +4,7 @@ services:
     container_name: strength-lab
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "7001:3000"
     environment:
       AUTH_SECRET: ${AUTH_SECRET:-change-me-to-a-long-random-secret}
       DATABASE_PATH: /data/app.db

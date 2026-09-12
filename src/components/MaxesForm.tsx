@@ -50,7 +50,8 @@ export function MaxesForm({
                     min={0}
                     step={unit === "lb" ? 5 : 2.5}
                     defaultValue={f.value === "" ? "" : f.value}
-                    className="tap w-28 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-lg font-black"
+                    inputMode="decimal"
+                    className="tap w-32 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-2xl font-black"
                   />
                   <span className="text-sm text-[var(--muted)]">{unit}</span>
                 </span>

@@ -33,6 +33,12 @@
 - Torokhtiy
 - LBEB
 
+### 데이터 / 배포
+
+- `data/seed.json` 스키마: meta → oneRmFields → loadRules → programs/weeks/days/exercises/sets (`percent` + `of`: TM|1RM)
+- `data/exercises.canonical.json`, `data/seed.schema.example.json`, `data/exercise-tips.ko.json`
+- Synology: 호스트 **7001** → 컨테이너 3000 (`http://192.168.50.3:7001`)
+
 ### 앱 기능
 
 - 이메일/비밀번호 가입·로그인 (세션 쿠키), 다중 사용자

@@ -65,7 +65,7 @@ cd /volume1/docker/strength-lab
 docker compose up --build -d
 ```
 
-5. 브라우저: `http://<NAS_IP>:3000`
+5. 브라우저: `http://192.168.50.3:7001` (호스트 7001 → 컨테이너 3000)
 
 데이터가 남는 경로:
 
@@ -77,7 +77,7 @@ volumes:
   - /volume1/docker/strength-lab/data:/data
 ```
 
-포트 충돌이 있으면 `"3000:3000"`을 `"3001:3000"`처럼 바꿉니다.
+`7001`이 DSM에서 이미 쓰이면 `docker-compose.yml`의 `"7001:3000"`만 다른 호스트 포트로 바꾸면 됩니다. 앱 코드에 LAN IP는 넣지 않습니다.
 
 HTTPS(리버스 프록시)를 쓰면 쿠키를 위해 `.env`에 `COOKIE_SECURE=1`을 넣을 수 있습니다. 홈 LAN HTTP만 쓰면 넣지 마세요.
 
@@ -85,7 +85,7 @@ HTTPS(리버스 프록시)를 쓰면 쿠키를 위해 `.env`에 `COOKIE_SECURE=1
 
 ## English (short)
 
-Self-hosted Next.js + SQLite strength app. Copy `.env.example` → `.env`, set `AUTH_SECRET`, then `docker compose up --build`. Persist `/data`. Korean UI by default. Personal NAS use only; not affiliated with TJ Strength. See CHANGELOG for full vs template-only programs.
+Self-hosted Next.js + SQLite strength app. Copy `.env.example` → `.env`, set `AUTH_SECRET`, then `docker compose up --build`. Persist `/data`. Host port **7001** maps to the app on 3000 (`http://192.168.50.3:7001`). Korean UI by default. Personal NAS use only; not affiliated with TJ Strength. See CHANGELOG for full vs template-only programs.
 
 Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads, and kg/lb plate math. Loads round to 2.5 kg (or 5 lb).
 

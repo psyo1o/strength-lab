@@ -1,0 +1,41 @@
+{
+  "meta": { "units": "kg", "rounding_kg": 2.5 },
+  "oneRmFields": {
+    "squat": { "label": "스쿼트" },
+    "bench": { "label": "벤치프레스" },
+    "deadlift": { "label": "데드리프트" },
+    "ohp": { "label": "오버헤드프레스" }
+  },
+  "loadRules": {
+    "roundKg": 2.5,
+    "tmFactor": 0.9,
+    "barKg": 20
+  },
+  "programs": [
+    {
+      "id": "jim-wendler-531",
+      "usesTM": true,
+      "tmFactor": 0.9,
+      "weeks": [
+        {
+          "week": 1,
+          "days": [
+            {
+              "day": 1,
+              "exercises": [
+                {
+                  "exerciseId": "ohp",
+                  "sets": [
+                    { "reps": 5, "percent": 65, "of": "TM" },
+                    { "reps": 5, "percent": 75, "of": "TM" },
+                    { "reps": 5, "percent": 85, "of": "TM", "amrap": true }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

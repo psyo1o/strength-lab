@@ -53,7 +53,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="mt-6 grid gap-3">
-        <Link href="/session/wendler-531/1/4" className="card tap block p-4">
+        <Link href="/session/jim-wendler-531/1/4" className="card tap block p-4">
           <div className="text-xs font-bold text-[var(--accent)]">바로 시작</div>
           <div className="text-lg font-black">5/3/1 스쿼트 데이</div>
           <div className="text-sm text-[var(--muted)]">1주차 · 완전 작동 계산</div>
