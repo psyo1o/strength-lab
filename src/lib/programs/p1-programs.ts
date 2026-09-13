@@ -104,6 +104,9 @@ export function dailyUndulatingProgram(): SeedProgram {
       "기본 국면은 비대(월–토). 근력·피킹은 프로그램 화면에서 고릅니다. extra 1RM: 프론트스쿼트·파워클린. 공개 지식 근사 — RPE 자동 진행 없음.",
     descriptionEn: "Default hypertrophy Mon–Sat. Strength/peaking via phase picker. Approximate.",
     extraOneRmFields: { front_squat: { label: "프론트 스쿼트" }, power_clean: { label: "파워클린" } },
+    copy: {
+      help: "3 메소사이클 × 4주(비대 → 근력 → 피킹). 각 4주차는 회복(작업중량 −10%p). extra 1RM: 프론트스쿼트·파워클린. RPE 자동 진행 없음.",
+    },
     sortOrder: 30,
     weeks: phases.flatMap((ph, pi) =>
       [0, 1, 2, 3].map((off) => ({

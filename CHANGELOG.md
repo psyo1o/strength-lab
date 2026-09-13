@@ -35,7 +35,7 @@
 | --- | --- |
 | `lbeb` | W1–6 로드. W7–12 시드 일 없음. |
 
-프로그램 JSON을 채팅에 큰 gzip+base64로 붙여 넣으면 **잘리거나 CRC가 깨집니다** (Wendler/SS 페이로드가 손상되어 도착함). 채팅 gzip으로 프로그램 전체를 교체하지 말고, 저장소 파일에서 `npx tsx scripts/merge-seed-programs.ts <file>` 로 id 병합하거나 카탈로그 생성기를 수술적으로 고치세요. `seed-drafts/seed.p1.json` 은 부팅 시 slug 덮어쓰기.
+프로그램 JSON을 채팅에 큰 gzip+base64로 붙여 넣으면 **잘리거나 CRC가 깨집니다**. 채팅 gzip은 받지 않습니다. 파일이 있는 기기에서 JSON을 커밋한 뒤 `npx tsx scripts/merge-seed-programs.ts <file>` 로 id 병합하거나 카탈로그를 수술적으로 고치세요. 안내: `scripts/import-seed-from-url.md`. `seed-drafts/seed.p1.json` 은 부팅 시 slug 덮어쓰기.
 
 ### 데이터 / 배포
 

@@ -346,6 +346,20 @@ describe("P1 programs", () => {
     const dup = raw.programs.find((p: { id: string }) => p.id === "daily-undulating");
     expect(dup.weeks).toHaveLength(12);
     expect(dup.weeks[0].days).toHaveLength(6);
+    expect(dup.weeks.map((w: { nameKo: string }) => w.nameKo)).toEqual([
+      "1주차 — 비대",
+      "2주차 — 비대",
+      "3주차 — 비대",
+      "4주차 — 비대 회복",
+      "5주차 — 근력",
+      "6주차 — 근력",
+      "7주차 — 근력",
+      "8주차 — 근력 회복",
+      "9주차 — 피킹",
+      "10주차 — 피킹",
+      "11주차 — 피킹",
+      "12주차 — 피킹 회복",
+    ]);
     expect(dup.extraOneRmFields.front_squat.label).toBe("프론트 스쿼트");
     const wu = dup.weeks[0].days[0].exercises.find((e: { role: string }) => e.role === "warmup");
     expect(wu.sets.map((s: { percent: number; reps: number }) => [s.percent, s.reps])).toEqual([
