@@ -159,6 +159,9 @@ describe("completeness badges", () => {
     expect(programBadge("juggernaut", "working")).toBe("진행 가능");
     expect(programBadge("madcow-5x5", "working")).toBe("진행 가능");
     expect(helpOrDescription("cowboy", "fallback")).toMatch(/카우보이|스쿼트|프론트/);
+    expect(helpOrDescription("daily-undulating", "fallback")).toMatch(/메소사이클|비대|피킹/);
+    expect(helpOrDescription("juggernaut", "fallback")).toMatch(/16주|웨이브|피킹/);
+    expect(helpOrDescription("lbeb", "fallback")).toMatch(/잠금|W7|W1/);
     expect(helpOrDescription("missing-program", "fallback")).toBe("fallback");
   });
 });

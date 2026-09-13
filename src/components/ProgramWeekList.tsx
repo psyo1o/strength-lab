@@ -31,6 +31,7 @@ export function ProgramWeekList({
     return weeks.filter((w) => w.week_number >= start && (next == null || w.week_number < next));
   }, [weeks, pickers.length, pick, start, phasePickers]);
   const shown = weekChip === "all" ? visible : visible.filter((w) => w.week_number === weekChip);
+  const locked = new Set(meta?.unavailableWeeks ?? []);
 
   return (
     <div className="mt-6 space-y-5">
@@ -71,20 +72,26 @@ export function ProgramWeekList({
           >
             모든 주
           </button>
-          {weeks.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              onClick={() => setWeekChip(w.week_number)}
-              className={`tap rounded-full px-3 py-1.5 text-xs font-black ${
-                weekChip === w.week_number
-                  ? "bg-[var(--accent)] text-[#1a1204]"
-                  : "bg-[var(--bg-elev)] text-[var(--muted)]"
-              }`}
-            >
-              {w.week_number}주
-            </button>
-          ))}
+          {visible.map((w) => {
+            const isLocked = locked.has(w.week_number);
+            return (
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => setWeekChip(w.week_number)}
+                title={isLocked ? "잠금 — 시드된 세션 없음" : undefined}
+                className={`tap rounded-full px-3 py-1.5 text-xs font-black ${
+                  weekChip === w.week_number
+                    ? "bg-[var(--accent)] text-[#1a1204]"
+                    : isLocked
+                      ? "bg-[var(--bg-elev)] text-[var(--muted)] opacity-60 line-through"
+                      : "bg-[var(--bg-elev)] text-[var(--muted)]"
+                }`}
+              >
+                {w.week_number}주{isLocked ? " · 잠금" : ""}
+              </button>
+            );
+          })}
         </div>
       ) : null}
       {shown.map((w) => {

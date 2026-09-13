@@ -2,7 +2,7 @@
 
 부모 `REPORT.complete.md` 우선순위 반영. 거대 gzip은 기다리지 않고 저장소 규칙으로 채움.
 
-공개 시드는 `npm run seed` (`scripts/export-seed.ts` → `buildSeed()`)로 다시 씁니다. cowboy gzip(`seed-drafts/cowboy.json.b64`, B64_LEN=4512)은 CRC가 깨졌지만 13주 풀세트가 스트림에서 살아 있어 공개 시드 형식으로 변환한 뒤 `merge-seed-programs.ts`로 id=cowboy만 병합했습니다. juggernaut part B와 Wendler/SS 교체 gzip은 여전히 불완전합니다. Madcow P0 gzip은 1주차+메타까지 복구해 생성기에 반영했습니다.
+공개 시드는 `npm run seed` (`scripts/export-seed.ts` → `buildSeed()`)로 다시 씁니다. **채팅 gzip+base64는 받지 않습니다** (`scripts/import-seed-from-url.md`). cowboy gzip(`seed-drafts/cowboy.json.b64`, B64_LEN=4512)은 CRC가 깨졌지만 13주 풀세트가 살아 있어 `merge-seed-programs.ts`로 id=cowboy만 병합했습니다. juggernaut part B와 Wendler/SS 교체 gzip은 여전히 불완전합니다. Madcow P0 gzip은 1주차+메타까지 복구해 생성기에 반영했습니다.
 
 ## MUST DO
 
