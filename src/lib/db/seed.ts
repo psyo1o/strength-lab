@@ -96,7 +96,9 @@ function normalizeSeed(raw: unknown): SeedFile {
           usesTM: Boolean(p.usesTM ?? fallback?.usesTM ?? String(p.id ?? p.slug).includes("531")),
           tmFactor: Number(p.tmFactor ?? fallback?.tmFactor ?? 0.9),
           startWeight: (p.startWeight as { enabled: boolean } | undefined) ?? fallback?.startWeight,
-          progression: (p.progression as Record<string, { addKg: number }> | undefined) ?? fallback?.progression,
+          progression: (p.progression as SeedFile["programs"][number]["progression"] | undefined) ?? fallback?.progression,
+          fridayTriple: (p.fridayTriple as boolean | undefined) ?? fallback?.fridayTriple,
+          prWeekDefault: (p.prWeekDefault as number | null | undefined) ?? fallback?.prWeekDefault,
           extraOneRmFields:
             (p.extraOneRmFields as Record<string, { label: string }> | undefined) ?? fallback?.extraOneRmFields,
           weekRules: (p.weekRules as string[] | undefined) ?? fallback?.weekRules,
@@ -177,6 +179,8 @@ function toPublicSeed(seed: SeedFile): PublicSeedFile {
       };
       if (p.startWeight) row.startWeight = p.startWeight;
       if (p.progression) row.progression = p.progression;
+      if (p.fridayTriple != null) row.fridayTriple = p.fridayTriple;
+      if (p.prWeekDefault !== undefined) row.prWeekDefault = p.prWeekDefault;
       if (p.extraOneRmFields) row.extraOneRmFields = p.extraOneRmFields;
       if (p.weekRules) row.weekRules = p.weekRules;
       if (p.coverage) row.coverage = p.coverage;

@@ -1625,6 +1625,10 @@
         }
       ],
       "progression": {
+        "afterEachCycle": {
+          "upperKg": 2.5,
+          "lowerKg": 5
+        },
         "ohp": {
           "addKg": 2.5
         },
@@ -26218,7 +26222,9 @@
       ],
       "startWeight": {
         "enabled": true
-      }
+      },
+      "fridayTriple": true,
+      "prWeekDefault": null
     },
     {
       "id": "bob-takano",

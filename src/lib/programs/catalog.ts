@@ -52,7 +52,11 @@ export type SeedProgram = {
   usesTM?: boolean;
   tmFactor?: number;
   startWeight?: { enabled: boolean };
-  progression?: Record<string, { addKg: number }>;
+  progression?: {
+    afterEachCycle?: { upperKg: number; lowerKg: number };
+  } & Record<string, { addKg?: number; upperKg?: number; lowerKg?: number } | undefined>;
+  fridayTriple?: boolean;
+  prWeekDefault?: number | null;
   extraOneRmFields?: Record<string, { label: string }>;
   weekRules?: string[];
   coverage?: string;
@@ -596,6 +600,7 @@ function wendlerProgram(): SeedProgram {
     usesTM: true,
     tmFactor: 0.9,
     progression: {
+      afterEachCycle: { upperKg: 2.5, lowerKg: 5 },
       ohp: { addKg: 2.5 },
       bench: { addKg: 2.5 },
       squat: { addKg: 5 },
@@ -1053,7 +1058,10 @@ function madcow(): SeedProgram {
     descriptionEn: "Mon/Wed/Fri Madcow. Week-1 12.5% ramps of top; weekly ×1.025. Start-weight field is the top set.",
     sortOrder: 4,
     startWeight: { enabled: true },
-    weeks: [0, 1, 2, 3].map((wi) => ({
+    fridayTriple: true,
+    prWeekDefault: null,
+    weeks: [0, 1, 2, 3].map((wi) => {
+      return {
       weekNumber: wi + 1,
       nameKo: `${wi + 1}주차`,
       notesKo: "금요일 트리플이 편하면 다음 주 월요일 탑이 자연스럽게 오른다(×1.025).",
@@ -1159,7 +1167,8 @@ function madcow(): SeedProgram {
           ],
         },
       ],
-    })),
+    };
+    }),
   };
 }
 

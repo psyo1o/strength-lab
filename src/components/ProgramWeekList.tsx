@@ -20,6 +20,7 @@ export function ProgramWeekList({
   const phasePickers = meta?.phases ?? meta?.classes ?? [];
   const pickers = phasePickers.length ? [{ id: "all", label: "전체", weekStart: 0 }, ...phasePickers] : [];
   const [pick, setPick] = useState("all");
+  const [weekChip, setWeekChip] = useState<number | "all">("all");
   const start = pickers.find((p) => p.id === pick)?.weekStart ?? 0;
   const visible = useMemo(() => {
     if (!pickers.length || pick === "all" || start <= 0) return weeks;
@@ -29,6 +30,7 @@ export function ProgramWeekList({
       .sort((a, b) => a - b)[0];
     return weeks.filter((w) => w.week_number >= start && (next == null || w.week_number < next));
   }, [weeks, pickers.length, pick, start, phasePickers]);
+  const shown = weekChip === "all" ? visible : visible.filter((w) => w.week_number === weekChip);
 
   return (
     <div className="mt-6 space-y-5">
@@ -45,7 +47,10 @@ export function ProgramWeekList({
             <button
               key={p.id}
               type="button"
-              onClick={() => setPick(p.id)}
+              onClick={() => {
+                setPick(p.id);
+                setWeekChip("all");
+              }}
               className={`tap rounded-full px-4 py-2 text-sm font-black ${
                 pick === p.id ? "bg-[var(--accent)] text-[#1a1204]" : "bg-[var(--bg-elev)] text-[var(--muted)]"
               }`}
@@ -55,7 +60,34 @@ export function ProgramWeekList({
           ))}
         </div>
       ) : null}
-      {visible.map((w) => {
+      {weeks.length > 1 ? (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setWeekChip("all")}
+            className={`tap rounded-full px-3 py-1.5 text-xs font-black ${
+              weekChip === "all" ? "bg-[var(--accent)] text-[#1a1204]" : "bg-[var(--bg-elev)] text-[var(--muted)]"
+            }`}
+          >
+            모든 주
+          </button>
+          {weeks.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              onClick={() => setWeekChip(w.week_number)}
+              className={`tap rounded-full px-3 py-1.5 text-xs font-black ${
+                weekChip === w.week_number
+                  ? "bg-[var(--accent)] text-[#1a1204]"
+                  : "bg-[var(--bg-elev)] text-[var(--muted)]"
+              }`}
+            >
+              {w.week_number}주
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {shown.map((w) => {
         const days = daysByWeek[w.id] ?? [];
         const empty = days.length === 0;
         return (

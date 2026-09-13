@@ -1,6 +1,18 @@
 # Seed fill report
 
+부모 `REPORT.complete.md` 우선순위 반영. 거대 gzip은 기다리지 않고 저장소 규칙으로 채움.
+
 공개 시드는 `npm run seed` (`scripts/export-seed.ts` → `buildSeed()`)로 다시 씁니다. cowboy gzip은 base64가 잘려 CRC 오류가 났지만, `weekRules` W1–13은 스트림에서 복구했습니다(`seed-drafts/cowboy.weekRules.json`). juggernaut part B와 P0 교체 gzip은 여전히 불완전합니다.
+
+## MUST DO
+
+1. cowboy 13주 weekRules — 완료
+2. juggernaut 16 웨이브 + peakingBlock + realizationMaxHook — 완료 (피킹 5주는 빈 주 없이 노트)
+3. rehab DeLorme 8주 + DAPRE Knight 10/6 — 완료
+4. daily-undulating 3×4주 — 완료
+5. P0: madcow `fridayTriple` 매주 · `prWeekDefault` null / Wendler `progression.afterEachCycle` / SS OHP 3×5 — 완료
+6. 배지: 가득 찬 주 → 진행 가능, Wendler 완전 작동, LBEB W7–12 잠금
+7. 프로그램 상세: 시드된 모든 주 칩 + `copy.help` 설명
 
 ## 이번 채움
 

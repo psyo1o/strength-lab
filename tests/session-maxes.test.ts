@@ -13,6 +13,7 @@ import {
   labelForMaxField,
 } from "../src/lib/maxes-fields";
 import { programBadge, programBanner } from "../src/lib/programs/completeness-ux";
+import { helpOrDescription } from "../src/lib/programs/copy-help";
 import { seedJsonPath } from "../src/lib/db/seed";
 import { canonicalOneRmFields, tipFor } from "../src/lib/tips";
 
@@ -155,5 +156,7 @@ describe("completeness badges", () => {
     expect(raw.programs.find((p: { id: string }) => p.id === "cowboy").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "juggernaut").completeness).toBe("working");
     expect(programBadge("juggernaut", "working")).toBe("진행 가능");
+    expect(helpOrDescription("cowboy", "fallback")).toMatch(/카우보이|스쿼트|프론트/);
+    expect(helpOrDescription("missing-program", "fallback")).toBe("fallback");
   });
 });

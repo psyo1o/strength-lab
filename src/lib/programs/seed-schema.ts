@@ -44,7 +44,11 @@ export type PublicSeedProgram = {
   tmFactor?: number;
   sortOrder?: number;
   startWeight?: { enabled: boolean };
-  progression?: Record<string, { addKg: number }>;
+  progression?: {
+    afterEachCycle?: { upperKg: number; lowerKg: number };
+  } & Record<string, { addKg?: number; upperKg?: number; lowerKg?: number } | undefined>;
+  fridayTriple?: boolean;
+  prWeekDefault?: number | null;
   extraOneRmFields?: Record<string, { label: string }>;
   weekRules?: string[];
   coverage?: string;

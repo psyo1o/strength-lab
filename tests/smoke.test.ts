@@ -314,6 +314,7 @@ describe("P1 programs", () => {
     const wed = wedDay.exercises.find((e: { role: string }) => e.role === "main");
     expect(wed.sets.map((s: { percent: number }) => s.percent)).toEqual([55, 60, 65, 70, 75]);
     const dup = raw.programs.find((p: { id: string }) => p.id === "daily-undulating");
+    expect(dup.weeks).toHaveLength(12);
     expect(dup.weeks[0].days).toHaveLength(6);
     expect(dup.extraOneRmFields.front_squat.label).toBe("프론트 스쿼트");
     const wu = dup.weeks[0].days[0].exercises.find((e: { role: string }) => e.role === "warmup");
@@ -339,6 +340,8 @@ describe("P1 programs", () => {
       [100, 6],
     ]);
     const wendler = raw.programs.find((p: { id: string }) => p.id === "jim-wendler-531");
+    expect(wendler.progression.afterEachCycle.upperKg).toBe(2.5);
+    expect(wendler.progression.afterEachCycle.lowerKg).toBe(5);
     expect(wendler.progression.ohp.addKg).toBe(2.5);
     expect(wendler.progression.bench.addKg).toBe(2.5);
     expect(wendler.progression.squat.addKg).toBe(5);
@@ -350,6 +353,8 @@ describe("P1 programs", () => {
     expect(jug.coverage).toBe("w1-16_full_sets_plus_peaking");
     expect(jug.weekRules.at(-1)).toMatch(/peakingBlock/);
     const madcow = raw.programs.find((p: { id: string }) => p.id === "madcow-5x5");
+    expect(madcow.fridayTriple).toBe(true);
+    expect(madcow.prWeekDefault).toBeNull();
     for (const week of madcow.weeks) {
       const fri = week.days[week.days.length - 1];
       const squat = fri.exercises.find((e: { exerciseId: string }) => e.exerciseId === "squat");
