@@ -364,8 +364,12 @@ describe("P1 programs", () => {
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks[0].nameKo).toMatch(/Class III/);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks).toHaveLength(12);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");
+    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").coverage).toBe("seeded_sample_not_full_cycle");
+    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").descriptionKo).toMatch(/샘플/);
     expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").weeks).toHaveLength(12);
     expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").completeness).toBe("working");
+    expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").coverage).toBe("seeded_sample_not_full_cycle");
+    expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").descriptionKo).not.toMatch(/공식 12주 기본 블록/);
     expect(JSON.stringify(raw.programs.find((p: { id: string }) => p.id === "catalyst"))).not.toMatch(/미확장/);
     const toro = raw.programs.find((p: { id: string }) => p.id === "torokhtiy");
     expect(toro.weeks.length).toBeGreaterThanOrEqual(13);
@@ -373,6 +377,7 @@ describe("P1 programs", () => {
     expect(toro.completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").weeks[6].days).toHaveLength(0);
     expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("template");
+    expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").coverage).toBe("excel-w1-6-only");
     expect(typeof seedDraftsP1Path()).toBe("string");
   });
 });

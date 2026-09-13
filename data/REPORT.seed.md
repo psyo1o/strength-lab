@@ -18,7 +18,8 @@
 
 - **LBEB W7–12**: 빈 날 · `template` · 공개 % 그리드 없음 (`excel-w1-6-only`).
 - **Juggernaut 피킹 5주**: 주차 배열에 빈 주를 넣지 않음(넣으면 배지가 템플릿). `peakingBlock` 노트만.
-- **Bob Takano / Catalyst**: 시드에 있는 12주만. 유료·미제공 주 발명 없음.
+- **Bob Takano / Catalyst**: 시드된 샘플 주만. UI/카피에 **공식 12주 사이클**로 광고하지 않음 (`seeded_sample_not_full_cycle`). 유료 주 발명 없음.
+- **Rehab DAPRE**: 기본 Knight 10@50% / 6@75%. 12/8은 라벨 변형만.
 - **Torokhtiy**: 시드된 13주만.
 - 페이월 올림픽 주를 추정해 채우지 않음.
 

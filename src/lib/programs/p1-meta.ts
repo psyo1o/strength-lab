@@ -26,6 +26,7 @@ export const P1_META: Record<string, P1Meta> = {
       { id: "II", label: "Class II", weekStart: 5 },
       { id: "I", label: "Class I", weekStart: 9 },
     ],
+    listedBlocks: ["시드된 Class 샘플 주만. 공식·유료 12주 사이클 아님."],
   },
   rehab: {
     extraOneRmFields: [{ key: "rehab_target", label: "재활 목표 동작" }],
@@ -41,9 +42,12 @@ export const P1_META: Record<string, P1Meta> = {
       "W4·W8·W12 딜로드, W13 1RM 테스트",
     ],
   },
-  lbeb: {},
+  lbeb: {
+    listedBlocks: ["W1–6만 로드", "W7–12 잠금 (excel-w1-6-only). 공개 % 그리드 없음"],
+    unavailableWeeks: [7, 8, 9, 10, 11, 12],
+  },
   catalyst: {
-    listedBlocks: ["기본 12주 시드. 세션은 시드된 모든 주/일로 이동합니다."],
+    listedBlocks: ["시드된 샘플 주만. 공식 12주 기본+스페셜티 블록 아님."],
   },
 };
 

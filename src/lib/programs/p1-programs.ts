@@ -334,7 +334,7 @@ export function rehabP1(): SeedProgram {
   const dapre = (key: string): SeedExercise => ({
     exerciseKey: key,
     role: "main",
-    notesKo: "DAPRE — Knight 기본 50%×10 / 75%×6 / 100% AMRAP. 다음 세션 ±2.5kg 수동.",
+    notesKo: "DAPRE — Knight 기본 50%×10 / 75%×6 / 100% AMRAP. 12@50/8@75는 라벨 변형만(기본 아님).",
     sets: [
       { setNumber: 1, percentBase: "ten_rm", percent: 50, reps: 10, restSec: 120, noteKo: "Knight 워밍 10@50%" },
       { setNumber: 2, percentBase: "ten_rm", percent: 75, reps: 6, restSec: 120, noteKo: "Knight 워밍 6@75%" },
@@ -456,8 +456,13 @@ export function bobTakanoP1(): SeedProgram {
     nameEn: "Bob Takano",
     category: "역도",
     completeness: "working",
-    descriptionKo: "Class III / II / I 12주. 프로그램 화면에서 클래스 또는 전체를 고릅니다. 공식 장기 주기화 아님.",
-    descriptionEn: "Class III / II / I over 12 weeks. Approximate.",
+    coverage: "seeded_sample_not_full_cycle",
+    copy: {
+      help: "시드된 Class 샘플 주만 있습니다. 엑셀/유료 12주 사이클이 아닙니다.",
+    },
+    descriptionKo:
+      "시드된 Class III/II/I 샘플 주만. 엑셀·유료 12주 사이클이 아니며 퍼센트는 공개 지식 근사입니다. 클래스 피커는 시드된 블록용.",
+    descriptionEn: "Seeded class sample weeks only — not a full paid 12-week Takano cycle.",
     sortOrder: 90,
     weeks: classes.flatMap((cl, ci) =>
       [1, 2, 3, 4].map((off) => ({
@@ -485,13 +490,18 @@ export function catalystP1(): SeedProgram {
     nameEn: "Catalyst Athletics",
     category: "역도",
     completeness: "working",
-    descriptionKo: "12주 기본 블록. 시드된 모든 주/일로 세션이 열립니다.",
-    descriptionEn: "12-week base. All seeded weeks are session-ready.",
+    coverage: "seeded_sample_not_full_cycle",
+    copy: {
+      help: "시드된 주만 세션으로 엽니다. 공식 12주 기본+스페셜티 블록이 아닙니다.",
+    },
+    descriptionKo:
+      "시드된 주만 진행. 공식 12주 기본·스페셜티 블록이 아닙니다. 퍼센트는 공개 지식 근사.",
+    descriptionEn: "Seeded sample weeks only — not the official Catalyst 12-week + specialty plan.",
     sortOrder: 100,
     weeks: Array.from({ length: 12 }, (_, i) => ({
       weekNumber: i + 1,
       nameKo: `${i + 1}주차 — 기본`,
-      notesKo: i === 0 ? "12주 기본 블록 W1." : `기본 블록 ${i + 1}주차. 작업중량 +${i}%p.`,
+      notesKo: i === 0 ? "시드 샘플 W1. 공식 12주 블록 아님." : `시드 샘플 ${i + 1}주차. 작업중량 +${i}%p. 공식 파동 아님.`,
       days: olympicWeek1Days("catalyst", i + 1),
     })),
   };
@@ -523,8 +533,12 @@ export function lbebP1(): SeedProgram {
     nameEn: "LBEB",
     category: "역도",
     completeness: "template",
-    descriptionKo: "W1 완전 로드. W2–6은 노트 진행. W7–12는 UI에서 아직 없음으로 표시.",
-    descriptionEn: "W1 loadable. W2–6 notes. W7–12 unavailable in UI.",
+    coverage: "excel-w1-6-only",
+    copy: {
+      help: "W1–6만 시드. W7–12는 잠금이며 공개 % 그리드가 없습니다.",
+    },
+    descriptionKo: "W1–6만 로드. W7–12는 잠금(excel-w1-6-only). 유료 후반 주를 추정해 채우지 않습니다.",
+    descriptionEn: "W1–6 only. W7–12 locked — no public percent grid.",
     sortOrder: 120,
     weeks: Array.from({ length: 12 }, (_, i) => ({
       weekNumber: i + 1,
