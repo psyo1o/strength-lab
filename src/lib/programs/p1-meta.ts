@@ -27,7 +27,7 @@ export const P1_META: Record<string, P1Meta> = {
       { id: "II", label: "Class II", weekStart: 5 },
       { id: "I", label: "Class I", weekStart: 9 },
     ],
-    listedBlocks: ["시드된 Class 샘플 주만. 공식·유료 12주 사이클 아님."],
+    listedBlocks: ["Class III·II·I 시드 주 진행 가능 (각 4주). 유료 엑셀 8/9/12주 그리드는 저장소에 없음."],
   },
   rehab: {
     extraOneRmFields: [{ key: "rehab_target", label: "재활 목표 동작" }],
@@ -54,7 +54,10 @@ export const P1_META: Record<string, P1Meta> = {
     unavailableWeeks: [7, 8, 9, 10, 11, 12],
   },
   catalyst: {
-    listedBlocks: ["시드된 샘플 주만. 공식 12주 기본+스페셜티 블록 아님."],
+    listedBlocks: ["12주 세션 진행 가능. 공식 기본+스페셜티 엑셀 블록은 저장소에 없음."],
+  },
+  torokhtiy: {
+    listedBlocks: ["13주 월–금 세션 진행 가능. 공식 앱 사이클 아님."],
   },
 };
 

@@ -492,11 +492,11 @@ export function bobTakanoP1(): SeedProgram {
     completeness: "working",
     coverage: "seeded_sample_not_full_cycle",
     copy: {
-      help: "시드된 Class 샘플 주만 있습니다. 엑셀/유료 12주 사이클이 아닙니다.",
+      help: "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다. 유료 엑셀 Class III 8 / II 9 / I 12 그리드는 이 저장소에 없습니다.",
     },
     descriptionKo:
-      "시드된 Class III/II/I 샘플 주만. 엑셀·유료 12주 사이클이 아니며 퍼센트는 공개 지식 근사입니다. 클래스 피커는 시드된 블록용.",
-    descriptionEn: "Seeded class sample weeks only — not a full paid 12-week Takano cycle.",
+      "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다. 유료 엑셀 8/9/12주 그리드는 이 저장소에 없으며 퍼센트는 공개 지식 근사입니다.",
+    descriptionEn: "12 seeded class weeks are usable. Paid Excel Class III 8 / II 9 / I 12 grids are not in this repo.",
     sortOrder: 90,
     weeks: classes.flatMap((cl, ci) =>
       [1, 2, 3, 4].map((off) => ({
@@ -526,11 +526,11 @@ export function catalystP1(): SeedProgram {
     completeness: "working",
     coverage: "seeded_sample_not_full_cycle",
     copy: {
-      help: "시드된 주만 세션으로 엽니다. 공식 12주 기본+스페셜티 블록이 아닙니다.",
+      help: "12주 세션이 시드되어 진행 가능합니다. 공식 기본+스페셜티 엑셀 블록은 이 저장소에 없습니다.",
     },
     descriptionKo:
-      "시드된 주만 진행. 공식 12주 기본·스페셜티 블록이 아닙니다. 퍼센트는 공개 지식 근사.",
-    descriptionEn: "Seeded sample weeks only — not the official Catalyst 12-week + specialty plan.",
+      "12주 세션이 시드되어 진행 가능합니다. 공식 기본+스페셜티 엑셀 블록은 이 저장소에 없으며 퍼센트는 공개 지식 근사입니다.",
+    descriptionEn: "12 seeded weeks are usable. Official Catalyst base + specialty Excel blocks are not in this repo.",
     sortOrder: 100,
     weeks: Array.from({ length: 12 }, (_, i) => ({
       weekNumber: i + 1,
@@ -548,8 +548,11 @@ export function torokhtiyP1(): SeedProgram {
     nameEn: "Torokhtiy",
     category: "역도",
     completeness: "working",
-    descriptionKo: "13주 월–금. W2–13은 같은 골격에 주당 +1%p. 공식 앱과 무관.",
-    descriptionEn: "W1 Mon–Fri. W2–13 notes + small percent bump.",
+    copy: {
+      help: "13주 월–금 세션이 시드되어 진행 가능합니다. 공식 Torokhtiy 앱 사이클은 아닙니다.",
+    },
+    descriptionKo: "13주 월–금 세션이 시드되어 진행 가능합니다. W2–13은 같은 골격에 주당 +1%p. 공식 앱과 무관.",
+    descriptionEn: "13 seeded Mon–Fri weeks are usable. Not the official Torokhtiy app cycle.",
     sortOrder: 110,
     weeks: Array.from({ length: 13 }, (_, i) => ({
       weekNumber: i + 1,

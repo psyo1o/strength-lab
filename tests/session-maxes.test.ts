@@ -152,7 +152,10 @@ describe("completeness badges", () => {
     expect(raw.programs.find((p: { id: string }) => p.id === "rehab").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "torokhtiy").completeness).toBe("working");
+    expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("template");
+    expect(programBadge("catalyst", "working")).toBe("진행 가능");
+    expect(programBadge("torokhtiy", "working")).toBe("진행 가능");
     expect(raw.programs.find((p: { id: string }) => p.id === "cowboy").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "juggernaut").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "madcow-5x5").completeness).toBe("working");
@@ -162,6 +165,9 @@ describe("completeness badges", () => {
     expect(helpOrDescription("daily-undulating", "fallback")).toMatch(/메소사이클|비대|피킹/);
     expect(helpOrDescription("juggernaut", "fallback")).toMatch(/16주|웨이브|피킹/);
     expect(helpOrDescription("lbeb", "fallback")).toMatch(/잠금|W7|W1/);
+    expect(helpOrDescription("bob-takano", "fallback")).toMatch(/진행 가능/);
+    expect(helpOrDescription("catalyst", "fallback")).toMatch(/진행 가능/);
+    expect(helpOrDescription("torokhtiy", "fallback")).toMatch(/진행 가능/);
     expect(helpOrDescription("missing-program", "fallback")).toBe("fallback");
   });
 });

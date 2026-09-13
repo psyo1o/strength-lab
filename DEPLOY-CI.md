@@ -45,6 +45,8 @@ mkdir -p /volume1/docker/strength-lab/data
 
 This is `docker compose -f docker-compose.nas.yml pull && up -d --force-recreate --remove-orphans`. No rebuild. No `--no-cache`.
 
+시드 리비전이 바뀌면 컨테이너가 프로그램 테이블을 다시 심습니다(유저/1RM은 유지, 세트 로그는 리셋). 강제 재시드는 `.env`에 `FORCE_RESEED=1`.
+
 ## When to use `--no-cache`
 
 Hotfix only — when the GHCR layer cache served a stale image or a COPY did not invalidate.
