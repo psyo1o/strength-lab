@@ -12,6 +12,8 @@ npx tsx scripts/merge-seed-programs.ts torokhtiy.json catalyst.json.gz
 
 부팅 시 `seed.p1.json` (또는 `SEED_P1_PATH`)이 있으면 slug 단위로 한 번 더 덮어씁니다.
 
+`rehab.json.b64` 는 부모 rehab 원문. 안내의 `B64_LEN=4576`은 `B64=` 다음 개행을 포함한 길이이고, 실제 base64는 4575자(4의 배수 아님)라 gunzip이 헤더만 맞고 본문이 깨집니다. JSON이 복구되지 않아 시드에 병합하지 않았습니다. 온전한 파일이 오면 `npx tsx scripts/merge-seed-programs.ts`로 id=rehab만 병합하세요. 지금은 카탈로그 수술값(DeLorme 8주 + DAPRE Knight 10@50 / 6@75)을 유지합니다.
+
 `juggernaut.part-a.b64` 는 부모 JUG_A 원문. **파트 B가 오기 전에 디코드하지 말 것.** `JUG_A` + `JUG_B` 를 이어 붙인 뒤에만 gunzip 합니다.
 
 - 스키마: 공개 seed와 동일 (`meta` → `programs[]` → `weeks[]` → `days[]` → `exercises[]` → `sets[]` with `percent` + `of`: `TM`|`1RM`)
