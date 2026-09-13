@@ -99,6 +99,14 @@ function normalizeSeed(raw: unknown): SeedFile {
           progression: (p.progression as SeedFile["programs"][number]["progression"] | undefined) ?? fallback?.progression,
           fridayTriple: (p.fridayTriple as boolean | undefined) ?? fallback?.fridayTriple,
           prWeekDefault: (p.prWeekDefault as number | null | undefined) ?? fallback?.prWeekDefault,
+          usesEstimated5RM: (p.usesEstimated5RM as boolean | undefined) ?? fallback?.usesEstimated5RM,
+          estimated5RM:
+            (p.estimated5RM as { formula: string; note?: string } | undefined) ?? fallback?.estimated5RM,
+          setIntervalDefault:
+            (p.setIntervalDefault as number | undefined) ?? fallback?.setIntervalDefault,
+          weeklyProgression:
+            (p.weeklyProgression as SeedFile["programs"][number]["weeklyProgression"] | undefined) ??
+            fallback?.weeklyProgression,
           extraOneRmFields:
             (p.extraOneRmFields as Record<string, { label: string }> | undefined) ?? fallback?.extraOneRmFields,
           weekRules: (p.weekRules as string[] | undefined) ?? fallback?.weekRules,
@@ -181,6 +189,10 @@ function toPublicSeed(seed: SeedFile): PublicSeedFile {
       if (p.progression) row.progression = p.progression;
       if (p.fridayTriple != null) row.fridayTriple = p.fridayTriple;
       if (p.prWeekDefault !== undefined) row.prWeekDefault = p.prWeekDefault;
+      if (p.usesEstimated5RM != null) row.usesEstimated5RM = p.usesEstimated5RM;
+      if (p.estimated5RM) row.estimated5RM = p.estimated5RM;
+      if (p.setIntervalDefault != null) row.setIntervalDefault = p.setIntervalDefault;
+      if (p.weeklyProgression) row.weeklyProgression = p.weeklyProgression;
       if (p.extraOneRmFields) row.extraOneRmFields = p.extraOneRmFields;
       if (p.weekRules) row.weekRules = p.weekRules;
       if (p.coverage) row.coverage = p.coverage;

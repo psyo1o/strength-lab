@@ -1,3 +1,4 @@
+import { MADCOW_ESTIMATED_5RM, MADCOW_WEEKLY_FACTOR } from "../calc/linear";
 import {
   bobTakanoP1,
   catalystP1,
@@ -57,6 +58,10 @@ export type SeedProgram = {
   } & Record<string, { addKg?: number; upperKg?: number; lowerKg?: number } | undefined>;
   fridayTriple?: boolean;
   prWeekDefault?: number | null;
+  usesEstimated5RM?: boolean;
+  estimated5RM?: { formula: string; note?: string };
+  setIntervalDefault?: number;
+  weeklyProgression?: { factor: number; note?: string; fridayTripleEveryWeek?: boolean };
   extraOneRmFields?: Record<string, { label: string }>;
   weekRules?: string[];
   coverage?: string;
@@ -1040,17 +1045,40 @@ function stronglifts(): SeedProgram {
 }
 
 function madcow(): SeedProgram {
-  /** Week-1 top ≈ 80% 1RM. Ramps are 12.5% of that top. Each week ×1.025. */
-  const top1rm = 80;
-  const pct = (fracOfTop: number, weekIndex: number) =>
-    Number((top1rm * fracOfTop * Math.pow(1.025, weekIndex)).toFixed(2));
-  const ramp = (fracs: number[], weekIndex: number, reps: number | number[] = 5, restSec = 150) =>
+  /** Parent week-1: percents of weeklyTop = estimated5RM (0.87×1RM). Weekly ×1.025. */
+  const pctOfTop = (percentOfTop: number, weekIndex: number) =>
+    Math.round(
+      percentOfTop * MADCOW_ESTIMATED_5RM * 100 * Math.pow(MADCOW_WEEKLY_FACTOR, weekIndex),
+    ) / 100;
+  const rampOfTop = (percentsOfTop: number[], weekIndex: number, restSec: number) =>
     sets(
-      fracs.map((f) => pct(f, weekIndex)),
-      reps,
+      percentsOfTop.map((p) => pctOfTop(p, weekIndex)),
+      5,
       "1rm",
       { restSec },
     );
+  const fridayWork = (weekIndex: number, restSec: number): SeedSet[] => {
+    const ramp = rampOfTop([50, 62.5, 75, 87.5], weekIndex, restSec);
+    return [
+      ...ramp,
+      {
+        setNumber: 5,
+        percentBase: "1rm",
+        percent: pctOfTop(100, weekIndex + 1),
+        reps: 3,
+        restSec: 180,
+        noteKo: "헤비 트리플 · 다음 주 톱",
+      },
+      {
+        setNumber: 6,
+        percentBase: "1rm",
+        percent: pctOfTop(75, weekIndex),
+        reps: 8,
+        restSec: 120,
+        noteKo: "백오프 · 월요일 3세트",
+      },
+    ];
+  };
 
   return {
     slug: "madcow-5x5",
@@ -1059,120 +1087,69 @@ function madcow(): SeedProgram {
     category: "중급 근력",
     completeness: "working",
     descriptionKo:
-      "월: 12.5% 램핑 5×5(탑세트). 수: 라이트 스쿼트 + 프레스 + 데드. 금: 매주 램핑 후 헤비 트리플 + 백오프(10주차만이 아님). 매주 탑 ×1.025. 시작중량이 있으면 탑세트로 사용하고, 없으면 1RM의 약 80%를 1주차 탑으로 둡니다.",
-    descriptionEn: "Mon/Wed/Fri Madcow. Week-1 12.5% ramps of top; weekly ×1.025. Start-weight field is the top set.",
+      "중급 주간 주기화 5×5: 월 볼륨, 수 라이트, 금 트리플+백오프. 통상 8–12주, 주간 톱 ×1.025. 추정 5RM(≈0.87×1RM) 또는 현재 톱세트. 금요일 트리플은 매주(공개 기준). 예전 'PR week 10' 지연은 제거.",
+    descriptionEn:
+      "Mon/Wed/Fri Madcow. Week-1 ramps of estimated 5RM (0.87×1RM); weekly ×1.025. Friday triple every week. Start-weight field is the top set.",
     sortOrder: 4,
     startWeight: { enabled: true },
     fridayTriple: true,
     prWeekDefault: null,
+    usesEstimated5RM: true,
+    estimated5RM: { formula: "0.87 * 1RM", note: "sheet ROUND(lift*0.87)" },
+    setIntervalDefault: 0.125,
+    weeklyProgression: {
+      factor: MADCOW_WEEKLY_FACTOR,
+      note: "≈ +2.5% per week on top set",
+      fridayTripleEveryWeek: true,
+    },
+    copy: {
+      help: "중급 주간 주기화 5×5: 월 볼륨, 수 라이트, 금 트리플+백오프. 통상 8–12주, 주간 톱 ×1.025. 추정 5RM(≈0.87×1RM) 또는 현재 톱세트. 금요일 트리플은 매주(공개 기준). 예전 'PR week 10' 지연은 제거.",
+    },
     weeks: [0, 1, 2, 3].map((wi) => {
       return {
-      weekNumber: wi + 1,
-      nameKo: `${wi + 1}주차`,
-      notesKo: "금요일 트리플이 편하면 다음 주 월요일 탑이 자연스럽게 오른다(×1.025).",
-      days: [
-        {
-          dayNumber: 1,
-          nameKo: "월요일 — 헤비 5×5",
-          exercises: [
-            {
-              exerciseKey: "squat",
-              role: "main",
-              sets: ramp([0.5, 0.625, 0.75, 0.875, 1], wi, 5, 180),
-            },
-            {
-              exerciseKey: "bench",
-              role: "main",
-              sets: ramp([0.5, 0.625, 0.75, 0.875, 1], wi, 5, 150),
-            },
-            {
-              exerciseKey: "barbell_row",
-              role: "main",
-              sets: ramp([0.5, 0.625, 0.75, 0.875, 1], wi, 5, 120),
-            },
-          ],
-        },
-        {
-          dayNumber: 2,
-          nameKo: "수요일 — 라이트",
-          exercises: [
-            {
-              exerciseKey: "squat",
-              role: "main",
-              notesKo: "월요일 탑의 약 80%까지",
-              sets: ramp([0.5, 0.6, 0.7, 0.8], wi, 5, 150),
-            },
-            {
-              exerciseKey: "ohp",
-              role: "main",
-              sets: ramp([0.5, 0.625, 0.75, 0.875], wi, 5, 150),
-            },
-            {
-              exerciseKey: "deadlift",
-              role: "main",
-              sets: ramp([0.5, 0.625, 0.75, 1], wi, 5, 180),
-            },
-          ],
-        },
-        {
-          dayNumber: 3,
-          nameKo: "금요일 — 트리플",
-          exercises: [
-            {
-              exerciseKey: "squat",
-              role: "main",
-              sets: [
-                ...ramp([0.5, 0.625, 0.75, 0.875], wi, 5, 180),
-                {
-                  setNumber: 5,
-                  percentBase: "1rm",
-                  percent: pct(1.025, wi),
-                  reps: 3,
-                  restSec: 180,
-                  noteKo: "헤비 트리플",
-                },
-                {
-                  setNumber: 6,
-                  percentBase: "1rm",
-                  percent: pct(0.8, wi),
-                  reps: 8,
-                  restSec: 120,
-                  noteKo: "백오프",
-                },
-              ],
-            },
-            {
-              exerciseKey: "bench",
-              role: "main",
-              sets: [
-                ...ramp([0.5, 0.625, 0.75, 0.875], wi, 5, 150),
-                {
-                  setNumber: 5,
-                  percentBase: "1rm",
-                  percent: pct(1.025, wi),
-                  reps: 3,
-                  restSec: 180,
-                  noteKo: "헤비 트리플",
-                },
-                {
-                  setNumber: 6,
-                  percentBase: "1rm",
-                  percent: pct(0.8, wi),
-                  reps: 8,
-                  restSec: 120,
-                  noteKo: "백오프",
-                },
-              ],
-            },
-            {
-              exerciseKey: "barbell_row",
-              role: "main",
-              sets: ramp([0.5, 0.625, 0.75, 0.875], wi, 5, 120),
-            },
-          ],
-        },
-      ],
-    };
+        weekNumber: wi + 1,
+        nameKo: `${wi + 1}주차`,
+        notesKo: "금요일 트리플이 편하면 다음 주 월요일 탑이 자연스럽게 오른다(×1.025).",
+        days: [
+          {
+            dayNumber: 1,
+            nameKo: "월요일 — 헤비 5×5",
+            exercises: [
+              { exerciseKey: "squat", role: "main", sets: rampOfTop([50, 62.5, 75, 87.5, 100], wi, 180) },
+              { exerciseKey: "bench", role: "main", sets: rampOfTop([50, 62.5, 75, 87.5, 100], wi, 150) },
+              {
+                exerciseKey: "barbell_row",
+                role: "main",
+                notesKo: "시트 톱은 0.7×벤치 1RM ×0.87. 앱은 로우 시작중량/1RM을 씁니다.",
+                sets: rampOfTop([50, 62.5, 75, 87.5, 100], wi, 120),
+              },
+            ],
+          },
+          {
+            dayNumber: 2,
+            nameKo: "수요일 — 라이트",
+            exercises: [
+              {
+                exerciseKey: "squat",
+                role: "main",
+                notesKo: "월 1–3세트 후 3세트 반복(월요일 탑 75%)",
+                sets: rampOfTop([50, 62.5, 75, 75], wi, 150),
+              },
+              { exerciseKey: "ohp", role: "main", sets: rampOfTop([62.5, 75, 87.5, 100], wi, 150) },
+              { exerciseKey: "deadlift", role: "main", sets: rampOfTop([62.5, 75, 87.5, 100], wi, 180) },
+            ],
+          },
+          {
+            dayNumber: 3,
+            nameKo: "금요일 — 트리플",
+            exercises: [
+              { exerciseKey: "squat", role: "main", sets: fridayWork(wi, 180) },
+              { exerciseKey: "bench", role: "main", sets: fridayWork(wi, 150) },
+              { exerciseKey: "barbell_row", role: "main", sets: fridayWork(wi, 120) },
+            ],
+          },
+        ],
+      };
     }),
   };
 }

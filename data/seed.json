@@ -24851,8 +24851,8 @@
       "nameEn": "Madcow 5x5",
       "category": "중급 근력",
       "completeness": "working",
-      "descriptionKo": "월: 12.5% 램핑 5×5(탑세트). 수: 라이트 스쿼트 + 프레스 + 데드. 금: 매주 램핑 후 헤비 트리플 + 백오프(10주차만이 아님). 매주 탑 ×1.025. 시작중량이 있으면 탑세트로 사용하고, 없으면 1RM의 약 80%를 1주차 탑으로 둡니다.",
-      "descriptionEn": "Mon/Wed/Fri Madcow. Week-1 12.5% ramps of top; weekly ×1.025. Start-weight field is the top set.",
+      "descriptionKo": "중급 주간 주기화 5×5: 월 볼륨, 수 라이트, 금 트리플+백오프. 통상 8–12주, 주간 톱 ×1.025. 추정 5RM(≈0.87×1RM) 또는 현재 톱세트. 금요일 트리플은 매주(공개 기준). 예전 'PR week 10' 지연은 제거.",
+      "descriptionEn": "Mon/Wed/Fri Madcow. Week-1 ramps of estimated 5RM (0.87×1RM); weekly ×1.025. Friday triple every week. Start-weight field is the top set.",
       "usesTM": false,
       "tmFactor": 0.9,
       "sortOrder": 4,
@@ -24872,31 +24872,31 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 40,
+                      "percent": 43.5,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 50,
+                      "percent": 54.38,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 60,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 70,
+                      "percent": 76.13,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 80,
+                      "percent": 87,
                       "of": "1RM",
                       "restSec": 180
                     }
@@ -24908,31 +24908,31 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 40,
+                      "percent": 43.5,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 50,
+                      "percent": 54.38,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 60,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 70,
+                      "percent": 76.13,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 80,
+                      "percent": 87,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -24941,34 +24941,35 @@
                 {
                   "exerciseId": "barbell_row",
                   "role": "main",
+                  "notesKo": "시트 톱은 0.7×벤치 1RM ×0.87. 앱은 로우 시작중량/1RM을 씁니다.",
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 40,
+                      "percent": 43.5,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 50,
+                      "percent": 54.38,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 60,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 70,
+                      "percent": 76.13,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 80,
+                      "percent": 87,
                       "of": "1RM",
                       "restSec": 120
                     }
@@ -24983,29 +24984,29 @@
                 {
                   "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "월요일 탑의 약 80%까지",
+                  "notesKo": "월 1–3세트 후 3세트 반복(월요일 탑 75%)",
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 40,
+                      "percent": 43.5,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 48,
+                      "percent": 54.38,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 56,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 64,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -25017,25 +25018,25 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 40,
+                      "percent": 54.38,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 50,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 60,
+                      "percent": 76.13,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 70,
+                      "percent": 87,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -25047,25 +25048,25 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 40,
+                      "percent": 54.38,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 50,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 60,
+                      "percent": 76.13,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 80,
+                      "percent": 87,
                       "of": "1RM",
                       "restSec": 180
                     }
@@ -25083,41 +25084,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 40,
+                      "percent": 43.5,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 50,
+                      "percent": 54.38,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 60,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 70,
+                      "percent": 76.13,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 3,
-                      "percent": 82,
+                      "percent": 89.18,
                       "of": "1RM",
                       "restSec": 180,
-                      "noteKo": "헤비 트리플"
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
                     },
                     {
                       "reps": 8,
-                      "percent": 64,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 120,
-                      "noteKo": "백오프"
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 },
@@ -25127,41 +25128,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 40,
+                      "percent": 43.5,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 50,
+                      "percent": 54.38,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 60,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 70,
+                      "percent": 76.13,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 3,
-                      "percent": 82,
+                      "percent": 89.18,
                       "of": "1RM",
                       "restSec": 180,
-                      "noteKo": "헤비 트리플"
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
                     },
                     {
                       "reps": 8,
-                      "percent": 64,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 120,
-                      "noteKo": "백오프"
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 },
@@ -25171,27 +25172,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 40,
+                      "percent": 43.5,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 50,
+                      "percent": 54.38,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 60,
+                      "percent": 65.25,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 70,
+                      "percent": 76.13,
                       "of": "1RM",
                       "restSec": 120
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 89.18,
+                      "of": "1RM",
+                      "restSec": 180,
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 65.25,
+                      "of": "1RM",
+                      "restSec": 120,
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 }
@@ -25214,31 +25229,31 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 41,
+                      "percent": 44.59,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 51.25,
+                      "percent": 55.73,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 61.5,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 71.75,
+                      "percent": 78.03,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 82,
+                      "percent": 89.18,
                       "of": "1RM",
                       "restSec": 180
                     }
@@ -25250,31 +25265,31 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 41,
+                      "percent": 44.59,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 51.25,
+                      "percent": 55.73,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 61.5,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 71.75,
+                      "percent": 78.03,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 82,
+                      "percent": 89.18,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -25283,34 +25298,35 @@
                 {
                   "exerciseId": "barbell_row",
                   "role": "main",
+                  "notesKo": "시트 톱은 0.7×벤치 1RM ×0.87. 앱은 로우 시작중량/1RM을 씁니다.",
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 41,
+                      "percent": 44.59,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 51.25,
+                      "percent": 55.73,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 61.5,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 71.75,
+                      "percent": 78.03,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 82,
+                      "percent": 89.18,
                       "of": "1RM",
                       "restSec": 120
                     }
@@ -25325,29 +25341,29 @@
                 {
                   "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "월요일 탑의 약 80%까지",
+                  "notesKo": "월 1–3세트 후 3세트 반복(월요일 탑 75%)",
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 41,
+                      "percent": 44.59,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 49.2,
+                      "percent": 55.73,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 57.4,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 65.6,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -25359,25 +25375,25 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 41,
+                      "percent": 55.73,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 51.25,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 61.5,
+                      "percent": 78.03,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 71.75,
+                      "percent": 89.18,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -25389,25 +25405,25 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 41,
+                      "percent": 55.73,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 51.25,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 61.5,
+                      "percent": 78.03,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 82,
+                      "percent": 89.18,
                       "of": "1RM",
                       "restSec": 180
                     }
@@ -25425,41 +25441,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 41,
+                      "percent": 44.59,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 51.25,
+                      "percent": 55.73,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 61.5,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 71.75,
+                      "percent": 78.03,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 3,
-                      "percent": 84.05,
+                      "percent": 91.4,
                       "of": "1RM",
                       "restSec": 180,
-                      "noteKo": "헤비 트리플"
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
                     },
                     {
                       "reps": 8,
-                      "percent": 65.6,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 120,
-                      "noteKo": "백오프"
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 },
@@ -25469,41 +25485,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 41,
+                      "percent": 44.59,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 51.25,
+                      "percent": 55.73,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 61.5,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 71.75,
+                      "percent": 78.03,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 3,
-                      "percent": 84.05,
+                      "percent": 91.4,
                       "of": "1RM",
                       "restSec": 180,
-                      "noteKo": "헤비 트리플"
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
                     },
                     {
                       "reps": 8,
-                      "percent": 65.6,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 120,
-                      "noteKo": "백오프"
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 },
@@ -25513,27 +25529,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 41,
+                      "percent": 44.59,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 51.25,
+                      "percent": 55.73,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 61.5,
+                      "percent": 66.88,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 71.75,
+                      "percent": 78.03,
                       "of": "1RM",
                       "restSec": 120
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 91.4,
+                      "of": "1RM",
+                      "restSec": 180,
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 66.88,
+                      "of": "1RM",
+                      "restSec": 120,
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 }
@@ -25556,31 +25586,31 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 42.02,
+                      "percent": 45.7,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 52.53,
+                      "percent": 57.13,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 63.04,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 73.54,
+                      "percent": 79.98,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 84.05,
+                      "percent": 91.4,
                       "of": "1RM",
                       "restSec": 180
                     }
@@ -25592,31 +25622,31 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 42.02,
+                      "percent": 45.7,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 52.53,
+                      "percent": 57.13,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 63.04,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 73.54,
+                      "percent": 79.98,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 84.05,
+                      "percent": 91.4,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -25625,34 +25655,35 @@
                 {
                   "exerciseId": "barbell_row",
                   "role": "main",
+                  "notesKo": "시트 톱은 0.7×벤치 1RM ×0.87. 앱은 로우 시작중량/1RM을 씁니다.",
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 42.02,
+                      "percent": 45.7,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 52.53,
+                      "percent": 57.13,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 63.04,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 73.54,
+                      "percent": 79.98,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 84.05,
+                      "percent": 91.4,
                       "of": "1RM",
                       "restSec": 120
                     }
@@ -25667,29 +25698,29 @@
                 {
                   "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "월요일 탑의 약 80%까지",
+                  "notesKo": "월 1–3세트 후 3세트 반복(월요일 탑 75%)",
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 42.02,
+                      "percent": 45.7,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 50.43,
+                      "percent": 57.13,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 58.83,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 67.24,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -25701,25 +25732,25 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 42.02,
+                      "percent": 57.13,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 52.53,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 63.04,
+                      "percent": 79.98,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 73.54,
+                      "percent": 91.4,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -25731,25 +25762,25 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 42.02,
+                      "percent": 57.13,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 52.53,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 63.04,
+                      "percent": 79.98,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 84.05,
+                      "percent": 91.4,
                       "of": "1RM",
                       "restSec": 180
                     }
@@ -25767,41 +25798,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 42.02,
+                      "percent": 45.7,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 52.53,
+                      "percent": 57.13,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 63.04,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 73.54,
+                      "percent": 79.98,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 3,
-                      "percent": 86.15,
+                      "percent": 93.69,
                       "of": "1RM",
                       "restSec": 180,
-                      "noteKo": "헤비 트리플"
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
                     },
                     {
                       "reps": 8,
-                      "percent": 67.24,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 120,
-                      "noteKo": "백오프"
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 },
@@ -25811,41 +25842,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 42.02,
+                      "percent": 45.7,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 52.53,
+                      "percent": 57.13,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 63.04,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 73.54,
+                      "percent": 79.98,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 3,
-                      "percent": 86.15,
+                      "percent": 93.69,
                       "of": "1RM",
                       "restSec": 180,
-                      "noteKo": "헤비 트리플"
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
                     },
                     {
                       "reps": 8,
-                      "percent": 67.24,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 120,
-                      "noteKo": "백오프"
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 },
@@ -25855,27 +25886,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 42.02,
+                      "percent": 45.7,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 52.53,
+                      "percent": 57.13,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 63.04,
+                      "percent": 68.55,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 73.54,
+                      "percent": 79.98,
                       "of": "1RM",
                       "restSec": 120
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 93.69,
+                      "of": "1RM",
+                      "restSec": 180,
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 68.55,
+                      "of": "1RM",
+                      "restSec": 120,
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 }
@@ -25898,31 +25943,31 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 43.08,
+                      "percent": 46.84,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 53.84,
+                      "percent": 58.56,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 64.61,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 75.38,
+                      "percent": 81.98,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 86.15,
+                      "percent": 93.69,
                       "of": "1RM",
                       "restSec": 180
                     }
@@ -25934,31 +25979,31 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 43.08,
+                      "percent": 46.84,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 53.84,
+                      "percent": 58.56,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 64.61,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 75.38,
+                      "percent": 81.98,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 86.15,
+                      "percent": 93.69,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -25967,34 +26012,35 @@
                 {
                   "exerciseId": "barbell_row",
                   "role": "main",
+                  "notesKo": "시트 톱은 0.7×벤치 1RM ×0.87. 앱은 로우 시작중량/1RM을 씁니다.",
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 43.08,
+                      "percent": 46.84,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 53.84,
+                      "percent": 58.56,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 64.61,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 75.38,
+                      "percent": 81.98,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 86.15,
+                      "percent": 93.69,
                       "of": "1RM",
                       "restSec": 120
                     }
@@ -26009,29 +26055,29 @@
                 {
                   "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "월요일 탑의 약 80%까지",
+                  "notesKo": "월 1–3세트 후 3세트 반복(월요일 탑 75%)",
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 43.08,
+                      "percent": 46.84,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 51.69,
+                      "percent": 58.56,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 60.31,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 68.92,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -26043,25 +26089,25 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 43.08,
+                      "percent": 58.56,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 53.84,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 64.61,
+                      "percent": 81.98,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 75.38,
+                      "percent": 93.69,
                       "of": "1RM",
                       "restSec": 150
                     }
@@ -26073,25 +26119,25 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 43.08,
+                      "percent": 58.56,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 53.84,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 64.61,
+                      "percent": 81.98,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 86.15,
+                      "percent": 93.69,
                       "of": "1RM",
                       "restSec": 180
                     }
@@ -26109,41 +26155,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 43.08,
+                      "percent": 46.84,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 53.84,
+                      "percent": 58.56,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 64.61,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 5,
-                      "percent": 75.38,
+                      "percent": 81.98,
                       "of": "1RM",
                       "restSec": 180
                     },
                     {
                       "reps": 3,
-                      "percent": 88.31,
+                      "percent": 96.03,
                       "of": "1RM",
                       "restSec": 180,
-                      "noteKo": "헤비 트리플"
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
                     },
                     {
                       "reps": 8,
-                      "percent": 68.92,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 120,
-                      "noteKo": "백오프"
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 },
@@ -26153,41 +26199,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 43.08,
+                      "percent": 46.84,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 53.84,
+                      "percent": 58.56,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 64.61,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 5,
-                      "percent": 75.38,
+                      "percent": 81.98,
                       "of": "1RM",
                       "restSec": 150
                     },
                     {
                       "reps": 3,
-                      "percent": 88.31,
+                      "percent": 96.03,
                       "of": "1RM",
                       "restSec": 180,
-                      "noteKo": "헤비 트리플"
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
                     },
                     {
                       "reps": 8,
-                      "percent": 68.92,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 120,
-                      "noteKo": "백오프"
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 },
@@ -26197,27 +26243,41 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 43.08,
+                      "percent": 46.84,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 53.84,
+                      "percent": 58.56,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 64.61,
+                      "percent": 70.27,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
                       "reps": 5,
-                      "percent": 75.38,
+                      "percent": 81.98,
                       "of": "1RM",
                       "restSec": 120
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 96.03,
+                      "of": "1RM",
+                      "restSec": 180,
+                      "noteKo": "헤비 트리플 · 다음 주 톱"
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 70.27,
+                      "of": "1RM",
+                      "restSec": 120,
+                      "noteKo": "백오프 · 월요일 3세트"
                     }
                   ]
                 }
@@ -26230,7 +26290,21 @@
         "enabled": true
       },
       "fridayTriple": true,
-      "prWeekDefault": null
+      "prWeekDefault": null,
+      "usesEstimated5RM": true,
+      "estimated5RM": {
+        "formula": "0.87 * 1RM",
+        "note": "sheet ROUND(lift*0.87)"
+      },
+      "setIntervalDefault": 0.125,
+      "weeklyProgression": {
+        "factor": 1.025,
+        "note": "≈ +2.5% per week on top set",
+        "fridayTripleEveryWeek": true
+      },
+      "copy": {
+        "help": "중급 주간 주기화 5×5: 월 볼륨, 수 라이트, 금 트리플+백오프. 통상 8–12주, 주간 톱 ×1.025. 추정 5RM(≈0.87×1RM) 또는 현재 톱세트. 금요일 트리플은 매주(공개 기준). 예전 'PR week 10' 지연은 제거."
+      }
     },
     {
       "id": "bob-takano",
