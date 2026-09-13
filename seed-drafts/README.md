@@ -12,5 +12,7 @@ npx tsx scripts/merge-seed-programs.ts torokhtiy.json catalyst.json.gz
 
 부팅 시 `seed.p1.json` (또는 `SEED_P1_PATH`)이 있으면 slug 단위로 한 번 더 덮어씁니다.
 
+`juggernaut.part-a.b64` 는 부모 JUG_A 원문. **파트 B가 오기 전에 디코드하지 말 것.** `JUG_A` + `JUG_B` 를 이어 붙인 뒤에만 gunzip 합니다.
+
 - 스키마: 공개 seed와 동일 (`meta` → `programs[]` → `weeks[]` → `days[]` → `exercises[]` → `sets[]` with `percent` + `of`: `TM`|`1RM`)
 - 세트에 `platePlan` 넣지 마세요. 반올림은 2.5kg.
