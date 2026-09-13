@@ -38,5 +38,6 @@
 ## 부모 gzip
 
 - `cowboy.json` gzip은 잘림. weekRules만 복구해 생성기에 반영. 온전한 파일이 오면 `npx tsx scripts/merge-seed-programs.ts`로 id 병합.
+- `rehab.json.b64` 원문 보관. 안내 4576은 개행 포함, 실제 base64 4575자라 스트림 복구 실패. 시드는 Knight 10@50 / 6@75 수술값 유지.
 - `juggernaut.json` part B 없음.
 - P0 교체 gzip(madcow / starting-strength / wendler)은 채팅에서 손상되어 도착함. **채팅 gzip으로 프로그램 JSON 전체를 덮어쓰지 말 것.** 교차검증은 카탈로그/런타임 수술 수정. 온전한 파일은 `npx tsx scripts/merge-seed-programs.ts`.
