@@ -2,7 +2,7 @@
 
 부모 `REPORT.complete.md` 우선순위 반영. 거대 gzip은 기다리지 않고 저장소 규칙으로 채움.
 
-공개 시드는 `npm run seed` (`scripts/export-seed.ts` → `buildSeed()`)로 다시 씁니다. cowboy gzip은 base64가 잘려 CRC 오류가 났지만, `weekRules` W1–13은 스트림에서 복구했습니다(`seed-drafts/cowboy.weekRules.json`). juggernaut part B와 P0 교체 gzip은 여전히 불완전합니다.
+공개 시드는 `npm run seed` (`scripts/export-seed.ts` → `buildSeed()`)로 다시 씁니다. **채팅 gzip+base64는 받지 않습니다** (`scripts/import-seed-from-url.md`). cowboy weekRules는 저장소 파일에서 복구했습니다. juggernaut part B는 없습니다.
 
 ## MUST DO
 
