@@ -23,7 +23,7 @@ describe("seed catalog revision", () => {
       completeness: "working",
     });
     expect(db.prepare("SELECT completeness FROM programs WHERE slug='lbeb'").get()).toEqual({
-      completeness: "template",
+      completeness: "working",
     });
     db.prepare("UPDATE programs SET completeness='template' WHERE slug IN ('bob-takano','catalyst','torokhtiy')").run();
     db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_revision', 'stale')").run();
@@ -38,7 +38,7 @@ describe("seed catalog revision", () => {
       });
     }
     expect(again.prepare("SELECT completeness FROM programs WHERE slug='lbeb'").get()).toEqual({
-      completeness: "template",
+      completeness: "working",
     });
   });
 });

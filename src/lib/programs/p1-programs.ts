@@ -563,30 +563,268 @@ export function torokhtiyP1(): SeedProgram {
   };
 }
 
+/** Expand published NxR@P% lines. Do not invent percents. */
+function expandPct(
+  parts: Array<[count: number, reps: number, percent: number]>,
+  restSec: number,
+): SeedSet[] {
+  const out: SeedSet[] = [];
+  for (const [count, reps, percent] of parts) {
+    for (let i = 0; i < count; i++) {
+      out.push({
+        setNumber: out.length + 1,
+        percentBase: "1rm",
+        percent,
+        reps,
+        restSec,
+      });
+    }
+  }
+  return out;
+}
+
+function pctEx(
+  exerciseKey: string,
+  parts: Array<[count: number, reps: number, percent: number]>,
+  opts?: { role?: SeedExercise["role"]; notesKo?: string; restSec?: number },
+): SeedExercise {
+  return {
+    exerciseKey,
+    role: opts?.role ?? "main",
+    notesKo: opts?.notesKo,
+    sets: expandPct(parts, opts?.restSec ?? 150),
+  };
+}
+
+function testMaxSingle(exerciseKey: string, notesKo: string): SeedExercise {
+  return {
+    exerciseKey,
+    role: "main",
+    notesKo,
+    sets: [
+      {
+        setNumber: 1,
+        percentBase: "none",
+        percent: null,
+        reps: 1,
+        amrap: true,
+        restSec: 180,
+        noteKo: "테스트 · 고정 % 없음",
+      },
+    ],
+  };
+}
+
+function lbebPublicWorkWeek(
+  weekNumber: number,
+  nameKo: string,
+  notesKo: string,
+  day1: SeedExercise[],
+  day2: SeedExercise[],
+  day3: SeedExercise[],
+  day3NameKo: string,
+): { weekNumber: number; nameKo: string; notesKo: string; days: SeedDay[] } {
+  return {
+    weekNumber,
+    nameKo,
+    notesKo,
+    days: [
+      { dayNumber: 1, nameKo: "월요일 — 스네치", exercises: day1 },
+      { dayNumber: 2, nameKo: "화요일 — 클린&저크", exercises: day2 },
+      restDay(3, "수요일 — 휴식"),
+      { dayNumber: 4, nameKo: day3NameKo, exercises: day3 },
+      restDay(5, "금요일 — 휴식"),
+      restDay(6, "토요일 — 휴식"),
+    ],
+  };
+}
+
+/** App W7–12 = public LBEB Cycle 2 W3 – Cycle 3 W4. Source text only. */
+function lbebPublicWeeks7to12(): SeedProgram["weeks"] {
+  const situps50 = bodyweight("abs", "싯업", 1, 50);
+  const boxJumps = bodyweight("box_jump", "박스점프", 5, 5);
+  const hangingLegs = bodyweight("hanging_leg_raise", "행잉 레그레이즈", 3, 12);
+  const pullups = bodyweight("pull_up", "풀업", 3, 8);
+  return [
+    lbebPublicWorkWeek(
+      7,
+      "7주차 — Cycle 2 Week 3",
+      "공개 LBEB Cycle 2 Week 3. 월·화·목 작업.",
+      [
+        pctEx("snatch", [[2, 3, 65], [2, 3, 70]]),
+        pctEx("squat", [[3, 5, 70]]),
+        pctEx("push_press", [[5, 3, 70]]),
+        pctEx("snatch", [[4, 5, 75]], { role: "assistance", notesKo: "스네치 데드리프트", restSec: 90 }),
+        boxJumps,
+      ],
+      [
+        pctEx("clean_jerk", [[2, 3, 65], [2, 3, 70]], { restSec: 180 }),
+        pctEx("snatch", [[3, 3, 70]], { notesKo: "스네치 밸런스" }),
+        pctEx("front_squat", [[3, 5, 70]]),
+        pctEx("jerk", [[3, 3, 70]], { notesKo: "푸쉬저크 비하인드넥" }),
+        hangingLegs,
+      ],
+      [
+        pctEx("snatch", [[4, 3, 70]], { notesKo: "파워스네치" }),
+        pctEx("clean_jerk", [[4, 3, 70]], { notesKo: "파워클린", restSec: 180 }),
+        pctEx("squat", [[5, 7, 70]]),
+        pctEx("push_press", [[3, 5, 70]]),
+      ],
+      "목요일 — 파워",
+    ),
+    lbebPublicWorkWeek(
+      8,
+      "8주차 — Cycle 2 Week 4",
+      "공개 LBEB Cycle 2 Week 4. 월·화·목 작업.",
+      [
+        pctEx("snatch", [[2, 2, 90]]),
+        pctEx("squat", [[3, 2, 87]]),
+        pctEx("jerk", [[3, 2, 92]], { notesKo: "저크 비하인드넥" }),
+        pctEx("snatch_pull", [[4, 3, 115]], { role: "assistance", restSec: 90 }),
+      ],
+      [
+        pctEx("clean_jerk", [[2, 2, 90]], { restSec: 180 }),
+        pctEx("snatch", [[3, 2, 92]], { notesKo: "스네치 밸런스" }),
+        pctEx("front_squat", [[4, 1, 95]]),
+        pctEx("clean", [[5, 5, 85]], { role: "assistance", notesKo: "RDL", restSec: 90 }),
+      ],
+      [
+        pctEx("snatch", [[3, 1, 95]]),
+        pctEx("clean_jerk", [[3, 1, 95]], { restSec: 180 }),
+        pctEx("squat", [[4, 3, 87]]),
+        pctEx("clean", [[4, 3, 85]], { notesKo: "클린 풀 2회 + 클린" }),
+        situps50,
+      ],
+      "목요일 — 스네치/클린",
+    ),
+    lbebPublicWorkWeek(
+      9,
+      "9주차 — Cycle 3 Week 1",
+      "공개 LBEB Cycle 3 Week 1. 월·화·목 작업.",
+      [
+        pctEx("snatch", [[3, 2, 80], [3, 2, 85]]),
+        pctEx("squat", [[4, 4, 85]]),
+        pctEx("push_press", [[3, 5, 80]], { notesKo: "푸쉬프레스 비하인드넥" }),
+        pctEx("snatch_pull", [[4, 5, 105]], { role: "assistance", restSec: 90 }),
+        pullups,
+      ],
+      [
+        pctEx("clean_jerk", [[3, 2, 80], [3, 2, 85]], { restSec: 180 }),
+        pctEx("snatch", [[4, 2, 80]], { notesKo: "스네치 밸런스" }),
+        pctEx("front_squat", [[4, 4, 85]]),
+        pctEx("clean_pull", [[5, 5, 105]], { role: "assistance", restSec: 90 }),
+        situps50,
+      ],
+      [
+        pctEx("snatch", [[3, 3, 80], [2, 3, 85]], { notesKo: "스네치 풀 + 파워스네치 + 스네치" }),
+        pctEx("squat", [[3, 8, 75]]),
+        pctEx("push_press", [[4, 4, 85]], { notesKo: "푸쉬프레스 비하인드넥" }),
+        pctEx("snatch", [[3, 7, 115]], { role: "assistance", notesKo: "스네치 데드리프트", restSec: 90 }),
+      ],
+      "목요일 — 컴플렉스",
+    ),
+    lbebPublicWorkWeek(
+      10,
+      "10주차 — Cycle 3 Week 2",
+      "공개 LBEB Cycle 3 Week 2. 월·화·목 작업.",
+      [
+        pctEx("snatch", [[3, 2, 85], [3, 1, 90]]),
+        pctEx("squat", [[4, 3, 87]]),
+        pctEx("push_press", [[5, 3, 87]]),
+        pctEx("clean", [[4, 5, 115]], { role: "assistance", notesKo: "클린 데드리프트 (스트랩)", restSec: 90 }),
+        boxJumps,
+      ],
+      [
+        pctEx("clean_jerk", [[3, 2, 85], [3, 1, 90]], { restSec: 180 }),
+        pctEx("snatch", [[3, 2, 87]], { notesKo: "스네치 밸런스" }),
+        pctEx("front_squat", [[5, 3, 87]]),
+        pctEx("jerk", [[3, 3, 85]], { notesKo: "푸쉬저크 비하인드넥" }),
+        hangingLegs,
+      ],
+      [
+        pctEx("clean", [[4, 3, 85], [4, 3, 87]], { notesKo: "클린 풀 + 파워클린 + 클린" }),
+        pctEx("snatch", [[5, 3, 85]], { notesKo: "스네치 푸쉬프레스" }),
+        pctEx("squat", [[5, 4, 85]], { notesKo: "1¼ 백스쿼트" }),
+        pctEx("clean", [[4, 5, 110]], { role: "assistance", notesKo: "클린 슈러그", restSec: 90 }),
+      ],
+      "목요일 — 컴플렉스",
+    ),
+    lbebPublicWorkWeek(
+      11,
+      "11주차 — Cycle 3 Week 3",
+      "공개 LBEB Cycle 3 Week 3. 월·화·목 작업.",
+      [
+        pctEx("snatch", [[2, 3, 70], [2, 3, 75]]),
+        pctEx("squat", [[3, 5, 75]]),
+        pctEx("push_press", [[5, 3, 75]]),
+        pctEx("snatch", [[4, 5, 80]], { role: "assistance", notesKo: "스네치 데드리프트", restSec: 90 }),
+        boxJumps,
+      ],
+      [
+        pctEx("clean_jerk", [[2, 3, 70], [2, 3, 75]], { restSec: 180 }),
+        pctEx("snatch", [[3, 3, 75]], { notesKo: "스네치 밸런스" }),
+        pctEx("front_squat", [[3, 5, 75]]),
+        pctEx("jerk", [[3, 3, 75]], { notesKo: "푸쉬저크 비하인드넥" }),
+        hangingLegs,
+      ],
+      [
+        pctEx("snatch", [[4, 3, 75]], { notesKo: "파워스네치" }),
+        pctEx("clean_jerk", [[4, 3, 75]], { notesKo: "파워클린", restSec: 180 }),
+        pctEx("squat", [[5, 7, 70]]),
+        pctEx("push_press", [[2, 5, 75]]),
+      ],
+      "목요일 — 파워",
+    ),
+    lbebPublicWorkWeek(
+      12,
+      "12주차 — Cycle 3 Week 4",
+      "공개 LBEB Cycle 3 Week 4. 목요일 스네치·C&J·백스쿼트 맥스 시도(고정 % 없음).",
+      [
+        pctEx("snatch", [[2, 1, 90]]),
+        pctEx("squat", [[3, 1, 87]]),
+        pctEx("jerk", [[3, 1, 92]], { notesKo: "저크 비하인드넥" }),
+        pctEx("snatch_pull", [[4, 2, 115]], { role: "assistance", restSec: 90 }),
+      ],
+      [
+        pctEx("clean_jerk", [[2, 1, 90]], { restSec: 180 }),
+        pctEx("snatch", [[3, 1, 92]], { notesKo: "스네치 밸런스" }),
+        pctEx("front_squat", [[4, 1, 90]]),
+      ],
+      [
+        testMaxSingle("snatch", "스네치 맥스 시도"),
+        testMaxSingle("clean_jerk", "클린&저크 맥스 시도"),
+        testMaxSingle("squat", "백스쿼트 맥스 시도"),
+      ],
+      "목요일 — 맥스 테스트",
+    ),
+  ];
+}
+
 export function lbebP1(): SeedProgram {
   return {
     slug: "lbeb",
     nameKo: "LBEB",
     nameEn: "LBEB",
     category: "역도",
-    completeness: "template",
-    coverage: "excel-w1-6-only",
+    completeness: "working",
+    coverage: "public-lbeb-12w-olympic",
     copy: {
-      help: "W1–6만 시드. W7–12는 잠금이며 공개 % 그리드가 없습니다.",
+      help: "12주 진행 가능. W1–6은 기존 하이브리드 시드. W7–12는 공개 LBEB 12주(Cycle 2 W3–Cycle 3 W4, 월·화·목). 출처 public-lbeb-12w-olympic.",
     },
-    descriptionKo: "W1–6만 로드. W7–12는 잠금(excel-w1-6-only). 유료 후반 주를 추정해 채우지 않습니다.",
-    descriptionEn: "W1–6 only. W7–12 locked — no public percent grid.",
+    descriptionKo:
+      "12주 진행 가능. W1–6은 기존 하이브리드 시드. W7–12는 공개 LBEB 12주(Cycle 2 W3–Cycle 3 W4). 유료 시트를 추정해 채우지 않았습니다.",
+    descriptionEn:
+      "12 weeks usable. W7–12 from public LBEB 12-week Olympic text (Cycle 2 W3–Cycle 3 W4). Paid Excel weeks were not invented.",
     sortOrder: 120,
-    weeks: Array.from({ length: 12 }, (_, i) => ({
-      weekNumber: i + 1,
-      nameKo: i + 1 <= 6 ? `${i + 1}주차` : `${i + 1}주차 — 아직 없음`,
-      notesKo:
-        i === 0
-          ? "하이브리드 W1."
-          : i + 1 <= 6
-            ? `W${i + 1} 노트: W1 골격 + 소폭 강도. 원본 시트 파동 아님.`
-            : "이 블록은 아직 제공하지 않습니다.",
-      days: i + 1 <= 6 ? olympicWeek1Days("lbeb", i + 1) : [],
-    })),
+    weeks: [
+      ...Array.from({ length: 6 }, (_, i) => ({
+        weekNumber: i + 1,
+        nameKo: `${i + 1}주차`,
+        notesKo:
+          i === 0 ? "하이브리드 W1." : `W${i + 1} 노트: W1 골격 + 소폭 강도. 원본 시트 파동 아님.`,
+        days: olympicWeek1Days("lbeb", i + 1),
+      })),
+      ...lbebPublicWeeks7to12(),
+    ],
   };
 }

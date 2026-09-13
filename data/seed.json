@@ -44599,9 +44599,9 @@
       "nameKo": "LBEB",
       "nameEn": "LBEB",
       "category": "역도",
-      "completeness": "template",
-      "descriptionKo": "W1–6만 시드. W7–12는 잠금이며 공개 % 그리드가 없습니다.",
-      "descriptionEn": "W1–6 only. W7–12 locked — no public percent grid.",
+      "completeness": "working",
+      "descriptionKo": "12주 진행 가능. W1–6은 기존 하이브리드 시드. W7–12는 공개 LBEB 12주(Cycle 2 W3–Cycle 3 W4, 월·화·목). 출처 public-lbeb-12w-olympic.",
+      "descriptionEn": "12 weeks usable. W7–12 from public LBEB 12-week Olympic text (Cycle 2 W3–Cycle 3 W4). Paid Excel weeks were not invented.",
       "usesTM": false,
       "tmFactor": 0.9,
       "sortOrder": 120,
@@ -47524,44 +47524,2497 @@
         },
         {
           "week": 7,
-          "nameKo": "7주차 — 아직 없음",
-          "notesKo": "이 블록은 아직 제공하지 않습니다.",
-          "days": []
+          "nameKo": "7주차 — Cycle 2 Week 3",
+          "notesKo": "공개 LBEB Cycle 2 Week 3. 월·화·목 작업.",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스네치",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "push_press",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "assistance",
+                  "notesKo": "스네치 데드리프트",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "box_jump",
+                  "role": "assistance",
+                  "notesKo": "박스점프",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 클린&저크",
+              "exercises": [
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 180
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "스네치 밸런스",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "jerk",
+                  "role": "main",
+                  "notesKo": "푸쉬저크 비하인드넥",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "hanging_leg_raise",
+                  "role": "assistance",
+                  "notesKo": "행잉 레그레이즈",
+                  "sets": [
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 파워",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "파워스네치",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "notesKo": "파워클린",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 180
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "push_press",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
         },
         {
           "week": 8,
-          "nameKo": "8주차 — 아직 없음",
-          "notesKo": "이 블록은 아직 제공하지 않습니다.",
-          "days": []
+          "nameKo": "8주차 — Cycle 2 Week 4",
+          "notesKo": "공개 LBEB Cycle 2 Week 4. 월·화·목 작업.",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스네치",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "jerk",
+                  "role": "main",
+                  "notesKo": "저크 비하인드넥",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch_pull",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 클린&저크",
+              "exercises": [
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 180
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "스네치 밸런스",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "clean",
+                  "role": "assistance",
+                  "notesKo": "RDL",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 스네치/클린",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 180
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "clean",
+                  "role": "main",
+                  "notesKo": "클린 풀 2회 + 클린",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "abs",
+                  "role": "assistance",
+                  "notesKo": "싯업",
+                  "sets": [
+                    {
+                      "reps": 50,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
         },
         {
           "week": 9,
-          "nameKo": "9주차 — 아직 없음",
-          "notesKo": "이 블록은 아직 제공하지 않습니다.",
-          "days": []
+          "nameKo": "9주차 — Cycle 3 Week 1",
+          "notesKo": "공개 LBEB Cycle 3 Week 1. 월·화·목 작업.",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스네치",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "push_press",
+                  "role": "main",
+                  "notesKo": "푸쉬프레스 비하인드넥",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch_pull",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 105,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 105,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 105,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 105,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "pull_up",
+                  "role": "assistance",
+                  "notesKo": "풀업",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 클린&저크",
+              "exercises": [
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 180
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "스네치 밸런스",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "clean_pull",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 105,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 105,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 105,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 105,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 105,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "abs",
+                  "role": "assistance",
+                  "notesKo": "싯업",
+                  "sets": [
+                    {
+                      "reps": 50,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 컴플렉스",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "스네치 풀 + 파워스네치 + 스네치",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "push_press",
+                  "role": "main",
+                  "notesKo": "푸쉬프레스 비하인드넥",
+                  "sets": [
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "assistance",
+                  "notesKo": "스네치 데드리프트",
+                  "sets": [
+                    {
+                      "reps": 7,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
         },
         {
           "week": 10,
-          "nameKo": "10주차 — 아직 없음",
-          "notesKo": "이 블록은 아직 제공하지 않습니다.",
-          "days": []
+          "nameKo": "10주차 — Cycle 3 Week 2",
+          "notesKo": "공개 LBEB Cycle 3 Week 2. 월·화·목 작업.",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스네치",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "push_press",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "clean",
+                  "role": "assistance",
+                  "notesKo": "클린 데드리프트 (스트랩)",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "box_jump",
+                  "role": "assistance",
+                  "notesKo": "박스점프",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 클린&저크",
+              "exercises": [
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 180
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "스네치 밸런스",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "jerk",
+                  "role": "main",
+                  "notesKo": "푸쉬저크 비하인드넥",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "hanging_leg_raise",
+                  "role": "assistance",
+                  "notesKo": "행잉 레그레이즈",
+                  "sets": [
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 컴플렉스",
+              "exercises": [
+                {
+                  "exerciseId": "clean",
+                  "role": "main",
+                  "notesKo": "클린 풀 + 파워클린 + 클린",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "스네치 푸쉬프레스",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "notesKo": "1¼ 백스쿼트",
+                  "sets": [
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "clean",
+                  "role": "assistance",
+                  "notesKo": "클린 슈러그",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 110,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 110,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 110,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 110,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
         },
         {
           "week": 11,
-          "nameKo": "11주차 — 아직 없음",
-          "notesKo": "이 블록은 아직 제공하지 않습니다.",
-          "days": []
+          "nameKo": "11주차 — Cycle 3 Week 3",
+          "notesKo": "공개 LBEB Cycle 3 Week 3. 월·화·목 작업.",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스네치",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "push_press",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "assistance",
+                  "notesKo": "스네치 데드리프트",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "box_jump",
+                  "role": "assistance",
+                  "notesKo": "박스점프",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 5,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 클린&저크",
+              "exercises": [
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 180
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "스네치 밸런스",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "jerk",
+                  "role": "main",
+                  "notesKo": "푸쉬저크 비하인드넥",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "hanging_leg_raise",
+                  "role": "assistance",
+                  "notesKo": "행잉 레그레이즈",
+                  "sets": [
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 파워",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "파워스네치",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "notesKo": "파워클린",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 180
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 7,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "push_press",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
         },
         {
           "week": 12,
-          "nameKo": "12주차 — 아직 없음",
-          "notesKo": "이 블록은 아직 제공하지 않습니다.",
-          "days": []
+          "nameKo": "12주차 — Cycle 3 Week 4",
+          "notesKo": "공개 LBEB Cycle 3 Week 4. 목요일 스네치·C&J·백스쿼트 맥스 시도(고정 % 없음).",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스네치",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 87,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "jerk",
+                  "role": "main",
+                  "notesKo": "저크 비하인드넥",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch_pull",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 2,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 115,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 클린&저크",
+              "exercises": [
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 180
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 180
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "스네치 밸런스",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 92,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 90,
+                      "of": "1RM",
+                      "restSec": 150
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 맥스 테스트",
+              "exercises": [
+                {
+                  "exerciseId": "snatch",
+                  "role": "main",
+                  "notesKo": "스네치 맥스 시도",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "amrap": true,
+                      "restSec": 180,
+                      "noteKo": "테스트 · 고정 % 없음"
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "clean_jerk",
+                  "role": "main",
+                  "notesKo": "클린&저크 맥스 시도",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "amrap": true,
+                      "restSec": 180,
+                      "noteKo": "테스트 · 고정 % 없음"
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "notesKo": "백스쿼트 맥스 시도",
+                  "sets": [
+                    {
+                      "reps": 1,
+                      "amrap": true,
+                      "restSec": 180,
+                      "noteKo": "테스트 · 고정 % 없음"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
         }
       ],
-      "coverage": "excel-w1-6-only",
+      "coverage": "public-lbeb-12w-olympic",
       "copy": {
-        "help": "W1–6만 시드. W7–12는 잠금이며 공개 % 그리드가 없습니다."
+        "help": "12주 진행 가능. W1–6은 기존 하이브리드 시드. W7–12는 공개 LBEB 12주(Cycle 2 W3–Cycle 3 W4, 월·화·목). 출처 public-lbeb-12w-olympic."
       }
     }
   ]

@@ -50,8 +50,10 @@ export const P1_META: Record<string, P1Meta> = {
     ],
   },
   lbeb: {
-    listedBlocks: ["W1–6만 로드", "W7–12 잠금 (excel-w1-6-only). 공개 % 그리드 없음"],
-    unavailableWeeks: [7, 8, 9, 10, 11, 12],
+    listedBlocks: [
+      "W1–6 하이브리드 시드",
+      "W7–12 공개 LBEB 12주 (Cycle 2 W3–Cycle 3 W4). 월·화·목 작업 / 수·금·토 휴식",
+    ],
   },
   catalyst: {
     listedBlocks: ["12주 세션 진행 가능. 공식 기본+스페셜티 엑셀 블록은 저장소에 없음."],

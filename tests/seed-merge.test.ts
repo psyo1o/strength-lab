@@ -84,6 +84,7 @@ describe("seed merge by program id", () => {
     for (const id of P0_PROGRAM_IDS) {
       expect(seed.programs.some((p) => p.id === id), id).toBe(true);
     }
+    expect(seed.programs.map((p) => p.id)).toEqual(baseSeed().programs.map((p) => p.id));
   });
 
   it("decodes gzip+base64 program payloads", () => {

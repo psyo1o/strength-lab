@@ -452,9 +452,31 @@ describe("P1 programs", () => {
     expect(toro.weeks.length).toBeGreaterThanOrEqual(13);
     expect(toro.weeks[0].days).toHaveLength(5);
     expect(toro.completeness).toBe("working");
-    expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").weeks[6].days).toHaveLength(0);
-    expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("template");
-    expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").coverage).toBe("excel-w1-6-only");
+    const lbeb = raw.programs.find((p: { id: string }) => p.id === "lbeb");
+    expect(lbeb.weeks).toHaveLength(12);
+    expect(lbeb.completeness).toBe("working");
+    expect(lbeb.coverage).toBe("public-lbeb-12w-olympic");
+    expect(lbeb.weeks[0].days).toHaveLength(4);
+    for (const w of lbeb.weeks.slice(6)) {
+      expect(w.days).toHaveLength(6);
+      expect(w.days[2].exercises).toHaveLength(0);
+      expect(w.days[4].exercises).toHaveLength(0);
+      expect(w.days[5].exercises).toHaveLength(0);
+    }
+    const w7snatch = lbeb.weeks[6].days[0].exercises.find(
+      (e: { exerciseId: string; notesKo?: string }) => e.exerciseId === "snatch" && !e.notesKo,
+    );
+    expect(w7snatch.sets.map((s: { reps: number; percent: number }) => [s.reps, s.percent])).toEqual([
+      [3, 65],
+      [3, 65],
+      [3, 70],
+      [3, 70],
+    ]);
+    expect(
+      lbeb.weeks[11].days[3].exercises.every((e: { sets: { percent?: number; amrap?: boolean }[] }) =>
+        e.sets.every((s: { percent?: number; amrap?: boolean }) => s.percent == null && s.amrap),
+      ),
+    ).toBe(true);
     expect(typeof seedDraftsP1Path()).toBe("string");
   });
 });

@@ -145,6 +145,8 @@ describe("completeness badges", () => {
     expect(programBadge("bob-takano", "working")).toBe("진행 가능");
     expect(programBadge("bob-takano", "template")).toBe("진행 가능");
     expect(programBadge("catalyst", "template", "seeded_sample_not_full_cycle")).toBe("진행 가능");
+    expect(programBadge("lbeb", "working")).toBe("진행 가능");
+    expect(programBanner("lbeb", "working")).toBeNull();
     expect(programBadge("lbeb", "template")).toBe("템플릿 · 불완전");
     expect(programBanner("lbeb", "template")).toMatch(/세션이 없습니다/);
     expect(programBanner("bob-takano", "working")).toBeNull();
@@ -157,7 +159,7 @@ describe("completeness badges", () => {
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "torokhtiy").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").completeness).toBe("working");
-    expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("template");
+    expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("working");
     expect(programBadge("catalyst", "working")).toBe("진행 가능");
     expect(programBadge("torokhtiy", "working")).toBe("진행 가능");
     expect(programSubtitle("bob-takano")).toBe("엑셀 기반 샘플 사이클");
@@ -173,7 +175,7 @@ describe("completeness badges", () => {
     expect(helpOrDescription("cowboy", "fallback")).toMatch(/카우보이|스쿼트|프론트/);
     expect(helpOrDescription("daily-undulating", "fallback")).toMatch(/메소사이클|비대|피킹/);
     expect(helpOrDescription("juggernaut", "fallback")).toMatch(/16주|웨이브|피킹/);
-    expect(helpOrDescription("lbeb", "fallback")).toMatch(/잠금|W7|W1/);
+    expect(helpOrDescription("lbeb", "fallback")).toMatch(/진행 가능|공개|12주/);
     expect(helpOrDescription("bob-takano", "fallback")).toMatch(/진행 가능/);
     expect(helpOrDescription("catalyst", "fallback")).toMatch(/진행 가능/);
     expect(helpOrDescription("torokhtiy", "fallback")).toMatch(/진행 가능/);

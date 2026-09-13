@@ -23,17 +23,14 @@
 | `bob-takano` | Class III/II/I 12주. | 공식 장기 주기화 아님. |
 | `catalyst` | 12주 기본. | 스페셜티 블록은 후속 시드. |
 | `torokhtiy` | 13주 월–금. | 공식 앱과 무관. |
+| `lbeb` | 12주. W7–12는 공개 LBEB Cycle 2 W3–Cycle 3 W4 (월·화·목). | W1–6은 기존 하이브리드 시드. |
 | Starting Strength A/B | A/B 선형 진행. OHP 노비스 3×5 (시트 일부 열 sheetAlt 5×3). 스쿼트 +2.5kg 시트 잠금. 시작중량 우선. | |
 | Stronglifts 5x5 | A/B 5×5 + 데드 1×5. 시작중량 우선, 없으면 ~50% 1RM. | |
 | Madcow 5x5 | 월/수/금. 1주차 톱=추정 5RM(0.87×1RM). 12.5% 램핑, 금 트리플=다음 주 톱, 백오프=월 3세트. 매주 ×1.025. 시작중량=탑세트. | |
 
 ### 템플릿 · 불완전 (template)
 
-시드된 주 중에 날짜가 비어 있을 때만 이 배지. 주가 모두 채워지면 **진행 가능**.
-
-| 프로그램 | 내용 |
-| --- | --- |
-| `lbeb` | W1–6 로드. W7–12 시드 일 없음. |
+시드된 주 중에 날짜가 비어 있을 때만 이 배지. 주가 모두 채워지면 **진행 가능**. 현재 공개 시드에는 해당 프로그램이 없습니다.
 
 프로그램 JSON을 채팅에 큰 gzip+base64로 붙여 넣으면 **잘리거나 CRC가 깨집니다**. 채팅 gzip은 받지 않습니다. 파일이 있는 기기에서 JSON을 커밋한 뒤 `npx tsx scripts/merge-seed-programs.ts <file>` 로 id 병합하거나 카탈로그를 수술적으로 고치세요. 안내: `scripts/import-seed-from-url.md`. `seed-drafts/seed.p1.json` 은 부팅 시 slug 덮어쓰기.
 

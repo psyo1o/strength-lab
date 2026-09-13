@@ -84,9 +84,17 @@ export function mergePublicSeedById(
       if (keep) byId.set(id, keep);
     }
   }
-  const programs = [...byId.values()]
-    .map((p) => stampCompleteness(p))
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id.localeCompare(b.id));
+  const seen = new Set<string>();
+  const programs: PublicSeedProgram[] = [];
+  for (const p of base.programs) {
+    const next = stampCompleteness(byId.get(p.id) ?? p);
+    programs.push(next);
+    seen.add(next.id);
+  }
+  for (const p of byId.values()) {
+    if (seen.has(p.id)) continue;
+    programs.push(stampCompleteness(p));
+  }
   return { seed: { ...base, programs }, replaced };
 }
 

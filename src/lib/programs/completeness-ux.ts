@@ -6,7 +6,7 @@ export const PROGRAM_COVERAGE: Record<string, string> = {
   catalyst: "seeded_sample_not_full_cycle",
   cowboy: "w1-13_full_sets",
   juggernaut: "w1-16_full_sets_plus_peaking",
-  lbeb: "excel-w1-6-only",
+  lbeb: "public-lbeb-12w-olympic",
 };
 
 const SAMPLE_CYCLE_SLUGS = new Set(["bob-takano", "catalyst", "torokhtiy"]);
@@ -17,7 +17,7 @@ export function coverageOf(slug: string, coverage?: string | null): string | und
 
 /**
  * Badge text. `seeded_sample_not_full_cycle` is NOT incomplete.
- * Only LBEB / locked empty weeks get 템플릿 · 불완전.
+ * Locked empty weeks (`excel-w1-6-only`) stay 템플릿 · 불완전.
  */
 export function programBadge(
   slug: string,
@@ -26,7 +26,7 @@ export function programBadge(
 ): string {
   const cov = coverageOf(slug, coverage);
   if (slug === "jim-wendler-531" || completeness === "full") return "완전 작동";
-  if (slug === "lbeb" || cov === "excel-w1-6-only") return "템플릿 · 불완전";
+  if (cov === "excel-w1-6-only") return "템플릿 · 불완전";
   if (SAMPLE_CYCLE_SLUGS.has(slug) || cov === "seeded_sample_not_full_cycle") return "진행 가능";
   if (completeness === "working") return "진행 가능";
   if (completeness === "template") return "템플릿 · 불완전";
@@ -36,7 +36,7 @@ export function programBadge(
 /** One-line note under the badge. Sample cycles are usable; do not say 불완전. */
 export function programSubtitle(slug: string, coverage?: string | null): string | null {
   const cov = coverageOf(slug, coverage);
-  if (slug === "lbeb" || cov === "excel-w1-6-only") return null;
+  if (cov === "excel-w1-6-only") return null;
   if (SAMPLE_CYCLE_SLUGS.has(slug) || cov === "seeded_sample_not_full_cycle") {
     return "엑셀 기반 샘플 사이클";
   }

@@ -429,6 +429,15 @@ export const EXERCISES: SeedExerciseDef[] = [
     tipsEn: "Posteriorly tilt the pelvis, minimal swing.",
   },
   {
+    key: "box_jump",
+    nameKo: "박스점프",
+    nameEn: "Box Jump",
+    group: "assistance",
+    isMax: false,
+    tipsKo: "체중. 박스 높이는 착지를 부드럽게 받을 수 있는 높이.",
+    tipsEn: "Bodyweight. Soft landing, box height you can stick.",
+  },
+  {
     key: "pull_up",
     nameKo: "풀업",
     nameEn: "Pull-up",

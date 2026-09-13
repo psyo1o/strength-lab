@@ -11,7 +11,7 @@
 3. rehab DeLorme 8주 + DAPRE Knight 10/6 — 완료
 4. daily-undulating 3×4주 — 완료
 5. P0: madcow `fridayTriple` 매주 · `prWeekDefault` null / Wendler `afterEachCycle` **런타임 TM 가산** / SS OHP 3×5 + sheetAlt 5×3 — 완료
-6. 배지: 가득 찬 주 → 진행 가능, Wendler 완전 작동, LBEB W7–12 잠금
+6. 배지: 가득 찬 주 → 진행 가능, Wendler 완전 작동, LBEB 12주 공개 그리드
 7. 프로그램 상세: 시드된 모든 주 칩 + `copy.help` 설명
 
 ## 이번 채움
@@ -28,11 +28,11 @@
 | bob-takano | 12주(Class III/II/I × 4) 세션 있음. `seed-drafts/programs-split` 엑셀(III 8 / II 9 / I 12)은 이 저장소에 없음. | 진행 가능 |
 | catalyst | 12주 세션 있음. 공식 기본+스페셜티 엑셀은 저장소에 없음. | 진행 가능 |
 | torokhtiy | 13주 월–금 세션 있음. | 진행 가능 |
-| lbeb | W1–6만. W7–12 빈 날 잠금. | 템플릿 · 불완전 |
+| lbeb | W1–6 하이브리드 + W7–12 공개 LBEB 12주(Cycle 2 W3–Cycle 3 W4). | `public-lbeb-12w-olympic` · 진행 가능 |
 
 ## 잠금 · 발명하지 않음
 
-- **LBEB W7–12**: 빈 날 · `template` · 공개 % 그리드 없음 (`excel-w1-6-only`).
+- **LBEB W7–12**: 공개 12주 텍스트(Cycle 2 W3–Cycle 3 W4). 월·화·목 작업 / 수·금·토 휴식. `working` · `public-lbeb-12w-olympic`. 유료 시트 추정 없음.
 - **Juggernaut 피킹 5주**: 주차 배열에 빈 주를 넣지 않음(넣으면 배지가 템플릿). `peakingBlock` 노트만.
 - **Bob Takano / Catalyst**: 시드된 샘플 주만. UI/카피에 **공식 12주 사이클**로 광고하지 않음 (`seeded_sample_not_full_cycle`). 유료 주 발명 없음.
 - **Rehab DAPRE**: 기본 Knight 10@50% / 6@75%. 12/8은 라벨 변형만.
