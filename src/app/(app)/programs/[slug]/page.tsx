@@ -6,7 +6,7 @@ import { Nav } from "@/components/Nav";
 import { PinProgramButton } from "@/components/PinProgramButton";
 import { ProgramWeekList } from "@/components/ProgramWeekList";
 import { CompletenessBanner } from "@/components/CompletenessBanner";
-import { programBadge } from "@/lib/programs/completeness-ux";
+import { programBadge, programSubtitle } from "@/lib/programs/completeness-ux";
 import { helpOrDescription } from "@/lib/programs/copy-help";
 
 export const runtime = "nodejs";
@@ -17,6 +17,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
   const program = getProgram(slug);
   if (!program) notFound();
   const weeks = listWeeks(slug);
+  const subtitle = programSubtitle(program.slug);
 
   return (
     <main className="px-4 pt-6">
@@ -25,6 +26,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
       </Link>
       <h1 className="mt-2 text-2xl font-black">{program.name_ko}</h1>
       <p className="mt-1 text-xs font-bold text-[var(--accent)]">{programBadge(program.slug, program.completeness)}</p>
+      {subtitle ? <p className="text-[11px] font-bold text-[var(--muted)]">{subtitle}</p> : null}
       <CompletenessBanner slug={program.slug} completeness={program.completeness} />
       <p className="mt-3 text-sm text-[var(--muted)]">{helpOrDescription(program.slug, program.description_ko)}</p>
       <PinProgramButton slug={program.slug} pinned={user?.currentProgram === program.slug} />
