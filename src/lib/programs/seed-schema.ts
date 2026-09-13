@@ -49,6 +49,10 @@ export type PublicSeedProgram = {
   } & Record<string, { addKg?: number; upperKg?: number; lowerKg?: number } | undefined>;
   fridayTriple?: boolean;
   prWeekDefault?: number | null;
+  usesEstimated5RM?: boolean;
+  estimated5RM?: { formula: string; note?: string };
+  setIntervalDefault?: number;
+  weeklyProgression?: { factor: number; note?: string; fridayTripleEveryWeek?: boolean };
   extraOneRmFields?: Record<string, { label: string }>;
   weekRules?: string[];
   coverage?: string;

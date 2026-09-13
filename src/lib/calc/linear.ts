@@ -23,9 +23,14 @@ export function sessionIncrementKg(programSlug: string, exerciseKey: string): nu
   return SESSION_INCREMENT_KG[programSlug]?.[exerciseKey] ?? 0;
 }
 
-/** Sheet %1RM that equals 100% of the start-weight field (Madcow Monday top). */
+/** Sheet estimated 5RM as a fraction of 1RM (`ROUND(lift*0.87)`). */
+export const MADCOW_ESTIMATED_5RM = 0.87;
+/** Weekly top-set multiplier (≈ +2.5%). */
+export const MADCOW_WEEKLY_FACTOR = 1.025;
+
+/** Sheet %1RM that equals 100% of the start-weight field (Madcow week-1 Monday top). */
 export const START_REF_PERCENT: Record<string, number> = {
-  "madcow-5x5": 80,
+  "madcow-5x5": Number((MADCOW_ESTIMATED_5RM * 100).toFixed(2)),
 };
 
 export function startRefPercent(programSlug: string, fallback: number): number {

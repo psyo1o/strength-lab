@@ -11,6 +11,7 @@ import { getUserMaxes, getUserStarts, saveUserMaxes } from "../src/lib/maxes";
 import { findWendlerSquatWeek1MainSets, getWeekId, getDay, resolveWorkout } from "../src/lib/programs/queries";
 import { loadSeedFile, seedDraftsP1Path, seedJsonPath } from "../src/lib/db/seed";
 import { resolveSetKg } from "../src/lib/calc/loads";
+import { START_REF_PERCENT } from "../src/lib/calc/linear";
 import { loadTips, tipDisclaimer, tipFor } from "../src/lib/tips";
 import { isLocalAssetUrl, localExerciseImagePath, parseVideoUrl, resolveTipMedia } from "../src/lib/media";
 
@@ -103,9 +104,18 @@ describe("seed schema + weight engine", () => {
     expect(sl.weeks[0].days[0].exercises[0].sets[0].percent).toBe(50);
     const mc = raw.programs.find((p: { id: string }) => p.id === "madcow-5x5");
     expect(mc.weeks[0].days[0].exercises[0].sets.map((s: { percent: number }) => s.percent)).toEqual([
-      40, 50, 60, 70, 80,
+      43.5, 54.38, 65.25, 76.13, 87,
     ]);
-    expect(mc.weeks[1].days[0].exercises[0].sets[4].percent).toBe(82);
+    expect(mc.weeks[1].days[0].exercises[0].sets[4].percent).toBe(89.18);
+    expect(mc.estimated5RM.formula).toBe("0.87 * 1RM");
+    expect(mc.weeklyProgression.factor).toBe(1.025);
+    const wedSquat = mc.weeks[0].days[1].exercises[0];
+    expect(wedSquat.sets.map((s: { percent: number }) => s.percent)).toEqual([43.5, 54.38, 65.25, 65.25]);
+    const friSquat = mc.weeks[0].days[2].exercises.find((e: { exerciseId: string }) => e.exerciseId === "squat");
+    expect(friSquat.sets[4]).toEqual(expect.objectContaining({ percent: 89.18, reps: 3 }));
+    expect(friSquat.sets[5]).toEqual(expect.objectContaining({ percent: 65.25, reps: 8 }));
+    expect(mc.weeks[0].days[2].exercises.find((e: { exerciseId: string }) => e.exerciseId === "barbell_row").sets).toHaveLength(6);
+    expect(START_REF_PERCENT["madcow-5x5"]).toBe(87);
     expect(loadSeedFile().programs.some((p) => p.slug === "jim-wendler-531")).toBe(true);
   });
 
@@ -355,11 +365,16 @@ describe("P1 programs", () => {
     const madcow = raw.programs.find((p: { id: string }) => p.id === "madcow-5x5");
     expect(madcow.fridayTriple).toBe(true);
     expect(madcow.prWeekDefault).toBeNull();
+    expect(madcow.usesEstimated5RM).toBe(true);
+    expect(madcow.copy.help).toMatch(/트리플은 매주/);
     for (const week of madcow.weeks) {
       const fri = week.days[week.days.length - 1];
       const squat = fri.exercises.find((e: { exerciseId: string }) => e.exerciseId === "squat");
       expect(squat.sets.some((s: { reps: number; noteKo?: string }) => s.reps === 3)).toBe(true);
     }
+    expect(madcow.weeks[0].days[2].exercises[0].sets[4].percent).toBe(
+      madcow.weeks[1].days[0].exercises[0].sets[4].percent,
+    );
     const ss = raw.programs.find((p: { id: string }) => p.id === "starting-strength");
     const ohp = ss.weeks[0].days
       .flatMap((d: { exercises: { exerciseId: string; sets: { reps: number }[] }[] }) => d.exercises)
