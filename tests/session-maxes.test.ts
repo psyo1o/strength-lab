@@ -12,7 +12,7 @@ import {
   extraProgramMaxKeys,
   labelForMaxField,
 } from "../src/lib/maxes-fields";
-import { programBadge, programBanner } from "../src/lib/programs/completeness-ux";
+import { programBadge, programBanner, programSubtitle } from "../src/lib/programs/completeness-ux";
 import { helpOrDescription } from "../src/lib/programs/copy-help";
 import { seedJsonPath } from "../src/lib/db/seed";
 import { canonicalOneRmFields, tipFor } from "../src/lib/tips";
@@ -143,8 +143,12 @@ describe("completeness badges", () => {
     expect(programBadge("rehab", "working")).toBe("진행 가능");
     expect(programBadge("rehab", "working")).not.toBe("완전 작동");
     expect(programBadge("bob-takano", "working")).toBe("진행 가능");
+    expect(programBadge("bob-takano", "template")).toBe("진행 가능");
+    expect(programBadge("catalyst", "template", "seeded_sample_not_full_cycle")).toBe("진행 가능");
     expect(programBadge("lbeb", "template")).toBe("템플릿 · 불완전");
     expect(programBanner("lbeb", "template")).toMatch(/세션이 없습니다/);
+    expect(programBanner("bob-takano", "working")).toBeNull();
+    expect(programBanner("bob-takano", "template")).toBeNull();
     expect(programBadge("cowboy", "working")).toBe("진행 가능");
     expect(programBanner("cowboy", "working")).toBeNull();
     const raw = JSON.parse(fs.readFileSync(seedJsonPath(), "utf8"));
@@ -156,6 +160,11 @@ describe("completeness badges", () => {
     expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("template");
     expect(programBadge("catalyst", "working")).toBe("진행 가능");
     expect(programBadge("torokhtiy", "working")).toBe("진행 가능");
+    expect(programSubtitle("bob-takano")).toBe("엑셀 기반 샘플 사이클");
+    expect(programSubtitle("catalyst")).toBe("엑셀 기반 샘플 사이클");
+    expect(programSubtitle("torokhtiy")).toBe("엑셀 기반 샘플 사이클");
+    expect(programSubtitle("lbeb")).toBeNull();
+    expect(programSubtitle("jim-wendler-531")).toBeNull();
     expect(raw.programs.find((p: { id: string }) => p.id === "cowboy").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "juggernaut").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "madcow-5x5").completeness).toBe("working");
