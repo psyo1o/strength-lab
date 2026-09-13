@@ -464,7 +464,7 @@ export const EXERCISES: SeedExerciseDef[] = [
   },
   {
     key: "rehab_target",
-    nameKo: "재활 목표 종목",
+    nameKo: "재활 목표 동작",
     nameEn: "Rehab target",
     group: "assistance",
     isMax: true,

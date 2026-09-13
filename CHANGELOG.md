@@ -19,14 +19,21 @@
 | `rehab` 재활 (DeLorme / DAPRE) | W1 DeLorme 50/75/100% 10RM×10, DAPRE 50×12 / 75×8 / 100 AMRAP. `rehab_target`. | 자동 증감 없음(±2.5kg 수동). |
 | `daily-undulating` 일간 파동형 | 기본 비대 월–토 + 워밍업 사다리. 근력/피킹 피커. | RPE 자동 진행 없음. |
 | `juggernaut` | 16주. W1 축적 60%×10×5. Acc/Int/Real/Deload. | AMRAP→MAX 수동. 피킹 스텁. |
-| `cowboy` | 월/수/금 13주. W1 월 60%×5×10, 수 FS 55→75×5, 금 NRM 사다리. | Wendler 원본 아님. |
-| `bob-takano` | Class III W1 + III/II/I 피커. | 공식 장기 주기화 아님. |
-| `catalyst` | 12주 기본. W1 로드. 스페셜티 블록은 목록만. | 유료 프로그램 복제 아님. |
-| `torokhtiy` | W1 월–금. W2–13 노트+소폭 %. | 공식 앱과 무관. |
-| `lbeb` | W1 로드, W2–6 노트. W7–12 UI에서 아직 없음. | 원본 시트 파동 아님. |
+| `cowboy` | 월/수/금 13주. W1 월 60%×5×10, 수 FS 55→75×5, 금 NRM 사다리. UI 배지 **템플릿 · 부분**. | 원본 Cowboy/Wendler 아님. |
 | Starting Strength A/B | A/B 선형 진행. 시작중량 우선, 없으면 %1RM. 스쿼트 +2.5 / 데드 +5 / 상체 +2.5. | |
 | Stronglifts 5x5 | A/B 5×5 + 데드 1×5. 시작중량 우선, 없으면 ~50% 1RM. | |
 | Madcow 5x5 | 월/수/금 12.5% 램핑·트리플·백오프. 매주 ×1.025. 시작중량=탑세트. | |
+
+### 템플릿 · 불완전 (template)
+
+주/일 골격과 %1RM만. 자동 진행 전체를 주장하지 않습니다. UI 배지 **템플릿 · 불완전**.
+
+| 프로그램 | 내용 |
+| --- | --- |
+| `bob-takano` | Class III W1 + III/II/I 피커. 공식 장기 주기화 아님. |
+| `catalyst` | 12주 기본 W1. 스페셜티 블록은 목록만. |
+| `torokhtiy` | W1 월–금. W2–13 노트+소폭 %. |
+| `lbeb` | W1 로드, W2–6 노트. W7–12 UI에서 아직 없음. |
 
 데이터봇이 `seed-drafts/seed.p1.json` 을 주면 slug 단위로 덮어씁니다.
 

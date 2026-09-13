@@ -1,0 +1,86 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { resetDbConnection } from "../src/lib/db/client";
+import { registerUser } from "../src/lib/auth";
+import { loadSessionWorkout } from "../src/lib/programs/session-load";
+import { allMaxesKeys, buildMaxesGroups, extraProgramMaxKeys, labelForMaxField } from "../src/lib/maxes-fields";
+import { programBadge, programBanner } from "../src/lib/programs/completeness-ux";
+import { seedJsonPath } from "../src/lib/db/seed";
+
+function freshDb() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-sess-"));
+  process.env.DATABASE_PATH = path.join(dir, "app.db");
+  process.env.AUTH_SECRET = "test-secret-at-least-32-characters-long";
+  resetDbConnection();
+}
+
+beforeEach(freshDb);
+afterEach(() => resetDbConnection());
+
+function assertNoUndefined(value: unknown, trail = "root") {
+  if (value === undefined) throw new Error(`undefined at ${trail}`);
+  if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value)) assertNoUndefined(v, `${trail}.${k}`);
+  }
+}
+
+describe("session week 1 day 1", () => {
+  it("loads Wendler and a P1 program without throwing, even with empty maxes", () => {
+    const created = registerUser("sess@example.com", "password123");
+    expect(created).toHaveProperty("user");
+    if ("error" in created) throw new Error(created.error);
+
+    for (const slug of ["jim-wendler-531", "wendler-531", "daily-undulating"] as const) {
+      const loaded = loadSessionWorkout({
+        slug,
+        week: 1,
+        day: 1,
+        userId: created.user.id,
+        unit: "kg",
+      });
+      expect(loaded, slug).toBeTruthy();
+      expect(loaded!.workout.exercises.length).toBeGreaterThan(0);
+      assertNoUndefined(loaded!.tips, `${slug}.tips`);
+      assertNoUndefined(loaded!.workout, `${slug}.workout`);
+      expect(() => JSON.stringify({ workout: loaded!.workout, tips: loaded!.tips })).not.toThrow();
+    }
+  });
+});
+
+describe("maxes fields", () => {
+  it("renders each exercise id once and keeps power_clean only under olympic", () => {
+    const groups = buildMaxesGroups({ extraKeys: ["rehab_target", "front_squat", "power_clean"] });
+    const keys = allMaxesKeys(groups);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys.filter((k) => k === "power_clean")).toHaveLength(1);
+    expect(groups.find((g) => g.title === "파워리프팅")?.keys).not.toContain("power_clean");
+    expect(groups.find((g) => g.title === "역도")?.keys).toContain("power_clean");
+    expect(groups.find((g) => g.title === "프로그램 추가 1RM")?.keys).toEqual(["rehab_target"]);
+    expect(labelForMaxField("rehab_target")).toBe("재활 목표 동작");
+    expect(labelForMaxField("ohp")).toMatch(/스트릭트/);
+    expect(labelForMaxField("push_press")).toMatch(/푸쉬프레스/);
+    expect(labelForMaxField("clean_jerk")).not.toBe(labelForMaxField("clean"));
+    expect(extraProgramMaxKeys()).toContain("rehab_target");
+  });
+});
+
+describe("completeness badges", () => {
+  it("marks Wendler full and does not call rehab 완전 작동", () => {
+    expect(programBadge("jim-wendler-531", "full")).toBe("완전 작동");
+    expect(programBanner("jim-wendler-531", "full")).toBeNull();
+    expect(programBadge("rehab", "working")).toBe("진행 가능");
+    expect(programBadge("rehab", "working")).not.toBe("완전 작동");
+    for (const slug of ["bob-takano", "catalyst", "torokhtiy", "lbeb"] as const) {
+      expect(programBadge(slug, "template")).toBe("템플릿 · 불완전");
+      expect(programBanner(slug, "template")).toMatch(/자동 진행/);
+    }
+    expect(programBadge("cowboy", "working")).toBe("템플릿 · 부분");
+    expect(programBanner("cowboy", "working")).toMatch(/원본/);
+    const raw = JSON.parse(fs.readFileSync(seedJsonPath(), "utf8"));
+    expect(raw.programs.find((p: { id: string }) => p.id === "jim-wendler-531").completeness).toBe("full");
+    expect(raw.programs.find((p: { id: string }) => p.id === "rehab").completeness).toBe("working");
+    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("template");
+  });
+});

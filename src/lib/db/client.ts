@@ -99,6 +99,13 @@ function applySchema(raw: Database.Database) {
   if (!maxCols.some((c) => c.name === "start_kg")) {
     raw.exec("ALTER TABLE user_maxes ADD COLUMN start_kg REAL");
   }
+  const exCols = new Set(
+    (raw.prepare("PRAGMA table_info(exercises)").all() as { name: string }[]).map((c) => c.name),
+  );
+  if (!exCols.has("tips_ko")) raw.exec("ALTER TABLE exercises ADD COLUMN tips_ko TEXT NOT NULL DEFAULT ''");
+  if (!exCols.has("tips_en")) raw.exec("ALTER TABLE exercises ADD COLUMN tips_en TEXT NOT NULL DEFAULT ''");
+  if (!exCols.has("name_en")) raw.exec("ALTER TABLE exercises ADD COLUMN name_en TEXT NOT NULL DEFAULT ''");
+  if (!exCols.has("is_max")) raw.exec("ALTER TABLE exercises ADD COLUMN is_max INTEGER NOT NULL DEFAULT 0");
   raw.exec(`
     CREATE TABLE IF NOT EXISTS set_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

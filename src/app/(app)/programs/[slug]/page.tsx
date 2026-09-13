@@ -5,6 +5,8 @@ import { getProgram, listDays, listWeeks } from "@/lib/programs/queries";
 import { Nav } from "@/components/Nav";
 import { PinProgramButton } from "@/components/PinProgramButton";
 import { ProgramWeekList } from "@/components/ProgramWeekList";
+import { CompletenessBanner } from "@/components/CompletenessBanner";
+import { programBadge } from "@/lib/programs/completeness-ux";
 
 export const runtime = "nodejs";
 
@@ -21,11 +23,8 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
         ← 목록
       </Link>
       <h1 className="mt-2 text-2xl font-black">{program.name_ko}</h1>
-      {program.completeness === "template" ? (
-        <p className="mt-2 rounded-xl border border-[var(--line)] bg-[#2a1d12] p-3 text-sm">
-          불완전 템플릿입니다. 주/일 골격과 %1RM 셸만 있으며 원본 주기화 전체를 재현하지 않습니다.
-        </p>
-      ) : null}
+      <p className="mt-1 text-xs font-bold text-[var(--accent)]">{programBadge(program.slug, program.completeness)}</p>
+      <CompletenessBanner slug={program.slug} completeness={program.completeness} />
       <p className="mt-3 text-sm text-[var(--muted)]">{program.description_ko}</p>
       <PinProgramButton slug={program.slug} pinned={user?.currentProgram === program.slug} />
       <ProgramWeekList

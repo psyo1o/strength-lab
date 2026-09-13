@@ -1,21 +1,8 @@
 import { getSqlite } from "./db/client";
 import { inputToKg, type WeightUnit } from "./calc/round";
+import { MAX_GROUPS } from "./maxes-fields";
 
-export const MAX_GROUPS = {
-  pl: ["squat", "bench", "deadlift", "ohp", "front_squat", "power_clean"] as const,
-  olympic: [
-    "clean_jerk",
-    "clean",
-    "jerk",
-    "power_clean",
-    "power_jerk",
-    "snatch",
-    "power_snatch",
-    "muscle_snatch",
-    "push_press",
-    "ohs",
-  ] as const,
-};
+export { MAX_GROUPS };
 
 export const START_WEIGHT_KEYS = ["squat", "bench", "deadlift", "ohp", "power_clean", "barbell_row"] as const;
 

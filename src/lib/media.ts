@@ -62,19 +62,25 @@ export function isLocalAssetUrl(url?: string | null): boolean {
   return u.startsWith("/exercises/") || u.startsWith("/api/media/");
 }
 
+function asMediaFields(value: unknown): TipMediaFields {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as TipMediaFields;
+}
+
 export function flattenTipMedia(
   tip: (TipMediaFields & { media?: TipMediaFields | null }) | null | undefined,
 ): TipMediaFields {
-  const nested = tip?.media ?? {};
+  const top = asMediaFields(tip);
+  const nested = asMediaFields(top.media);
   return {
-    imageUrl: tip?.imageUrl ?? nested.imageUrl ?? null,
-    videoUrl: tip?.videoUrl ?? nested.videoUrl ?? null,
-    credit: tip?.credit ?? nested.credit,
-    license: tip?.license ?? nested.license,
-    licenseUrl: tip?.licenseUrl ?? nested.licenseUrl,
-    sourcePage: tip?.sourcePage ?? nested.sourcePage,
-    alt: tip?.alt ?? nested.alt,
-    origin: tip?.origin ?? nested.origin,
+    imageUrl: top.imageUrl ?? nested.imageUrl ?? null,
+    videoUrl: top.videoUrl ?? nested.videoUrl ?? null,
+    credit: top.credit ?? nested.credit,
+    license: top.license ?? nested.license,
+    licenseUrl: top.licenseUrl ?? nested.licenseUrl,
+    sourcePage: top.sourcePage ?? nested.sourcePage,
+    alt: top.alt ?? nested.alt,
+    origin: top.origin ?? nested.origin,
   };
 }
 

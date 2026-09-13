@@ -28,7 +28,7 @@ export const P1_META: Record<string, P1Meta> = {
     ],
   },
   rehab: {
-    extraOneRmFields: [{ key: "rehab_target", label: "재활 목표 종목" }],
+    extraOneRmFields: [{ key: "rehab_target", label: "재활 목표 동작" }],
   },
   lbeb: {
     unavailableWeeks: [7, 8, 9, 10, 11, 12],

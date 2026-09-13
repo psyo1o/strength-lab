@@ -227,7 +227,7 @@ describe("korean exercise tips", () => {
     const squat = tipFor("squat");
     expect(squat).toBeTruthy();
     expect(squat?.imageUrl === undefined || typeof squat?.imageUrl === "string").toBe(true);
-    expect(squat?.videoUrl === undefined || typeof squat?.videoUrl === "string").toBe(true);
+    expect(squat?.videoUrl == null || typeof squat?.videoUrl === "string").toBe(true);
     expect(squat?.credit === undefined || typeof squat?.credit === "string").toBe(true);
     expect(localExerciseImagePath("back_squat")).toBe("/exercises/back_squat.webp");
     expect(localExerciseImagePath("squat")).toBe("/exercises/back_squat.webp");

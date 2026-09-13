@@ -154,7 +154,7 @@ export function resolveWorkout(opts: {
       `SELECT pe.id, pe.exercise_key, pe.role, pe.notes_ko, pe.sort_order,
               e.name_ko, e.tips_ko
        FROM program_exercises pe
-       JOIN exercises e ON e.key = pe.exercise_key
+       LEFT JOIN exercises e ON e.key = pe.exercise_key
        WHERE pe.day_id = ?
        ORDER BY pe.sort_order`,
     )
@@ -254,10 +254,10 @@ export function resolveWorkout(opts: {
       return {
         id: ex.id,
         exerciseKey: ex.exercise_key,
-        nameKo: ex.name_ko,
+        nameKo: ex.name_ko || ex.exercise_key,
         role: ex.role,
         notesKo: ex.notes_ko,
-        tipsKo: ex.tips_ko,
+        tipsKo: ex.tips_ko || "",
         oneRmKg,
         sets,
       };

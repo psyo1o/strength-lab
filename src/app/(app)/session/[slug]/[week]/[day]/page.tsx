@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { getDay, getProgram, getWeekId, resolveWorkout } from "@/lib/programs/queries";
+import { loadSessionWorkout } from "@/lib/programs/session-load";
 import { UnitToggle } from "@/components/UnitToggle";
 import { WorkoutClient } from "@/components/WorkoutClient";
-import { tipDisclaimer, tipFor } from "@/lib/tips";
+import { CompletenessBanner } from "@/components/CompletenessBanner";
 
 export const runtime = "nodejs";
 
@@ -16,19 +16,21 @@ export default async function SessionPage({
   const user = await getCurrentUser();
   if (!user) return null;
   const { slug, week, day } = await params;
-  const program = getProgram(slug);
-  const weekId = getWeekId(slug, Number(week));
-  if (!program || !weekId) notFound();
-  const dayRow = getDay(weekId, Number(day));
-  if (!dayRow) notFound();
-  const workout = resolveWorkout({ dayId: dayRow.id, userId: user.id, unit: user.unit });
-  if (!workout) notFound();
+  const loaded = loadSessionWorkout({
+    slug,
+    week: Number(week),
+    day: Number(day),
+    userId: user.id,
+    unit: user.unit,
+  });
+  if (!loaded) notFound();
+  const { program, workout, tips, disclaimer } = loaded;
 
   return (
     <main className="px-4 pt-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <Link href={`/programs/${slug}`} className="text-sm font-bold text-[var(--accent)]">
+          <Link href={`/programs/${program.slug}`} className="text-sm font-bold text-[var(--accent)]">
             ← {program.name_ko}
           </Link>
           <h1 className="mt-1 text-2xl font-black">{workout.nameKo}</h1>
@@ -38,9 +40,7 @@ export default async function SessionPage({
         </div>
         <UnitToggle unit={user.unit} />
       </div>
-      {program.completeness === "template" ? (
-        <p className="mt-3 rounded-xl bg-[#2a1d12] p-3 text-sm">불완전 템플릿 — 참고용 골격입니다.</p>
-      ) : null}
+      <CompletenessBanner slug={program.slug} completeness={program.completeness} />
       {workout.notesKo ? <p className="mt-3 text-sm text-[var(--muted)]">{workout.notesKo}</p> : null}
       {workout.exercises.some((e) => e.sets.some((s) => s.percentBase !== "none" && s.weightKg == null)) ? (
         <p className="mt-3 rounded-xl border border-[var(--line)] bg-[#2a1d12] p-3 text-sm">
@@ -54,14 +54,10 @@ export default async function SessionPage({
       <div className="mt-5">
         <WorkoutClient
           exercises={workout.exercises}
-          tips={Object.fromEntries(
-            workout.exercises
-              .map((e) => [e.exerciseKey, tipFor(e.exerciseKey)] as const)
-              .filter((row): row is [string, NonNullable<ReturnType<typeof tipFor>>] => row[1] != null),
-          )}
-          disclaimer={tipDisclaimer()}
+          tips={tips}
+          disclaimer={disclaimer}
           unit={user.unit}
-          sessionPath={`/session/${slug}/${week}/${day}`}
+          sessionPath={`/session/${program.slug}/${week}/${day}`}
           programSlug={program.slug}
         />
       </div>
