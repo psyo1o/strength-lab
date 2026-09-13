@@ -181,8 +181,16 @@ describe("canonical exercises", () => {
         "pull_up",
         "abs",
         "free_accessory",
+        "pause_squat",
+        "pin_squat",
+        "deficit_deadlift",
+        "spoto_press",
+        "floor_press",
+        "face_pull",
       ]),
     );
+    expect(raw.exercises.pause_squat.name).toBe("퍼즈 스쿼트");
+    expect(raw.exercises.deficit_deadlift.name).toBe("데피짓 데드리프트");
   });
 });
 

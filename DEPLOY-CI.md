@@ -1,38 +1,39 @@
 # Synology pull deploy / NAS GHCR 배포
 
-Routine NAS updates **pull the prebuilt image**. Do not use `docker build --no-cache` unless a hotfix failed to pick up a file.
+NAS must **not** run `next build`. CI builds `linux/arm64` and pushes to GHCR. Everyday update is `./deploy-pull.sh`.
 
-일반 업데이트는 **미리 빌드된 이미지를 pull** 합니다. 파일이 안 들어갈 때만 `--no-cache`를 씁니다.
+NAS에서는 `next build` 하지 않습니다. CI가 `linux/arm64` 이미지를 만들어 GHCR에 올립니다. 일상 업데이트는 `./deploy-pull.sh` 입니다.
 
 ## Image
 
-`ghcr.io/psyo1o/strength-lab` — tags `latest` and `<git sha>`. Built on push to `main` or `cursor/**` (`linux/arm64`).
+`ghcr.io/psyo1o/strength-lab` — workflow `.github/workflows/docker-ghcr-arm64.yml`.
+
+- push to `main` or `cursor/strength-lab-mvp-4f20` (plus `workflow_dispatch`)
+- tags: git sha (`type=sha,prefix=`) and `latest` **only on the default branch**
 
 ## First-time NAS login
 
 ```sh
 # GitHub → Settings → Developer settings → PAT (read:packages)
 echo YOUR_PAT | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-mkdir -p /volume1/docker/strength-lab/data /volume1/docker/strength-lab/media
-export AUTH_SECRET='a-long-random-secret'
-# optional: DATA_PATH, MEDIA_PATH_HOST, HOST_PORT, STRENGTH_LAB_TAG
-sh scripts/deploy-pull.sh
+mkdir -p /volume1/docker/strength-lab/data
+# .env next to docker-compose.nas.yml must include AUTH_SECRET
+./deploy-pull.sh
 ```
 
-패키지가 private이면 NAS에서 `ghcr.io` 로그인 한 번이 필요합니다.
+패키지가 private이면 NAS에서 `ghcr.io` 로그인 한 번이 필요합니다. `AUTH_SECRET` 은 `.env` 에 둡니다.
 
 ## Routine update
 
 ```sh
-export AUTH_SECRET='same-as-before'
-sh scripts/deploy-pull.sh
+./deploy-pull.sh
 ```
 
-This is `docker compose -f docker-compose.nas.yml pull && up -d`. No rebuild.
+This is `docker compose -f docker-compose.nas.yml pull && up -d --force-recreate --remove-orphans`. No rebuild. No `--no-cache`.
 
 ## When to use `--no-cache`
 
-Only for hotfixes when the GHCR layer cache served a stale image or a COPY did not invalidate. Example:
+Hotfix only — when the GHCR layer cache served a stale image or a COPY did not invalidate.
 
 ```sh
 docker build --no-cache --platform linux/arm64 -t ghcr.io/psyo1o/strength-lab:hotfix .

@@ -1,19 +1,17 @@
-# Pull-only Synology stack. Routine deploys: scripts/deploy-pull.sh
-# (no --no-cache). Build locally with docker-compose.yml instead.
+# NAS pull-only deploy (no local Next build)
 services:
   strength-lab:
-    image: ghcr.io/psyo1o/strength-lab:${STRENGTH_LAB_TAG:-latest}
-    pull_policy: always
+    image: ghcr.io/psyo1o/strength-lab:latest
     container_name: strength-lab
     restart: unless-stopped
     ports:
-      - "${HOST_PORT:-7001}:3000"
+      - "7001:3000"
+    env_file:
+      - .env
     environment:
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
       DATABASE_PATH: /data/app.db
       MEDIA_PATH: /data/media
       NODE_ENV: production
       PORT: 3000
     volumes:
-      - ${DATA_PATH:-/volume1/docker/strength-lab/data}:/data
-      - ${MEDIA_PATH_HOST:-/volume1/docker/strength-lab/media}:/data/media
+      - /volume1/docker/strength-lab/data:/data

@@ -5,9 +5,16 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetDbConnection } from "../src/lib/db/client";
 import { registerUser } from "../src/lib/auth";
 import { loadSessionWorkout } from "../src/lib/programs/session-load";
-import { allMaxesKeys, buildMaxesGroups, extraProgramMaxKeys, labelForMaxField } from "../src/lib/maxes-fields";
+import {
+  allMaxesKeys,
+  buildMaxesGroups,
+  canonicalOneRmKeysFromSeed,
+  extraProgramMaxKeys,
+  labelForMaxField,
+} from "../src/lib/maxes-fields";
 import { programBadge, programBanner } from "../src/lib/programs/completeness-ux";
 import { seedJsonPath } from "../src/lib/db/seed";
+import { canonicalOneRmFields, tipFor } from "../src/lib/tips";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-sess-"));
@@ -63,6 +70,47 @@ describe("maxes fields", () => {
     expect(labelForMaxField("push_press")).toMatch(/푸쉬프레스/);
     expect(labelForMaxField("clean_jerk")).not.toBe(labelForMaxField("clean"));
     expect(extraProgramMaxKeys()).toContain("rehab_target");
+  });
+
+  it("does not list accessory ids as 1RM fields on the maxes page", () => {
+    const groups = buildMaxesGroups({
+      extraKeys: extraProgramMaxKeys(),
+      canonicalOneRmFields: canonicalOneRmFields(),
+      seedOneRmFields: canonicalOneRmKeysFromSeed(),
+    });
+    const keys = allMaxesKeys(groups);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys.filter((k) => k === "power_clean")).toHaveLength(1);
+    expect(keys.filter((k) => k === "power_clean__start")).toHaveLength(0);
+    expect(keys).toContain("rehab_target");
+    expect(keys).not.toContain("pause_squat");
+    expect(keys).not.toContain("face_pull");
+    expect(keys).not.toContain("abs");
+    expect(keys).not.toContain("back_squat");
+  });
+});
+
+describe("accessory tips", () => {
+  it("loads the six accessory ids with Korean names and empty media", () => {
+    const expected: Record<string, string> = {
+      pause_squat: "퍼즈 스쿼트",
+      pin_squat: "핀 스쿼트",
+      deficit_deadlift: "데피짓 데드리프트",
+      spoto_press: "스포토 프레스",
+      floor_press: "플로어 프레스",
+      face_pull: "페이스풀",
+    };
+    for (const [id, name] of Object.entries(expected)) {
+      const tip = tipFor(id);
+      expect(tip, id).toBeTruthy();
+      expect(tip!.name).toBe(name);
+      expect(tip!.cue).toBeTruthy();
+      expect(tip!.mistake).toBeTruthy();
+      expect(tip!.alternative).toBeTruthy();
+      expect(tip!.sheet).toBeTruthy();
+      expect(tip!.videoUrl).toBeNull();
+      expect(() => JSON.stringify(tip)).not.toThrow();
+    }
   });
 });
 

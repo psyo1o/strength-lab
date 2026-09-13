@@ -135,12 +135,12 @@ export function tipDisclaimer(): string {
   }
 }
 
+/** Only declared 1RM fields — accessory ids must not appear on /maxes. */
 export function canonicalOneRmFields(): string[] {
   const exercises = loadCanonical().exercises ?? {};
   const keys: string[] = [];
   for (const row of Object.values(exercises)) {
     if (row.oneRmField) keys.push(row.oneRmField);
-    if (row.id) keys.push(row.id);
   }
   return keys;
 }

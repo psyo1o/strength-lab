@@ -336,6 +336,102 @@
         "alt": "",
         "origin": ""
       }
+    },
+    "pause_squat": {
+      "id": "pause_squat",
+      "name": "퍼즈 스쿼트",
+      "aliases": ["포즈 스쿼트", "pause squat"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "pin_squat": {
+      "id": "pin_squat",
+      "name": "핀 스쿼트",
+      "aliases": ["pin squat"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "deficit_deadlift": {
+      "id": "deficit_deadlift",
+      "name": "데피짓 데드리프트",
+      "aliases": ["디피싯 데드리프트", "deficit deadlift"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "spoto_press": {
+      "id": "spoto_press",
+      "name": "스포토 프레스",
+      "aliases": ["spoto press"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "floor_press": {
+      "id": "floor_press",
+      "name": "플로어 프레스",
+      "aliases": ["floor press"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "face_pull": {
+      "id": "face_pull",
+      "name": "페이스풀",
+      "aliases": ["face pull"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     }
   },
   "aliases_to_id": {}

@@ -41,7 +41,8 @@
 
 - `data/seed.json` 스키마: meta → oneRmFields → loadRules → programs/weeks/days/exercises/sets (`percent` + `of`: TM|1RM)
 - `data/exercises.canonical.json`, `data/seed.schema.example.json`, `data/exercise-tips.ko.json`
-- Synology: 호스트 **7001** → 컨테이너 3000 (`http://192.168.50.3:7001`)
+- 보조 팁 6종: `pause_squat`(퍼즈 스쿼트), `pin_squat`, `deficit_deadlift`(데피짓 데드리프트), `spoto_press`, `floor_press`, `face_pull` — 미디어 비움
+- Synology: 호스트 **7001** → 컨테이너 3000 (`http://192.168.50.3:7001`). 일상 배포는 `./deploy-pull.sh` (GHCR arm64 pull, NAS에서 `next build` 하지 않음)
 
 ### 앱 기능
 

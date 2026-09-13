@@ -336,6 +336,114 @@
         "alt": "",
         "origin": ""
       }
+    },
+    "pause_squat": {
+      "exerciseId": "pause_squat",
+      "name": "퍼즈 스쿼트",
+      "cue": "하단(엉덩이 최저점)에서 1–3초 완전히 정지한 뒤 반동 없이 밀어 올린다. 가슴은 들고 허리는 중립.",
+      "mistake": "멈춤 없이 튕기거나, 정지 중 허리가 말림.",
+      "alternative": "박스 스쿼트나 무게를 줄인 일반 스쿼트.",
+      "sheet": "하단에서 1–3초 완전히 정지한 뒤 반동 없이 밀어 올린다. 가슴은 들고 허리는 중립. 멈추지 않고 튕기면 무게를 줄이거나 박스 스쿼트로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "pin_squat": {
+      "exerciseId": "pin_squat",
+      "name": "핀 스쿼트",
+      "cue": "핀 높이는 대략 패러렐. 바에 앉아 긴장을 풀지 말고, 핀에서 다시 밀어 올린다.",
+      "mistake": "핀에 쿵 내려놓거나 패러렐보다 너무 높/낮게 설정.",
+      "alternative": "박스 스쿼트나 퍼즈 스쿼트.",
+      "sheet": "핀은 대략 패러렐. 바에 앉아 긴장을 풀지 말고 핀에서 다시 밀어 올린다. 쿵 내려놓으면 무게를 줄이거나 박스·퍼즈 스쿼트로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "deficit_deadlift": {
+      "exerciseId": "deficit_deadlift",
+      "name": "데피짓 데드리프트",
+      "cue": "2.5–5cm 발판 위에서 시작한다. 정강이에 바를 붙이고 허리를 중립으로 더 깊게 세팅한 뒤 다리로 민다.",
+      "mistake": "발판이 너무 높거나 허리가 먼저 말림.",
+      "alternative": "일반 데드나 블록 풀.",
+      "sheet": "2.5–5cm 발판 위에서 시작한다. 정강이에 바를 붙이고 허리를 중립으로 더 깊게 세팅한 뒤 다리로 민다. 허리가 말리면 발판을 낮추거나 일반 데드로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "spoto_press": {
+      "exerciseId": "spoto_press",
+      "name": "스포토 프레스",
+      "cue": "바가 가슴에 닿기 1–3cm 앞에서 1초 정지한 뒤 밀어 올린다. 견갑은 고정.",
+      "mistake": "바에 튕기거나 정지 없이 터치 앤 고.",
+      "alternative": "플로어 프레스나 무게를 줄인 벤치.",
+      "sheet": "바가 가슴에 닿기 1–3cm 앞에서 1초 정지한 뒤 밀어 올린다. 견갑은 고정. 튕기면 무게를 줄이거나 플로어 프레스로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "floor_press": {
+      "exerciseId": "floor_press",
+      "name": "플로어 프레스",
+      "cue": "바닥에 누워 상완이 바닥에 닿을 때까지 내린 뒤, 반동 없이 밀어 올린다. 어깨를 벤치에 고정하듯.",
+      "mistake": "팔꿈치로 바닥을 치거나 엉덩이가 뜸.",
+      "alternative": "보드 프레스나 일반 벤치.",
+      "sheet": "상완이 바닥에 닿을 때까지 내린 뒤 반동 없이 밀어 올린다. 어깨를 고정하고 엉덩이가 뜨지 않게. 팔꿈치로 바닥을 치면 무게를 줄이거나 보드 프레스로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "face_pull": {
+      "exerciseId": "face_pull",
+      "name": "페이스풀",
+      "cue": "로프를 얼굴 쪽으로 당기며 외회전한다. 손이 귀 옆까지 오고 후면 삼각·견갑을 느낀다.",
+      "mistake": "승모 상부만 으쓱하거나 무게에 끌려 몸이 흔들림.",
+      "alternative": "밴드 풀어파트나 리어델트 플라이.",
+      "sheet": "로프를 얼굴 쪽으로 당기며 외회전한다. 손이 귀 옆까지. 승모만 으쓱하면 무게를 줄이거나 밴드 풀어파트로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     }
   },
   "mediaFields": [
