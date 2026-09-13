@@ -336,8 +336,17 @@ describe("P1 programs", () => {
     expect(mon.sets).toEqual(expect.arrayContaining([expect.objectContaining({ percent: 60, reps: 5, of: "1RM" })]));
     expect(mon.sets).toHaveLength(10);
     const fri = cow.weeks[0].days.find((d: { day?: number }) => d.day === 5);
-    expect(fri.exercises.find((e: { role: string }) => e.role === "main").sets).toEqual([]);
-    expect(fri.exercises.find((e: { role: string }) => e.role === "main").notesKo).toMatch(/to_10RM/);
+    const friMain = fri.exercises.find((e: { role: string }) => e.role === "main");
+    expect(friMain.notesKo).toMatch(/to_10RM/);
+    expect(friMain.sets.map((s: { percent: number; reps: number }) => [s.percent, s.reps])).toEqual([
+      [50, 10],
+      [60, 10],
+      [70, 10],
+      [80, 10],
+      [85, 10],
+      [90, 10],
+    ]);
+    expect(friMain.sets[friMain.sets.length - 1].amrap).toBe(true);
     const wedDay = cow.weeks[0].days.find(
       (d: { nameKo?: string; day?: number }) => d.day === 3 || String(d.nameKo).includes("프론트"),
     );

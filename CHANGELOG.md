@@ -19,7 +19,7 @@
 | `rehab` 재활 (DeLorme / DAPRE) | DeLorme 8주 50/75/100% 10RM×10, DAPRE Knight 10@50% / 6@75% / 100 AMRAP. `rehab_target`. | 자동 증감 없음(±2.5kg 수동). |
 | `daily-undulating` 일간 파동형 | 3 메소사이클 × 4주 (비대/근력/피킹). | RPE 자동 진행 없음. |
 | `juggernaut` | 16주. 10s→8s→5s→3s Acc/Int/Real/Deload. 실현 AMRAP는 시트 공식으로 1RM 갱신. | 피킹 5주는 빈 주 없이 노트만. |
-| `cowboy` | 13주 × 6일. 월 볼륨 / 수 프론트 / 금 가이드 RM (`weekRules`). | 원본 Cowboy/Wendler 아님. |
+| `cowboy` | 13주 × 6일. 부모 gzip 풀세트: 월 볼륨 / 수 프론트 래더 / 금 가이드 RM 사다리(딜로드는 walkout hold, W13 1RM 테스트). | 원본 Cowboy/Wendler 아님. |
 | `bob-takano` | Class III/II/I 12주. | 공식 장기 주기화 아님. |
 | `catalyst` | 12주 기본. | 스페셜티 블록은 후속 시드. |
 | `torokhtiy` | 13주 월–금. | 공식 앱과 무관. |

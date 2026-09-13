@@ -12,6 +12,8 @@ npx tsx scripts/merge-seed-programs.ts torokhtiy.json catalyst.json.gz
 
 부팅 시 `seed.p1.json` (또는 `SEED_P1_PATH`)이 있으면 slug 단위로 한 번 더 덮어씁니다.
 
+`cowboy.json.b64` 는 부모 cowboy 원문(B64_LEN=4512). gzip CRC는 깨져 있어도 13주 풀세트는 복구됩니다. 채팅에 다시 붙이지 말고, 복구·변환한 JSON만 `merge-seed-programs.ts`로 id=cowboy 병합하세요.
+
 `juggernaut.part-a.b64` 는 부모 JUG_A 원문. **파트 B가 오기 전에 디코드하지 말 것.** `JUG_A` + `JUG_B` 를 이어 붙인 뒤에만 gunzip 합니다.
 
 - 스키마: 공개 seed와 동일 (`meta` → `programs[]` → `weeks[]` → `days[]` → `exercises[]` → `sets[]` with `percent` + `of`: `TM`|`1RM`)
