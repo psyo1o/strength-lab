@@ -12,6 +12,8 @@ npx tsx scripts/merge-seed-programs.ts torokhtiy.json catalyst.json.gz
 
 부팅 시 `seed.p1.json` (또는 `SEED_P1_PATH`)이 있으면 slug 단위로 한 번 더 덮어씁니다.
 
+`programs-split/` (부모 박스의 torokhtiy 13주·Takano Class III 8 / II 9 / I 12·Catalyst 기본+스페셜티 엑셀)은 **이 저장소에 도착하지 않았습니다.** 유료 주를 추정해 채우지 않습니다. 공개 시드는 생성기 주(Takano 12 / Catalyst 12 / Torokhtiy 13, 빈 날 없음 → 진행 가능). LBEB만 W7–12 잠금.
+
 `cowboy.json.b64` 는 부모 cowboy 원문(B64_LEN=4512). gzip CRC는 깨져 있어도 13주 풀세트는 복구됩니다. 채팅에 다시 붙이지 말고, 복구·변환한 JSON만 `merge-seed-programs.ts`로 id=cowboy 병합하세요.
 
 `juggernaut.part-a.b64` 는 부모 JUG_A 원문. **파트 B가 오기 전에 디코드하지 말 것.** `JUG_A` + `JUG_B` 를 이어 붙인 뒤에만 gunzip 합니다.

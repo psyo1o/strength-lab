@@ -25,6 +25,10 @@
 | jim-wendler-531 | 시드 `afterEachCycle` + 4주 완료 후 TM 상체 +2.5 / 하체 +5 (1RM은 그대로). | 완전 작동 |
 | madcow-5x5 | 부모 1주차: 추정 5RM 0.87×1RM, 월 50–100% 톱, 수 스쿼트 4×5(3세트 반복), 금 트리플=다음 주 톱 + 백오프 75%. 매주 ×1.025 (half-up). 금요일 트리플 **매주**. | 진행 가능 |
 | starting-strength | OHP 노비스 3×5. 시트 일부 열 sheetAlt 5×3. 스쿼트 +2.5kg 잠금. Practical Novice 라벨 없음. | 진행 가능 |
+| bob-takano | 12주(Class III/II/I × 4) 세션 있음. `seed-drafts/programs-split` 엑셀(III 8 / II 9 / I 12)은 이 저장소에 없음. | 진행 가능 |
+| catalyst | 12주 세션 있음. 공식 기본+스페셜티 엑셀은 저장소에 없음. | 진행 가능 |
+| torokhtiy | 13주 월–금 세션 있음. | 진행 가능 |
+| lbeb | W1–6만. W7–12 빈 날 잠금. | 템플릿 · 불완전 |
 
 ## 잠금 · 발명하지 않음
 

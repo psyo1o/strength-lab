@@ -4,6 +4,7 @@ import type Database from "better-sqlite3";
 import { setLoadRules } from "../calc/loads";
 import { buildSeed, type SeedFile } from "../programs/catalog";
 import { inferCompleteness } from "../programs/seed-merge";
+import { SEED_REVISION } from "../programs/seed-revision";
 import type { PublicSeedFile, PublicSeedProgram } from "../programs/seed-schema";
 
 export function seedJsonPath(): string {
@@ -221,9 +222,26 @@ export function writeSeedJson(seed: SeedFile = buildSeed()) {
   return file;
 }
 
+function stampSeedRevision(raw: Database.Database) {
+  raw.exec(`CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+  raw.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('seed_revision', ?)").run(SEED_REVISION);
+}
+
+function currentSeedRevision(raw: Database.Database): string | null {
+  raw.exec(`CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+  const row = raw.prepare("SELECT value FROM app_meta WHERE key = 'seed_revision'").get() as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+/** First boot, stale catalog, or FORCE_RESEED=1. Rebuilds program tables; keeps users/maxes. */
 export function seedIfEmpty(raw: Database.Database) {
-  const row = raw.prepare("SELECT COUNT(*) AS c FROM programs").get() as { c: number };
-  if (row.c > 0) return;
+  seedCatalog(raw);
+}
+
+export function seedCatalog(raw: Database.Database) {
+  const count = (raw.prepare("SELECT COUNT(*) AS c FROM programs").get() as { c: number }).c;
+  const force = process.env.FORCE_RESEED === "1";
+  if (count > 0 && !force && currentSeedRevision(raw) === SEED_REVISION) return;
   applySeed(raw);
 }
 
@@ -304,5 +322,6 @@ export function applySeed(raw: Database.Database) {
     }
   });
   tx();
+  stampSeedRevision(raw);
 }
 
