@@ -205,7 +205,7 @@ export function juggernautP1(): SeedProgram {
   };
 }
 
-/** Recovered from parent cowboy gzip (stream truncated after weekRules). */
+/** Parent cowboy gzip (CRC-truncated stream; 13 weeks + weekRules intact). */
 type CowboyWeekRule = {
   week: number;
   label?: string;
@@ -229,6 +229,44 @@ const COWBOY_WEEK_RULES: CowboyWeekRule[] = [
   { week: 12, label: "deload", mon: { pct: 70 }, wed: { pcts: [70] }, fri: "squat_walkout_105pct" },
   { week: 13, label: "test", fri: "1RM_test" },
 ];
+
+/** Parent warmup percents keep two decimals (67.5×0.5 = 33.75, not 33.8). */
+function cowboyWarmup(workPct: number, key: string): SeedExercise {
+  return {
+    exerciseKey: key,
+    role: "warmup",
+    notesKo: "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+    sets: sets(
+      [0.5, 0.6, 0.7, 0.8, 0.9].map((f) => Number((workPct * f).toFixed(2))),
+      [8, 5, 3, 1, 1],
+      "1rm",
+      { restSec: 45 },
+    ),
+  };
+}
+
+function cowboyFriday(fri: string): { nameKo: string; notesKo: string; warmupPct?: number; sets: SeedSet[] } {
+  const rm = /^to_(\d+)RM$/.exec(fri);
+  if (rm) {
+    const n = Number(rm[1]);
+    const work = sets([50, 60, 70, 80, 85, 90], n, "1rm", { lastAmrap: true, restSec: 150 }).map((s, i, arr) =>
+      i === arr.length - 1 ? { ...s, noteKo: `guided toward ${n}RM` } : s,
+    );
+    return { nameKo: `금요일 — 스쿼트 → ${n}RM`, notesKo: `work: ${fri}`, warmupPct: 70, sets: work };
+  }
+  if (fri === "squat_walkout_hold") {
+    return { nameKo: "금요일 — 스쿼트 워크아웃 홀드", notesKo: `work: ${fri}`, sets: nSets(1, 100, 1, "1rm") };
+  }
+  if (fri === "squat_walkout_105pct") {
+    return { nameKo: "금요일 — 스쿼트 워크아웃 홀드", notesKo: `work: ${fri}`, sets: nSets(1, 105, 1, "1rm") };
+  }
+  return {
+    nameKo: "금요일 — 1RM 테스트",
+    notesKo: `work: ${fri}`,
+    warmupPct: 85,
+    sets: sets([70, 80, 90, 95, 100], 1, "1rm"),
+  };
+}
 
 export function cowboyP1(): SeedProgram {
   const ruleLine = (r: CowboyWeekRule) => {
@@ -258,63 +296,56 @@ export function cowboyP1(): SeedProgram {
     sortOrder: 50,
     weeks: COWBOY_WEEK_RULES.map((r) => {
       const deload = r.label === "deload";
+      const testWeek = r.label === "test";
       const monReps = r.mon?.reps;
-      const wedReps = r.wed?.reps ?? monReps ?? 5;
+      const wedReps = r.wed?.reps ?? 5;
       const monPct = r.mon?.pct;
       const wedPcts = r.wed?.pcts ?? [];
+      const fri = cowboyFriday(r.fri);
       return {
         weekNumber: r.week,
         nameKo: r.label ? `${r.week}주차 — ${r.label}` : `${r.week}주차`,
         notesKo: ruleLine(r),
         days: [
-          monPct != null
+          !testWeek && monPct != null
             ? {
                 dayNumber: 1,
                 nameKo: "월요일 — 스쿼트 볼륨",
-                exercises: deload
-                  ? [
-                      workWarmup(monPct, "squat"),
-                      { exerciseKey: "squat", role: "main", notesKo: "딜로드 마커", sets: nSets(1, monPct, 5, "1rm") },
-                    ]
-                  : [
-                      workWarmup(monPct, "squat"),
-                      {
-                        exerciseKey: "squat",
-                        role: "main",
-                        sets: nSets(r.mon!.sets ?? 1, monPct, monReps ?? 5, "1rm"),
-                      },
-                      { exerciseKey: "bench", role: "assistance", sets: nSets(4, 55, 8, "1rm") },
-                      bodyweight("abs", "복근", 3, 12),
-                    ],
+                exercises: [
+                  cowboyWarmup(monPct, "squat"),
+                  {
+                    exerciseKey: "squat",
+                    role: "main" as const,
+                    notesKo: deload ? "딜로드 마커" : undefined,
+                    sets: deload ? nSets(3, monPct, 3, "1rm") : nSets(r.mon!.sets ?? 1, monPct, monReps ?? 5, "1rm"),
+                  },
+                ],
               }
             : restDay(1, "월요일 — 휴식"),
           restDay(2, "화요일 — 휴식"),
-          wedPcts.length
+          !testWeek && wedPcts.length
             ? {
                 dayNumber: 3,
                 nameKo: "수요일 — 프론트스쿼트",
                 notesKo: deload ? "딜로드 마커" : `FS ${wedPcts.join("→")} ×${wedReps}`,
-                exercises: deload
-                  ? [
-                      workWarmup(wedPcts[0], "front_squat"),
-                      { exerciseKey: "front_squat", role: "main", sets: nSets(1, wedPcts[0], 5, "1rm") },
-                    ]
-                  : [
-                      workWarmup(wedPcts[0], "front_squat"),
-                      { exerciseKey: "front_squat", role: "main", sets: sets(wedPcts, wedReps, "1rm") },
-                      { exerciseKey: "ohp", role: "assistance", sets: nSets(4, 55, 6, "1rm") },
-                      bodyweight("chin_up", "친업", 3, 8),
-                    ],
+                exercises: [
+                  cowboyWarmup(wedPcts[0], "front_squat"),
+                  {
+                    exerciseKey: "front_squat",
+                    role: "main" as const,
+                    sets: deload ? nSets(1, wedPcts[0], 3, "1rm") : sets(wedPcts, wedReps, "1rm"),
+                  },
+                ],
               }
             : restDay(3, "수요일 — 휴식"),
           restDay(4, "목요일 — 휴식"),
           {
             dayNumber: 5,
-            nameKo: r.label === "test" ? "금요일 — 1RM 테스트" : "금요일 — 가이드 RM",
-            notesKo: `work: ${r.fri}`,
+            nameKo: fri.nameKo,
+            notesKo: fri.notesKo,
             exercises: [
-              workWarmup(50, "squat"),
-              { exerciseKey: "squat", role: "main", notesKo: `work: ${r.fri}`, sets: [] },
+              ...(fri.warmupPct != null ? [cowboyWarmup(fri.warmupPct, "squat")] : []),
+              { exerciseKey: "squat", role: "main" as const, notesKo: fri.notesKo, sets: fri.sets },
             ],
           },
           restDay(6, "토요일 — 휴식"),

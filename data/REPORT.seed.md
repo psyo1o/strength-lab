@@ -2,7 +2,7 @@
 
 부모 `REPORT.complete.md` 우선순위 반영. 거대 gzip은 기다리지 않고 저장소 규칙으로 채움.
 
-공개 시드는 `npm run seed` (`scripts/export-seed.ts` → `buildSeed()`)로 다시 씁니다. cowboy gzip은 base64가 잘려 CRC 오류가 났지만, `weekRules` W1–13은 스트림에서 복구했습니다(`seed-drafts/cowboy.weekRules.json`). juggernaut part B와 Wendler/SS 교체 gzip은 여전히 불완전합니다. Madcow P0 gzip은 1주차+메타까지 복구해 생성기에 반영했습니다.
+공개 시드는 `npm run seed` (`scripts/export-seed.ts` → `buildSeed()`)로 다시 씁니다. cowboy gzip(`seed-drafts/cowboy.json.b64`, B64_LEN=4512)은 CRC가 깨졌지만 13주 풀세트가 스트림에서 살아 있어 공개 시드 형식으로 변환한 뒤 `merge-seed-programs.ts`로 id=cowboy만 병합했습니다. juggernaut part B와 Wendler/SS 교체 gzip은 여전히 불완전합니다. Madcow P0 gzip은 1주차+메타까지 복구해 생성기에 반영했습니다.
 
 ## MUST DO
 
@@ -18,7 +18,7 @@
 
 | id | 결과 | coverage / 배지 |
 | --- | --- | --- |
-| cowboy | 부모 weekRules로 13주 × 6일. 월 `sets×reps` 볼륨, 수 FS 래더, 금 `to_nRM` 빈 세트+노트. W4/8/12 딜로드, W13 1RM 테스트. | `w1-13_full_sets` · 진행 가능 |
+| cowboy | 부모 gzip 13주 × 6일 풀세트. 월 `sets×reps` 볼륨, 수 FS 래더, 금 가이드 RM 사다리. W4/8/12 walkout hold, W13 금요일 1RM 테스트. | `w1-13_full_sets` · 진행 가능 |
 | juggernaut | 16주 × 6일 (월 SQ, 화 휴식, 수 BP, 목 휴식, 금 DL, 토 OHP). Acc/Int/Real/Deload. 실현 AMRAP = `realizationMaxHook`. | `w1-16_full_sets_plus_peaking` · 진행 가능 |
 | rehab | DeLorme 8주 + DAPRE Knight 기본 10@50% / 6@75% / 100 AMRAP. 12/8은 라벨 변형만. | 진행 가능 |
 | daily-undulating | 3 메소사이클 × 4주 (비대/근력/피킹). | 진행 가능 |
@@ -37,7 +37,7 @@
 
 ## 부모 gzip
 
-- `cowboy.json` gzip은 잘림. weekRules만 복구해 생성기에 반영. 온전한 파일이 오면 `npx tsx scripts/merge-seed-programs.ts`로 id 병합.
+- `cowboy.json` gzip CRC는 실패했지만 13주+weekRules는 복구됨. 공개 시드로 변환 후 `npx tsx scripts/merge-seed-programs.ts`로 id=cowboy만 병합. 원문 `seed-drafts/cowboy.json.b64`.
 - `juggernaut.json` part B 없음. `seed-drafts/juggernaut.part-a.b64`는 파트 B 없이 디코드하지 말 것.
 - P0 `madcow-5x5` gzip: 스트림이 `descriptionKo.summaryKo`에서 끊김. 1주차 세트·메타는 살아 있음 → `seed-drafts/madcow-5x5.week1.json`. 주를 1주로 줄이지 않고 같은 템플릿을 ×1.025로 4주 생성. 온전한 파일이 오면 id 병합.
 - P0 `starting-strength` gzip: 큐 텍스트에 `$<n/` 오염. `printf | base64 -d | gunzip` 실패. **주를 덮어쓰지 않음** (기존 OHP 3×5 + sheetAlt 5×3 유지).
