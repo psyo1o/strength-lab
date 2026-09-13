@@ -10,7 +10,7 @@
 2. juggernaut 16 웨이브 + peakingBlock + realizationMaxHook — 완료 (피킹 5주는 빈 주 없이 노트)
 3. rehab DeLorme 8주 + DAPRE Knight 10/6 — 완료
 4. daily-undulating 3×4주 — 완료
-5. P0: madcow `fridayTriple` 매주 · `prWeekDefault` null / Wendler `progression.afterEachCycle` / SS OHP 3×5 — 완료
+5. P0: madcow `fridayTriple` 매주 · `prWeekDefault` null / Wendler `afterEachCycle` **런타임 TM 가산** / SS OHP 3×5 + sheetAlt 5×3 — 완료
 6. 배지: 가득 찬 주 → 진행 가능, Wendler 완전 작동, LBEB W7–12 잠금
 7. 프로그램 상세: 시드된 모든 주 칩 + `copy.help` 설명
 
@@ -22,9 +22,9 @@
 | juggernaut | 16주 × 6일 (월 SQ, 화 휴식, 수 BP, 목 휴식, 금 DL, 토 OHP). Acc/Int/Real/Deload. 실현 AMRAP = `realizationMaxHook`. | `w1-16_full_sets_plus_peaking` · 진행 가능 |
 | rehab | DeLorme 8주 + DAPRE Knight 기본 10@50% / 6@75% / 100 AMRAP. 12/8은 라벨 변형만. | 진행 가능 |
 | daily-undulating | 3 메소사이클 × 4주 (비대/근력/피킹). | 진행 가능 |
-| jim-wendler-531 | 사이클 후 TM 상체 +2.5 / 하체 +5 kg. | 완전 작동 |
+| jim-wendler-531 | 시드 `afterEachCycle` + 4주 완료 후 TM 상체 +2.5 / 하체 +5 (1RM은 그대로). | 완전 작동 |
 | madcow-5x5 | 금요일 트리플 **매주** (10주차만 아님). | 진행 가능 |
-| starting-strength | OHP 노비스 3×5 (5×3 아님. Practical Novice 라벨 없음). | 진행 가능 |
+| starting-strength | OHP 노비스 3×5. 시트 일부 열 sheetAlt 5×3. 스쿼트 +2.5kg 잠금. | 진행 가능 |
 
 ## 잠금 · 발명하지 않음
 
@@ -39,4 +39,4 @@
 
 - `cowboy.json` gzip은 잘림. weekRules만 복구해 생성기에 반영. 온전한 파일이 오면 `npx tsx scripts/merge-seed-programs.ts`로 id 병합.
 - `juggernaut.json` part B 없음.
-- P0 교체 gzip(madcow / starting-strength / wendler)도 큐 텍스트가 손상되어 병합하지 않음. 교차검증 수정은 카탈로그 생성기에 반영.
+- P0 교체 gzip(madcow / starting-strength / wendler)은 채팅에서 손상되어 도착함. **채팅 gzip으로 프로그램 JSON 전체를 덮어쓰지 말 것.** 교차검증은 카탈로그/런타임 수술 수정. 온전한 파일은 `npx tsx scripts/merge-seed-programs.ts`.

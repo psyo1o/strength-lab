@@ -8,7 +8,7 @@
 
 | 프로그램 | 내용 |
 | --- | --- |
-| **Jim Wendler 5/3/1 Simplest Strength** | TM = 0.9×1RM. 월 OHP / 화 데드 / 목 벤치 / 금 스쿼트. 1주 65/75/85%, 2주 70/80/90%, 3주 75/85/95%, 4주 딜로드. 워밍업, 기본 보조 BBB 5×10 @ 50% TM. |
+| **Jim Wendler 5/3/1 Simplest Strength** | TM = 0.9×1RM. 월 OHP / 화 데드 / 목 벤치 / 금 스쿼트. 1주 65/75/85%, 2주 70/80/90%, 3주 75/85/95%, 4주 딜로드. 워밍업, 기본 보조 BBB 5×10 @ 50% TM. 4주 사이클 완료 후 TM 상체 +2.5kg / 하체 +5kg (`progression.afterEachCycle`). |
 
 ### 진행 가능 (working)
 
@@ -16,14 +16,14 @@
 
 | 프로그램 | 내용 | 아직 근사(approximate) |
 | --- | --- | --- |
-| `rehab` 재활 (DeLorme / DAPRE) | W1 DeLorme 50/75/100% 10RM×10, DAPRE 50×12 / 75×8 / 100 AMRAP. `rehab_target`. | 자동 증감 없음(±2.5kg 수동). |
-| `daily-undulating` 일간 파동형 | 기본 비대 월–토 + 워밍업 사다리. 근력/피킹 피커. | RPE 자동 진행 없음. |
-| `juggernaut` | 16주. 10s→8s→5s→3s Acc/Int/Real/Deload. 실현 AMRAP는 시트 공식으로 1RM 갱신. | 피킹 블록은 후속 시드. |
-| `cowboy` | 월/수/금 13주. | 원본 Cowboy/Wendler 아님. |
+| `rehab` 재활 (DeLorme / DAPRE) | DeLorme 8주 50/75/100% 10RM×10, DAPRE Knight 10@50% / 6@75% / 100 AMRAP. `rehab_target`. | 자동 증감 없음(±2.5kg 수동). |
+| `daily-undulating` 일간 파동형 | 3 메소사이클 × 4주 (비대/근력/피킹). | RPE 자동 진행 없음. |
+| `juggernaut` | 16주. 10s→8s→5s→3s Acc/Int/Real/Deload. 실현 AMRAP는 시트 공식으로 1RM 갱신. | 피킹 5주는 빈 주 없이 노트만. |
+| `cowboy` | 13주 × 6일. 월 볼륨 / 수 프론트 / 금 가이드 RM (`weekRules`). | 원본 Cowboy/Wendler 아님. |
 | `bob-takano` | Class III/II/I 12주. | 공식 장기 주기화 아님. |
 | `catalyst` | 12주 기본. | 스페셜티 블록은 후속 시드. |
 | `torokhtiy` | 13주 월–금. | 공식 앱과 무관. |
-| Starting Strength A/B | A/B 선형 진행. 시작중량 우선, 없으면 %1RM. 스쿼트 +2.5 / 데드 +5 / 상체 +2.5. | |
+| Starting Strength A/B | A/B 선형 진행. OHP 노비스 3×5 (시트 일부 열 sheetAlt 5×3). 스쿼트 +2.5kg 시트 잠금. 시작중량 우선. | |
 | Stronglifts 5x5 | A/B 5×5 + 데드 1×5. 시작중량 우선, 없으면 ~50% 1RM. | |
 | Madcow 5x5 | 월/수/금 12.5% 램핑·트리플·백오프. 매주 ×1.025. 시작중량=탑세트. | |
 
@@ -35,7 +35,7 @@
 | --- | --- |
 | `lbeb` | W1–6 로드. W7–12 시드 일 없음. |
 
-gzip+base64 프로그램 시드는 `npx tsx scripts/merge-seed-programs.ts <payload>` 로 `data/seed.json` 에 id 단위 병합. `seed-drafts/seed.p1.json` 도 부팅 시 slug 덮어쓰기.
+프로그램 JSON을 채팅에 큰 gzip+base64로 붙여 넣으면 **잘리거나 CRC가 깨집니다** (Wendler/SS 페이로드가 손상되어 도착함). 채팅 gzip으로 프로그램 전체를 교체하지 말고, 저장소 파일에서 `npx tsx scripts/merge-seed-programs.ts <file>` 로 id 병합하거나 카탈로그 생성기를 수술적으로 고치세요. `seed-drafts/seed.p1.json` 은 부팅 시 slug 덮어쓰기.
 
 ### 데이터 / 배포
 

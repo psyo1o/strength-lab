@@ -943,7 +943,12 @@ function startingStrength(): SeedProgram {
     notesKo: "시작중량이 있으면 그 값. 성공 시 스쿼트 +2.5kg, 프레스 +2.5kg. 파워클린은 기술 우선.",
     exercises: [
       { exerciseKey: "squat", role: "main", sets: nSets(3, 80, 5, "1rm", { restSec: 180 }) },
-      { exerciseKey: "ohp", role: "main", sets: nSets(3, 70, 5, "1rm", { restSec: 150 }) },
+      {
+        exerciseKey: "ohp",
+        role: "main",
+        notesKo: "노비스 3×5. 시트 일부 열은 sheetAlt 5×3.",
+        sets: nSets(3, 70, 5, "1rm", { restSec: 150 }),
+      },
       { exerciseKey: "power_clean", role: "main", sets: nSets(5, 65, 3, "1rm", { restSec: 120 }) },
     ],
   });
@@ -962,7 +967,7 @@ function startingStrength(): SeedProgram {
     category: "초급 근력",
     completeness: "working",
     descriptionKo:
-      "A: 스쿼트 3×5 · 벤치 3×5 · 데드 1×5. B: 스쿼트 3×5 · 프레스 3×5 · 파워클린 5×3. 시작중량 필드가 있으면 그 값을 쓰고, 없으면 시트 %1RM(스쿼트·데드 80%, 벤치 75%, OHP 70%). 세션마다 스쿼트 +2.5kg, 데드 +5kg, 상체 +2.5kg.",
+      "A: 스쿼트 3×5 · 벤치 3×5 · 데드 1×5. B: 스쿼트 3×5 · 프레스 3×5(노비스; 시트 일부 열 sheetAlt 5×3) · 파워클린 5×3. 시작중량 필드가 있으면 그 값을 쓰고, 없으면 시트 %1RM(스쿼트·데드 80%, 벤치 75%, OHP 70%). 세션마다 스쿼트 +2.5kg(시트 잠금), 데드 +5kg, 상체 +2.5kg.",
     descriptionEn: "A/B novice LP. Start-weight field wins; sheet %1RM is fallback. Squat +2.5 / dead +5 / upper +2.5 per session.",
     sortOrder: 2,
     startWeight: { enabled: true },

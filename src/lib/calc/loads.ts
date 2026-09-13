@@ -52,6 +52,8 @@ export function resolveSetKg(opts: {
   preferStart?: boolean;
   topPercent?: number | null;
   addKg?: number;
+  /** Added to Training Max after Wendler 4-week cycles (not to 1RM). */
+  tmAddKg?: number;
 }): number | null {
   const rules = getLoadRules();
   const of = normalizeOf(opts.of) ?? normalizeOf(opts.percentBase);
@@ -68,8 +70,9 @@ export function resolveSetKg(opts: {
 
   if (opts.oneRmKg == null || opts.oneRmKg <= 0) return null;
   const tmFactor = opts.tmFactor ?? rules.tmFactor;
+  const tmAdd = opts.tmAddKg ?? 0;
   let raw: number;
-  if (of === "TM") raw = opts.oneRmKg * tmFactor * (opts.percent / 100);
+  if (of === "TM") raw = (opts.oneRmKg * tmFactor + tmAdd) * (opts.percent / 100);
   else if (of === "10RM") raw = tenRmFrom1rm(opts.oneRmKg) * (opts.percent / 100);
   else raw = opts.oneRmKg * (opts.percent / 100) + (opts.preferStart ? add : 0);
   return floorToBar(roundTo(raw, rules.roundKg), rules.barKg);
@@ -86,6 +89,7 @@ export function resolveSetDisplay(
     preferStart?: boolean;
     topPercent?: number | null;
     addKg?: number;
+    tmAddKg?: number;
   },
   unit: WeightUnit,
 ): number | null {

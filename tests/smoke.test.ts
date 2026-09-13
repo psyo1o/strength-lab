@@ -8,7 +8,13 @@ import { roundLoad } from "../src/lib/calc/round";
 import { resetDbConnection } from "../src/lib/db/client";
 import { loginUser, registerUser } from "../src/lib/auth";
 import { getUserMaxes, getUserStarts, saveUserMaxes } from "../src/lib/maxes";
-import { findWendlerSquatWeek1MainSets, getWeekId, getDay, resolveWorkout } from "../src/lib/programs/queries";
+import {
+  findWendlerSquatWeek1MainSets,
+  getWeekId,
+  getDay,
+  resolveWorkout,
+  toggleSetLog,
+} from "../src/lib/programs/queries";
 import { loadSeedFile, seedDraftsP1Path, seedJsonPath } from "../src/lib/db/seed";
 import { resolveSetKg } from "../src/lib/calc/loads";
 import { loadTips, tipDisclaimer, tipFor } from "../src/lib/tips";
@@ -51,6 +57,30 @@ describe("auth + 1RM + 5/3/1", () => {
     expect(fromSeed).toHaveLength(3);
     expect(fromSeed.map((s) => s.weightKg)).toEqual([117.5, 135, 152.5]);
     expect(fromSeed.map((s) => s.percent)).toEqual([65, 75, 85]);
+  });
+
+  it("bumps Wendler TM +5kg lower after each completed 4-week cycle", () => {
+    const created = registerUser("cycle@example.com", "password123");
+    if ("error" in created) throw new Error(created.error);
+    saveUserMaxes(created.user.id, [{ exerciseKey: "squat", value: 200, unit: "kg" }]);
+    expect(findWendlerSquatWeek1MainSets(created.user.id).map((s) => s.weightKg)).toEqual([
+      117.5, 135, 152.5,
+    ]);
+
+    const week4 = getWeekId("jim-wendler-531", 4);
+    expect(week4).toBeTruthy();
+    const friday = getDay(week4!, 4);
+    expect(friday).toBeTruthy();
+    const workout = resolveWorkout({ dayId: friday!.id, userId: created.user.id, unit: "kg" });
+    const squat = workout!.exercises.find((e) => e.exerciseKey === "squat" && e.role === "main");
+    const last = squat!.sets[squat!.sets.length - 1];
+    toggleSetLog(created.user.id, last.id, true);
+
+    expect(getUserMaxes(created.user.id).squat).toBe(200);
+    expect(findWendlerSquatWeek1MainSets(created.user.id).map((s) => s.weightKg)).toEqual([
+      120, 140, 157.5,
+    ]);
+    expect(resolveSetKg({ oneRmKg: 200, percent: 85, of: "TM", tmAddKg: 5 })).toBe(157.5);
   });
 
   it("rejects short passwords and duplicate emails", () => {
@@ -362,10 +392,12 @@ describe("P1 programs", () => {
     }
     const ss = raw.programs.find((p: { id: string }) => p.id === "starting-strength");
     const ohp = ss.weeks[0].days
-      .flatMap((d: { exercises: { exerciseId: string; sets: { reps: number }[] }[] }) => d.exercises)
+      .flatMap((d: { exercises: { exerciseId: string; notesKo?: string; sets: { reps: number }[] }[] }) => d.exercises)
       .find((e: { exerciseId: string }) => e.exerciseId === "ohp");
     expect(ohp.sets).toHaveLength(3);
     expect(ohp.sets.every((s: { reps: number }) => s.reps === 5)).toBe(true);
+    expect(ohp.notesKo).toMatch(/sheetAlt 5×3/);
+    expect(ss.progression.squat.addKg).toBe(2.5);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks[0].nameKo).toMatch(/Class III/);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks).toHaveLength(12);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");

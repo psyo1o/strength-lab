@@ -1,6 +1,6 @@
 # P1 seed drafts (data-bot import hook)
 
-프로그램 JSON은 **id 단위**로 `data/seed.json` 에 병합합니다. P0(`jim-wendler-531`, `starting-strength`, `stronglifts-5x5`, `madcow-5x5`)는 유지합니다.
+프로그램 JSON은 **id 단위**로 `data/seed.json` 에 병합합니다. 채팅에 붙인 거대 gzip+base64는 잘리거나 CRC가 깨지므로 쓰지 마세요. 저장소의 `.json` / `.b64` 파일만 `merge-seed-programs.ts`에 넘깁니다. P0(`jim-wendler-531`, `starting-strength`, `stronglifts-5x5`, `madcow-5x5`)는 유지합니다.
 
 ```sh
 # gzip+base64 또는 .json / .json.gz

@@ -1,6 +1,7 @@
 import { getSqlite } from "../db/client";
 import { resolveSetKg } from "../calc/loads";
 import { START_WEIGHT_PROGRAMS, sessionIncrementKg, startRefPercent } from "../calc/linear";
+import { wendlerCycleTmAddKg } from "../calc/wendler";
 import { displayWeight, formatWeight, type WeightUnit } from "../calc/round";
 import { calculatePlates, formatPerSide } from "../calc/plates";
 import { getUserMaxes, getUserStarts, resolveOneRm, resolveStartKg } from "../maxes";
@@ -191,6 +192,10 @@ export function resolveWorkout(opts: {
             ).c
           : 0;
       const addKg = preferStart ? sessionIncrementKg(programSlug, ex.exercise_key) * prior : 0;
+      const tmAddKg =
+        programSlug === "jim-wendler-531" || programSlug === "wendler-531"
+          ? wendlerCycleTmAddKg(ex.exercise_key, countWendlerCyclesCompleted(opts.userId, ex.exercise_key))
+          : 0;
       const rawSets = setStmt.all(ex.id) as {
         id: number;
         set_number: number;
@@ -215,6 +220,7 @@ export function resolveWorkout(opts: {
           preferStart,
           topPercent,
           addKg,
+          tmAddKg,
         });
         const plates =
           weightKg != null
@@ -298,8 +304,40 @@ export function toggleSetLog(userId: number, programSetId: number, completed: bo
   }
 }
 
+/** Week-4 last main set completed for this lift = one finished 4-week cycle. */
+export function countWendlerCyclesCompleted(userId: number, exerciseKey: string): number {
+  const keys =
+    exerciseKey === "squat" || exerciseKey === "back_squat"
+      ? ["squat", "back_squat"]
+      : exerciseKey === "bench" || exerciseKey === "bench_press"
+        ? ["bench", "bench_press"]
+        : [exerciseKey];
+  const placeholders = keys.map(() => "?").join(",");
+  const row = getSqlite()
+    .prepare(
+      `SELECT COUNT(*) AS c
+       FROM set_logs sl
+       JOIN program_sets ps ON ps.id = sl.program_set_id
+       JOIN program_exercises pe ON pe.id = ps.exercise_id
+       JOIN program_days d ON d.id = pe.day_id
+       JOIN program_weeks w ON w.id = d.week_id
+       WHERE sl.user_id = ?
+         AND sl.completed = 1
+         AND w.program_slug IN ('jim-wendler-531', 'wendler-531')
+         AND w.week_number = 4
+         AND pe.exercise_key IN (${placeholders})
+         AND pe.role = 'main'
+         AND ps.set_number = (
+           SELECT MAX(ps2.set_number) FROM program_sets ps2 WHERE ps2.exercise_id = pe.id
+         )`,
+    )
+    .get(userId, ...keys) as { c: number };
+  return Number(row?.c ?? 0);
+}
+
 export function findWendlerSquatWeek1MainSets(userId: number) {
   const maxes = getUserMaxes(userId);
+  const tmAddKg = wendlerCycleTmAddKg("squat", countWendlerCyclesCompleted(userId, "squat"));
   const rows = getSqlite()
     .prepare(
       `SELECT ps.percent, ps.reps, ps.amrap, ps.percent_base
@@ -319,6 +357,7 @@ export function findWendlerSquatWeek1MainSets(userId: number) {
       oneRmKg: maxes.squat,
       percentBase: r.percent_base,
       percent: r.percent,
+      tmAddKg,
     }),
   }));
 }

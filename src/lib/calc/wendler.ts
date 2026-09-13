@@ -48,6 +48,18 @@ export function trainingMaxKg(oneRmKg: number): number {
   return oneRmKg * 0.9;
 }
 
+/** Seed `progression.afterEachCycle` — applied to TM after each completed 4-week cycle. */
+export const WENDLER_AFTER_EACH_CYCLE = { upperKg: 2.5, lowerKg: 5 } as const;
+
+export function wendlerCycleTmAddKg(exerciseKey: string, completedCycles: number): number {
+  if (completedCycles <= 0) return 0;
+  const key =
+    exerciseKey === "back_squat" ? "squat" : exerciseKey === "bench_press" ? "bench" : exerciseKey;
+  if (key === "squat" || key === "deadlift") return WENDLER_AFTER_EACH_CYCLE.lowerKg * completedCycles;
+  if (key === "ohp" || key === "bench") return WENDLER_AFTER_EACH_CYCLE.upperKg * completedCycles;
+  return 0;
+}
+
 export function wendlerMainSets(
   oneRmKg: number,
   week: WendlerWeek,
