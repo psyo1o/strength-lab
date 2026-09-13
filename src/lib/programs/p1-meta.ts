@@ -34,7 +34,12 @@ export const P1_META: Record<string, P1Meta> = {
     listedBlocks: ["W1–16 Acc/Int/Real/Deload (월/수/금/토)", "피킹 블록 — W16 이후 시트/코치 5주. realizationMaxHook만 자동."],
   },
   cowboy: {
-    listedBlocks: ["W1–13 월 스쿼트 / 수 프론트 / 금 NRM", "화·목·토 휴식", "W11 딜로드 마커"],
+    extraOneRmFields: [{ key: "front_squat", label: "프론트 스쿼트" }],
+    listedBlocks: [
+      "W1–13 월 백스쿼트 볼륨 / 수 프론트 / 금 가이드 RM",
+      "화·목·토 휴식",
+      "W4·W8·W12 딜로드, W13 1RM 테스트",
+    ],
   },
   lbeb: {},
   catalyst: {

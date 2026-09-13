@@ -303,8 +303,11 @@ describe("P1 programs", () => {
     expect(cow.coverage).toBe("w1-13_full_sets");
     expect(cow.weekRules).toHaveLength(13);
     const mon = cow.weeks[0].days[0].exercises.find((e: { role: string }) => e.role === "main");
-    expect(mon.sets).toEqual(expect.arrayContaining([expect.objectContaining({ percent: 60, reps: 10, of: "1RM" })]));
-    expect(mon.sets).toHaveLength(5);
+    expect(mon.sets).toEqual(expect.arrayContaining([expect.objectContaining({ percent: 60, reps: 5, of: "1RM" })]));
+    expect(mon.sets).toHaveLength(10);
+    const fri = cow.weeks[0].days.find((d: { day?: number }) => d.day === 5);
+    expect(fri.exercises.find((e: { role: string }) => e.role === "main").sets).toEqual([]);
+    expect(fri.exercises.find((e: { role: string }) => e.role === "main").notesKo).toMatch(/to_10RM/);
     const wedDay = cow.weeks[0].days.find(
       (d: { nameKo?: string; day?: number }) => d.day === 3 || String(d.nameKo).includes("프론트"),
     );

@@ -18715,8 +18715,8 @@
       "nameEn": "Cowboy Method",
       "category": "파워리프팅",
       "completeness": "working",
-      "descriptionKo": "13주 카우보이. 월 스쿼트 볼륨, 수 프론트 래더, 금은 가이드 NRM. 화/목/토는 휴식입니다.",
-      "descriptionEn": "13 weeks × 6 days. Mon/Wed/Fri work, Tue/Thu/Sat rest.",
+      "descriptionKo": "13주 카우보이(Big Texas). 월 볼륨 스쿼트, 수 프론트, 금은 to_nRM 가이드. 화/목/토 휴식.",
+      "descriptionEn": "13 weeks × 6 days from parent weekRules. Mon squat / Wed FS / Fri guided RM.",
       "usesTM": false,
       "tmFactor": 0.9,
       "sortOrder": 50,
@@ -18724,7 +18724,7 @@
         {
           "week": 1,
           "nameKo": "1주차",
-          "notesKo": "weekRules W1: 월 60%×5×10. 금은 가이드 사다리로 NRM까지.",
+          "notesKo": "W1: 월 60% 10×5 · 수 FS 55/60/65/70/75 · 금 to_10RM",
           "days": [
             {
               "day": 1,
@@ -18772,31 +18772,61 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 10,
+                      "reps": 5,
                       "percent": 60,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 5,
                       "percent": 60,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 5,
                       "percent": 60,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 5,
                       "percent": 60,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 5,
+                      "percent": 60,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 60,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 60,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 60,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 60,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 5,
                       "percent": 60,
                       "of": "1RM",
                       "restSec": 90
@@ -18866,7 +18896,7 @@
             {
               "day": 3,
               "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
+              "notesKo": "FS 55→60→65→70→75 ×5",
               "exercises": [
                 {
                   "exerciseId": "front_squat",
@@ -19003,11 +19033,11 @@
             },
             {
               "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: to_10RM",
               "exercises": [
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "warmup",
                   "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
@@ -19044,72 +19074,10 @@
                   ]
                 },
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
+                  "notesKo": "work: to_10RM",
+                  "sets": []
                 }
               ]
             },
@@ -19124,807 +19092,7 @@
         {
           "week": 2,
           "nameKo": "2주차",
-          "notesKo": "weekRules W2: 월 62.5%×5×10. 금은 가이드 사다리로 NRM까지.",
-          "days": [
-            {
-              "day": 1,
-              "nameKo": "월요일 — 스쿼트 볼륨",
-              "exercises": [
-                {
-                  "exerciseId": "squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 31.3,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 37.5,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 43.8,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 56.3,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 10,
-                      "percent": 62.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 62.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 62.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 62.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 62.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "bench",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "abs",
-                  "role": "assistance",
-                  "notesKo": "복근",
-                  "sets": [
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 2,
-              "nameKo": "화요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            },
-            {
-              "day": 3,
-              "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
-              "exercises": [
-                {
-                  "exerciseId": "front_squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 27.8,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 33.3,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 38.8,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 44.4,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "front_squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 55.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 60.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 65.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 70.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 75.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "ohp",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "chin_up",
-                  "role": "assistance",
-                  "notesKo": "친업",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 4,
-              "nameKo": "목요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            },
-            {
-              "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
-              "exercises": [
-                {
-                  "exerciseId": "deadlift",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 25,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 30,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 35,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 40,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 45,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "deadlift",
-                  "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 6,
-              "nameKo": "토요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            }
-          ]
-        },
-        {
-          "week": 3,
-          "nameKo": "3주차",
-          "notesKo": "weekRules W3: 월 65%×5×10. 금은 가이드 사다리로 NRM까지.",
-          "days": [
-            {
-              "day": 1,
-              "nameKo": "월요일 — 스쿼트 볼륨",
-              "exercises": [
-                {
-                  "exerciseId": "squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 32.5,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 39,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 45.5,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 52,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 58.5,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 10,
-                      "percent": 65,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 65,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 65,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 65,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 65,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "bench",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "abs",
-                  "role": "assistance",
-                  "notesKo": "복근",
-                  "sets": [
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 2,
-              "nameKo": "화요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            },
-            {
-              "day": 3,
-              "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
-              "exercises": [
-                {
-                  "exerciseId": "front_squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 28,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 33.6,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 39.2,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 44.8,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 50.4,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "front_squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 56,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 61,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 66,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 71,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 76,
-                      "of": "1RM",
-                      "restSec": 120
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "ohp",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "chin_up",
-                  "role": "assistance",
-                  "notesKo": "친업",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 4,
-              "nameKo": "목요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            },
-            {
-              "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
-              "exercises": [
-                {
-                  "exerciseId": "deadlift",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 25,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 30,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 35,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 40,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 45,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "deadlift",
-                  "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 6,
-              "nameKo": "토요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            }
-          ]
-        },
-        {
-          "week": 4,
-          "nameKo": "4주차",
-          "notesKo": "weekRules W4: 월 67.5%×5×10. 금은 가이드 사다리로 NRM까지.",
+          "notesKo": "W2: 월 67.5% 10×4 · 수 FS 60/65/70/75/80 · 금 to_8RM",
           "days": [
             {
               "day": 1,
@@ -19972,31 +19140,61 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 10,
+                      "reps": 4,
                       "percent": 67.5,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 4,
                       "percent": 67.5,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 4,
                       "percent": 67.5,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 4,
                       "percent": 67.5,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 4,
+                      "percent": 67.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 67.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 67.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 67.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 67.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 4,
                       "percent": 67.5,
                       "of": "1RM",
                       "restSec": 90
@@ -20066,7 +19264,7 @@
             {
               "day": 3,
               "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
+              "notesKo": "FS 60→65→70→75→80 ×3",
               "exercises": [
                 {
                   "exerciseId": "front_squat",
@@ -20075,431 +19273,31 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 28.3,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 33.9,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 39.5,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 45.2,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 50.9,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "front_squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 56.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 61.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 66.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 71.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 76.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "ohp",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "chin_up",
-                  "role": "assistance",
-                  "notesKo": "친업",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 4,
-              "nameKo": "목요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            },
-            {
-              "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
-              "exercises": [
-                {
-                  "exerciseId": "deadlift",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 25,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
                       "percent": 30,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
-                      "reps": 3,
-                      "percent": 35,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 40,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 45,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "deadlift",
-                  "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
                       "reps": 5,
-                      "percent": 50,
+                      "percent": 36,
                       "of": "1RM",
-                      "restSec": 180
+                      "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 6,
-              "nameKo": "토요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            }
-          ]
-        },
-        {
-          "week": 5,
-          "nameKo": "5주차",
-          "notesKo": "weekRules W5: 월 70%×5×10. 금은 가이드 사다리로 NRM까지.",
-          "days": [
-            {
-              "day": 1,
-              "nameKo": "월요일 — 스쿼트 볼륨",
-              "exercises": [
-                {
-                  "exerciseId": "squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 35,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
                       "percent": 42,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
-                      "reps": 3,
-                      "percent": 49,
+                      "reps": 1,
+                      "percent": 48,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 56,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 63,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "bench",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "abs",
-                  "role": "assistance",
-                  "notesKo": "복근",
-                  "sets": [
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 2,
-              "nameKo": "화요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            },
-            {
-              "day": 3,
-              "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
-              "exercises": [
-                {
-                  "exerciseId": "front_squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 28.5,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 34.2,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 39.9,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 45.6,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 51.3,
+                      "percent": 54,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -20510,32 +19308,32 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 5,
-                      "percent": 57,
+                      "reps": 3,
+                      "percent": 60,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 62,
+                      "reps": 3,
+                      "percent": 65,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 67,
+                      "reps": 3,
+                      "percent": 70,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 72,
+                      "reps": 3,
+                      "percent": 75,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 77,
+                      "reps": 3,
+                      "percent": 80,
                       "of": "1RM",
                       "restSec": 120
                     }
@@ -20603,11 +19401,11 @@
             },
             {
               "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: to_8RM",
               "exercises": [
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "warmup",
                   "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
@@ -20644,72 +19442,10 @@
                   ]
                 },
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
+                  "notesKo": "work: to_8RM",
+                  "sets": []
                 }
               ]
             },
@@ -20722,409 +19458,9 @@
           ]
         },
         {
-          "week": 6,
-          "nameKo": "6주차",
-          "notesKo": "weekRules W6: 월 72.5%×5×10. 금은 가이드 사다리로 NRM까지.",
-          "days": [
-            {
-              "day": 1,
-              "nameKo": "월요일 — 스쿼트 볼륨",
-              "exercises": [
-                {
-                  "exerciseId": "squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 36.3,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 43.5,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 50.8,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 58,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 65.3,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 10,
-                      "percent": 72.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 72.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 72.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 72.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 72.5,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "bench",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "abs",
-                  "role": "assistance",
-                  "notesKo": "복근",
-                  "sets": [
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 2,
-              "nameKo": "화요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            },
-            {
-              "day": 3,
-              "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
-              "exercises": [
-                {
-                  "exerciseId": "front_squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 28.8,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 34.5,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 40.3,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 46,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 51.8,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "front_squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 57.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 62.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 67.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 72.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 77.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "ohp",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "chin_up",
-                  "role": "assistance",
-                  "notesKo": "친업",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 4,
-              "nameKo": "목요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            },
-            {
-              "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
-              "exercises": [
-                {
-                  "exerciseId": "deadlift",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 25,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 30,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 35,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 40,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 45,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "deadlift",
-                  "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "day": 6,
-              "nameKo": "토요일 — 휴식",
-              "notesKo": "휴식",
-              "exercises": []
-            }
-          ]
-        },
-        {
-          "week": 7,
-          "nameKo": "7주차",
-          "notesKo": "weekRules W7: 월 75%×5×10. 금은 가이드 사다리로 NRM까지.",
+          "week": 3,
+          "nameKo": "3주차",
+          "notesKo": "W3: 월 75% 10×3 · 수 FS 65/70/75/80/85 · 금 to_5RM",
           "days": [
             {
               "day": 1,
@@ -21172,31 +19508,61 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 10,
+                      "reps": 3,
                       "percent": 75,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 3,
                       "percent": 75,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 3,
                       "percent": 75,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 3,
                       "percent": 75,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
                       "percent": 75,
                       "of": "1RM",
                       "restSec": 90
@@ -21266,7 +19632,7 @@
             {
               "day": 3,
               "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
+              "notesKo": "FS 65→70→75→80→85 ×3",
               "exercises": [
                 {
                   "exerciseId": "front_squat",
@@ -21275,31 +19641,31 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 29,
+                      "percent": 32.5,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 5,
-                      "percent": 34.8,
+                      "percent": 39,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 40.6,
+                      "percent": 45.5,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 46.4,
+                      "percent": 52,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 52.2,
+                      "percent": 58.5,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -21310,32 +19676,32 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 5,
-                      "percent": 58,
+                      "reps": 3,
+                      "percent": 65,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 63,
+                      "reps": 3,
+                      "percent": 70,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 68,
+                      "reps": 3,
+                      "percent": 75,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 73,
+                      "reps": 3,
+                      "percent": 80,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 78,
+                      "reps": 3,
+                      "percent": 85,
                       "of": "1RM",
                       "restSec": 120
                     }
@@ -21403,11 +19769,11 @@
             },
             {
               "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: to_5RM",
               "exercises": [
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "warmup",
                   "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
@@ -21444,72 +19810,10 @@
                   ]
                 },
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
+                  "notesKo": "work: to_5RM",
+                  "sets": []
                 }
               ]
             },
@@ -21522,9 +19826,9 @@
           ]
         },
         {
-          "week": 8,
-          "nameKo": "8주차",
-          "notesKo": "weekRules W8: 월 77.5%×5×10. 금은 가이드 사다리로 NRM까지.",
+          "week": 4,
+          "nameKo": "4주차 — deload",
+          "notesKo": "W4 deload: 월 60% 딜로드 마커 · 수 FS 60 · 금 squat_walkout_hold",
           "days": [
             {
               "day": 1,
@@ -21537,31 +19841,218 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 38.8,
+                      "percent": 30,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 5,
-                      "percent": 46.5,
+                      "percent": 36,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 54.3,
+                      "percent": 42,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 62,
+                      "percent": 48,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 69.8,
+                      "percent": 54,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "notesKo": "딜로드 마커",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 60,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 프론트스쿼트",
+              "notesKo": "딜로드 마커",
+              "exercises": [
+                {
+                  "exerciseId": "front_squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 30,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 36,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 42,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 48,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 54,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 60,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: squat_walkout_hold",
+              "exercises": [
+                {
+                  "exerciseId": "squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 25,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 30,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 35,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 40,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 45,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "notesKo": "work: squat_walkout_hold",
+                  "sets": []
+                }
+              ]
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
+        },
+        {
+          "week": 5,
+          "nameKo": "5주차",
+          "notesKo": "W5: 월 65% 8×4 · 수 FS 60/67.5/75/82.5 · 금 to_8RM",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스쿼트 볼륨",
+              "exercises": [
+                {
+                  "exerciseId": "squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 32.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 39,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 45.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 52,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 58.5,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -21572,32 +20063,50 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 10,
-                      "percent": 77.5,
+                      "reps": 4,
+                      "percent": 65,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
-                      "percent": 77.5,
+                      "reps": 4,
+                      "percent": 65,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
-                      "percent": 77.5,
+                      "reps": 4,
+                      "percent": 65,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
-                      "percent": 77.5,
+                      "reps": 4,
+                      "percent": 65,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
-                      "percent": 77.5,
+                      "reps": 4,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 4,
+                      "percent": 65,
                       "of": "1RM",
                       "restSec": 90
                     }
@@ -21666,7 +20175,7 @@
             {
               "day": 3,
               "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
+              "notesKo": "FS 60→67.5→75→82.5 ×4",
               "exercises": [
                 {
                   "exerciseId": "front_squat",
@@ -21675,31 +20184,31 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 29.3,
+                      "percent": 30,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 5,
-                      "percent": 35.1,
+                      "percent": 36,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 40.9,
+                      "percent": 42,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 46.8,
+                      "percent": 48,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 52.6,
+                      "percent": 54,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -21710,32 +20219,26 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 5,
-                      "percent": 58.5,
+                      "reps": 4,
+                      "percent": 60,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 63.5,
+                      "reps": 4,
+                      "percent": 67.5,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 68.5,
+                      "reps": 4,
+                      "percent": 75,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 73.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 78.5,
+                      "reps": 4,
+                      "percent": 82.5,
                       "of": "1RM",
                       "restSec": 120
                     }
@@ -21803,11 +20306,11 @@
             },
             {
               "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: to_8RM",
               "exercises": [
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "warmup",
                   "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
@@ -21844,72 +20347,10 @@
                   ]
                 },
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
+                  "notesKo": "work: to_8RM",
+                  "sets": []
                 }
               ]
             },
@@ -21922,9 +20363,359 @@
           ]
         },
         {
-          "week": 9,
-          "nameKo": "9주차",
-          "notesKo": "weekRules W9: 월 80%×5×10. 금은 가이드 사다리로 NRM까지.",
+          "week": 6,
+          "nameKo": "6주차",
+          "notesKo": "W6: 월 72.5% 8×3 · 수 FS 65/72.5/80/87.5 · 금 to_5RM",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스쿼트 볼륨",
+              "exercises": [
+                {
+                  "exerciseId": "squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 36.3,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 43.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 50.8,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 58,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 65.3,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 72.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 72.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 72.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 72.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 72.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 72.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 72.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 72.5,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "bench",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "abs",
+                  "role": "assistance",
+                  "notesKo": "복근",
+                  "sets": [
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 프론트스쿼트",
+              "notesKo": "FS 65→72.5→80→87.5 ×3",
+              "exercises": [
+                {
+                  "exerciseId": "front_squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 32.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 39,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 45.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 52,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 58.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 120
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 72.5,
+                      "of": "1RM",
+                      "restSec": 120
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 120
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 87.5,
+                      "of": "1RM",
+                      "restSec": 120
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "ohp",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "chin_up",
+                  "role": "assistance",
+                  "notesKo": "친업",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: to_5RM",
+              "exercises": [
+                {
+                  "exerciseId": "squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 25,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 30,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 35,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 40,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 45,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "notesKo": "work: to_5RM",
+                  "sets": []
+                }
+              ]
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
+        },
+        {
+          "week": 7,
+          "nameKo": "7주차",
+          "notesKo": "W7: 월 80% 8×2 · 수 FS 70/77.5/85/92.5 · 금 to_3RM",
           "days": [
             {
               "day": 1,
@@ -21972,31 +20763,49 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 10,
+                      "reps": 2,
                       "percent": 80,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 2,
                       "percent": 80,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 2,
                       "percent": 80,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 2,
                       "percent": 80,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 2,
+                      "percent": 80,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 2,
                       "percent": 80,
                       "of": "1RM",
                       "restSec": 90
@@ -22066,7 +20875,7 @@
             {
               "day": 3,
               "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
+              "notesKo": "FS 70→77.5→85→92.5 ×2",
               "exercises": [
                 {
                   "exerciseId": "front_squat",
@@ -22075,31 +20884,31 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 29.5,
+                      "percent": 35,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 5,
-                      "percent": 35.4,
+                      "percent": 42,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 41.3,
+                      "percent": 49,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 47.2,
+                      "percent": 56,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 53.1,
+                      "percent": 63,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -22110,32 +20919,26 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 5,
-                      "percent": 59,
+                      "reps": 2,
+                      "percent": 70,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 64,
+                      "reps": 2,
+                      "percent": 77.5,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 69,
+                      "reps": 2,
+                      "percent": 85,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 74,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 79,
+                      "reps": 2,
+                      "percent": 92.5,
                       "of": "1RM",
                       "restSec": 120
                     }
@@ -22203,11 +21006,11 @@
             },
             {
               "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: to_3RM",
               "exercises": [
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "warmup",
                   "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
@@ -22244,72 +21047,523 @@
                   ]
                 },
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "work: to_NRM",
+                  "notesKo": "work: to_3RM",
+                  "sets": []
+                }
+              ]
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
+        },
+        {
+          "week": 8,
+          "nameKo": "8주차 — deload",
+          "notesKo": "W8 deload: 월 65% 딜로드 마커 · 수 FS 65 · 금 squat_walkout_105pct",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스쿼트 볼륨",
+              "exercises": [
+                {
+                  "exerciseId": "squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
                     {
-                      "reps": 5,
-                      "percent": 50,
+                      "reps": 8,
+                      "percent": 32.5,
                       "of": "1RM",
-                      "restSec": 180
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 39,
+                      "of": "1RM",
+                      "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 60,
+                      "percent": 45.5,
                       "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
+                      "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 75,
+                      "percent": 52,
                       "of": "1RM",
-                      "restSec": 180
+                      "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 80,
+                      "percent": 58.5,
                       "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
+                      "restSec": 45
                     }
                   ]
                 },
                 {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "notesKo": "딜로드 마커",
                   "sets": [
                     {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
+                      "reps": 5,
+                      "percent": 65,
                       "of": "1RM",
                       "restSec": 90
                     }
                   ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 프론트스쿼트",
+              "notesKo": "딜로드 마커",
+              "exercises": [
+                {
+                  "exerciseId": "front_squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 32.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 39,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 45.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 52,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 58.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: squat_walkout_105pct",
+              "exercises": [
+                {
+                  "exerciseId": "squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 25,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 30,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 35,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 40,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 45,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "notesKo": "work: squat_walkout_105pct",
+                  "sets": []
+                }
+              ]
+            },
+            {
+              "day": 6,
+              "nameKo": "토요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            }
+          ]
+        },
+        {
+          "week": 9,
+          "nameKo": "9주차",
+          "notesKo": "W9: 월 70% 5×3 · 수 FS 65/75/85 · 금 to_5RM",
+          "days": [
+            {
+              "day": 1,
+              "nameKo": "월요일 — 스쿼트 볼륨",
+              "exercises": [
+                {
+                  "exerciseId": "squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 35,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 42,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 49,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 56,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 63,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 70,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "bench",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "abs",
+                  "role": "assistance",
+                  "notesKo": "복근",
+                  "sets": [
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 2,
+              "nameKo": "화요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 3,
+              "nameKo": "수요일 — 프론트스쿼트",
+              "notesKo": "FS 65→75→85 ×3",
+              "exercises": [
+                {
+                  "exerciseId": "front_squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 32.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 39,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 45.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 52,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 58.5,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "front_squat",
+                  "role": "main",
+                  "sets": [
+                    {
+                      "reps": 3,
+                      "percent": 65,
+                      "of": "1RM",
+                      "restSec": 120
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 120
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 120
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "ohp",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "chin_up",
+                  "role": "assistance",
+                  "notesKo": "친업",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "day": 4,
+              "nameKo": "목요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
+            },
+            {
+              "day": 5,
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: to_5RM",
+              "exercises": [
+                {
+                  "exerciseId": "squat",
+                  "role": "warmup",
+                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "percent": 25,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 5,
+                      "percent": 30,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 3,
+                      "percent": 35,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 40,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 45,
+                      "of": "1RM",
+                      "restSec": 45
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "squat",
+                  "role": "main",
+                  "notesKo": "work: to_5RM",
+                  "sets": []
                 }
               ]
             },
@@ -22324,7 +21578,7 @@
         {
           "week": 10,
           "nameKo": "10주차",
-          "notesKo": "weekRules W10: 월 82.5%×5×10. 금은 가이드 사다리로 NRM까지.",
+          "notesKo": "W10: 월 77.5% 5×2 · 수 FS 70/80/90 · 금 to_3RM",
           "days": [
             {
               "day": 1,
@@ -22337,31 +21591,31 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 41.3,
+                      "percent": 38.8,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 5,
-                      "percent": 49.5,
+                      "percent": 46.5,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 57.7,
+                      "percent": 54.3,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 66,
+                      "percent": 62,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 74.3,
+                      "percent": 69.8,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -22372,32 +21626,32 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 10,
-                      "percent": 82.5,
+                      "reps": 2,
+                      "percent": 77.5,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
-                      "percent": 82.5,
+                      "reps": 2,
+                      "percent": 77.5,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
-                      "percent": 82.5,
+                      "reps": 2,
+                      "percent": 77.5,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
-                      "percent": 82.5,
+                      "reps": 2,
+                      "percent": 77.5,
                       "of": "1RM",
                       "restSec": 90
                     },
                     {
-                      "reps": 10,
-                      "percent": 82.5,
+                      "reps": 2,
+                      "percent": 77.5,
                       "of": "1RM",
                       "restSec": 90
                     }
@@ -22466,7 +21720,7 @@
             {
               "day": 3,
               "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
+              "notesKo": "FS 70→80→90 ×2",
               "exercises": [
                 {
                   "exerciseId": "front_squat",
@@ -22475,31 +21729,31 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 29.8,
+                      "percent": 35,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 5,
-                      "percent": 35.7,
+                      "percent": 42,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 41.6,
+                      "percent": 49,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 47.6,
+                      "percent": 56,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 53.6,
+                      "percent": 63,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -22510,32 +21764,20 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 5,
-                      "percent": 59.5,
+                      "reps": 2,
+                      "percent": 70,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 64.5,
+                      "reps": 2,
+                      "percent": 80,
                       "of": "1RM",
                       "restSec": 120
                     },
                     {
-                      "reps": 5,
-                      "percent": 69.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 74.5,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 79.5,
+                      "reps": 2,
+                      "percent": 90,
                       "of": "1RM",
                       "restSec": 120
                     }
@@ -22603,11 +21845,11 @@
             },
             {
               "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: to_3RM",
               "exercises": [
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "warmup",
                   "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
@@ -22644,72 +21886,10 @@
                   ]
                 },
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
+                  "notesKo": "work: to_3RM",
+                  "sets": []
                 }
               ]
             },
@@ -22723,8 +21903,8 @@
         },
         {
           "week": 11,
-          "nameKo": "11주차 — 딜로드",
-          "notesKo": "weekRules W11: 월 55%×5×10. 금은 가이드 사다리로 NRM까지.",
+          "nameKo": "11주차",
+          "notesKo": "W11: 월 85% 5×1 · 수 FS 75/85/95 · 금 to_2RM",
           "days": [
             {
               "day": 1,
@@ -22737,31 +21917,31 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 27.5,
+                      "percent": 42.5,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 5,
-                      "percent": 33,
+                      "percent": 51,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 38.5,
+                      "percent": 59.5,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 44,
+                      "percent": 68,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 49.5,
+                      "percent": 76.5,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -22770,13 +21950,88 @@
                 {
                   "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "딜로드 마커",
                   "sets": [
                     {
-                      "reps": 5,
+                      "reps": 1,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "bench",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 8,
                       "percent": 55,
                       "of": "1RM",
                       "restSec": 90
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 8,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "abs",
+                  "role": "assistance",
+                  "notesKo": "복근",
+                  "sets": [
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 12,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
                     }
                   ]
                 }
@@ -22791,7 +22046,7 @@
             {
               "day": 3,
               "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "딜로드 래더",
+              "notesKo": "FS 75→85→95 ×1",
               "exercises": [
                 {
                   "exerciseId": "front_squat",
@@ -22800,31 +22055,31 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 30,
+                      "percent": 37.5,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 5,
-                      "percent": 36,
+                      "percent": 45,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 3,
-                      "percent": 42,
+                      "percent": 52.5,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 48,
+                      "percent": 60,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 54,
+                      "percent": 67.5,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -22835,10 +22090,74 @@
                   "role": "main",
                   "sets": [
                     {
-                      "reps": 5,
-                      "percent": 60,
+                      "reps": 1,
+                      "percent": 75,
+                      "of": "1RM",
+                      "restSec": 120
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 85,
+                      "of": "1RM",
+                      "restSec": 120
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 95,
+                      "of": "1RM",
+                      "restSec": 120
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "ohp",
+                  "role": "assistance",
+                  "sets": [
+                    {
+                      "reps": 6,
+                      "percent": 55,
                       "of": "1RM",
                       "restSec": 90
+                    },
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    },
+                    {
+                      "reps": 6,
+                      "percent": 55,
+                      "of": "1RM",
+                      "restSec": 90
+                    }
+                  ]
+                },
+                {
+                  "exerciseId": "chin_up",
+                  "role": "assistance",
+                  "notesKo": "친업",
+                  "sets": [
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
+                    },
+                    {
+                      "reps": 8,
+                      "restSec": 60,
+                      "noteKo": "체중 · 밴드 허용"
                     }
                   ]
                 }
@@ -22852,11 +22171,11 @@
             },
             {
               "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "deload — 가이드만. work 없음.",
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: to_2RM",
               "exercises": [
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "warmup",
                   "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
@@ -22893,9 +22212,9 @@
                   ]
                 },
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "work: deload",
+                  "notesKo": "work: to_2RM",
                   "sets": []
                 }
               ]
@@ -22910,8 +22229,8 @@
         },
         {
           "week": 12,
-          "nameKo": "12주차",
-          "notesKo": "weekRules W12: 월 70%×5×10. 금은 가이드 사다리로 NRM까지.",
+          "nameKo": "12주차 — deload",
+          "notesKo": "W12 deload: 월 70% 딜로드 마커 · 수 FS 70 · 금 squat_walkout_105pct",
           "days": [
             {
               "day": 1,
@@ -22957,88 +22276,13 @@
                 {
                   "exerciseId": "squat",
                   "role": "main",
+                  "notesKo": "딜로드 마커",
                   "sets": [
                     {
-                      "reps": 10,
+                      "reps": 5,
                       "percent": 70,
                       "of": "1RM",
                       "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "bench",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "abs",
-                  "role": "assistance",
-                  "notesKo": "복근",
-                  "sets": [
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
                     }
                   ]
                 }
@@ -23053,7 +22297,7 @@
             {
               "day": 3,
               "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
+              "notesKo": "딜로드 마커",
               "exercises": [
                 {
                   "exerciseId": "front_squat",
@@ -23062,31 +22306,31 @@
                   "sets": [
                     {
                       "reps": 8,
-                      "percent": 30,
+                      "percent": 35,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 5,
-                      "percent": 36,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
                       "percent": 42,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
-                      "reps": 1,
-                      "percent": 48,
+                      "reps": 3,
+                      "percent": 49,
                       "of": "1RM",
                       "restSec": 45
                     },
                     {
                       "reps": 1,
-                      "percent": 54,
+                      "percent": 56,
+                      "of": "1RM",
+                      "restSec": 45
+                    },
+                    {
+                      "reps": 1,
+                      "percent": 63,
                       "of": "1RM",
                       "restSec": 45
                     }
@@ -23098,85 +22342,9 @@
                   "sets": [
                     {
                       "reps": 5,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 65,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
                       "percent": 70,
                       "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 80,
-                      "of": "1RM",
-                      "restSec": 120
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "ohp",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
                       "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "chin_up",
-                  "role": "assistance",
-                  "notesKo": "친업",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
                     }
                   ]
                 }
@@ -23190,11 +22358,11 @@
             },
             {
               "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
+              "nameKo": "금요일 — 가이드 RM",
+              "notesKo": "work: squat_walkout_105pct",
               "exercises": [
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "warmup",
                   "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
@@ -23231,72 +22399,10 @@
                   ]
                 },
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
+                  "notesKo": "work: squat_walkout_105pct",
+                  "sets": []
                 }
               ]
             },
@@ -23310,139 +22416,14 @@
         },
         {
           "week": 13,
-          "nameKo": "13주차",
-          "notesKo": "weekRules W13: 월 70%×5×10. 금은 가이드 사다리로 NRM까지.",
+          "nameKo": "13주차 — test",
+          "notesKo": "W13 test: 월 휴식 · 수 휴식 · 금 1RM_test",
           "days": [
             {
               "day": 1,
-              "nameKo": "월요일 — 스쿼트 볼륨",
-              "exercises": [
-                {
-                  "exerciseId": "squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 35,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 42,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 49,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 56,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 63,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 10,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "bench",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "abs",
-                  "role": "assistance",
-                  "notesKo": "복근",
-                  "sets": [
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 12,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
+              "nameKo": "월요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
             },
             {
               "day": 2,
@@ -23452,135 +22433,9 @@
             },
             {
               "day": 3,
-              "nameKo": "수요일 — 프론트스쿼트",
-              "notesKo": "55→75×5 래더 (주차에 따라 소폭 상향)",
-              "exercises": [
-                {
-                  "exerciseId": "front_squat",
-                  "role": "warmup",
-                  "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 30,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 36,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 42,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 48,
-                      "of": "1RM",
-                      "restSec": 45
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 54,
-                      "of": "1RM",
-                      "restSec": 45
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "front_squat",
-                  "role": "main",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 65,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 120
-                    },
-                    {
-                      "reps": 5,
-                      "percent": 80,
-                      "of": "1RM",
-                      "restSec": 120
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "ohp",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 6,
-                      "percent": 55,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "chin_up",
-                  "role": "assistance",
-                  "notesKo": "친업",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    },
-                    {
-                      "reps": 8,
-                      "restSec": 60,
-                      "noteKo": "체중 · 밴드 허용"
-                    }
-                  ]
-                }
-              ]
+              "nameKo": "수요일 — 휴식",
+              "notesKo": "휴식",
+              "exercises": []
             },
             {
               "day": 4,
@@ -23590,11 +22445,11 @@
             },
             {
               "day": 5,
-              "nameKo": "금요일 — NRM 사다리",
-              "notesKo": "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
+              "nameKo": "금요일 — 1RM 테스트",
+              "notesKo": "work: 1RM_test",
               "exercises": [
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "warmup",
                   "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
                   "sets": [
@@ -23631,72 +22486,10 @@
                   ]
                 },
                 {
-                  "exerciseId": "deadlift",
+                  "exerciseId": "squat",
                   "role": "main",
-                  "notesKo": "work: to_NRM",
-                  "sets": [
-                    {
-                      "reps": 5,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 3,
-                      "percent": 60,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 2,
-                      "percent": 70,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 75,
-                      "of": "1RM",
-                      "restSec": 180
-                    },
-                    {
-                      "reps": 1,
-                      "percent": 80,
-                      "of": "1RM",
-                      "amrap": true,
-                      "restSec": 180
-                    }
-                  ]
-                },
-                {
-                  "exerciseId": "barbell_row",
-                  "role": "assistance",
-                  "sets": [
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    },
-                    {
-                      "reps": 8,
-                      "percent": 50,
-                      "of": "1RM",
-                      "restSec": 90
-                    }
-                  ]
+                  "notesKo": "work: 1RM_test",
+                  "sets": []
                 }
               ]
             },
@@ -23709,24 +22502,29 @@
           ]
         }
       ],
+      "extraOneRmFields": {
+        "front_squat": {
+          "label": "프론트 스쿼트"
+        }
+      },
       "weekRules": [
-        "W1: 월 60% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W2: 월 62.5% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W3: 월 65% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W4: 월 67.5% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W5: 월 70% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W6: 월 72.5% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W7: 월 75% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W8: 월 77.5% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W9: 월 80% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W10: 월 82.5% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W11: 월 55% 딜로드 마커 · 수 FS 래더 · 금 딜로드 노트",
-        "W12: 월 70% 5×10 · 수 FS 래더 · 금 NRM 사다리",
-        "W13: 월 70% 5×10 · 수 FS 래더 · 금 NRM 사다리"
+        "W1: 월 60% 10×5 · 수 FS 55/60/65/70/75 · 금 to_10RM",
+        "W2: 월 67.5% 10×4 · 수 FS 60/65/70/75/80 · 금 to_8RM",
+        "W3: 월 75% 10×3 · 수 FS 65/70/75/80/85 · 금 to_5RM",
+        "W4 deload: 월 60% 딜로드 마커 · 수 FS 60 · 금 squat_walkout_hold",
+        "W5: 월 65% 8×4 · 수 FS 60/67.5/75/82.5 · 금 to_8RM",
+        "W6: 월 72.5% 8×3 · 수 FS 65/72.5/80/87.5 · 금 to_5RM",
+        "W7: 월 80% 8×2 · 수 FS 70/77.5/85/92.5 · 금 to_3RM",
+        "W8 deload: 월 65% 딜로드 마커 · 수 FS 65 · 금 squat_walkout_105pct",
+        "W9: 월 70% 5×3 · 수 FS 65/75/85 · 금 to_5RM",
+        "W10: 월 77.5% 5×2 · 수 FS 70/80/90 · 금 to_3RM",
+        "W11: 월 85% 5×1 · 수 FS 75/85/95 · 금 to_2RM",
+        "W12 deload: 월 70% 딜로드 마커 · 수 FS 70 · 금 squat_walkout_105pct",
+        "W13 test: 월 휴식 · 수 휴식 · 금 1RM_test"
       ],
       "coverage": "w1-13_full_sets",
       "copy": {
-        "help": "13주 카우보이. 월 스쿼트 볼륨, 수 프론트 래더, 금은 가이드 NRM. 화/목/토는 휴식입니다."
+        "help": "13주 카우보이(Big Texas). 월 볼륨 스쿼트, 수 프론트, 금은 to_nRM 가이드. 화/목/토 휴식."
       }
     },
     {

@@ -205,11 +205,40 @@ export function juggernautP1(): SeedProgram {
   };
 }
 
+/** Recovered from parent cowboy gzip (stream truncated after weekRules). */
+type CowboyWeekRule = {
+  week: number;
+  label?: string;
+  mon?: { pct: number; reps?: number; sets?: number };
+  wed?: { pcts: number[]; reps?: number };
+  fri: string;
+};
+
+const COWBOY_WEEK_RULES: CowboyWeekRule[] = [
+  { week: 1, mon: { pct: 60, reps: 5, sets: 10 }, wed: { pcts: [55, 60, 65, 70, 75], reps: 5 }, fri: "to_10RM" },
+  { week: 2, mon: { pct: 67.5, reps: 4, sets: 10 }, wed: { pcts: [60, 65, 70, 75, 80], reps: 3 }, fri: "to_8RM" },
+  { week: 3, mon: { pct: 75, reps: 3, sets: 10 }, wed: { pcts: [65, 70, 75, 80, 85], reps: 3 }, fri: "to_5RM" },
+  { week: 4, label: "deload", mon: { pct: 60 }, wed: { pcts: [60] }, fri: "squat_walkout_hold" },
+  { week: 5, mon: { pct: 65, reps: 4, sets: 8 }, wed: { pcts: [60, 67.5, 75, 82.5] }, fri: "to_8RM" },
+  { week: 6, mon: { pct: 72.5, reps: 3, sets: 8 }, wed: { pcts: [65, 72.5, 80, 87.5] }, fri: "to_5RM" },
+  { week: 7, mon: { pct: 80, reps: 2, sets: 8 }, wed: { pcts: [70, 77.5, 85, 92.5] }, fri: "to_3RM" },
+  { week: 8, label: "deload", mon: { pct: 65 }, wed: { pcts: [65] }, fri: "squat_walkout_105pct" },
+  { week: 9, mon: { pct: 70, reps: 3, sets: 5 }, wed: { pcts: [65, 75, 85] }, fri: "to_5RM" },
+  { week: 10, mon: { pct: 77.5, reps: 2, sets: 5 }, wed: { pcts: [70, 80, 90] }, fri: "to_3RM" },
+  { week: 11, mon: { pct: 85, reps: 1, sets: 5 }, wed: { pcts: [75, 85, 95] }, fri: "to_2RM" },
+  { week: 12, label: "deload", mon: { pct: 70 }, wed: { pcts: [70] }, fri: "squat_walkout_105pct" },
+  { week: 13, label: "test", fri: "1RM_test" },
+];
+
 export function cowboyP1(): SeedProgram {
-  const weekPct = (w: number) => {
-    if (w === 11) return 55;
-    if (w >= 12) return 70;
-    return 60 + (w - 1) * 2.5;
+  const ruleLine = (r: CowboyWeekRule) => {
+    const mon = r.mon
+      ? r.mon.sets && r.mon.reps
+        ? `월 ${r.mon.pct}% ${r.mon.sets}×${r.mon.reps}`
+        : `월 ${r.mon.pct}% 딜로드 마커`
+      : "월 휴식";
+    const wed = r.wed ? `수 FS ${r.wed.pcts.join("/")}` : "수 휴식";
+    return `W${r.week}${r.label ? ` ${r.label}` : ""}: ${mon} · ${wed} · 금 ${r.fri}`;
   };
   return {
     slug: "cowboy",
@@ -218,73 +247,75 @@ export function cowboyP1(): SeedProgram {
     category: "파워리프팅",
     completeness: "working",
     descriptionKo:
-      "13주 × 6일. 월 스쿼트 볼륨, 수 프론트 래더, 금 NRM 사다리. 화/목/토 휴식. Wendler 원본 복제 아님.",
-    descriptionEn: "13 weeks × 6 days. Mon/Wed/Fri work, Tue/Thu/Sat rest.",
+      "13주 × 6일. 월 백스쿼트 볼륨, 수 프론트 래더, 금 가이드 RM. 화/목/토 휴식. extra 1RM: 프론트스쿼트.",
+    descriptionEn: "13 weeks × 6 days from parent weekRules. Mon squat / Wed FS / Fri guided RM.",
     coverage: "w1-13_full_sets",
+    extraOneRmFields: { front_squat: { label: "프론트 스쿼트" } },
     copy: {
-      help: "13주 카우보이. 월 스쿼트 볼륨, 수 프론트 래더, 금은 가이드 NRM. 화/목/토는 휴식입니다.",
+      help: "13주 카우보이(Big Texas). 월 볼륨 스쿼트, 수 프론트, 금은 to_nRM 가이드. 화/목/토 휴식.",
     },
-    weekRules: Array.from({ length: 13 }, (_, i) => {
-      const w = i + 1;
-      return `W${w}: 월 ${weekPct(w)}%${w === 11 ? " 딜로드 마커" : " 5×10"} · 수 FS 래더 · 금 ${w === 11 ? "딜로드 노트" : "NRM 사다리"}`;
-    }),
+    weekRules: COWBOY_WEEK_RULES.map(ruleLine),
     sortOrder: 50,
-    weeks: Array.from({ length: 13 }, (_, i) => {
-      const w = i + 1;
-      const pct = weekPct(w);
-      const deload = w === 11;
-      const fs = [55, 60, 65, 70, 75].map((p) => p + (w === 1 ? 0 : Math.min(5, (w - 1) * 0.5)));
+    weeks: COWBOY_WEEK_RULES.map((r) => {
+      const deload = r.label === "deload";
+      const monReps = r.mon?.reps;
+      const wedReps = r.wed?.reps ?? monReps ?? 5;
+      const monPct = r.mon?.pct;
+      const wedPcts = r.wed?.pcts ?? [];
       return {
-        weekNumber: w,
-        nameKo: deload ? "11주차 — 딜로드" : `${w}주차`,
-        notesKo: `weekRules W${w}: 월 ${pct}%×5×10. 금은 가이드 사다리로 NRM까지.`,
+        weekNumber: r.week,
+        nameKo: r.label ? `${r.week}주차 — ${r.label}` : `${r.week}주차`,
+        notesKo: ruleLine(r),
         days: [
-          {
-            dayNumber: 1,
-            nameKo: "월요일 — 스쿼트 볼륨",
-            exercises: deload
-              ? [workWarmup(pct, "squat"), { exerciseKey: "squat", role: "main", notesKo: "딜로드 마커", sets: nSets(1, pct, 5, "1rm") }]
-              : [
-                  workWarmup(pct, "squat"),
-                  { exerciseKey: "squat", role: "main", sets: nSets(5, pct, 10, "1rm") },
-                  { exerciseKey: "bench", role: "assistance", sets: nSets(4, 55, 8, "1rm") },
-                  bodyweight("abs", "복근", 3, 12),
-                ],
-          },
+          monPct != null
+            ? {
+                dayNumber: 1,
+                nameKo: "월요일 — 스쿼트 볼륨",
+                exercises: deload
+                  ? [
+                      workWarmup(monPct, "squat"),
+                      { exerciseKey: "squat", role: "main", notesKo: "딜로드 마커", sets: nSets(1, monPct, 5, "1rm") },
+                    ]
+                  : [
+                      workWarmup(monPct, "squat"),
+                      {
+                        exerciseKey: "squat",
+                        role: "main",
+                        sets: nSets(r.mon!.sets ?? 1, monPct, monReps ?? 5, "1rm"),
+                      },
+                      { exerciseKey: "bench", role: "assistance", sets: nSets(4, 55, 8, "1rm") },
+                      bodyweight("abs", "복근", 3, 12),
+                    ],
+              }
+            : restDay(1, "월요일 — 휴식"),
           restDay(2, "화요일 — 휴식"),
-          {
-            dayNumber: 3,
-            nameKo: "수요일 — 프론트스쿼트",
-            notesKo: deload ? "딜로드 래더" : "55→75×5 래더 (주차에 따라 소폭 상향)",
-            exercises: deload
-              ? [workWarmup(fs[0], "front_squat"), { exerciseKey: "front_squat", role: "main", sets: nSets(1, fs[0], 5, "1rm") }]
-              : [
-                  workWarmup(fs[0], "front_squat"),
-                  { exerciseKey: "front_squat", role: "main", sets: sets(fs, 5, "1rm") },
-                  { exerciseKey: "ohp", role: "assistance", sets: nSets(4, 55, 6, "1rm") },
-                  bodyweight("chin_up", "친업", 3, 8),
-                ],
-          },
+          wedPcts.length
+            ? {
+                dayNumber: 3,
+                nameKo: "수요일 — 프론트스쿼트",
+                notesKo: deload ? "딜로드 마커" : `FS ${wedPcts.join("→")} ×${wedReps}`,
+                exercises: deload
+                  ? [
+                      workWarmup(wedPcts[0], "front_squat"),
+                      { exerciseKey: "front_squat", role: "main", sets: nSets(1, wedPcts[0], 5, "1rm") },
+                    ]
+                  : [
+                      workWarmup(wedPcts[0], "front_squat"),
+                      { exerciseKey: "front_squat", role: "main", sets: sets(wedPcts, wedReps, "1rm") },
+                      { exerciseKey: "ohp", role: "assistance", sets: nSets(4, 55, 6, "1rm") },
+                      bodyweight("chin_up", "친업", 3, 8),
+                    ],
+              }
+            : restDay(3, "수요일 — 휴식"),
           restDay(4, "목요일 — 휴식"),
           {
             dayNumber: 5,
-            nameKo: "금요일 — NRM 사다리",
-            notesKo: deload ? "deload — 가이드만. work 없음." : "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
-            exercises: deload
-              ? [
-                  workWarmup(50, "deadlift"),
-                  { exerciseKey: "deadlift", role: "main", notesKo: "work: deload", sets: [] },
-                ]
-              : [
-                  workWarmup(50, "deadlift"),
-                  {
-                    exerciseKey: "deadlift",
-                    role: "main",
-                    notesKo: "work: to_NRM",
-                    sets: sets([50, 60, 70, 75, 80], [5, 3, 2, 1, 1], "1rm", { lastAmrap: true, restSec: 180 }),
-                  },
-                  { exerciseKey: "barbell_row", role: "assistance", sets: nSets(4, 50, 8, "1rm") },
-                ],
+            nameKo: r.label === "test" ? "금요일 — 1RM 테스트" : "금요일 — 가이드 RM",
+            notesKo: `work: ${r.fri}`,
+            exercises: [
+              workWarmup(50, "squat"),
+              { exerciseKey: "squat", role: "main", notesKo: `work: ${r.fri}`, sets: [] },
+            ],
           },
           restDay(6, "토요일 — 휴식"),
         ],
