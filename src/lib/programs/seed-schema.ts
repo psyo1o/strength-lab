@@ -47,6 +47,8 @@ export type PublicSeedProgram = {
   progression?: Record<string, { addKg: number }>;
   extraOneRmFields?: Record<string, { label: string }>;
   weekRules?: string[];
+  coverage?: string;
+  copy?: { help?: string };
   weeks: PublicSeedWeek[];
 };
 

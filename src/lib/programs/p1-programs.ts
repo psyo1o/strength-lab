@@ -119,6 +119,10 @@ export function dailyUndulatingProgram(): SeedProgram {
   };
 }
 
+function restDay(dayNumber: number, nameKo: string): SeedDay {
+  return { dayNumber, nameKo, notesKo: "휴식", exercises: [] };
+}
+
 export function juggernautP1(): SeedProgram {
   const waves = [
     { label: "10s", acc: { pct: 60, sets: 5, reps: 10 }, int: { pct: 67.5, sets: 3, reps: 10 }, realTop: 75 },
@@ -127,10 +131,10 @@ export function juggernautP1(): SeedProgram {
     { label: "3s", acc: { pct: 80, sets: 7, reps: 3 }, int: { pct: 85, sets: 5, reps: 3 }, realTop: 92.5 },
   ];
   const lifts = [
-    { n: 1, name: "스쿼트", key: "squat" },
-    { n: 2, name: "벤치", key: "bench" },
-    { n: 3, name: "데드", key: "deadlift" },
-    { n: 4, name: "OHP", key: "ohp" },
+    { n: 1, name: "월요일 — 스쿼트", key: "squat" },
+    { n: 3, name: "수요일 — 벤치", key: "bench" },
+    { n: 5, name: "금요일 — 데드", key: "deadlift" },
+    { n: 6, name: "토요일 — OHP", key: "ohp" },
   ];
   const assist = (key: string): SeedExercise[] => {
     if (key === "squat") return [{ exerciseKey: "front_squat", role: "assistance", sets: nSets(3, 50, 8, "1rm") }, { exerciseKey: "barbell_row", role: "assistance", sets: nSets(4, 50, 8, "1rm") }];
@@ -145,6 +149,21 @@ export function juggernautP1(): SeedProgram {
     return { name: "딜로드", pct: 60, count: 3, reps: 5, amrap: false, ramp: false };
   };
   const kinds = ["acc", "int", "real", "deload"] as const;
+  const liftDay = (d: (typeof lifts)[number], row: ReturnType<typeof kindRow>): SeedDay => ({
+    dayNumber: d.n,
+    nameKo: d.name,
+    exercises: [
+      workWarmup(row.ramp ? 50 : row.pct, d.key),
+      {
+        exerciseKey: d.key,
+        role: "main",
+        sets: row.ramp
+          ? sets([50, 60, 67.5, row.pct], [5, 3, 2, row.reps], "1rm", { lastAmrap: true, restSec: 180 })
+          : nSets(row.count, row.pct, row.reps, "1rm", { lastAmrap: row.amrap, restSec: 150 }),
+      },
+      ...assist(d.key),
+    ],
+  });
   return {
     slug: "juggernaut",
     nameKo: "Juggernaut Method",
@@ -152,8 +171,18 @@ export function juggernautP1(): SeedProgram {
     category: "파워리프팅",
     completeness: "working",
     descriptionKo:
-      "16주 10s→8s→5s→3s. W1은 4대 리프트 축적 60%×10×5 + 보조. 실현 주 AMRAP는 시트 공식으로 1RM을 갱신합니다.",
-    descriptionEn: "16-week waves. W1 accumulation 60%x10x5. Approximate public-knowledge table.",
+      "16주 월/수/금/토. 10s→8s→5s→3s Acc/Int/Real/Deload. 실현 주 AMRAP는 시트 공식으로 1RM을 갱신. 피킹 블록은 W16 이후 노트.",
+    descriptionEn: "16-week waves Mon/Wed/Fri/Sat plus peaking notes after W16.",
+    coverage: "w1-16_full_sets_plus_peaking",
+    copy: {
+      help: "16주 웨이브(10s/8s/5s/3s) 후 피킹 5주는 시트/코치 블록. 실현 주 AMRAP만 1RM을 자동 갱신합니다.",
+    },
+    weekRules: [
+      ...waves.flatMap((wave, wi) =>
+        kinds.map((kind, ki) => `W${wi * 4 + ki + 1}: ${wave.label} ${kindRow(kind, wave).name}`),
+      ),
+      "peakingBlock: W16 이후 피킹 5주는 시트/코치 블록. 앱은 realizationMaxHook만 자동.",
+    ],
     sortOrder: 40,
     weeks: waves.flatMap((wave, wi) =>
       kinds.map((kind, ki) => {
@@ -161,22 +190,15 @@ export function juggernautP1(): SeedProgram {
         return {
           weekNumber: wi * 4 + ki + 1,
           nameKo: `${wi * 4 + ki + 1}주차 — ${wave.label} ${row.name}`,
-          notesKo: row.amrap ? "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신." : "딜로드 60%.",
-          days: lifts.map((d) => ({
-            dayNumber: d.n,
-            nameKo: d.name,
-            exercises: [
-              workWarmup(row.ramp ? 50 : row.pct, d.key),
-              {
-                exerciseKey: d.key,
-                role: "main" as const,
-                sets: row.ramp
-                  ? sets([50, 60, 67.5, row.pct], [5, 3, 2, row.reps], "1rm", { lastAmrap: true, restSec: 180 })
-                  : nSets(row.count, row.pct, row.reps, "1rm", { lastAmrap: row.amrap, restSec: 150 }),
-              },
-              ...assist(d.key),
-            ],
-          })),
+          notesKo: row.amrap ? "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신." : "딜로드 60% × 3×5.",
+          days: [
+            liftDay(lifts[0], row),
+            restDay(2, "화요일 — 휴식"),
+            liftDay(lifts[1], row),
+            restDay(4, "목요일 — 휴식"),
+            liftDay(lifts[2], row),
+            liftDay(lifts[3], row),
+          ],
         };
       }),
     ),
@@ -196,57 +218,75 @@ export function cowboyP1(): SeedProgram {
     category: "파워리프팅",
     completeness: "working",
     descriptionKo:
-      "월/수/금 13주. W1 월 60%×5×10, 수 프론트 55→75×5, 금 NRM 사다리. weekRules는 주 노트. Wendler 원본 복제 아님.",
-    descriptionEn: "Mon/Wed/Fri 13 weeks. Approximate Cowboy volume.",
+      "13주 × 6일. 월 스쿼트 볼륨, 수 프론트 래더, 금 NRM 사다리. 화/목/토 휴식. Wendler 원본 복제 아님.",
+    descriptionEn: "13 weeks × 6 days. Mon/Wed/Fri work, Tue/Thu/Sat rest.",
+    coverage: "w1-13_full_sets",
+    copy: {
+      help: "13주 카우보이. 월 스쿼트 볼륨, 수 프론트 래더, 금은 가이드 NRM. 화/목/토는 휴식입니다.",
+    },
     weekRules: Array.from({ length: 13 }, (_, i) => {
       const w = i + 1;
-      return `W${w}: 월 ${weekPct(w)}% 5×10 · 수 FS 래더 · 금 NRM 사다리`;
+      return `W${w}: 월 ${weekPct(w)}%${w === 11 ? " 딜로드 마커" : " 5×10"} · 수 FS 래더 · 금 ${w === 11 ? "딜로드 노트" : "NRM 사다리"}`;
     }),
     sortOrder: 50,
     weeks: Array.from({ length: 13 }, (_, i) => {
       const w = i + 1;
       const pct = weekPct(w);
+      const deload = w === 11;
       const fs = [55, 60, 65, 70, 75].map((p) => p + (w === 1 ? 0 : Math.min(5, (w - 1) * 0.5)));
       return {
         weekNumber: w,
-        nameKo: w === 11 ? "11주차 — 딜로드" : `${w}주차`,
+        nameKo: deload ? "11주차 — 딜로드" : `${w}주차`,
         notesKo: `weekRules W${w}: 월 ${pct}%×5×10. 금은 가이드 사다리로 NRM까지.`,
         days: [
           {
             dayNumber: 1,
             nameKo: "월요일 — 스쿼트 볼륨",
-            exercises: [
-              workWarmup(pct, "squat"),
-              { exerciseKey: "squat", role: "main", sets: nSets(5, pct, 10, "1rm") },
-              { exerciseKey: "bench", role: "assistance", sets: nSets(4, 55, 8, "1rm") },
-              bodyweight("abs", "복근", 3, 12),
-            ],
+            exercises: deload
+              ? [workWarmup(pct, "squat"), { exerciseKey: "squat", role: "main", notesKo: "딜로드 마커", sets: nSets(1, pct, 5, "1rm") }]
+              : [
+                  workWarmup(pct, "squat"),
+                  { exerciseKey: "squat", role: "main", sets: nSets(5, pct, 10, "1rm") },
+                  { exerciseKey: "bench", role: "assistance", sets: nSets(4, 55, 8, "1rm") },
+                  bodyweight("abs", "복근", 3, 12),
+                ],
           },
-          {
-            dayNumber: 2,
-            nameKo: "수요일 — 프론트스쿼트",
-            notesKo: "55→75×5 래더 (주차에 따라 소폭 상향)",
-            exercises: [
-              workWarmup(fs[0], "front_squat"),
-              { exerciseKey: "front_squat", role: "main", sets: sets(fs, 5, "1rm") },
-              { exerciseKey: "ohp", role: "assistance", sets: nSets(4, 55, 6, "1rm") },
-              bodyweight("chin_up", "친업", 3, 8),
-            ],
-          },
+          restDay(2, "화요일 — 휴식"),
           {
             dayNumber: 3,
-            nameKo: "금요일 — NRM 사다리",
-            notesKo: "가이드 사다리 후 마지막 AMRAP ≈ NRM",
-            exercises: [
-              workWarmup(50, "deadlift"),
-              {
-                exerciseKey: "deadlift",
-                role: "main",
-                sets: sets([50, 60, 70, 75, 80], [5, 3, 2, 1, 1], "1rm", { lastAmrap: true, restSec: 180 }),
-              },
-              { exerciseKey: "barbell_row", role: "assistance", sets: nSets(4, 50, 8, "1rm") },
-            ],
+            nameKo: "수요일 — 프론트스쿼트",
+            notesKo: deload ? "딜로드 래더" : "55→75×5 래더 (주차에 따라 소폭 상향)",
+            exercises: deload
+              ? [workWarmup(fs[0], "front_squat"), { exerciseKey: "front_squat", role: "main", sets: nSets(1, fs[0], 5, "1rm") }]
+              : [
+                  workWarmup(fs[0], "front_squat"),
+                  { exerciseKey: "front_squat", role: "main", sets: sets(fs, 5, "1rm") },
+                  { exerciseKey: "ohp", role: "assistance", sets: nSets(4, 55, 6, "1rm") },
+                  bodyweight("chin_up", "친업", 3, 8),
+                ],
           },
+          restDay(4, "목요일 — 휴식"),
+          {
+            dayNumber: 5,
+            nameKo: "금요일 — NRM 사다리",
+            notesKo: deload ? "deload — 가이드만. work 없음." : "work: to_NRM. 가이드 사다리 후 마지막 AMRAP.",
+            exercises: deload
+              ? [
+                  workWarmup(50, "deadlift"),
+                  { exerciseKey: "deadlift", role: "main", notesKo: "work: deload", sets: [] },
+                ]
+              : [
+                  workWarmup(50, "deadlift"),
+                  {
+                    exerciseKey: "deadlift",
+                    role: "main",
+                    notesKo: "work: to_NRM",
+                    sets: sets([50, 60, 70, 75, 80], [5, 3, 2, 1, 1], "1rm", { lastAmrap: true, restSec: 180 }),
+                  },
+                  { exerciseKey: "barbell_row", role: "assistance", sets: nSets(4, 50, 8, "1rm") },
+                ],
+          },
+          restDay(6, "토요일 — 휴식"),
         ],
       };
     }),
@@ -263,10 +303,10 @@ export function rehabP1(): SeedProgram {
   const dapre = (key: string): SeedExercise => ({
     exerciseKey: key,
     role: "main",
-    notesKo: "DAPRE — 50%×12 / 75%×8 / 100% AMRAP. 다음 세션 ±2.5kg 수동.",
+    notesKo: "DAPRE — Knight 기본 50%×10 / 75%×6 / 100% AMRAP. 다음 세션 ±2.5kg 수동.",
     sets: [
-      { setNumber: 1, percentBase: "ten_rm", percent: 50, reps: 12, restSec: 120, noteKo: "" },
-      { setNumber: 2, percentBase: "ten_rm", percent: 75, reps: 8, restSec: 120, noteKo: "" },
+      { setNumber: 1, percentBase: "ten_rm", percent: 50, reps: 10, restSec: 120, noteKo: "Knight 워밍 10@50%" },
+      { setNumber: 2, percentBase: "ten_rm", percent: 75, reps: 6, restSec: 120, noteKo: "Knight 워밍 6@75%" },
       { setNumber: 3, percentBase: "ten_rm", percent: 100, reps: 6, amrap: true, restSec: 180, noteKo: "AMRAP 후 ±2.5kg" },
     ],
   });
@@ -277,14 +317,19 @@ export function rehabP1(): SeedProgram {
     category: "재활",
     completeness: "working",
     descriptionKo:
-      "W1 DeLorme 50/75/100% 10RM×10, DAPRE 50×12 / 75×8 / 100 AMRAP. 목표 동작은 재활 목표 동작. 증감 2.5kg 수동.",
-    descriptionEn: "DeLorme + DAPRE on 10RM. rehab_target placeholder. 2.5kg steps.",
+      "W1 DeLorme 50/75/100% 10RM×10, DAPRE Knight 50×10 / 75×6 / 100 AMRAP. 목표 동작은 재활 목표 동작. 증감 2.5kg 수동.",
+    descriptionEn: "DeLorme + DAPRE (Knight 10@50 / 6@75) on 10RM. 2.5kg steps.",
     extraOneRmFields: { rehab_target: { label: "재활 목표 동작" } },
     sortOrder: 20,
-    weeks: [1, 2, 3, 4].map((w) => ({
+    weeks: [1, 2, 3, 4, 5, 6, 7, 8].map((w) => ({
       weekNumber: w,
       nameKo: `${w}주차`,
-      notesKo: w === 1 ? "통증 없는 가동 범위만." : "10RM이 편하면 +2.5kg 재추정.",
+      notesKo:
+        w === 1
+          ? "통증 없는 가동 범위만. DeLorme 8주 + DAPRE Knight 기본."
+          : w <= 4
+            ? "10RM이 편하면 +2.5kg 재추정."
+            : `후반 ${w}주차. 10RM이 편하면 +2.5kg. Knight DAPRE는 12/8 변형이 아님.`,
       days: [
         {
           dayNumber: 1,

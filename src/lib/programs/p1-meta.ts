@@ -30,6 +30,12 @@ export const P1_META: Record<string, P1Meta> = {
   rehab: {
     extraOneRmFields: [{ key: "rehab_target", label: "재활 목표 동작" }],
   },
+  juggernaut: {
+    listedBlocks: ["W1–16 Acc/Int/Real/Deload (월/수/금/토)", "피킹 블록 — W16 이후 시트/코치 5주. realizationMaxHook만 자동."],
+  },
+  cowboy: {
+    listedBlocks: ["W1–13 월 스쿼트 / 수 프론트 / 금 NRM", "화·목·토 휴식", "W11 딜로드 마커"],
+  },
   lbeb: {},
   catalyst: {
     listedBlocks: ["기본 12주 시드. 세션은 시드된 모든 주/일로 이동합니다."],

@@ -68,18 +68,25 @@ export function ProgramWeekList({
               </p>
             ) : (
               <div className="mt-2 space-y-2">
-                {days.map((d) => (
-                  <Link
-                    key={d.id}
-                    href={`/session/${slug}/${w.week_number}/${d.day_number}`}
-                    className="card tap block p-4 font-bold"
-                  >
-                    {d.name_ko}
-                    {d.notes_ko ? (
-                      <div className="text-xs font-normal text-[var(--muted)]">{d.notes_ko}</div>
-                    ) : null}
-                  </Link>
-                ))}
+                {days.map((d) =>
+                  d.notes_ko === "휴식" || d.name_ko.includes("휴식") ? (
+                    <div key={d.id} className="card p-4 text-sm font-bold text-[var(--muted)]">
+                      {d.name_ko}
+                      <div className="text-xs font-normal">휴식일</div>
+                    </div>
+                  ) : (
+                    <Link
+                      key={d.id}
+                      href={`/session/${slug}/${w.week_number}/${d.day_number}`}
+                      className="card tap block p-4 font-bold"
+                    >
+                      {d.name_ko}
+                      {d.notes_ko ? (
+                        <div className="text-xs font-normal text-[var(--muted)]">{d.notes_ko}</div>
+                      ) : null}
+                    </Link>
+                  ),
+                )}
               </div>
             )}
           </section>

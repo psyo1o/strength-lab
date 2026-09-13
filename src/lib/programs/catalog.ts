@@ -55,6 +55,8 @@ export type SeedProgram = {
   progression?: Record<string, { addKg: number }>;
   extraOneRmFields?: Record<string, { label: string }>;
   weekRules?: string[];
+  coverage?: string;
+  copy?: { help?: string };
   weeks: SeedWeek[];
 };
 
@@ -588,16 +590,25 @@ function wendlerProgram(): SeedProgram {
     category: "파워리프팅",
     completeness: "full",
     descriptionKo:
-      "Training Max = 0.9×1RM. 월 OHP / 화 데드 / 목 벤치 / 금 스쿼트. 1주 65/75/85%×5, 2주 70/80/90%×3, 3주 75/85/95%(5/3/1), 4주 딜로드. 워밍업 + 기본 보조 BBB 5×10 @ 50% TM.",
+      "Training Max = 0.9×1RM. 월 OHP / 화 데드 / 목 벤치 / 금 스쿼트. 1주 65/75/85%×5, 2주 70/80/90%×3, 3주 75/85/95%(5/3/1), 4주 딜로드. 워밍업 + 기본 보조 BBB 5×10 @ 50% TM. 사이클 후 TM은 상체 +2.5kg / 하체 +5kg.",
     descriptionEn:
-      "TM=0.9×1RM. Mon OHP / Tue DL / Thu Bench / Fri Squat. BBB 5×10 @ 50% TM is the default assistance.",
+      "TM=0.9×1RM. After each 4-week cycle bump TM +2.5kg upper / +5kg lower if the AMRAP was hit.",
     usesTM: true,
     tmFactor: 0.9,
+    progression: {
+      ohp: { addKg: 2.5 },
+      bench: { addKg: 2.5 },
+      squat: { addKg: 5 },
+      deadlift: { addKg: 5 },
+    },
     sortOrder: 1,
     weeks: [1, 2, 3, 4].map((w) => ({
       weekNumber: w,
       nameKo: weekNames[w - 1],
-      notesKo: w === 4 ? "가벼운 딜로드. 피로를 뺀다." : "마지막 본세트는 AMRAP.",
+      notesKo:
+        w === 4
+          ? "가벼운 딜로드. 사이클 후 TM 상체 +2.5kg / 하체 +5kg (AMRAP를 채웠을 때)."
+          : "마지막 본세트는 AMRAP.",
       days: dayDefs.map((d) => wendlerDay(d.n, d.name, d.lift, w as 1 | 2 | 3 | 4)),
     })),
   };
@@ -1038,7 +1049,7 @@ function madcow(): SeedProgram {
     category: "중급 근력",
     completeness: "working",
     descriptionKo:
-      "월: 12.5% 램핑 5×5(탑세트). 수: 라이트 스쿼트 + 프레스 + 데드. 금: 램핑 후 헤비 트리플 + 백오프. 매주 탑 ×1.025. 시작중량이 있으면 탑세트로 사용하고, 없으면 1RM의 약 80%를 1주차 탑으로 둡니다.",
+      "월: 12.5% 램핑 5×5(탑세트). 수: 라이트 스쿼트 + 프레스 + 데드. 금: 매주 램핑 후 헤비 트리플 + 백오프(10주차만이 아님). 매주 탑 ×1.025. 시작중량이 있으면 탑세트로 사용하고, 없으면 1RM의 약 80%를 1주차 탑으로 둡니다.",
     descriptionEn: "Mon/Wed/Fri Madcow. Week-1 12.5% ramps of top; weekly ×1.025. Start-weight field is the top set.",
     sortOrder: 4,
     startWeight: { enabled: true },

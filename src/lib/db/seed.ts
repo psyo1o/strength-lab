@@ -4,7 +4,7 @@ import type Database from "better-sqlite3";
 import { setLoadRules } from "../calc/loads";
 import { buildSeed, type SeedFile } from "../programs/catalog";
 import { inferCompleteness } from "../programs/seed-merge";
-import type { PublicSeedFile } from "../programs/seed-schema";
+import type { PublicSeedFile, PublicSeedProgram } from "../programs/seed-schema";
 
 export function seedJsonPath(): string {
   return process.env.SEED_JSON_PATH || path.join(process.cwd(), "data", "seed.json");
@@ -89,7 +89,9 @@ function normalizeSeed(raw: unknown): SeedFile {
             declared: (p.completeness as "full" | "working" | "template") ?? fallback?.completeness,
             weeks,
           }),
-          descriptionKo: String(p.descriptionKo ?? fallback?.descriptionKo ?? ""),
+          descriptionKo: String(
+            (p.copy as { help?: string } | undefined)?.help ?? p.descriptionKo ?? fallback?.descriptionKo ?? "",
+          ),
           descriptionEn: String(p.descriptionEn ?? fallback?.descriptionEn ?? ""),
           usesTM: Boolean(p.usesTM ?? fallback?.usesTM ?? String(p.id ?? p.slug).includes("531")),
           tmFactor: Number(p.tmFactor ?? fallback?.tmFactor ?? 0.9),
@@ -98,6 +100,8 @@ function normalizeSeed(raw: unknown): SeedFile {
           extraOneRmFields:
             (p.extraOneRmFields as Record<string, { label: string }> | undefined) ?? fallback?.extraOneRmFields,
           weekRules: (p.weekRules as string[] | undefined) ?? fallback?.weekRules,
+          coverage: (p.coverage as string | undefined) ?? fallback?.coverage,
+          copy: (p.copy as { help?: string } | undefined) ?? fallback?.copy,
           sortOrder: Number(p.sortOrder ?? fallback?.sortOrder ?? idx * 10),
           weeks,
         };
@@ -118,22 +122,8 @@ function toPublicSeed(seed: SeedFile): PublicSeedFile {
       ohp: { label: "오버헤드프레스" },
     },
     loadRules: { roundKg: 2.5, tmFactor: 0.9, barKg: 20 },
-    programs: seed.programs.map((p) => ({
-      id: p.slug,
-      nameKo: p.nameKo,
-      nameEn: p.nameEn,
-      category: p.category,
-      completeness: p.completeness,
-      descriptionKo: p.descriptionKo,
-      descriptionEn: p.descriptionEn,
-      usesTM: p.usesTM ?? p.slug.includes("531"),
-      tmFactor: p.tmFactor ?? 0.9,
-      sortOrder: p.sortOrder,
-      ...(p.startWeight ? { startWeight: p.startWeight } : {}),
-      ...(p.progression ? { progression: p.progression } : {}),
-      ...(p.extraOneRmFields ? { extraOneRmFields: p.extraOneRmFields } : {}),
-      ...(p.weekRules ? { weekRules: p.weekRules } : {}),
-      weeks: p.weeks.map((w) => ({
+    programs: seed.programs.map((p) => {
+      const weeks = p.weeks.map((w) => ({
         week: w.weekNumber,
         nameKo: w.nameKo,
         notesKo: w.notesKo,
@@ -171,8 +161,28 @@ function toPublicSeed(seed: SeedFile): PublicSeedFile {
             }),
           })),
         })),
-      })),
-    })),
+      }));
+      const row: PublicSeedProgram = {
+        id: p.slug,
+        nameKo: p.nameKo,
+        nameEn: p.nameEn,
+        category: p.category,
+        completeness: p.completeness,
+        descriptionKo: p.copy?.help || p.descriptionKo,
+        descriptionEn: p.descriptionEn,
+        usesTM: p.usesTM ?? p.slug.includes("531"),
+        tmFactor: p.tmFactor ?? 0.9,
+        sortOrder: p.sortOrder,
+        weeks,
+      };
+      if (p.startWeight) row.startWeight = p.startWeight;
+      if (p.progression) row.progression = p.progression;
+      if (p.extraOneRmFields) row.extraOneRmFields = p.extraOneRmFields;
+      if (p.weekRules) row.weekRules = p.weekRules;
+      if (p.coverage) row.coverage = p.coverage;
+      if (p.copy) row.copy = p.copy;
+      return row;
+    }),
   };
 }
 
@@ -247,7 +257,7 @@ export function applySeed(raw: Database.Database) {
         p.nameEn,
         p.category,
         p.completeness,
-        p.descriptionKo,
+        p.copy?.help || p.descriptionKo,
         p.descriptionEn,
         p.sortOrder,
       );

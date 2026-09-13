@@ -297,12 +297,18 @@ describe("P1 programs", () => {
     const jInt = j.weeks[1].days[0].exercises.find((e: { role: string }) => e.role === "main");
     expect(jInt.sets[0]).toEqual(expect.objectContaining({ percent: 67.5, of: "1RM" }));
     const cow = raw.programs.find((p: { id: string }) => p.id === "cowboy");
-    expect(cow.weeks[0].days).toHaveLength(3);
+    expect(cow.weeks).toHaveLength(13);
+    expect(cow.weeks[0].days).toHaveLength(6);
+    expect(cow.completeness).toBe("working");
+    expect(cow.coverage).toBe("w1-13_full_sets");
     expect(cow.weekRules).toHaveLength(13);
     const mon = cow.weeks[0].days[0].exercises.find((e: { role: string }) => e.role === "main");
     expect(mon.sets).toEqual(expect.arrayContaining([expect.objectContaining({ percent: 60, reps: 10, of: "1RM" })]));
     expect(mon.sets).toHaveLength(5);
-    const wed = cow.weeks[0].days[1].exercises.find((e: { role: string }) => e.role === "main");
+    const wedDay = cow.weeks[0].days.find(
+      (d: { nameKo?: string; day?: number }) => d.day === 3 || String(d.nameKo).includes("프론트"),
+    );
+    const wed = wedDay.exercises.find((e: { role: string }) => e.role === "main");
     expect(wed.sets.map((s: { percent: number }) => s.percent)).toEqual([55, 60, 65, 70, 75]);
     const dup = raw.programs.find((p: { id: string }) => p.id === "daily-undulating");
     expect(dup.weeks[0].days).toHaveLength(6);
@@ -316,6 +322,7 @@ describe("P1 programs", () => {
       [63, 1],
     ]);
     const rehab = raw.programs.find((p: { id: string }) => p.id === "rehab");
+    expect(rehab.weeks).toHaveLength(8);
     const delorme = rehab.weeks[0].days[0].exercises.find((e: { exerciseId: string }) => e.exerciseId === "rehab_target");
     expect(delorme.sets.map((s: { percent: number; reps: number; of: string }) => [s.percent, s.reps, s.of])).toEqual([
       [50, 10, "10RM"],
@@ -324,10 +331,33 @@ describe("P1 programs", () => {
     ]);
     const dapre = rehab.weeks[0].days[1].exercises.find((e: { exerciseId: string }) => e.exerciseId === "rehab_target");
     expect(dapre.sets.map((s: { percent: number; reps: number }) => [s.percent, s.reps])).toEqual([
-      [50, 12],
-      [75, 8],
+      [50, 10],
+      [75, 6],
       [100, 6],
     ]);
+    const wendler = raw.programs.find((p: { id: string }) => p.id === "jim-wendler-531");
+    expect(wendler.progression.ohp.addKg).toBe(2.5);
+    expect(wendler.progression.bench.addKg).toBe(2.5);
+    expect(wendler.progression.squat.addKg).toBe(5);
+    expect(wendler.progression.deadlift.addKg).toBe(5);
+    const jug = raw.programs.find((p: { id: string }) => p.id === "juggernaut");
+    expect(jug.weeks).toHaveLength(16);
+    expect(jug.weeks[0].days).toHaveLength(6);
+    expect(jug.completeness).toBe("working");
+    expect(jug.coverage).toBe("w1-16_full_sets_plus_peaking");
+    expect(jug.weekRules.at(-1)).toMatch(/peakingBlock/);
+    const madcow = raw.programs.find((p: { id: string }) => p.id === "madcow-5x5");
+    for (const week of madcow.weeks) {
+      const fri = week.days[week.days.length - 1];
+      const squat = fri.exercises.find((e: { exerciseId: string }) => e.exerciseId === "squat");
+      expect(squat.sets.some((s: { reps: number; noteKo?: string }) => s.reps === 3)).toBe(true);
+    }
+    const ss = raw.programs.find((p: { id: string }) => p.id === "starting-strength");
+    const ohp = ss.weeks[0].days
+      .flatMap((d: { exercises: { exerciseId: string; sets: { reps: number }[] }[] }) => d.exercises)
+      .find((e: { exerciseId: string }) => e.exerciseId === "ohp");
+    expect(ohp.sets).toHaveLength(3);
+    expect(ohp.sets.every((s: { reps: number }) => s.reps === 5)).toBe(true);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks[0].nameKo).toMatch(/Class III/);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks).toHaveLength(12);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");

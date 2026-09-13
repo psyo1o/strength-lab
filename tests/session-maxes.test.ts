@@ -70,6 +70,10 @@ describe("session week 1 day 1", () => {
       expect(late, slug).toBeTruthy();
       expect(late!.workout.exercises.length).toBeGreaterThan(0);
     }
+    const cow = loadSessionWorkout({ slug: "cowboy", week: 13, day: 1, userId: created.user.id, unit: "kg" });
+    expect(cow).toBeTruthy();
+    const jug = loadSessionWorkout({ slug: "juggernaut", week: 16, day: 1, userId: created.user.id, unit: "kg" });
+    expect(jug).toBeTruthy();
   });
 });
 
@@ -148,5 +152,8 @@ describe("completeness badges", () => {
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "torokhtiy").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("template");
+    expect(raw.programs.find((p: { id: string }) => p.id === "cowboy").completeness).toBe("working");
+    expect(raw.programs.find((p: { id: string }) => p.id === "juggernaut").completeness).toBe("working");
+    expect(programBadge("juggernaut", "working")).toBe("진행 가능");
   });
 });
