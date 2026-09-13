@@ -329,8 +329,11 @@ describe("P1 programs", () => {
       [100, 6],
     ]);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks[0].nameKo).toMatch(/Class III/);
+    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks).toHaveLength(12);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");
+    expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").weeks).toHaveLength(12);
     expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").completeness).toBe("working");
+    expect(JSON.stringify(raw.programs.find((p: { id: string }) => p.id === "catalyst"))).not.toMatch(/미확장/);
     const toro = raw.programs.find((p: { id: string }) => p.id === "torokhtiy");
     expect(toro.weeks.length).toBeGreaterThanOrEqual(13);
     expect(toro.weeks[0].days).toHaveLength(5);

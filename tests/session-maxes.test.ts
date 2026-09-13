@@ -64,6 +64,12 @@ describe("session week 1 day 1", () => {
     expect(w13).toBeTruthy();
     expect(w13!.workout.exercises.length).toBeGreaterThan(0);
     assertNoUndefined(w13!.workout, "torokhtiy.w13.workout");
+
+    for (const slug of ["bob-takano", "catalyst"] as const) {
+      const late = loadSessionWorkout({ slug, week: 12, day: 1, userId: created.user.id, unit: "kg" });
+      expect(late, slug).toBeTruthy();
+      expect(late!.workout.exercises.length).toBeGreaterThan(0);
+    }
   });
 });
 

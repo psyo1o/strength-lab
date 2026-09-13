@@ -381,7 +381,7 @@ export function bobTakanoP1(): SeedProgram {
     category: "역도",
     completeness: "working",
     descriptionKo: "Class III / II / I 12주. 프로그램 화면에서 클래스 또는 전체를 고릅니다. 공식 장기 주기화 아님.",
-    descriptionEn: "Class III week 1 default. Manual class picker. Approximate.",
+    descriptionEn: "Class III / II / I over 12 weeks. Approximate.",
     sortOrder: 90,
     weeks: classes.flatMap((cl, ci) =>
       [1, 2, 3, 4].map((off) => ({
@@ -410,15 +410,12 @@ export function catalystP1(): SeedProgram {
     category: "역도",
     completeness: "working",
     descriptionKo: "12주 기본 블록. 시드된 모든 주/일로 세션이 열립니다.",
-    descriptionEn: "12-week base. Specialty blocks listed, not expanded.",
+    descriptionEn: "12-week base. All seeded weeks are session-ready.",
     sortOrder: 100,
     weeks: Array.from({ length: 12 }, (_, i) => ({
       weekNumber: i + 1,
-      nameKo: i === 0 ? "1주차 — 기본" : `${i + 1}주차 — 기본 (스페셜티 미확장)`,
-      notesKo:
-        i === 0
-          ? "12주 기본 W1. 피킹/볼륨/컨피던스 블록은 이후."
-          : "기본 블록 반복 +1%p. 스페셜티 블록은 이 버전에서 펼치지 않음.",
+      nameKo: `${i + 1}주차 — 기본`,
+      notesKo: i === 0 ? "12주 기본 블록 W1." : `기본 블록 ${i + 1}주차. 작업중량 +${i}%p.`,
       days: olympicWeek1Days("catalyst", i + 1),
     })),
   };
