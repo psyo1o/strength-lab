@@ -30,11 +30,9 @@ export const P1_META: Record<string, P1Meta> = {
   rehab: {
     extraOneRmFields: [{ key: "rehab_target", label: "재활 목표 동작" }],
   },
-  lbeb: {
-    unavailableWeeks: [7, 8, 9, 10, 11, 12],
-  },
+  lbeb: {},
   catalyst: {
-    listedBlocks: ["기본 12주 (이 시드)", "피킹 블록 — 미확장", "볼륨 블록 — 미확장", "컨피던스 블록 — 미확장"],
+    listedBlocks: ["기본 12주 시드. 세션은 시드된 모든 주/일로 이동합니다."],
   },
 };
 

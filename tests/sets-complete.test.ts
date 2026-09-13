@@ -65,6 +65,6 @@ describe("POST /api/sets/complete", () => {
 
     const res = await postComplete({ setId: row.id, completed: true });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true, realization: null });
   });
 });

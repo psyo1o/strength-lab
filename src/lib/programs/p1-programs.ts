@@ -152,7 +152,7 @@ export function juggernautP1(): SeedProgram {
     category: "파워리프팅",
     completeness: "working",
     descriptionKo:
-      "16주 10s→8s→5s→3s. W1은 4대 리프트 축적 60%×10×5 + 보조. 실현 주 AMRAP로 다음 웨이브 MAX를 수동 갱신. 피킹 블록은 스텁.",
+      "16주 10s→8s→5s→3s. W1은 4대 리프트 축적 60%×10×5 + 보조. 실현 주 AMRAP는 시트 공식으로 1RM을 갱신합니다.",
     descriptionEn: "16-week waves. W1 accumulation 60%x10x5. Approximate public-knowledge table.",
     sortOrder: 40,
     weeks: waves.flatMap((wave, wi) =>
@@ -161,7 +161,7 @@ export function juggernautP1(): SeedProgram {
         return {
           weekNumber: wi * 4 + ki + 1,
           nameKo: `${wi * 4 + ki + 1}주차 — ${wave.label} ${row.name}`,
-          notesKo: row.amrap ? "마지막 AMRAP. 다음 웨이브 1RM은 수동 갱신." : "딜로드 60%.",
+          notesKo: row.amrap ? "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신." : "딜로드 60%.",
           days: lifts.map((d) => ({
             dayNumber: d.n,
             nameKo: d.name,
@@ -379,8 +379,8 @@ export function bobTakanoP1(): SeedProgram {
     nameKo: "Bob Takano",
     nameEn: "Bob Takano",
     category: "역도",
-    completeness: "template",
-    descriptionKo: "Class III W1이 기본. 프로그램 화면에서 III/II/I를 고릅니다. 공식 장기 주기화 아님.",
+    completeness: "working",
+    descriptionKo: "Class III / II / I 12주. 프로그램 화면에서 클래스 또는 전체를 고릅니다. 공식 장기 주기화 아님.",
     descriptionEn: "Class III week 1 default. Manual class picker. Approximate.",
     sortOrder: 90,
     weeks: classes.flatMap((cl, ci) =>
@@ -408,8 +408,8 @@ export function catalystP1(): SeedProgram {
     nameKo: "Catalyst Athletics",
     nameEn: "Catalyst Athletics",
     category: "역도",
-    completeness: "template",
-    descriptionKo: "12주 기본 블록. W1 완전 로드. 스페셜티 블록(피킹·볼륨 등)은 목록만 — 미확장.",
+    completeness: "working",
+    descriptionKo: "12주 기본 블록. 시드된 모든 주/일로 세션이 열립니다.",
     descriptionEn: "12-week base. Specialty blocks listed, not expanded.",
     sortOrder: 100,
     weeks: Array.from({ length: 12 }, (_, i) => ({
@@ -430,8 +430,8 @@ export function torokhtiyP1(): SeedProgram {
     nameKo: "Torokhtiy",
     nameEn: "Torokhtiy",
     category: "역도",
-    completeness: "template",
-    descriptionKo: "W1 월–금. W2–13은 같은 골격에 주당 +1%p와 노트만. 공식 앱과 무관.",
+    completeness: "working",
+    descriptionKo: "13주 월–금. W2–13은 같은 골격에 주당 +1%p. 공식 앱과 무관.",
     descriptionEn: "W1 Mon–Fri. W2–13 notes + small percent bump.",
     sortOrder: 110,
     weeks: Array.from({ length: 13 }, (_, i) => ({

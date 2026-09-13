@@ -39,7 +39,7 @@ describe("session week 1 day 1", () => {
     expect(created).toHaveProperty("user");
     if ("error" in created) throw new Error(created.error);
 
-    for (const slug of ["jim-wendler-531", "wendler-531", "daily-undulating"] as const) {
+    for (const slug of ["jim-wendler-531", "wendler-531", "daily-undulating", "torokhtiy"] as const) {
       const loaded = loadSessionWorkout({
         slug,
         week: 1,
@@ -53,6 +53,17 @@ describe("session week 1 day 1", () => {
       assertNoUndefined(loaded!.workout, `${slug}.workout`);
       expect(() => JSON.stringify({ workout: loaded!.workout, tips: loaded!.tips })).not.toThrow();
     }
+
+    const w13 = loadSessionWorkout({
+      slug: "torokhtiy",
+      week: 13,
+      day: 1,
+      userId: created.user.id,
+      unit: "kg",
+    });
+    expect(w13).toBeTruthy();
+    expect(w13!.workout.exercises.length).toBeGreaterThan(0);
+    assertNoUndefined(w13!.workout, "torokhtiy.w13.workout");
   });
 });
 
@@ -120,15 +131,16 @@ describe("completeness badges", () => {
     expect(programBanner("jim-wendler-531", "full")).toBeNull();
     expect(programBadge("rehab", "working")).toBe("진행 가능");
     expect(programBadge("rehab", "working")).not.toBe("완전 작동");
-    for (const slug of ["bob-takano", "catalyst", "torokhtiy", "lbeb"] as const) {
-      expect(programBadge(slug, "template")).toBe("템플릿 · 불완전");
-      expect(programBanner(slug, "template")).toMatch(/자동 진행/);
-    }
-    expect(programBadge("cowboy", "working")).toBe("템플릿 · 부분");
-    expect(programBanner("cowboy", "working")).toMatch(/원본/);
+    expect(programBadge("bob-takano", "working")).toBe("진행 가능");
+    expect(programBadge("lbeb", "template")).toBe("템플릿 · 불완전");
+    expect(programBanner("lbeb", "template")).toMatch(/세션이 없습니다/);
+    expect(programBadge("cowboy", "working")).toBe("진행 가능");
+    expect(programBanner("cowboy", "working")).toBeNull();
     const raw = JSON.parse(fs.readFileSync(seedJsonPath(), "utf8"));
     expect(raw.programs.find((p: { id: string }) => p.id === "jim-wendler-531").completeness).toBe("full");
     expect(raw.programs.find((p: { id: string }) => p.id === "rehab").completeness).toBe("working");
-    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("template");
+    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");
+    expect(raw.programs.find((p: { id: string }) => p.id === "torokhtiy").completeness).toBe("working");
+    expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("template");
   });
 });

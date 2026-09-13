@@ -17,17 +17,18 @@ export function ProgramWeekList({
   daysByWeek: Record<number, Day[]>;
 }) {
   const meta = P1_META[slug];
-  const pickers = meta?.phases ?? meta?.classes ?? [];
-  const [pick, setPick] = useState(pickers[0]?.id ?? "");
-  const start = pickers.find((p) => p.id === pick)?.weekStart ?? 1;
+  const phasePickers = meta?.phases ?? meta?.classes ?? [];
+  const pickers = phasePickers.length ? [{ id: "all", label: "전체", weekStart: 0 }, ...phasePickers] : [];
+  const [pick, setPick] = useState("all");
+  const start = pickers.find((p) => p.id === pick)?.weekStart ?? 0;
   const visible = useMemo(() => {
-    if (!pickers.length) return weeks;
-    const next = pickers
+    if (!pickers.length || pick === "all" || start <= 0) return weeks;
+    const next = phasePickers
       .map((p) => p.weekStart)
       .filter((n) => n > start)
       .sort((a, b) => a - b)[0];
     return weeks.filter((w) => w.week_number >= start && (next == null || w.week_number < next));
-  }, [weeks, pickers, start]);
+  }, [weeks, pickers.length, pick, start, phasePickers]);
 
   return (
     <div className="mt-6 space-y-5">
@@ -55,13 +56,13 @@ export function ProgramWeekList({
         </div>
       ) : null}
       {visible.map((w) => {
-        const blocked = meta?.unavailableWeeks?.includes(w.week_number);
         const days = daysByWeek[w.id] ?? [];
+        const empty = days.length === 0;
         return (
           <section key={w.id}>
             <h2 className="font-black">{w.name_ko}</h2>
             {w.notes_ko ? <p className="text-xs text-[var(--muted)]">{w.notes_ko}</p> : null}
-            {blocked ? (
+            {empty ? (
               <p className="mt-2 rounded-xl border border-[var(--line)] bg-[#2a1d12] p-3 text-sm">
                 이 주는 아직 없습니다.
               </p>

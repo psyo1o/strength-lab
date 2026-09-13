@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { applyJuggernautRealizationIfNeeded } from "@/lib/programs/juggernaut-hook";
 import { SetNotFoundError, toggleSetLog } from "@/lib/programs/queries";
 
 export const runtime = "nodejs";
@@ -20,5 +21,7 @@ export async function POST(req: Request) {
     }
     throw err;
   }
-  return NextResponse.json({ ok: true });
+  const realization =
+    body.completed === true ? applyJuggernautRealizationIfNeeded(user.id, setId, body.amrapReps) : null;
+  return NextResponse.json({ ok: true, realization });
 }

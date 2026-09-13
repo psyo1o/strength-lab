@@ -329,8 +329,14 @@ describe("P1 programs", () => {
       [100, 6],
     ]);
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").weeks[0].nameKo).toMatch(/Class III/);
-    expect(raw.programs.find((p: { id: string }) => p.id === "torokhtiy").weeks[0].days).toHaveLength(5);
+    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");
+    expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").completeness).toBe("working");
+    const toro = raw.programs.find((p: { id: string }) => p.id === "torokhtiy");
+    expect(toro.weeks.length).toBeGreaterThanOrEqual(13);
+    expect(toro.weeks[0].days).toHaveLength(5);
+    expect(toro.completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").weeks[6].days).toHaveLength(0);
+    expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("template");
     expect(typeof seedDraftsP1Path()).toBe("string");
   });
 });

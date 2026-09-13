@@ -84,3 +84,17 @@ export function resolveOneRm(maxes: MaxMap, exerciseKey: string): number | null 
 export function resolveStartKg(starts: MaxMap, exerciseKey: string): number | null {
   return lookup(starts, exerciseKey);
 }
+
+/** Update 1RM only — preserves start_kg on existing rows. */
+export function updateUserOneRm(userId: number, exerciseKey: string, oneRmKg: number) {
+  if (!(oneRmKg > 0) || !exerciseKey) return;
+  getSqlite()
+    .prepare(
+      `INSERT INTO user_maxes (user_id, exercise_key, one_rm_kg, start_kg, updated_at)
+       VALUES (?, ?, ?, NULL, ?)
+       ON CONFLICT(user_id, exercise_key) DO UPDATE SET
+         one_rm_kg = excluded.one_rm_kg,
+         updated_at = excluded.updated_at`,
+    )
+    .run(userId, exerciseKey, oneRmKg, Date.now());
+}

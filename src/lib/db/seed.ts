@@ -3,6 +3,7 @@ import path from "node:path";
 import type Database from "better-sqlite3";
 import { setLoadRules } from "../calc/loads";
 import { buildSeed, type SeedFile } from "../programs/catalog";
+import { inferCompleteness } from "../programs/seed-merge";
 import type { PublicSeedFile } from "../programs/seed-schema";
 
 export function seedJsonPath(): string {
@@ -83,7 +84,11 @@ function normalizeSeed(raw: unknown): SeedFile {
           nameKo: String(p.nameKo ?? fallback?.nameKo ?? p.id),
           nameEn: String(p.nameEn ?? fallback?.nameEn ?? p.id),
           category: String(p.category ?? fallback?.category ?? ""),
-          completeness: (p.completeness as "full") ?? fallback?.completeness ?? "template",
+          completeness: inferCompleteness({
+            id: String(p.id ?? p.slug),
+            declared: (p.completeness as "full" | "working" | "template") ?? fallback?.completeness,
+            weeks,
+          }),
           descriptionKo: String(p.descriptionKo ?? fallback?.descriptionKo ?? ""),
           descriptionEn: String(p.descriptionEn ?? fallback?.descriptionEn ?? ""),
           usesTM: Boolean(p.usesTM ?? fallback?.usesTM ?? String(p.id ?? p.slug).includes("531")),

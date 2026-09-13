@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { calculatePlates, defaultBar, formatPerSide } from "@/lib/calc/plates";
+import { juggernautWaveFromWeek } from "@/lib/calc/juggernaut";
 import { displayWeight } from "@/lib/calc/round";
 import type { ResolvedExercise } from "@/lib/programs/queries";
 import type { Tip } from "@/lib/tips";
@@ -56,6 +57,10 @@ export function WorkoutClient({
   const [rest, setRest] = useState({ running: false, seconds: 90 });
   const [tipOpen, setTipOpen] = useState(false);
   const [plateOpen, setPlateOpen] = useState(false);
+  const weekFromPath = Number(sessionPath.split("/").filter(Boolean)[2]);
+  const realizationWave = programSlug === "juggernaut" ? juggernautWaveFromWeek(weekFromPath) : null;
+  const [amrapReps, setAmrapReps] = useState(5);
+  const [hookMsg, setHookMsg] = useState<string | null>(null);
 
   useEffect(() => {
     void fetch("/api/settings", {
@@ -66,6 +71,13 @@ export function WorkoutClient({
   }, [sessionPath, programSlug]);
 
   const current = flat[cursor] ?? flat[0];
+  const askAmrap = Boolean(realizationWave && current?.set.amrap && current.exercise.role === "main");
+
+  useEffect(() => {
+    if (!current) return;
+    setAmrapReps(current.set.reps || 1);
+  }, [current?.set.id, current?.set.reps]);
+
   if (!current) return null;
   const tip = tips[current.exercise.exerciseKey];
   const bar = defaultBar(unit);
@@ -85,8 +97,21 @@ export function WorkoutClient({
     void fetch("/api/sets/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ setId: id, completed: true }),
-    });
+      body: JSON.stringify({
+        setId: id,
+        completed: true,
+        amrapReps: askAmrap ? amrapReps : undefined,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data: { realization?: { newMaxKg?: number; exerciseKey?: string; wave?: string } | null }) => {
+        if (data.realization?.newMaxKg) {
+          setHookMsg(
+            `${data.realization.exerciseKey} 1RM → ${data.realization.newMaxKg}kg (${data.realization.wave})`,
+          );
+        }
+      })
+      .catch(() => undefined);
     setRest({ running: true, seconds: current.set.restSec || 90 });
     const next = flat.findIndex((r, i) => i > cursor && !done[r.set.id] && r.set.id !== id);
     if (next >= 0) setCursor(next);
@@ -130,6 +155,20 @@ export function WorkoutClient({
         </div>
         <div className="mt-3 text-sm text-[var(--muted)]">{current.set.loadLabel}</div>
       </button>
+      {askAmrap ? (
+        <label className="mt-4 block rounded-xl border border-[var(--line)] bg-[var(--bg-elev)] p-4">
+          <span className="text-sm font-bold text-[var(--muted)]">실현 AMRAP 횟수 ({realizationWave})</span>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={amrapReps}
+            onChange={(e) => setAmrapReps(Number(e.target.value) || 1)}
+            className="mt-2 w-full bg-transparent text-4xl font-black tabular-nums outline-none"
+          />
+        </label>
+      ) : null}
+      {hookMsg ? <p className="mt-3 text-sm font-bold text-[var(--accent)]">{hookMsg}</p> : null}
 
       <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg bg-[#0f1117]/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
         <RestTimer
