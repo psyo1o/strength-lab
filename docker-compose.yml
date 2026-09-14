@@ -1,0 +1,33 @@
+services:
+  strength-lab:
+    build: .
+    container_name: strength-lab
+    restart: unless-stopped
+    ports:
+      # Host 7001 → Next.js in the container (PORT=3000).
+      # If DSM already uses 7001, change only the left number.
+      - "7001:3000"
+    environment:
+      AUTH_SECRET: ${AUTH_SECRET:-change-me-to-a-long-random-secret}
+      DATABASE_PATH: /data/app.db
+      MEDIA_PATH: /data/media
+      NODE_ENV: production
+      PORT: 3000
+      APP_URL: ${APP_URL:-http://soopark.myds.me:7001}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_SECURE: ${SMTP_SECURE:-0}
+    volumes:
+      # SQLite at /data/app.db. Exercise photos/videos at /data/media (MEDIA_PATH).
+      - strength-lab-data:/data
+      # Drop local files on the NAS (no third-party hotlink or coaching clips):
+      # mkdir -p /volume1/docker/strength-lab/media
+      # cp back_squat.webp /volume1/docker/strength-lab/media/
+      # then uncomment:
+      # - /volume1/docker/strength-lab/media:/data/media
+
+volumes:
+  strength-lab-data:

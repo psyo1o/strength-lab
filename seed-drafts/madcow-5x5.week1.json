@@ -1,0 +1,465 @@
+{
+  "id": "madcow-5x5",
+  "sheet": "Madcow 5X5",
+  "title": "Madcow 5X5",
+  "priority": "P0",
+  "usesTM": false,
+  "usesEstimated5RM": true,
+  "estimated5RM": {
+    "formula": "0.87 * 1RM",
+    "note": "sheet ROUND(lift*0.87)"
+  },
+  "setIntervalDefault": 0.125,
+  "weeklyProgression": {
+    "factor": 1.025,
+    "note": "≈ +2.5% per week on top set",
+    "fridayTripleEveryWeek": true
+  },
+  "prWeekDefault": null,
+  "rounding": "nearest_5_via_sheet_formula_equivalent_to_2_5_steps",
+  "mainLifts": [
+    "back_squat",
+    "bench_press",
+    "deadlift",
+    "ohp"
+  ],
+  "dayTemplates": {
+    "monday": {
+      "name": "Heavy 5x5",
+      "weekday": "월",
+      "exercises": [
+        {
+          "exerciseId": "back_squat",
+          "scheme": "5x5_ramp_to_top"
+        },
+        {
+          "exerciseId": "bench_press",
+          "scheme": "5x5_ramp_to_top"
+        },
+        {
+          "exerciseId": "barbell_row",
+          "scheme": "5x5_ramp_to_top",
+          "rowBase": "0.7 * bench_1RM"
+        }
+      ]
+    },
+    "wednesday": {
+      "name": "Light / volume",
+      "weekday": "수",
+      "exercises": [
+        {
+          "exerciseId": "back_squat",
+          "scheme": "4x5",
+          "note": "sets 1–3 = Mon sets 1–3; set4 = Mon set3 again"
+        },
+        {
+          "exerciseId": "ohp",
+          "scheme": "4x5_ramp_to_top"
+        },
+        {
+          "exerciseId": "deadlift",
+          "scheme": "4x5_ramp_to_top"
+        }
+      ]
+    },
+    "friday": {
+      "name": "Heavy + PR triple + backoff",
+      "weekday": "금",
+      "exercises": [
+        {
+          "exerciseId": "back_squat",
+          "scheme": "5/5/5/5/3 + 8 backoff",
+          "note": "sets1–4 = Mon; set5 = ~next-week top x3; backoff = Mon set3 x8"
+        },
+        {
+          "exerciseId": "bench_press",
+          "scheme": "5/5/5/5/3 + 8 backoff"
+        },
+        {
+          "exerciseId": "barbell_row",
+          "scheme": "5/5/5/5/3 + 8 backoff"
+        }
+      ]
+    }
+  },
+  "weeks": [
+    {
+      "week": 1,
+      "topSetBase": "estimated5RM * (1/1.025)^(prWeek-1)",
+      "days": [
+        {
+          "day": 1,
+          "weekday": "월",
+          "name": "Heavy 5x5",
+          "exercises": [
+            {
+              "exerciseId": "back_squat",
+              "name": "스쿼트",
+              "role": "main",
+              "sets": [
+                {
+                  "set": 1,
+                  "reps": 5,
+                  "percentOfTop": 50,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 2,
+                  "reps": 5,
+                  "percentOfTop": 62.5,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 3,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 4,
+                  "reps": 5,
+                  "percentOfTop": 87.5,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 5,
+                  "reps": 5,
+                  "percentOfTop": 100,
+                  "of": "weeklyTop"
+                }
+              ]
+            },
+            {
+              "exerciseId": "bench_press",
+              "name": "벤치프레스",
+              "role": "main",
+              "sets": [
+                {
+                  "set": 1,
+                  "reps": 5,
+                  "percentOfTop": 50,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 2,
+                  "reps": 5,
+                  "percentOfTop": 62.5,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 3,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 4,
+                  "reps": 5,
+                  "percentOfTop": 87.5,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 5,
+                  "reps": 5,
+                  "percentOfTop": 100,
+                  "of": "weeklyTop"
+                }
+              ]
+            },
+            {
+              "exerciseId": "barbell_row",
+              "name": "벤트오버 바벨로우",
+              "role": "main",
+              "sets": [
+                {
+                  "set": 1,
+                  "reps": 5,
+                  "percentOfTop": 50,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 2,
+                  "reps": 5,
+                  "percentOfTop": 62.5,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 3,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 4,
+                  "reps": 5,
+                  "percentOfTop": 87.5,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 5,
+                  "reps": 5,
+                  "percentOfTop": 100,
+                  "of": "weeklyTop"
+                }
+              ],
+              "topFrom": "0.7 * bench_1RM * 0.87 * weeklyFactor"
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "weekday": "수",
+          "name": "Light",
+          "exercises": [
+            {
+              "exerciseId": "back_squat",
+              "name": "스쿼트",
+              "role": "main",
+              "sets": [
+                {
+                  "set": 1,
+                  "reps": 5,
+                  "percentOfTop": 50,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 2,
+                  "reps": 5,
+                  "percentOfTop": 62.5,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 3,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 4,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "mondayTop",
+                  "note": "repeat Mon set3"
+                }
+              ]
+            },
+            {
+              "exerciseId": "ohp",
+              "name": "오버헤드프레스",
+              "role": "main",
+              "sets": [
+                {
+                  "set": 1,
+                  "reps": 5,
+                  "percentOfTop": 62.5,
+                  "of": "weeklyTop",
+                  "note": "sheet 4-set ramp: 1-ohpint*3 .. top"
+                },
+                {
+                  "set": 2,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 3,
+                  "reps": 5,
+                  "percentOfTop": 87.5,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 4,
+                  "reps": 5,
+                  "percentOfTop": 100,
+                  "of": "weeklyTop"
+                }
+              ]
+            },
+            {
+              "exerciseId": "deadlift",
+              "name": "데드리프트",
+              "role": "main",
+              "sets": [
+                {
+                  "set": 1,
+                  "reps": 5,
+                  "percentOfTop": 62.5,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 2,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 3,
+                  "reps": 5,
+                  "percentOfTop": 87.5,
+                  "of": "weeklyTop"
+                },
+                {
+                  "set": 4,
+                  "reps": 5,
+                  "percentOfTop": 100,
+                  "of": "weeklyTop"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 3,
+          "weekday": "금",
+          "name": "Heavy + triple",
+          "exercises": [
+            {
+              "exerciseId": "back_squat",
+              "name": "스쿼트",
+              "role": "main",
+              "sets": [
+                {
+                  "set": 1,
+                  "reps": 5,
+                  "percentOfTop": 50,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 2,
+                  "reps": 5,
+                  "percentOfTop": 62.5,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 3,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 4,
+                  "reps": 5,
+                  "percentOfTop": 87.5,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 5,
+                  "reps": 3,
+                  "percentOfTop": 100,
+                  "of": "nextWeekTop",
+                  "note": "PR / next-week top x3"
+                },
+                {
+                  "set": 6,
+                  "reps": 8,
+                  "percentOfTop": 75,
+                  "of": "mondayTop",
+                  "kind": "backoff"
+                }
+              ]
+            },
+            {
+              "exerciseId": "bench_press",
+              "name": "벤치프레스",
+              "role": "main",
+              "sets": [
+                {
+                  "set": 1,
+                  "reps": 5,
+                  "percentOfTop": 50,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 2,
+                  "reps": 5,
+                  "percentOfTop": 62.5,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 3,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 4,
+                  "reps": 5,
+                  "percentOfTop": 87.5,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 5,
+                  "reps": 3,
+                  "percentOfTop": 100,
+                  "of": "nextWeekTop"
+                },
+                {
+                  "set": 6,
+                  "reps": 8,
+                  "percentOfTop": 75,
+                  "of": "mondayTop",
+                  "kind": "backoff"
+                }
+              ]
+            },
+            {
+              "exerciseId": "barbell_row",
+              "name": "벤트오버 바벨로우",
+              "role": "main",
+              "sets": [
+                {
+                  "set": 1,
+                  "reps": 5,
+                  "percentOfTop": 50,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 2,
+                  "reps": 5,
+                  "percentOfTop": 62.5,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 3,
+                  "reps": 5,
+                  "percentOfTop": 75,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 4,
+                  "reps": 5,
+                  "percentOfTop": 87.5,
+                  "of": "mondayTop"
+                },
+                {
+                  "set": 5,
+                  "reps": 3,
+                  "percentOfTop": 100,
+                  "of": "nextWeekTop"
+                },
+                {
+                  "set": 6,
+                  "reps": 8,
+                  "percentOfTop": 75,
+                  "of": "mondayTop",
+                  "kind": "backoff"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fridayTriple": {
+    "everyWeek": true,
+    "scheme": "ramp_then_triple_plus_backoff",
+    "note": "Public Madcow: Friday triple EVERY week is the progression engine. Optional 'PR week' label may highlight a test week but must not delay triples."
+  },
+  "descriptionKo": {
+    "purpose": "중급 주간 주기화 5×5: 월 볼륨, 수 라이트, 금 트리플+백오프.",
+    "weeks": "통상 8–12주, 주간 톱 ×1.025.",
+    "requiredOneRm": "추정 5RM(≈0.87×1RM) 또는 현재 톱세트.",
+    "caution": "금요일 트리플은 매주(공개 기준). 예전 'PR week 10' 지연은 제거."
+  }
+}

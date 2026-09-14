@@ -1,0 +1,25 @@
+{
+  "id": "cowboy",
+  "source": "parent COWBOY_GZ_B64 — gzip stream truncated after weekRules",
+  "cycleWeeks": 13,
+  "coverage": "w1-13_full_sets",
+  "warmupRule": {
+    "fractionsOfWorkSet": [0.5, 0.6, 0.7, 0.8, 0.9],
+    "reps": [8, 5, 3, 1, 1]
+  },
+  "weekRules": [
+    { "week": 1, "mon": { "pct": 60, "reps": 5, "sets": 10 }, "wed": { "pcts": [55, 60, 65, 70, 75], "reps": 5 }, "fri": "to_10RM" },
+    { "week": 2, "mon": { "pct": 67.5, "reps": 4, "sets": 10 }, "wed": { "pcts": [60, 65, 70, 75, 80], "reps": 3 }, "fri": "to_8RM" },
+    { "week": 3, "mon": { "pct": 75, "reps": 3, "sets": 10 }, "wed": { "pcts": [65, 70, 75, 80, 85], "reps": 3 }, "fri": "to_5RM" },
+    { "week": 4, "label": "deload", "mon": { "pct": 60 }, "wed": { "pcts": [60] }, "fri": "squat_walkout_hold" },
+    { "week": 5, "mon": { "pct": 65, "reps": 4, "sets": 8 }, "wed": { "pcts": [60, 67.5, 75, 82.5] }, "fri": "to_8RM" },
+    { "week": 6, "mon": { "pct": 72.5, "reps": 3, "sets": 8 }, "wed": { "pcts": [65, 72.5, 80, 87.5] }, "fri": "to_5RM" },
+    { "week": 7, "mon": { "pct": 80, "reps": 2, "sets": 8 }, "wed": { "pcts": [70, 77.5, 85, 92.5] }, "fri": "to_3RM" },
+    { "week": 8, "label": "deload", "mon": { "pct": 65 }, "wed": { "pcts": [65] }, "fri": "squat_walkout_105pct" },
+    { "week": 9, "mon": { "pct": 70, "reps": 3, "sets": 5 }, "wed": { "pcts": [65, 75, 85] }, "fri": "to_5RM" },
+    { "week": 10, "mon": { "pct": 77.5, "reps": 2, "sets": 5 }, "wed": { "pcts": [70, 80, 90] }, "fri": "to_3RM" },
+    { "week": 11, "mon": { "pct": 85, "reps": 1, "sets": 5 }, "wed": { "pcts": [75, 85, 95] }, "fri": "to_2RM" },
+    { "week": 12, "label": "deload", "mon": { "pct": 70 }, "wed": { "pcts": [70] }, "fri": "squat_walkout_105pct" },
+    { "week": 13, "label": "test", "fri": "1RM_test" }
+  ]
+}
