@@ -456,5 +456,5 @@
     "alt",
     "origin"
   ],
-  "mediaPolicy": "P0 empty; local /exercises or /data/media only; no Commons hotlink; no TJ Strength clips"
+  "mediaPolicy": "P0 empty; local /exercises or /data/media only; no third-party hotlink or coaching clips"
 }

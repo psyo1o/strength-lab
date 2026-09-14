@@ -1,11 +1,6 @@
 # Strength Lab
 
-개인 NAS(시놀로지)에서 돌리는 스트렝스 훈련 웹앱입니다. 체육관 바닥에서 폰으로 보고, 엑셀 없이 세트를 소화하는 것이 목표입니다.
-
-영감을 받은 자료: 비공개 스프레드시트 **「스트렝스 프로그램 Ver 8.0b by TJ 스트렝스」** (YouTube: [TJ Strength](https://youtube.com/tjstrength0423)).  
-**개인 사용 전용**이며 원본은 상업적 이용·재배포를 금지합니다. 제휴·공식 앱이 아닙니다.
-
-> Based on TJ Strength materials — personal use only; original forbids commercial use / redistribution.
+시놀로지 NAS에서 돌리는 스트렝스 훈련 웹앱입니다. 체육관 바닥에서 폰으로 보고, 엑셀 없이 세트를 소화하는 것이 목표입니다.
 
 ---
 
@@ -46,7 +41,7 @@ DATABASE_PATH=./data/app.db npx tsx src/lib/db/seed.ts
 
 `data/seed.json`이 있으면 그 파일을 넣고, 없으면 카탈로그 코드에서 생성합니다. 빈 DB는 첫 기동 때 자동 시드됩니다.
 
-운동 사진: `public/exercises/` 에 `{canonicalId}.webp` 를 넣으면 오프라인 NAS에서도 팁 시트에 나옵니다. 방법은 [public/exercises/README.md](./public/exercises/README.md). TJ Strength 영상을 스크랩·동봉하지 마세요.
+운동 사진: `public/exercises/` 에 `{canonicalId}.webp` 를 넣으면 오프라인 NAS에서도 팁 시트에 나옵니다. 방법은 [public/exercises/README.md](./public/exercises/README.md). 외부 코칭 영상을 스크랩·동봉하지 마세요.
 
 P1 초안 JSON은 `seed-drafts/seed.p1.json` (또는 `SEED_P1_PATH`) — 있으면 프로그램 slug를 덮어씁니다.
 
@@ -98,7 +93,7 @@ volumes:
   - /volume1/docker/strength-lab/media:/data/media
 ```
 
-앱은 `/exercises/{id}.webp`(이미지에 넣은 파일) 다음 `/api/media/{id}.webp`(`/data/media`)를 봅니다. 없으면 팁 시트에 **미디어 없음**. TJ Strength 영상은 넣지 마세요.
+앱은 `/exercises/{id}.webp`(이미지에 넣은 파일) 다음 `/api/media/{id}.webp`(`/data/media`)를 봅니다. 없으면 팁 시트에 **미디어 없음**. 외부 코칭 영상은 넣지 마세요.
 
 공유 폴더에 DB를 직접 남기려면 volumes를 다음처럼 바꿉니다.
 
@@ -123,13 +118,13 @@ Publish at **http://192.168.50.3:7001**. Compose maps **host 7001 → container 
 
 If DSM already uses 7001, change only the **host** side of `"7001:3000"` (e.g. `"7002:3000"`). Leave container port 3000 as-is.
 
-Exercise media: copy `{id}.webp` into a host folder and bind-mount it to `/data/media` (see `docker-compose.yml`). Do not hotlink Wikimedia Commons. Do not bundle TJ Strength videos.
+Exercise media: copy `{id}.webp` into a host folder and bind-mount it to `/data/media` (see `docker-compose.yml`). Do not hotlink third-party media or bundle coaching videos.
 
 ---
 
 ## English (short)
 
-Self-hosted Next.js + SQLite strength app. Copy `.env.example` → `.env`, set `AUTH_SECRET`, then `docker compose up --build`. Persist `/data`. Korean UI by default. Personal NAS use only; not affiliated with TJ Strength. See CHANGELOG for full vs template-only programs.
+Self-hosted Next.js + SQLite strength app. Copy `.env.example` → `.env`, set `AUTH_SECRET`, then `docker compose up --build`. Persist `/data`. Korean UI by default. See CHANGELOG for program completeness.
 
 Tests: `npm test` covers signup, login, save 1RM, 5/3/1 week-1 squat loads (`MROUND(1RM×0.9×pct/100, 2.5)` on the product — 200kg → 117.5/135/152.5; 155kg W1 85% → 117.5), start-weight override on Stronglifts, kg/lb plate math, optional tip media fields, and P1 Juggernaut load.
 

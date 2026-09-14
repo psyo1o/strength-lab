@@ -19,7 +19,7 @@ export default async function HomePage() {
           체육관에서.
         </h1>
         <p className="mt-4 text-[var(--muted)]">
-          개인 NAS용 스트렝스 웹앱. 1RM만 넣으면 5/3/1·5×5·역도 프로그램이 원판 구성까지 계산됩니다.
+          셀프호스팅 스트렝스 웹앱. 1RM만 넣으면 5/3/1·5×5·역도 프로그램이 원판 구성까지 계산됩니다.
         </p>
         <div className="mt-8 grid gap-3">
           <Link href="/register" className="btn-primary tap flex items-center justify-center">

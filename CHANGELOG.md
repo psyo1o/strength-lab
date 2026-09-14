@@ -49,5 +49,5 @@
 - 세션: 프로그램 → 주/일 → 중량×반복, 큰 탭, 완료 체크, 휴식 타이머
 - 원판 계산기, Epley 1RM 헬퍼, 종목 팁(한국어: cue/실수/대안 + 선택 미디어)
 - 팁 바텀시트: 16:9 썸네일(탭=재생/확대), 자동재생·전체화면 없음, 실패 시 「미디어 없음」
-- 로컬 미디어: `public/exercises/{id}.webp` (NAS 볼륨 드롭). TJ Strength 영상 미포함
+- 로컬 미디어: `public/exercises/{id}.webp` (NAS 볼륨 드롭). 외부 코칭 영상 미포함
 - `data/seed.json` + 부팅 시 시드. P1 초안: `seed-drafts/seed.p1.json`

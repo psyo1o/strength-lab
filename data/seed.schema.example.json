@@ -1,10 +1,9 @@
 {
-  "$schema_note": "TJ Strength → Strength Lab seed. Personal NAS only. No commercial redistrib of source text.",
+  "$schema_note": "Strength Lab public seed schema example.",
   "version": "0.2.0",
   "meta": {
-    "source": "스트렝스 프로그램 Ver 8.0b by TJ 스트렝스",
-    "attribution_url": "https://youtube.com/tjstrength0423",
-    "notice": "Personal NAS seed only. No commercial redistrib of original workbook text.",
+    "source": "Strength Lab",
+    "notice": "Example seed schema.",
     "units": "kg",
     "rounding_kg": 2.5,
     "rounding_rule": "round_nearest_2_5"
@@ -426,7 +425,7 @@
     "5/3/1 QA: 1RM 155 → W1 85% = 117.5 (not 120). 1RM 200 → W1 117.5/135/152.5",
     "platePlan NOT on sets — runtime plate calculator",
     "exercise canonical ids owned by seed (exercises.canonical.json)",
-    "BBB is P0 placeholder even though TJ sheet uses CGBP/front squat/incline/SLDL assistance",
+    "BBB is a P0 placeholder (close-grip / front squat / incline / SLDL assistance may vary)",
     "원문 셀 장문 텍스트는 시드에 덤프하지 않음"
   ],
   "unknowns_resolved": [

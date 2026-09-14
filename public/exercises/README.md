@@ -13,7 +13,7 @@ P0는 **미디어 URL이 비어 있습니다.** 텍스트 팁만 제공합니다
 | `licenseUrl`, `sourcePage`, `alt` | 선택 |
 | `origin` | `empty` / `self_shot` / `user_upload` / `cc` |
 
-Commons 핫링크 금지. TJ Strength YouTube·유료 코칭 클립을 넣거나 스크랩하지 마세요.
+외부 사이트 핫링크 금지. 유료 코칭 클립을 넣거나 스크랩하지 마세요.
 
 ## 파일 넣는 법
 

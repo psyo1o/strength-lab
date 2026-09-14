@@ -10,7 +10,7 @@ const sans = Noto_Sans_KR({
 
 export const metadata: Metadata = {
   title: "Strength Lab",
-  description: "개인 NAS용 스트렝스 훈련 웹앱",
+  description: "셀프호스팅 스트렝스 훈련 웹앱",
   icons: { icon: "/favicon.svg" },
 };
 
