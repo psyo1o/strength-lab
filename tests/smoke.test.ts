@@ -19,7 +19,7 @@ import { loadSeedFile, seedDraftsP1Path, seedJsonPath } from "../src/lib/db/seed
 import { resolveSetKg } from "../src/lib/calc/loads";
 import { START_REF_PERCENT } from "../src/lib/calc/linear";
 import { loadTips, tipDisclaimer, tipFor, TIP_SAFETY_FOOTER } from "../src/lib/tips";
-import { isLocalAssetUrl, localExerciseImagePath, parseVideoUrl, resolveTipMedia, youtubeWatchUrl } from "../src/lib/media";
+import { isLocalAssetUrl, localExerciseImagePath, parseVideoUrl, resolveTipMedia, youtubeVideoId, youtubeWatchUrl } from "../src/lib/media";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-smoke-"));
@@ -307,11 +307,35 @@ describe("korean exercise tips", () => {
     expect(youtubeWatchUrl("https://youtu.be/nhoikoUEI8U")).toBe("https://www.youtube.com/watch?v=nhoikoUEI8U");
     expect(youtubeWatchUrl("/exercises/back_squat.mp4")).toBeNull();
     expect(youtubeWatchUrl("https://example.com/watch?v=abcdefghijk")).toBeNull();
+    expect(youtubeVideoId("https://youtu.be/nhoikoUEI8U")).toBe("nhoikoUEI8U");
     expect(tipFor("squat")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=nhoikoUEI8U");
     expect(tipFor("squat")?.youtubeCredit).toMatch(/Starting Strength/);
     expect(tipFor("deadlift")?.youtubeUrl).toMatch(/youtube\.com\/watch\?v=/);
     expect(tipFor("snatch")?.youtubeUrl).toMatch(/youtube\.com\/watch\?v=/);
     expect(seedDraftsP1Path()).toMatch(/seed-drafts[/\\]seed\.p1\.json$/);
+  });
+});
+
+describe("mobile UX P0", () => {
+  it("opens tip YouTube externally and keeps home to three cards", () => {
+    const tip = fs.readFileSync(path.join(process.cwd(), "src/components/TipMedia.tsx"), "utf8");
+    expect(tip).not.toMatch(/<video|<iframe/);
+    expect(tip).toMatch(/영상 보기/);
+    expect(tip).toMatch(/영상 없음/);
+    expect(tip).toMatch(/target="_blank"/);
+    const sheet = fs.readFileSync(path.join(process.cwd(), "src/components/WorkoutClient.tsx"), "utf8");
+    expect(sheet).toMatch(/큐 ·/);
+    expect(sheet).toMatch(/실수 ·/);
+    expect(sheet).toMatch(/대안 ·/);
+    expect(sheet).toMatch(/markDone/);
+    const home = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/dashboard/page.tsx"), "utf8");
+    expect(home).toMatch(/오늘 운동/);
+    expect(home).toMatch(/>최근</);
+    expect(home).toMatch(/>PR</);
+    expect(home).toMatch(/일 연속/);
+    expect(home).not.toMatch(/UnitToggle/);
+    expect(home).not.toMatch(/오늘의 운동/);
+    expect(fs.existsSync(path.join(process.cwd(), "src/app/(app)/history/page.tsx"))).toBe(true);
   });
 });
 

@@ -6,7 +6,7 @@ import { registerUser } from "../src/lib/auth";
 import { resetDbConnection, getSqlite } from "../src/lib/db/client";
 import { saveUserMaxes } from "../src/lib/maxes";
 import { getDay, getWeekId, resolveWorkout, toggleSetLog } from "../src/lib/programs/queries";
-import { computeStreakDays, dashboardProgress, prevDayKey, trainingDayKey } from "../src/lib/progress";
+import { computeStreakDays, dashboardProgress, prevDayKey, recentCardCopy, trainingDayKey } from "../src/lib/progress";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-progress-"));
@@ -49,8 +49,13 @@ describe("logged PR and recent sessions", () => {
 
     const progress = dashboardProgress(created.user.id);
     expect(progress.streakDays).toBe(1);
+    expect(progress.prs).toHaveLength(4);
+    expect(progress.prs.map((p) => p.key)).toEqual(["squat", "bench", "deadlift", "ohp"]);
     expect(progress.prs.find((p) => p.key === "squat")?.weightKg).toBe(152.5);
+    expect(progress.prs.find((p) => p.key === "bench")?.weightKg).toBe(0);
     expect(progress.recent[0]?.programNameKo).toMatch(/Wendler|5\/3\/1/);
     expect(progress.recent[0]?.lifts.some((l) => l.nameKo.includes("스쿼트") && l.weightKg === 152.5)).toBe(true);
+    expect(recentCardCopy(progress.recent[0]!).title).toMatch(/스쿼트/);
+    expect(recentCardCopy(progress.recent[0]!).line).toMatch(/주차/);
   });
 });

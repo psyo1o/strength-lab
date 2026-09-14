@@ -85,7 +85,8 @@ function loadLogRows(userId: number): LogRow[] {
     .all(userId) as LogRow[];
 }
 
-export function loggedPrs(userId: number): LoggedPr[] {
+/** 홈 PR 카드: 메인 4종 전부 (기록 없으면 0). */
+export function homePrs(userId: number): LoggedPr[] {
   const rows = loadLogRows(userId);
   return MAIN_LIFTS.map((lift) => {
     let best = 0;
@@ -94,8 +95,12 @@ export function loggedPrs(userId: number): LoggedPr[] {
       if (!lift.aliases.includes(row.exerciseKey)) continue;
       if (row.weightKg != null && row.weightKg > best) best = row.weightKg;
     }
-    return best > 0 ? { key: lift.key, label: lift.label, weightKg: best } : { key: lift.key, label: lift.label, weightKg: 0 };
-  }).filter((p) => p.weightKg > 0);
+    return { key: lift.key, label: lift.label, weightKg: best };
+  });
+}
+
+export function loggedPrs(userId: number): LoggedPr[] {
+  return homePrs(userId).filter((p) => p.weightKg > 0);
 }
 
 export function trainingDayKeys(userId: number): string[] {
@@ -132,11 +137,20 @@ export function recentSessions(userId: number, limit = 5): RecentSession[] {
   return order.slice(0, limit).map((k) => groups.get(k)!);
 }
 
+export function recentCardCopy(session: RecentSession): { title: string; line: string } {
+  const lift = session.lifts[0];
+  const name = lift?.nameKo || session.programNameKo;
+  return {
+    title: `${name} · ${session.dateLabel}`,
+    line: `${session.programNameKo} · ${session.weekNumber}주차 ${session.dayNumber}일`,
+  };
+}
+
 export function dashboardProgress(userId: number) {
   const days = trainingDayKeys(userId);
   return {
     streakDays: computeStreakDays(days),
-    prs: loggedPrs(userId),
-    recent: recentSessions(userId, 5),
+    prs: homePrs(userId),
+    recent: recentSessions(userId, 20),
   };
 }

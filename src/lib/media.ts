@@ -118,12 +118,16 @@ export function resolveTipMedia(
   };
 }
 
-/** Watch URL only — never a download/embed/rehost path. */
-export function youtubeWatchUrl(url?: string | null): string | null {
+export function youtubeVideoId(url?: string | null): string | null {
   if (!url || !url.trim()) return null;
   const parsed = parseVideoUrl(url.trim());
-  if (parsed?.kind !== "youtube") return null;
-  return `https://www.youtube.com/watch?v=${parsed.id}`;
+  return parsed?.kind === "youtube" ? parsed.id : null;
+}
+
+/** Watch URL only — never a download/embed/rehost path. */
+export function youtubeWatchUrl(url?: string | null): string | null {
+  const id = youtubeVideoId(url);
+  return id ? `https://www.youtube.com/watch?v=${id}` : null;
 }
 
 export function parseVideoUrl(url?: string | null): ParsedVideo | null {

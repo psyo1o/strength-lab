@@ -186,15 +186,7 @@ export function WorkoutClient({
       <BottomSheet open={tipOpen} title={tip?.name || current.exercise.nameKo} onClose={() => setTipOpen(false)}>
         {tip ? (
           <div className="space-y-3 text-base leading-relaxed">
-            <TipMedia
-              imageUrl={tip.imageUrl || `/exercises/${tip.exerciseId || current.exercise.exerciseKey}.webp`}
-              videoUrl={tip.videoUrl}
-              credit={tip.credit}
-              license={tip.license}
-              sourcePage={tip.sourcePage}
-              alt={tip.alt}
-              hasDeclaredUrl={tip.hasDeclaredUrl}
-            />
+            <TipMedia youtubeUrl={tip.youtubeUrl} youtubeCredit={tip.youtubeCredit} />
             <p>
               <span className="font-black">큐 · </span>
               {tip.cue}
@@ -207,25 +199,10 @@ export function WorkoutClient({
               <span className="font-black">대안 · </span>
               {tip.alternative}
             </p>
-            {tip.youtubeUrl ? (
-              <div className="space-y-2">
-                <a
-                  href={tip.youtubeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-primary tap flex w-full items-center justify-center text-lg no-underline"
-                >
-                  영상 보기
-                </a>
-                {tip.youtubeCredit ? (
-                  <p className="text-xs text-[var(--muted)]">{tip.youtubeCredit}</p>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         ) : (
           <div className="space-y-3 text-base leading-relaxed">
-            <TipMedia imageUrl={`/exercises/${current.exercise.exerciseKey}.webp`} />
+            <TipMedia />
             <p>{current.exercise.tipsKo || "이 종목 팁이 아직 없습니다."}</p>
           </div>
         )}
