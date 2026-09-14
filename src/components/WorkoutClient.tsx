@@ -186,7 +186,18 @@ export function WorkoutClient({
       <BottomSheet open={tipOpen} title={tip?.name || current.exercise.nameKo} onClose={() => setTipOpen(false)}>
         {tip ? (
           <div className="space-y-3 text-base leading-relaxed">
-            <TipMedia youtubeUrl={tip.youtubeUrl} youtubeCredit={tip.youtubeCredit} />
+            {(tip.youtubeLinks ?? []).length > 0 ? (
+              (tip.youtubeLinks ?? []).map((link) => (
+                <TipMedia
+                  key={link.youtubeUrl}
+                  youtubeUrl={link.youtubeUrl}
+                  youtubeCredit={link.youtubeCredit}
+                  label={link.label}
+                />
+              ))
+            ) : (
+              <TipMedia />
+            )}
             <p>
               <span className="font-black">큐 · </span>
               {tip.cue}

@@ -11,9 +11,10 @@
     "sheet",
     "media",
     "youtubeUrl",
-    "youtubeCredit"
+    "youtubeCredit",
+    "youtubeLinks"
   ],
-  "disclaimer": "참고일 뿐 · 통증은 전문가.",
+  "disclaimer": "참고 영상일 뿐. 찌릿·저림은 전문가.",
   "tips": {
     "back_squat": {
       "exerciseId": "back_squat",
@@ -50,7 +51,9 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=rxD321l2svE",
+        "youtubeCredit": "Starting Strength"
       }
     },
     "deadlift": {
@@ -63,7 +66,7 @@
       "media": {
         "imageUrl": null,
         "videoUrl": null,
-        "youtubeUrl": "https://www.youtube.com/watch?v=3vwIFQ5OAuY",
+        "youtubeUrl": "https://www.youtube.com/watch?v=p2OPUi4xGrM",
         "youtubeCredit": "Starting Strength",
         "credit": "",
         "license": "",
@@ -88,7 +91,9 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=8dacy5hjaE8",
+        "youtubeCredit": "Starting Strength"
       }
     },
     "front_squat": {
@@ -106,7 +111,9 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=Cnc0qKLAgcU",
+        "youtubeCredit": "JTS"
       }
     },
     "close_grip_bench": {
@@ -232,7 +239,9 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=YG8M_-11C2A",
+        "youtubeCredit": "Catalyst"
       }
     },
     "abs": {
@@ -286,7 +295,9 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=oQIaWLrB318",
+        "youtubeCredit": "Catalyst"
       }
     },
     "power_snatch": {
@@ -304,7 +315,9 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=ydHHsju1-Nc",
+        "youtubeCredit": "Catalyst"
       }
     },
     "squat_snatch": {
@@ -317,8 +330,8 @@
       "media": {
         "imageUrl": null,
         "videoUrl": null,
-        "youtubeUrl": "https://www.youtube.com/watch?v=9xPxh6omvJg",
-        "youtubeCredit": "Catalyst Athletics",
+        "youtubeUrl": "https://www.youtube.com/watch?v=1Lv1IyigIUY",
+        "youtubeCredit": "Catalyst",
         "credit": "",
         "license": "",
         "licenseUrl": "",
@@ -342,7 +355,9 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=2GPA-cjUFnA",
+        "youtubeCredit": "Catalyst"
       }
     },
     "pause_squat": {
@@ -452,6 +467,36 @@
         "alt": "",
         "origin": ""
       }
+    },
+    "clean_jerk": {
+      "exerciseId": "clean_jerk",
+      "name": "클린앤저크",
+      "cue": "클린은 3중 신전 후 팔꿈치를 돌려 프론트랙에 받고, 저크는 짧고 수직인 딥 뒤 스플릿으로 빠져 오버헤드를 잠가.",
+      "mistake": "바가 몸에서 멀어지거나 딥이 앞으로 무너짐.",
+      "alternative": "행 클린·제자리 딥부터. 손목·어깨가 아프면 푸시 저크.",
+      "sheet": "클린은 3중 신전 후 팔꿈치를 돌려 프론트랙에 받고, 저크는 짧고 수직인 딥 뒤 스플릿으로 빠져 오버헤드를 잠가. 바가 몸에서 멀어지면 훅 그립을 확인하고 바에 붙여. 딥이 앞으로 무너지면 제자리에서 딥. 손목·어깨가 아프면 푸시 저크로.",
+      "youtubeLinks": [
+        {
+          "label": "클린",
+          "youtubeUrl": "https://www.youtube.com/watch?v=oQIaWLrB318",
+          "youtubeCredit": "Catalyst"
+        },
+        {
+          "label": "저크",
+          "youtubeUrl": "https://www.youtube.com/watch?v=2GPA-cjUFnA",
+          "youtubeCredit": "Catalyst"
+        }
+      ],
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
     }
   },
   "mediaFields": [
@@ -466,5 +511,5 @@
     "alt",
     "origin"
   ],
-  "mediaPolicy": "Local images/mp4 only. youtubeUrl is a public watch link (no download/rehost). No TJ scrapes."
+  "mediaPolicy": "Whitelist youtubeUrl only. Public watch link, open externally. No TJ. No download/rehost."
 }

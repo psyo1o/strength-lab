@@ -309,9 +309,24 @@ describe("korean exercise tips", () => {
     expect(youtubeWatchUrl("https://example.com/watch?v=abcdefghijk")).toBeNull();
     expect(youtubeVideoId("https://youtu.be/nhoikoUEI8U")).toBe("nhoikoUEI8U");
     expect(tipFor("squat")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=nhoikoUEI8U");
-    expect(tipFor("squat")?.youtubeCredit).toMatch(/Starting Strength/);
-    expect(tipFor("deadlift")?.youtubeUrl).toMatch(/youtube\.com\/watch\?v=/);
-    expect(tipFor("snatch")?.youtubeUrl).toMatch(/youtube\.com\/watch\?v=/);
+    expect(tipFor("squat")?.youtubeCredit).toBe("Starting Strength");
+    expect(tipFor("bench")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=rxD321l2svE");
+    expect(tipFor("deadlift")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=p2OPUi4xGrM");
+    expect(tipFor("ohp")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=8dacy5hjaE8");
+    expect(tipFor("front_squat")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=Cnc0qKLAgcU");
+    expect(tipFor("front_squat")?.youtubeCredit).toBe("JTS");
+    expect(tipFor("snatch")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=1Lv1IyigIUY");
+    expect(tipFor("power_snatch")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=ydHHsju1-Nc");
+    expect(tipFor("clean")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=oQIaWLrB318");
+    expect(tipFor("power_clean")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=YG8M_-11C2A");
+    expect(tipFor("jerk")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=2GPA-cjUFnA");
+    expect(tipFor("clean_jerk")?.youtubeLinks?.map((l) => l.youtubeUrl)).toEqual([
+      "https://www.youtube.com/watch?v=oQIaWLrB318",
+      "https://www.youtube.com/watch?v=2GPA-cjUFnA",
+    ]);
+    expect(tipFor("clean_jerk")?.youtubeLinks?.map((l) => l.label)).toEqual(["클린", "저크"]);
+    expect(JSON.stringify(loadTips())).not.toMatch(/tjstrength/i);
+    expect(tipDisclaimer()).toBe("참고 영상일 뿐. 찌릿·저림은 전문가.");
     expect(seedDraftsP1Path()).toMatch(/seed-drafts[/\\]seed\.p1\.json$/);
   });
 });

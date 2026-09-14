@@ -1,6 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { resolveTipMedia, type TipMediaFields } from "./media";
+import { resolveTipMedia, youtubeWatchUrl, type TipMediaFields } from "./media";
+
+export type YoutubeLink = {
+  youtubeUrl: string;
+  youtubeCredit: string;
+  label: string;
+};
 
 export type Tip = {
   cue: string;
@@ -13,6 +19,7 @@ export type Tip = {
   videoUrl?: string | null;
   youtubeUrl?: string | null;
   youtubeCredit?: string;
+  youtubeLinks?: YoutubeLink[];
   credit?: string;
   license?: string;
   licenseUrl?: string;
@@ -83,8 +90,30 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function watchLinksFrom(raw: Tip, fallbackUrl: string | null, fallbackCredit: string): YoutubeLink[] {
+  const extra = Array.isArray(raw.youtubeLinks) ? raw.youtubeLinks : [];
+  const out: YoutubeLink[] = [];
+  const seen = new Set<string>();
+  for (const item of extra) {
+    if (!item || typeof item !== "object") continue;
+    const url = youtubeWatchUrl(item.youtubeUrl);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push({
+      youtubeUrl: url,
+      youtubeCredit: text(item.youtubeCredit),
+      label: text(item.label),
+    });
+  }
+  if (out.length === 0 && fallbackUrl) {
+    out.push({ youtubeUrl: fallbackUrl, youtubeCredit: fallbackCredit, label: "" });
+  }
+  return out;
+}
+
 /** Flight-safe tip: no `undefined` (Next RSC throws when passing those to client). */
 export function sanitizeTip(raw: Tip, media: ReturnType<typeof resolveTipMedia>): Tip {
+  const youtubeLinks = watchLinksFrom(raw, media.youtubeUrl ?? null, media.youtubeCredit ?? "");
   return {
     cue: text(raw.cue),
     mistake: text(raw.mistake),
@@ -94,8 +123,9 @@ export function sanitizeTip(raw: Tip, media: ReturnType<typeof resolveTipMedia>)
     exerciseId: text(raw.exerciseId),
     imageUrl: media.imageUrl ?? "",
     videoUrl: media.videoUrl ?? null,
-    youtubeUrl: media.youtubeUrl ?? null,
-    youtubeCredit: media.youtubeCredit ?? "",
+    youtubeUrl: youtubeLinks[0]?.youtubeUrl ?? media.youtubeUrl ?? null,
+    youtubeCredit: youtubeLinks[0]?.youtubeCredit ?? media.youtubeCredit ?? "",
+    youtubeLinks,
     credit: media.credit ?? "",
     license: media.license ?? "",
     licenseUrl: media.licenseUrl ?? "",
@@ -131,7 +161,7 @@ export function clientTipsFor(exerciseKeys: string[]): Record<string, Tip> {
   return JSON.parse(JSON.stringify(out)) as Record<string, Tip>;
 }
 
-export const TIP_SAFETY_FOOTER = "참고일 뿐 · 통증은 전문가.";
+export const TIP_SAFETY_FOOTER = "참고 영상일 뿐. 찌릿·저림은 전문가.";
 
 export function tipDisclaimer(): string {
   try {

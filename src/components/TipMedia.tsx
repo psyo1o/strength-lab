@@ -6,9 +6,11 @@ import { youtubeVideoId, youtubeWatchUrl } from "@/lib/media";
 export function TipMedia({
   youtubeUrl,
   youtubeCredit,
+  label,
 }: {
   youtubeUrl?: string | null;
   youtubeCredit?: string | null;
+  label?: string | null;
 }) {
   const watch = youtubeWatchUrl(youtubeUrl);
   const id = youtubeVideoId(youtubeUrl);
@@ -26,6 +28,7 @@ export function TipMedia({
 
   return (
     <div className="space-y-1">
+      {label ? <p className="text-sm font-black">{label}</p> : null}
       <a
         href={watch}
         target="_blank"
