@@ -233,7 +233,67 @@ function currentSeedRevision(raw: Database.Database): string | null {
   return row?.value ?? null;
 }
 
-/** First boot, stale catalog, or FORCE_RESEED=1. Rebuilds program tables; keeps users/maxes. */
+type SetLogSnapshot = {
+  userId: number;
+  completed: number;
+  completedAt: number;
+  slug: string;
+  weekNumber: number;
+  dayNumber: number;
+  exerciseKey: string;
+  role: string;
+  sortOrder: number;
+  setNumber: number;
+};
+
+function setLogKey(
+  slug: string,
+  weekNumber: number,
+  dayNumber: number,
+  exerciseKey: string,
+  role: string,
+  sortOrder: number,
+  setNumber: number,
+): string {
+  return `${slug}\t${weekNumber}\t${dayNumber}\t${exerciseKey}\t${role}\t${sortOrder}\t${setNumber}`;
+}
+
+/** Snapshot logs by catalog path so IDs can change without wiping progress. */
+function snapshotSetLogs(raw: Database.Database): SetLogSnapshot[] {
+  return raw
+    .prepare(
+      `SELECT sl.user_id AS userId, sl.completed AS completed, sl.completed_at AS completedAt,
+              p.slug AS slug, w.week_number AS weekNumber, d.day_number AS dayNumber,
+              pe.exercise_key AS exerciseKey, pe.role AS role, pe.sort_order AS sortOrder,
+              s.set_number AS setNumber
+       FROM set_logs sl
+       JOIN program_sets s ON s.id = sl.program_set_id
+       JOIN program_exercises pe ON pe.id = s.exercise_id
+       JOIN program_days d ON d.id = pe.day_id
+       JOIN program_weeks w ON w.id = d.week_id
+       JOIN programs p ON p.slug = w.program_slug`,
+    )
+    .all() as SetLogSnapshot[];
+}
+
+function restoreSetLogs(raw: Database.Database, logs: SetLogSnapshot[], setIds: Map<string, number>) {
+  const insert = raw.prepare(
+    `INSERT INTO set_logs (user_id, program_set_id, completed, completed_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(user_id, program_set_id) DO UPDATE SET
+       completed = excluded.completed,
+       completed_at = excluded.completed_at`,
+  );
+  for (const log of logs) {
+    const id = setIds.get(
+      setLogKey(log.slug, log.weekNumber, log.dayNumber, log.exerciseKey, log.role, log.sortOrder, log.setNumber),
+    );
+    if (id == null) continue;
+    insert.run(log.userId, id, log.completed, log.completedAt);
+  }
+}
+
+/** First boot, stale catalog, or FORCE_RESEED=1. Rebuilds program tables; keeps users/1RMs/set logs. */
 export function seedIfEmpty(raw: Database.Database) {
   seedCatalog(raw);
 }
@@ -248,6 +308,7 @@ export function seedCatalog(raw: Database.Database) {
 export function applySeed(raw: Database.Database) {
   const seed = loadSeedFile();
   const tx = raw.transaction(() => {
+    const savedLogs = snapshotSetLogs(raw);
     raw.exec(`
       DELETE FROM set_logs;
       DELETE FROM program_sets;
@@ -284,6 +345,7 @@ export function applySeed(raw: Database.Database) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
+    const setIds = new Map<string, number>();
     for (const p of seed.programs) {
       insertP.run(
         p.slug,
@@ -305,7 +367,7 @@ export function applySeed(raw: Database.Database) {
             const eres = insertPe.run(dayId, ex.exerciseKey, ex.role, idx, ex.notesKo ?? "");
             const exId = Number(eres.lastInsertRowid);
             for (const s of ex.sets) {
-              insertS.run(
+              const sres = insertS.run(
                 exId,
                 s.setNumber,
                 s.percentBase,
@@ -315,11 +377,16 @@ export function applySeed(raw: Database.Database) {
                 s.restSec ?? null,
                 s.noteKo ?? "",
               );
+              setIds.set(
+                setLogKey(p.slug, w.weekNumber, d.dayNumber, ex.exerciseKey, ex.role, idx, s.setNumber),
+                Number(sres.lastInsertRowid),
+              );
             }
           });
         }
       }
     }
+    restoreSetLogs(raw, savedLogs, setIds);
   });
   tx();
   stampSeedRevision(raw);
