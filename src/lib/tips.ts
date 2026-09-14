@@ -1,34 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveTipMedia, youtubeWatchUrl, type TipMediaFields } from "./media";
+import { TIP_SAFETY_FOOTER, type Tip, type YoutubeLink } from "./tip-copy";
 
-export type YoutubeLink = {
-  youtubeUrl: string;
-  youtubeCredit: string;
-  label: string;
-};
-
-export type Tip = {
-  cue: string;
-  mistake: string;
-  alternative: string;
-  sheet: string;
-  name?: string;
-  exerciseId?: string;
-  imageUrl?: string | null;
-  videoUrl?: string | null;
-  youtubeUrl?: string | null;
-  youtubeCredit?: string;
-  youtubeLinks?: YoutubeLink[];
-  credit?: string;
-  license?: string;
-  licenseUrl?: string;
-  sourcePage?: string;
-  alt?: string;
-  origin?: string;
-  media?: TipMediaFields | null;
-  hasDeclaredUrl?: boolean;
-};
+export { TIP_SAFETY_FOOTER, type Tip, type YoutubeLink } from "./tip-copy";
 
 type TipFile = {
   disclaimer: string;
@@ -160,8 +135,6 @@ export function clientTipsFor(exerciseKeys: string[]): Record<string, Tip> {
   }
   return JSON.parse(JSON.stringify(out)) as Record<string, Tip>;
 }
-
-export const TIP_SAFETY_FOOTER = "참고 영상일 뿐. 찌릿·저림은 전문가.";
 
 export function tipDisclaimer(): string {
   try {

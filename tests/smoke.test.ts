@@ -339,6 +339,8 @@ describe("mobile UX P0", () => {
     expect(tip).toMatch(/영상 없음/);
     expect(tip).toMatch(/target="_blank"/);
     const sheet = fs.readFileSync(path.join(process.cwd(), "src/components/WorkoutClient.tsx"), "utf8");
+    expect(sheet).not.toMatch(/from ["']@\/lib\/tips["']/);
+    expect(sheet).toMatch(/from ["']@\/lib\/tip-copy["']/);
     expect(sheet).toMatch(/큐 ·/);
     expect(sheet).toMatch(/실수 ·/);
     expect(sheet).toMatch(/대안 ·/);

@@ -92,7 +92,7 @@ export function homePrs(userId: number): LoggedPr[] {
     let best = 0;
     for (const row of rows) {
       if (row.role !== "main") continue;
-      if (!lift.aliases.includes(row.exerciseKey)) continue;
+      if (!(lift.aliases as readonly string[]).includes(row.exerciseKey)) continue;
       if (row.weightKg != null && row.weightKg > best) best = row.weightKg;
     }
     return { key: lift.key, label: lift.label, weightKg: best };
