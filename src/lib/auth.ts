@@ -279,9 +279,16 @@ export function allowThrottle(key: string, max: number, windowMs: number): boole
   return true;
 }
 
+const DEFAULT_APP_URL = "http://soopark.myds.me:7001";
+
+/** Public origin for emails and on-screen reset links. APP_URL wins over BASE_URL. */
 export function appPublicUrl(): string {
-  const raw = process.env.APP_URL || process.env.BASE_URL || "http://192.168.50.3:7001";
+  const raw = (process.env.APP_URL || process.env.BASE_URL || DEFAULT_APP_URL).trim();
   return raw.replace(/\/+$/, "");
+}
+
+export function passwordResetUrl(token: string): string {
+  return `${appPublicUrl()}/reset-password?token=${encodeURIComponent(token)}`;
 }
 
 export { SESSION_COOKIE };

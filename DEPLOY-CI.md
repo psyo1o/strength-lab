@@ -50,16 +50,23 @@ This is `docker compose -f docker-compose.nas.yml pull && up -d --force-recreate
 
 시드 리비전이 바뀌면 컨테이너가 프로그램 테이블을 다시 심습니다(유저/1RM/세트 로그는 유지). 강제 재시드는 `.env`에 `FORCE_RESEED=1`.
 
-비밀번호 재설정 `.env` (NAS `docker-compose.nas.yml`이 읽음):
+비밀번호 재설정 `.env` (NAS `docker-compose.nas.yml`이 읽음). **반드시** 공개 호스트를 넣으세요. HTTPS 종료가 없으면 `http://` 입니다.
 
 ```
-APP_URL=http://192.168.50.3:7001
+APP_URL=http://soopark.myds.me:7001
 # 선택. 없으면 찾기 화면에 1회용 링크를 보여 줍니다(평문 비밀번호는 보내지 않음).
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=you@example.com
 SMTP_PASS=app-password
 SMTP_FROM=Strength Lab <you@example.com>
+```
+
+compose 기본값도 같습니다:
+
+```yaml
+environment:
+  APP_URL: ${APP_URL:-http://soopark.myds.me:7001}
 ```
 
 비밀번호 변경 후 다른 기기 세션은 끊고, 지금 로그인한 기기는 유지합니다. 재설정 링크로 바꾸면 모든 세션이 끊깁니다.

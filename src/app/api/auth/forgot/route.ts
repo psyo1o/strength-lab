@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { allowThrottle, appPublicUrl, FORGOT_GENERIC, requestPasswordReset } from "@/lib/auth";
+import { allowThrottle, FORGOT_GENERIC, passwordResetUrl, requestPasswordReset } from "@/lib/auth";
 import { sendPasswordResetEmail, smtpConfigured } from "@/lib/mail";
 import { requestIp } from "@/lib/request-ip";
 
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (allowed) {
     const { token } = requestPasswordReset(email);
     if (token) {
-      const url = `${appPublicUrl()}/reset-password?token=${encodeURIComponent(token)}`;
+      const url = passwordResetUrl(token);
       if (smtpConfigured()) {
         try {
           await sendPasswordResetEmail(email.trim().toLowerCase(), url);

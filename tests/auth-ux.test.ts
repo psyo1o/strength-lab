@@ -3,10 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  appPublicUrl,
   changePassword,
   createSession,
   destroyOtherSessions,
   loginUser,
+  passwordResetUrl,
   registerUser,
   requestPasswordReset,
   resetPassword,
@@ -77,5 +79,34 @@ describe("reset password", () => {
 
   it("does not create a token for an unknown email", () => {
     expect(requestPasswordReset("nobody@b.co")).toEqual({ token: null });
+  });
+});
+
+describe("APP_URL reset links", () => {
+  const prevApp = process.env.APP_URL;
+  const prevBase = process.env.BASE_URL;
+
+  afterEach(() => {
+    if (prevApp === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = prevApp;
+    if (prevBase === undefined) delete process.env.BASE_URL;
+    else process.env.BASE_URL = prevBase;
+  });
+
+  it("builds an absolute reset URL without a trailing slash", () => {
+    process.env.APP_URL = "http://soopark.myds.me:7001/";
+    delete process.env.BASE_URL;
+    expect(appPublicUrl()).toBe("http://soopark.myds.me:7001");
+    expect(passwordResetUrl("abc+token")).toBe(
+      "http://soopark.myds.me:7001/reset-password?token=abc%2Btoken",
+    );
+  });
+
+  it("falls back to BASE_URL then the public NAS default", () => {
+    delete process.env.APP_URL;
+    process.env.BASE_URL = "http://example.test:7001///";
+    expect(appPublicUrl()).toBe("http://example.test:7001");
+    delete process.env.BASE_URL;
+    expect(appPublicUrl()).toBe("http://soopark.myds.me:7001");
   });
 });

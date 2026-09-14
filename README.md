@@ -23,7 +23,7 @@
 ```bash
 cp .env.example .env
 # AUTH_SECRET 을 긴 랜덤 문자열로 바꾸세요
-# 비밀번호 재설정 링크용: APP_URL=http://192.168.50.3:7001
+# 비밀번호 재설정 링크용: APP_URL=http://soopark.myds.me:7001
 # 메일 보내기(선택): SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM
 npm install
 npm test
@@ -49,13 +49,13 @@ P1 초안 JSON은 `seed-drafts/seed.p1.json` (또는 `SEED_P1_PATH`) — 있으�
 
 ## Docker / Synology Container Manager
 
-대상 NAS: `192.168.50.3`. 게시 URL: **http://192.168.50.3:7001**  
-`docker-compose.yml`은 **호스트 7001 → 컨테이너 3000**(Next.js `PORT`)입니다. LAN IP는 앱 코드에 넣지 않습니다.
+게시 URL: **http://soopark.myds.me:7001**. `.env`에 `APP_URL=http://soopark.myds.me:7001` (재설정 메일/화면 링크).  
+`docker-compose.yml`은 **호스트 7001 → 컨테이너 3000**(Next.js `PORT`)입니다. 앱 코드에 호스트를 넣지 말고 `APP_URL`을 쓰세요.
 
 ### 한국어 절차
 
 1. 저장소를 NAS 폴더에 둡니다. 예: `/volume1/docker/strength-lab`
-2. `.env.example`을 `.env`로 복사하고 `AUTH_SECRET`을 긴 랜덤 문자열로 바꿉니다. 재설정 메일을 쓰려면 `APP_URL`과 `SMTP_*`를 넣습니다. SMTP가 없으면 찾기 화면에 1회용 링크가 나타납니다.
+2. `.env.example`을 `.env`로 복사하고 `AUTH_SECRET`을 긴 랜덤 문자열로 바꿉니다. **`APP_URL=http://soopark.myds.me:7001`** 을 넣습니다. 재설정 메일을 쓰려면 `SMTP_*`도 넣습니다. SMTP가 없으면 찾기 화면에 1회용 링크가 나타납니다.
 
 ```bash
 openssl rand -hex 32
@@ -75,7 +75,7 @@ cd /volume1/docker/strength-lab
 docker compose up --build -d
 ```
 
-5. 브라우저: [http://192.168.50.3:7001](http://192.168.50.3:7001)
+5. 브라우저: [http://soopark.myds.me:7001](http://soopark.myds.me:7001)
 
 **운동 사진/영상 (오프라인):** Commons를 핫링크하지 마세요. 파일을 NAS에 복사합니다.
 
@@ -102,19 +102,19 @@ volumes:
   - /volume1/docker/strength-lab/data:/data
 ```
 
-**포트 충돌:** DSM에서 7001이 이미 쓰이면 `docker-compose.yml`의 `"7001:3000"`에서 **앞 숫자(호스트)** 만 바꾸세요. 예: `"7002:3000"` → `http://192.168.50.3:7002`. 컨테이너 쪽 3000은 그대로 둡니다.
+**포트 충돌:** DSM에서 7001이 이미 쓰이면 `docker-compose.yml`의 `"7001:3000"`에서 **앞 숫자(호스트)** 만 바꾸세요. 예: `"7002:3000"` → `http://soopark.myds.me:7002` 그리고 `APP_URL`도 같은 포트로. 컨테이너 쪽 3000은 그대로 둡니다.
 
 HTTPS(리버스 프록시)를 쓰면 `.env`에 `COOKIE_SECURE=1`을 넣을 수 있습니다. 홈 LAN HTTP만 쓰면 넣지 마세요.
 
 ### English (Synology)
 
-Publish at **http://192.168.50.3:7001**. Compose maps **host 7001 → container 3000**. Do not put the LAN IP in application code.
+Publish at **http://soopark.myds.me:7001**. Set `APP_URL=http://soopark.myds.me:7001`. Compose maps **host 7001 → container 3000**. Do not hardcode the host in application code.
 
 1. Copy the repo onto the NAS (e.g. `/volume1/docker/strength-lab`).
 2. Copy `.env.example` → `.env` and set `AUTH_SECRET`.
 3. **Container Manager → Project → Create** from that folder. The image is built from `Dockerfile` (`build: .`). Persist SQLite with the `/data` volume. Port mapping is `7001:3000`.
 4. Or SSH: `docker compose up --build -d`
-5. Open http://192.168.50.3:7001
+5. Open http://soopark.myds.me:7001
 
 If DSM already uses 7001, change only the **host** side of `"7001:3000"` (e.g. `"7002:3000"`). Leave container port 3000 as-is.
 
