@@ -1,4 +1,5 @@
-# NAS pull-only deploy (no local Next build)
+# NAS pull-only deploy (no local Next build).
+# Pin a known-good git SHA if :latest is stale, e.g. ghcr.io/psyo1o/strength-lab:ce9cc71
 services:
   strength-lab:
     image: ghcr.io/psyo1o/strength-lab:latest
