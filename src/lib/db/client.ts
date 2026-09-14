@@ -129,6 +129,11 @@ function applySchema(raw: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS auth_throttle_key_at ON auth_throttle (throttle_key, created_at);
   `);
+  const logCols = new Set(
+    (raw.prepare("PRAGMA table_info(set_logs)").all() as { name: string }[]).map((c) => c.name),
+  );
+  if (!logCols.has("weight_kg")) raw.exec("ALTER TABLE set_logs ADD COLUMN weight_kg REAL");
+  raw.exec("CREATE INDEX IF NOT EXISTS set_logs_user_at ON set_logs (user_id, completed_at)");
 }
 
 export function getSqlite(): Database.Database {

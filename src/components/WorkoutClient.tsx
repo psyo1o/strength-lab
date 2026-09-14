@@ -6,6 +6,7 @@ import { juggernautWaveFromWeek } from "@/lib/calc/juggernaut";
 import { displayWeight } from "@/lib/calc/round";
 import type { ResolvedExercise } from "@/lib/programs/queries";
 import type { Tip } from "@/lib/tips";
+import { TIP_SAFETY_FOOTER } from "@/lib/tips";
 import { BottomSheet } from "./BottomSheet";
 import { RestTimer } from "./RestTimer";
 import { TipMedia } from "./TipMedia";
@@ -97,10 +98,11 @@ export function WorkoutClient({
     void fetch("/api/sets/complete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+        body: JSON.stringify({
         setId: id,
         completed: true,
         amrapReps: askAmrap ? amrapReps : undefined,
+        weightKg: current.set.weightKg ?? null,
       }),
     })
       .then((r) => r.json())
@@ -205,6 +207,21 @@ export function WorkoutClient({
               <span className="font-black">대안 · </span>
               {tip.alternative}
             </p>
+            {tip.youtubeUrl ? (
+              <div className="space-y-2">
+                <a
+                  href={tip.youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary tap flex w-full items-center justify-center text-lg no-underline"
+                >
+                  영상 보기
+                </a>
+                {tip.youtubeCredit ? (
+                  <p className="text-xs text-[var(--muted)]">{tip.youtubeCredit}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="space-y-3 text-base leading-relaxed">
@@ -212,7 +229,9 @@ export function WorkoutClient({
             <p>{current.exercise.tipsKo || "이 종목 팁이 아직 없습니다."}</p>
           </div>
         )}
-        <p className="mt-4 text-xs text-[var(--muted)]">{disclaimer}</p>
+        <p className="mt-4 text-xs font-bold leading-relaxed text-[var(--muted)]">
+          {disclaimer || TIP_SAFETY_FOOTER}
+        </p>
       </BottomSheet>
 
       <BottomSheet open={plateOpen} title="원판" onClose={() => setPlateOpen(false)}>

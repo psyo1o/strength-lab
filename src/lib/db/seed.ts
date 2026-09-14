@@ -237,6 +237,7 @@ type SetLogSnapshot = {
   userId: number;
   completed: number;
   completedAt: number;
+  weightKg: number | null;
   slug: string;
   weekNumber: number;
   dayNumber: number;
@@ -263,6 +264,7 @@ function snapshotSetLogs(raw: Database.Database): SetLogSnapshot[] {
   return raw
     .prepare(
       `SELECT sl.user_id AS userId, sl.completed AS completed, sl.completed_at AS completedAt,
+              sl.weight_kg AS weightKg,
               p.slug AS slug, w.week_number AS weekNumber, d.day_number AS dayNumber,
               pe.exercise_key AS exerciseKey, pe.role AS role, pe.sort_order AS sortOrder,
               s.set_number AS setNumber
@@ -278,18 +280,19 @@ function snapshotSetLogs(raw: Database.Database): SetLogSnapshot[] {
 
 function restoreSetLogs(raw: Database.Database, logs: SetLogSnapshot[], setIds: Map<string, number>) {
   const insert = raw.prepare(
-    `INSERT INTO set_logs (user_id, program_set_id, completed, completed_at)
-     VALUES (?, ?, ?, ?)
+    `INSERT INTO set_logs (user_id, program_set_id, completed, completed_at, weight_kg)
+     VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(user_id, program_set_id) DO UPDATE SET
        completed = excluded.completed,
-       completed_at = excluded.completed_at`,
+       completed_at = excluded.completed_at,
+       weight_kg = excluded.weight_kg`,
   );
   for (const log of logs) {
     const id = setIds.get(
       setLogKey(log.slug, log.weekNumber, log.dayNumber, log.exerciseKey, log.role, log.sortOrder, log.setNumber),
     );
     if (id == null) continue;
-    insert.run(log.userId, id, log.completed, log.completedAt);
+    insert.run(log.userId, id, log.completed, log.completedAt, log.weightKg);
   }
 }
 

@@ -285,23 +285,49 @@ export function programSetExists(programSetId: number): boolean {
   return Boolean(row);
 }
 
-export function toggleSetLog(userId: number, programSetId: number, completed: boolean) {
+export function toggleSetLog(userId: number, programSetId: number, completed: boolean, weightKg?: number | null) {
   if (!Number.isInteger(programSetId) || programSetId <= 0 || !programSetExists(programSetId)) {
     throw new SetNotFoundError();
   }
   if (completed) {
+    const logged =
+      typeof weightKg === "number" && Number.isFinite(weightKg) && weightKg > 0
+        ? weightKg
+        : prescribedWeightKg(userId, programSetId);
     getSqlite()
       .prepare(
-        `INSERT INTO set_logs (user_id, program_set_id, completed, completed_at)
-         VALUES (?, ?, 1, ?)
-         ON CONFLICT(user_id, program_set_id) DO UPDATE SET completed = 1, completed_at = excluded.completed_at`,
+        `INSERT INTO set_logs (user_id, program_set_id, completed, completed_at, weight_kg)
+         VALUES (?, ?, 1, ?, ?)
+         ON CONFLICT(user_id, program_set_id) DO UPDATE SET
+           completed = 1, completed_at = excluded.completed_at, weight_kg = excluded.weight_kg`,
       )
-      .run(userId, programSetId, Date.now());
+      .run(userId, programSetId, Date.now(), logged);
   } else {
     getSqlite()
       .prepare("DELETE FROM set_logs WHERE user_id = ? AND program_set_id = ?")
       .run(userId, programSetId);
   }
+}
+
+/** Prescribed kg for a catalog set at complete-time (does not change later 1RM edits). */
+export function prescribedWeightKg(userId: number, programSetId: number): number | null {
+  const row = getSqlite()
+    .prepare(
+      `SELECT d.id AS dayId
+       FROM program_sets ps
+       JOIN program_exercises pe ON pe.id = ps.exercise_id
+       JOIN program_days d ON d.id = pe.day_id
+       WHERE ps.id = ?`,
+    )
+    .get(programSetId) as { dayId: number } | undefined;
+  if (!row) return null;
+  const workout = resolveWorkout({ dayId: row.dayId, userId, unit: "kg" });
+  if (!workout) return null;
+  for (const ex of workout.exercises) {
+    const set = ex.sets.find((s) => s.id === programSetId);
+    if (set) return set.weightKg;
+  }
+  return null;
 }
 
 /** Week-4 last main set completed for this lift = one finished 4-week cycle. */

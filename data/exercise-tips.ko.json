@@ -9,9 +9,11 @@
     "mistake",
     "alternative",
     "sheet",
-    "media"
+    "media",
+    "youtubeUrl",
+    "youtubeCredit"
   ],
-  "disclaimer": "찌릿한 통증·저림은 이 팁으로 버티지 말고 전문가 봐.",
+  "disclaimer": "참고일 뿐 · 통증은 전문가.",
   "tips": {
     "back_squat": {
       "exerciseId": "back_squat",
@@ -23,6 +25,8 @@
       "media": {
         "imageUrl": null,
         "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=nhoikoUEI8U",
+        "youtubeCredit": "Starting Strength",
         "credit": "",
         "license": "",
         "licenseUrl": "",
@@ -59,6 +63,8 @@
       "media": {
         "imageUrl": null,
         "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=3vwIFQ5OAuY",
+        "youtubeCredit": "Starting Strength",
         "credit": "",
         "license": "",
         "licenseUrl": "",
@@ -311,6 +317,8 @@
       "media": {
         "imageUrl": null,
         "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=9xPxh6omvJg",
+        "youtubeCredit": "Catalyst Athletics",
         "credit": "",
         "license": "",
         "licenseUrl": "",
@@ -449,6 +457,8 @@
   "mediaFields": [
     "imageUrl",
     "videoUrl",
+    "youtubeUrl",
+    "youtubeCredit",
     "credit",
     "license",
     "licenseUrl",
@@ -456,5 +466,5 @@
     "alt",
     "origin"
   ],
-  "mediaPolicy": "P0 empty; local /exercises or /data/media only; no third-party hotlink or coaching clips"
+  "mediaPolicy": "Local images/mp4 only. youtubeUrl is a public watch link (no download/rehost). No TJ scrapes."
 }

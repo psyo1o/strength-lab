@@ -131,6 +131,7 @@ describe("accessory tips", () => {
       expect(tip!.alternative).toBeTruthy();
       expect(tip!.sheet).toBeTruthy();
       expect(tip!.videoUrl).toBeNull();
+      expect(tip!.youtubeUrl == null || tip!.youtubeUrl === "").toBe(true);
       expect(() => JSON.stringify(tip)).not.toThrow();
     }
   });

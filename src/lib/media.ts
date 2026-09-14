@@ -14,6 +14,8 @@ export type MediaOrigin = "" | "empty" | "self_shot" | "user_upload" | "cc";
 export type TipMediaFields = {
   imageUrl?: string | null;
   videoUrl?: string | null;
+  youtubeUrl?: string | null;
+  youtubeCredit?: string;
   credit?: string;
   license?: MediaLicense | string;
   licenseUrl?: string;
@@ -75,6 +77,8 @@ export function flattenTipMedia(
   return {
     imageUrl: top.imageUrl ?? nested.imageUrl ?? null,
     videoUrl: top.videoUrl ?? nested.videoUrl ?? null,
+    youtubeUrl: top.youtubeUrl ?? nested.youtubeUrl ?? null,
+    youtubeCredit: top.youtubeCredit ?? nested.youtubeCredit,
     credit: top.credit ?? nested.credit,
     license: top.license ?? nested.license,
     licenseUrl: top.licenseUrl ?? nested.licenseUrl,
@@ -95,19 +99,31 @@ export function resolveTipMedia(
   const declaredImage = firstNonEmpty(flat.imageUrl, canon.imageUrl);
   const declaredVideo = firstNonEmpty(flat.videoUrl, canon.videoUrl);
   const localImage = declaredImage && isLocalAssetUrl(declaredImage) ? declaredImage : localExerciseImagePath(id);
-  const videoUrl =
-    declaredVideo && (isLocalAssetUrl(declaredVideo) || parseVideoUrl(declaredVideo)) ? declaredVideo : undefined;
+  const videoUrl = declaredVideo && isLocalAssetUrl(declaredVideo) ? declaredVideo : undefined;
+  const youtubeUrl =
+    youtubeWatchUrl(firstNonEmpty(flat.youtubeUrl, canon.youtubeUrl)) ||
+    (parseVideoUrl(declaredVideo)?.kind === "youtube" ? youtubeWatchUrl(declaredVideo) : null);
   return {
     imageUrl: localImage,
     videoUrl,
+    youtubeUrl,
+    youtubeCredit: firstNonEmpty(flat.youtubeCredit, canon.youtubeCredit),
     credit: firstNonEmpty(flat.credit, canon.credit),
     license: firstNonEmpty(flat.license, canon.license),
     licenseUrl: firstNonEmpty(flat.licenseUrl, canon.licenseUrl),
     sourcePage: firstNonEmpty(flat.sourcePage, canon.sourcePage),
     alt: firstNonEmpty(flat.alt, canon.alt),
     origin: firstNonEmpty(flat.origin, canon.origin),
-    hasDeclaredUrl: Boolean(declaredImage || declaredVideo),
+    hasDeclaredUrl: Boolean(declaredImage || videoUrl),
   };
+}
+
+/** Watch URL only — never a download/embed/rehost path. */
+export function youtubeWatchUrl(url?: string | null): string | null {
+  if (!url || !url.trim()) return null;
+  const parsed = parseVideoUrl(url.trim());
+  if (parsed?.kind !== "youtube") return null;
+  return `https://www.youtube.com/watch?v=${parsed.id}`;
 }
 
 export function parseVideoUrl(url?: string | null): ParsedVideo | null {

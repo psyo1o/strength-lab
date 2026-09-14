@@ -49,15 +49,6 @@ export function TipMedia({
             className="relative z-10 h-full w-full object-contain"
           />
         ) : null}
-        {playing && (video?.kind === "youtube" || video?.kind === "vimeo") ? (
-          <iframe
-            src={video.embedSrc}
-            title="운동 영상"
-            className="relative z-10 h-full w-full border-0"
-            allow="encrypted-media"
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
-        ) : null}
         {!playing ? (
           <button
             type="button"

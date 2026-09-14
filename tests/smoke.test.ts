@@ -18,8 +18,8 @@ import {
 import { loadSeedFile, seedDraftsP1Path, seedJsonPath } from "../src/lib/db/seed";
 import { resolveSetKg } from "../src/lib/calc/loads";
 import { START_REF_PERCENT } from "../src/lib/calc/linear";
-import { loadTips, tipDisclaimer, tipFor } from "../src/lib/tips";
-import { isLocalAssetUrl, localExerciseImagePath, parseVideoUrl, resolveTipMedia } from "../src/lib/media";
+import { loadTips, tipDisclaimer, tipFor, TIP_SAFETY_FOOTER } from "../src/lib/tips";
+import { isLocalAssetUrl, localExerciseImagePath, parseVideoUrl, resolveTipMedia, youtubeWatchUrl } from "../src/lib/media";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-smoke-"));
@@ -260,6 +260,7 @@ describe("seed schema example", () => {
 describe("korean exercise tips", () => {
   it("loads official tips with cue/mistake/alternative/sheet and disclaimer", () => {
     expect(tipDisclaimer()).toContain("전문가");
+    expect(tipDisclaimer()).toBe(TIP_SAFETY_FOOTER);
     const squat = tipFor("squat");
     const canonical = tipFor("back_squat");
     expect(squat?.cue).toBeTruthy();
@@ -303,6 +304,13 @@ describe("korean exercise tips", () => {
       expect(yt.embedSrc).toContain("fs=0");
     }
     expect(parseVideoUrl("/exercises/back_squat.mp4")?.kind).toBe("mp4");
+    expect(youtubeWatchUrl("https://youtu.be/nhoikoUEI8U")).toBe("https://www.youtube.com/watch?v=nhoikoUEI8U");
+    expect(youtubeWatchUrl("/exercises/back_squat.mp4")).toBeNull();
+    expect(youtubeWatchUrl("https://example.com/watch?v=abcdefghijk")).toBeNull();
+    expect(tipFor("squat")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=nhoikoUEI8U");
+    expect(tipFor("squat")?.youtubeCredit).toMatch(/Starting Strength/);
+    expect(tipFor("deadlift")?.youtubeUrl).toMatch(/youtube\.com\/watch\?v=/);
+    expect(tipFor("snatch")?.youtubeUrl).toMatch(/youtube\.com\/watch\?v=/);
     expect(seedDraftsP1Path()).toMatch(/seed-drafts[/\\]seed\.p1\.json$/);
   });
 });

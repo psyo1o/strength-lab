@@ -11,6 +11,8 @@ export type Tip = {
   exerciseId?: string;
   imageUrl?: string | null;
   videoUrl?: string | null;
+  youtubeUrl?: string | null;
+  youtubeCredit?: string;
   credit?: string;
   license?: string;
   licenseUrl?: string;
@@ -92,6 +94,8 @@ export function sanitizeTip(raw: Tip, media: ReturnType<typeof resolveTipMedia>)
     exerciseId: text(raw.exerciseId),
     imageUrl: media.imageUrl ?? "",
     videoUrl: media.videoUrl ?? null,
+    youtubeUrl: media.youtubeUrl ?? null,
+    youtubeCredit: media.youtubeCredit ?? "",
     credit: media.credit ?? "",
     license: media.license ?? "",
     licenseUrl: media.licenseUrl ?? "",
@@ -127,11 +131,13 @@ export function clientTipsFor(exerciseKeys: string[]): Record<string, Tip> {
   return JSON.parse(JSON.stringify(out)) as Record<string, Tip>;
 }
 
+export const TIP_SAFETY_FOOTER = "참고일 뿐 · 통증은 전문가.";
+
 export function tipDisclaimer(): string {
   try {
-    return loadTips().disclaimer || "";
+    return loadTips().disclaimer || TIP_SAFETY_FOOTER;
   } catch {
-    return "";
+    return TIP_SAFETY_FOOTER;
   }
 }
 

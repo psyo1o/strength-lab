@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid setId" }, { status: 400 });
   }
   try {
-    toggleSetLog(user.id, setId, Boolean(body.completed));
+    toggleSetLog(user.id, setId, Boolean(body.completed), body.weightKg);
   } catch (err) {
     if (err instanceof SetNotFoundError || (err instanceof Error && err.name === "SetNotFoundError")) {
       return NextResponse.json({ error: "set not found" }, { status: 404 });

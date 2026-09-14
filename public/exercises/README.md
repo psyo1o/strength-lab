@@ -1,14 +1,15 @@
 # 운동 미디어 (NAS / 오프라인)
 
-P0는 **미디어 URL이 비어 있습니다.** 텍스트 팁만 제공합니다.  
-파일을 직접 넣기 전까지 바텀시트는 **미디어 없음**을 보여 줍니다.
+P0 텍스트 팁은 기본. 일부 종목은 공개 YouTube 시청 링크(`youtubeUrl`)만 넣습니다. 파일을 직접 넣기 전까지 사진 칸은 **미디어 없음**입니다.
 
 ## 스키마 (`media` 객체)
 
 | 필드 | 값 |
 | --- | --- |
 | `imageUrl`, `videoUrl` | nullable. 로컬 경로만 (`/exercises/…` 또는 `/api/media/…`) |
-| `credit` | URL이 있을 때만 시트에 표시 |
+| `youtubeUrl` | 공개 YouTube 시청 링크만. 앱에서 「영상 보기」로 외부 실행. 다운로드·재호스팅 없음 |
+| `youtubeCredit` | 채널 표기 (Starting Strength / Catalyst Athletics 등) |
+| `credit` | 로컬 미디어 URL이 있을 때만 시트에 표시 |
 | `license` | `empty` / `cc-by-3.0` / `cc-by-sa-3.0` / `cc-by-sa-4.0` / `cc0` / `pd` / `self_shot` / `user_upload` |
 | `licenseUrl`, `sourcePage`, `alt` | 선택 |
 | `origin` | `empty` / `self_shot` / `user_upload` / `cc` |

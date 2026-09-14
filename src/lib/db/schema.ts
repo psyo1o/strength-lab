@@ -129,6 +129,7 @@ export const setLogs = sqliteTable(
       .references(() => programSets.id, { onDelete: "cascade" }),
     completed: integer("completed", { mode: "boolean" }).notNull().default(true),
     completedAt: integer("completed_at", { mode: "timestamp_ms" }).notNull(),
+    weightKg: real("weight_kg"),
   },
   (t) => [uniqueIndex("set_logs_user_set").on(t.userId, t.programSetId)],
 );
