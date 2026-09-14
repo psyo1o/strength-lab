@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { BottomCta } from "./AuthShell";
 import { PasswordField } from "./PasswordField";
 
 export function ResetForm({ token }: { token: string }) {
@@ -40,18 +41,19 @@ export function ResetForm({ token }: { token: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <PasswordField name="password" label="새 비밀번호" hint="8자 이상" autoComplete="new-password" />
-      <PasswordField
-        name="passwordConfirm"
-        label="비밀번호 확인"
-        hint="8자 이상"
-        autoComplete="new-password"
-      />
-      {error ? <p className="field-error">{error}</p> : null}
-      <button className="btn-primary tap w-full" disabled={pending}>
-        {pending ? "처리 중…" : "비밀번호 바꾸기"}
-      </button>
-    </form>
+    <>
+      <form id="reset-form" onSubmit={onSubmit} className="space-y-4">
+        <PasswordField name="password" label="새 비밀번호" hint="8자 이상" autoComplete="new-password" />
+        <PasswordField
+          name="passwordConfirm"
+          label="비밀번호 확인"
+          hint="8자 이상"
+          error={error === "비밀번호가 달라요" ? error : undefined}
+          autoComplete="new-password"
+        />
+        {error && error !== "비밀번호가 달라요" ? <p className="field-error">{error}</p> : null}
+      </form>
+      <BottomCta form="reset-form" label="비밀번호 바꾸기" pending={pending} />
+    </>
   );
 }

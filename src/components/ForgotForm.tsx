@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { BottomCta } from "./AuthShell";
 
 export function ForgotForm() {
   const [pending, setPending] = useState(false);
@@ -32,29 +33,29 @@ export function ForgotForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <label className="block">
-        <span className="mb-1 block text-sm font-bold">이메일</span>
-        <input name="email" type="email" required autoComplete="email" className="field" />
-      </label>
-      {error ? <p className="field-error">{error}</p> : null}
-      {message ? <p className="text-sm font-bold text-[var(--ok)]">{message}</p> : null}
-      {resetUrl ? (
-        <div className="card space-y-2 p-4">
-          <p className="text-sm font-bold">이메일이 설정되지 않아 링크를 표시합니다</p>
-          <a href={resetUrl} className="block break-all text-sm font-bold text-[var(--accent)]">
-            {resetUrl}
-          </a>
-        </div>
-      ) : null}
-      <button className="btn-primary tap w-full" disabled={pending}>
-        {pending ? "처리 중…" : "링크 보내기"}
-      </button>
-      <p className="text-center text-sm">
-        <Link href="/login" className="font-bold text-[var(--accent)]">
-          로그인으로
-        </Link>
-      </p>
-    </form>
+    <>
+      <form id="forgot-form" onSubmit={onSubmit} className="space-y-4">
+        <label className="block">
+          <span className="mb-1 block text-sm font-bold">이메일</span>
+          <input name="email" type="email" required autoComplete="email" className="field" />
+        </label>
+        {error ? <p className="field-error">{error}</p> : null}
+        {message ? <p className="text-sm font-bold text-[var(--ok)]">{message}</p> : null}
+        {resetUrl ? (
+          <div className="card space-y-2 p-4">
+            <p className="text-sm font-bold">이메일이 설정되지 않아 링크를 표시합니다</p>
+            <a href={resetUrl} className="block break-all text-sm font-bold text-[var(--accent)]">
+              {resetUrl}
+            </a>
+          </div>
+        ) : null}
+        <p className="text-sm">
+          <Link href="/login" className="font-bold text-[var(--accent)]">
+            로그인으로
+          </Link>
+        </p>
+      </form>
+      <BottomCta form="forgot-form" label="링크 보내기" pending={pending} />
+    </>
   );
 }
