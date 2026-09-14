@@ -9,7 +9,10 @@ NAS에서는 `next build` 하지 않습니다. CI가 `linux/arm64` 이미지를 
 `ghcr.io/psyo1o/strength-lab` — `.github/workflows/docker-ghcr-arm64.yml`.
 
 - push to `main` **and** `cursor/strength-lab-mvp-4f20` (plus `workflow_dispatch`)
-- tags: git sha (`type=sha,prefix=`) **and** `latest` (NAS compose pulls `:latest`)
+- concurrency group `ghcr-linux-arm64-latest` with `cancel-in-progress` — a newer push cancels a stale build so `:latest` cannot move backwards
+- every build is tagged with the git SHA (`:ce9cc71` short and full 40-char). Pin the NAS to a SHA if `:latest` is in doubt: `ghcr.io/psyo1o/strength-lab:ce9cc71`
+- `:latest` is promoted **only after** the build, and **only if** `GITHUB_SHA` is still the tip of `cursor/strength-lab-mvp-4f20` or `main`. Stale queued runs do not retag `:latest`.
+- do **not** retag `:latest` from a hardcoded older SHA
 - `GITHUB_TOKEN` + `packages: write`
 - GHCR 패키지는 첫 push 때 **private**가 기본입니다. 레포는 public이어도 익명 `docker pull`은 패키지를 **Public**으로 바꾸기 전까지 401/403입니다.
 
