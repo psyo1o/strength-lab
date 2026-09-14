@@ -5,7 +5,11 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
-  const result = registerUser(String(body.email ?? ""), String(body.password ?? ""));
+  const result = registerUser(
+    String(body.email ?? ""),
+    String(body.password ?? ""),
+    String(body.passwordConfirm ?? ""),
+  );
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }

@@ -47,6 +47,20 @@ This is `docker compose -f docker-compose.nas.yml pull && up -d --force-recreate
 
 시드 리비전이 바뀌면 컨테이너가 프로그램 테이블을 다시 심습니다(유저/1RM은 유지, 세트 로그는 리셋). 강제 재시드는 `.env`에 `FORCE_RESEED=1`.
 
+비밀번호 재설정 `.env` (NAS `docker-compose.nas.yml`이 읽음):
+
+```
+APP_URL=http://192.168.50.3:7001
+# 선택. 없으면 찾기 화면에 1회용 링크를 보여 줍니다(평문 비밀번호는 보내지 않음).
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=you@example.com
+SMTP_PASS=app-password
+SMTP_FROM=Strength Lab <you@example.com>
+```
+
+비밀번호 변경 후 다른 기기 세션은 끊고, 지금 로그인한 기기는 유지합니다. 재설정 링크로 바꾸면 모든 세션이 끊깁니다.
+
 ## When to use `--no-cache`
 
 Hotfix only — when the GHCR layer cache served a stale image or a COPY did not invalidate.

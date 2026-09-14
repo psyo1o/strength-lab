@@ -115,6 +115,19 @@ function applySchema(raw: Database.Database) {
       completed_at INTEGER NOT NULL,
       UNIQUE(user_id, program_set_id)
     );
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS auth_throttle (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      throttle_key TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS auth_throttle_key_at ON auth_throttle (throttle_key, created_at);
   `);
 }
 

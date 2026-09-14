@@ -13,6 +13,13 @@ services:
       MEDIA_PATH: /data/media
       NODE_ENV: production
       PORT: 3000
+      APP_URL: ${APP_URL:-http://192.168.50.3:7001}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_SECURE: ${SMTP_SECURE:-0}
     volumes:
       # SQLite at /data/app.db. Exercise photos/videos at /data/media (MEDIA_PATH).
       - strength-lab-data:/data

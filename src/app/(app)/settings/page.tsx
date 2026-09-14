@@ -30,6 +30,9 @@ export default async function SettingsPage() {
         <Link href="/plates" className="card tap block p-4 font-bold">
           원판 계산기
         </Link>
+        <Link href="/account" className="card tap block p-4 font-bold">
+          비밀번호 변경
+        </Link>
         <LogoutButton />
       </div>
       <Nav current="/settings" />

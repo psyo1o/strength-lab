@@ -104,13 +104,28 @@ export async function clearSessionCookie() {
   jar.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
 }
 
-export function registerUser(email: string, password: string): { user: SessionUser } | { error: string } {
+export const PASSWORD_MIN = 8;
+export const RESET_TTL_MS = 60 * 60 * 1000;
+export const FORGOT_GENERIC = "가입한 이메일이면 안내를 보냈어요.";
+
+export function passwordsMatch(password: string, confirm: string): boolean {
+  return password === confirm;
+}
+
+export function registerUser(
+  email: string,
+  password: string,
+  passwordConfirm?: string,
+): { user: SessionUser } | { error: string } {
   const normalized = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     return { error: "올바른 이메일을 입력하세요." };
   }
-  if (password.length < 8) {
+  if (password.length < PASSWORD_MIN) {
     return { error: "비밀번호는 8자 이상이어야 합니다." };
+  }
+  if (passwordConfirm !== undefined && !passwordsMatch(password, passwordConfirm)) {
+    return { error: "비밀번호가 달라요" };
   }
   const existing = getSqlite()
     .prepare("SELECT id FROM users WHERE email = ?")
@@ -144,7 +159,7 @@ export function loginUser(email: string, password: string): { user: SessionUser 
       }
     | undefined;
   if (!row || !verifyPassword(password, row.password_hash)) {
-    return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
+    return { error: "이메일 또는 비밀번호를 확인해 주세요" };
   }
   return {
     user: {
@@ -172,6 +187,101 @@ export function updateUserPrefs(
   if (prefs.lastSession !== undefined) {
     getSqlite().prepare("UPDATE users SET last_session = ? WHERE id = ?").run(prefs.lastSession, userId);
   }
+}
+
+export function destroyOtherSessions(userId: number, keepSessionId: string) {
+  getSqlite().prepare("DELETE FROM sessions WHERE user_id = ? AND id != ?").run(userId, keepSessionId);
+}
+
+export function destroyAllSessions(userId: number) {
+  getSqlite().prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
+}
+
+export function changePassword(
+  userId: number,
+  current: string,
+  next: string,
+  confirm: string,
+): { ok: true } | { error: string } {
+  if (next.length < PASSWORD_MIN) {
+    return { error: "비밀번호는 8자 이상이어야 합니다." };
+  }
+  if (!passwordsMatch(next, confirm)) {
+    return { error: "비밀번호가 달라요" };
+  }
+  const row = getSqlite()
+    .prepare("SELECT password_hash FROM users WHERE id = ?")
+    .get(userId) as { password_hash: string } | undefined;
+  if (!row || !verifyPassword(current, row.password_hash)) {
+    return { error: "현재 비밀번호가 맞지 않아요" };
+  }
+  getSqlite()
+    .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
+    .run(hashPassword(next), userId);
+  return { ok: true };
+}
+
+function hashResetToken(token: string): string {
+  return createHash("sha256")
+    .update(token + authSecret())
+    .digest("hex");
+}
+
+export function requestPasswordReset(email: string): { token: string | null } {
+  const normalized = email.trim().toLowerCase();
+  const row = getSqlite()
+    .prepare("SELECT id FROM users WHERE email = ?")
+    .get(normalized) as { id: number } | undefined;
+  if (!row) return { token: null };
+  getSqlite().prepare("DELETE FROM password_reset_tokens WHERE user_id = ?").run(row.id);
+  const token = randomBytes(32).toString("hex");
+  getSqlite()
+    .prepare("INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?)")
+    .run(row.id, hashResetToken(token), Date.now() + RESET_TTL_MS, Date.now());
+  return { token };
+}
+
+export function resetPassword(
+  token: string,
+  next: string,
+  confirm: string,
+): { ok: true } | { error: string } {
+  if (!token) return { error: "링크가 만료됐어요. 다시 요청해 주세요" };
+  if (next.length < PASSWORD_MIN) {
+    return { error: "비밀번호는 8자 이상이어야 합니다." };
+  }
+  if (!passwordsMatch(next, confirm)) {
+    return { error: "비밀번호가 달라요" };
+  }
+  const row = getSqlite()
+    .prepare("SELECT id, user_id, expires_at FROM password_reset_tokens WHERE token_hash = ?")
+    .get(hashResetToken(token)) as { id: number; user_id: number; expires_at: number } | undefined;
+  if (!row || row.expires_at < Date.now()) {
+    if (row) getSqlite().prepare("DELETE FROM password_reset_tokens WHERE id = ?").run(row.id);
+    return { error: "링크가 만료됐어요. 다시 요청해 주세요" };
+  }
+  getSqlite()
+    .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
+    .run(hashPassword(next), row.user_id);
+  getSqlite().prepare("DELETE FROM password_reset_tokens WHERE user_id = ?").run(row.user_id);
+  destroyAllSessions(row.user_id);
+  return { ok: true };
+}
+
+export function allowThrottle(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  getSqlite().prepare("DELETE FROM auth_throttle WHERE created_at < ?").run(now - 24 * 60 * 60 * 1000);
+  const row = getSqlite()
+    .prepare("SELECT COUNT(*) AS c FROM auth_throttle WHERE throttle_key = ? AND created_at >= ?")
+    .get(key, now - windowMs) as { c: number };
+  if (row.c >= max) return false;
+  getSqlite().prepare("INSERT INTO auth_throttle (throttle_key, created_at) VALUES (?, ?)").run(key, now);
+  return true;
+}
+
+export function appPublicUrl(): string {
+  const raw = process.env.APP_URL || process.env.BASE_URL || "http://192.168.50.3:7001";
+  return raw.replace(/\/+$/, "");
 }
 
 export { SESSION_COOKIE };

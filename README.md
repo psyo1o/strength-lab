@@ -11,7 +11,8 @@
 
 ## Features / 기능
 
-- 이메일 + 비밀번호 가입/로그인 (세션 쿠키). 여러 계정 가능
+- 이메일 + 비밀번호 가입/로그인 (세션 쿠키). 가입 시 비밀번호 확인. 여러 계정 가능
+- 로그인 후 설정 → 비밀번호 변경. 비밀번호 찾기(`/forgot-password`)는 SMTP가 있으면 메일, 없으면 화면에 1회용 링크(약 1시간)
 - 1RM을 kg로 저장, 화면만 kg/lb 전환
 - 프로그램 → 주 → 일 → 세트(중량×반복). 큰 버튼, 완료 체크, 휴식 타이머
 - 5/3/1은 `MROUND(1RM × 0.9 × pct/100, 2.5)` — TM을 먼저 반올림하지 않음. QA: 1RM 155 → W1 85% = 117.5 (120 아님). 200kg W1 = 117.5 / 135 / 152.5
@@ -27,6 +28,8 @@
 ```bash
 cp .env.example .env
 # AUTH_SECRET 을 긴 랜덤 문자열로 바꾸세요
+# 비밀번호 재설정 링크용: APP_URL=http://192.168.50.3:7001
+# 메일 보내기(선택): SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM
 npm install
 npm test
 npm run dev
@@ -57,7 +60,7 @@ P1 초안 JSON은 `seed-drafts/seed.p1.json` (또는 `SEED_P1_PATH`) — 있으�
 ### 한국어 절차
 
 1. 저장소를 NAS 폴더에 둡니다. 예: `/volume1/docker/strength-lab`
-2. `.env.example`을 `.env`로 복사하고 `AUTH_SECRET`을 긴 랜덤 문자열로 바꿉니다.
+2. `.env.example`을 `.env`로 복사하고 `AUTH_SECRET`을 긴 랜덤 문자열로 바꿉니다. 재설정 메일을 쓰려면 `APP_URL`과 `SMTP_*`를 넣습니다. SMTP가 없으면 찾기 화면에 1회용 링크가 나타납니다.
 
 ```bash
 openssl rand -hex 32

@@ -101,6 +101,22 @@ export const programSets = sqliteTable("program_sets", {
   noteKo: text("note_ko").notNull().default(""),
 });
 
+export const passwordResetTokens = sqliteTable("password_reset_tokens", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const authThrottle = sqliteTable("auth_throttle", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  throttleKey: text("throttle_key").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export const setLogs = sqliteTable(
   "set_logs",
   {
