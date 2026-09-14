@@ -127,7 +127,6 @@ export function recentSessions(userId: number, limit = 5): RecentSession[] {
       groups.set(key, session);
       order.push(key);
     }
-    if (row.role !== "main") continue;
     const existing = session.lifts.find((l) => l.nameKo === row.nameKo);
     if (!existing) session.lifts.push({ nameKo: row.nameKo, weightKg: row.weightKg });
     else if (row.weightKg != null && (existing.weightKg == null || row.weightKg > existing.weightKg)) {
