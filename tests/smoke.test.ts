@@ -441,7 +441,7 @@ describe("P1 programs", () => {
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").coverage).toBe("seeded_sample_not_full_cycle");
     expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").descriptionKo).toMatch(/진행 가능/);
-    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").descriptionKo).toMatch(/엑셀/);
+    expect(raw.programs.find((p: { id: string }) => p.id === "bob-takano").descriptionKo).toMatch(/12주|Class/);
     expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").weeks).toHaveLength(12);
     expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").completeness).toBe("working");
     expect(raw.programs.find((p: { id: string }) => p.id === "catalyst").coverage).toBe("seeded_sample_not_full_cycle");

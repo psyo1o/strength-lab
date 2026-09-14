@@ -18,4 +18,4 @@ npm run seed
 
 - 채팅/에이전트 메시지에 프로그램 전체 gzip B64를 붙여 넣기
 - 깨진 gunzip 출력에서 한 글자를 추정해 시드를 채우기
-- Takano/Catalyst 유료 주를 발명하기 (LBEB W7–12는 공개 12주 텍스트만)
+- 없는 주를 추정해 채우기 (LBEB W7–12는 Cycle 2 W3–Cycle 3 W4만)

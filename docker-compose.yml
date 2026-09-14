@@ -23,7 +23,7 @@ services:
     volumes:
       # SQLite at /data/app.db. Exercise photos/videos at /data/media (MEDIA_PATH).
       - strength-lab-data:/data
-      # Drop local files on the NAS (no Commons hotlink, no TJ Strength clips):
+      # Drop local files on the NAS (no third-party hotlink or coaching clips):
       # mkdir -p /volume1/docker/strength-lab/media
       # cp back_squat.webp /volume1/docker/strength-lab/media/
       # then uncomment:

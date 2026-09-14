@@ -675,7 +675,7 @@ function rehabProgram(): SeedProgram {
     category: "재활",
     completeness: "working",
     descriptionKo:
-      "공개 지식 DeLorme(50/75/100% 10RM ×10)과 DAPRE(50×10 / 75×6 / 100 AMRAP / 조절 세트). 10RM≈75% 1RM. 자동 증감은 없고 노트 규칙으로 수동 조절. 통증 있으면 중단.",
+      "DeLorme(50/75/100% 10RM ×10)과 DAPRE(50×10 / 75×6 / 100 AMRAP / 조절 세트). 10RM≈75% 1RM. 자동 증감은 없고 노트 규칙으로 수동 조절. 통증 있으면 중단.",
     descriptionEn: "DeLorme and DAPRE using estimated 10RM (75% of 1RM). Manual DAPRE adjustment.",
     sortOrder: 20,
     weeks: [1, 2, 3, 4].map((w) => ({
@@ -736,8 +736,8 @@ function dupProgram(): SeedProgram {
     category: "주기화",
     completeness: "working",
     descriptionKo:
-      "공개 지식 DUP: 같은 주에 비대(4×8)·근력(5×3 AMRAP)·파워(빠른 3s)를 요일로 나눕니다. %1RM, 4주는 회복. 자동 진행·RPE 조절은 없습니다.",
-    descriptionEn: "Hypertrophy / strength / power days with %1RM. Approximate public-knowledge DUP.",
+      "DUP: 같은 주에 비대(4×8)·근력(5×3 AMRAP)·파워(빠른 3s)를 요일로 나눕니다. %1RM, 4주는 회복. 자동 진행·RPE 조절은 없습니다.",
+    descriptionEn: "Hypertrophy / strength / power days with %1RM.",
     sortOrder: 30,
     weeks: blocks.map((b, wi) => ({
       weekNumber: wi + 1,
@@ -871,8 +871,8 @@ function juggernautProgram(): SeedProgram {
     category: "파워리프팅",
     completeness: "working",
     descriptionKo:
-      "공개 지식 Juggernaut 16주(10s→8s→5s→3s, 각 축적/강화/실현/딜로드). 주 4일 스쿼트/벤치/데드/OHP. AMRAP 재계산·유료 변형은 없습니다.",
-    descriptionEn: "16-week 10s/8s/5s/3s waves. Approximate public-knowledge structure, not the paid product.",
+      "Juggernaut 16주(10s→8s→5s→3s, 각 축적/강화/실현/딜로드). 주 4일 스쿼트/벤치/데드/OHP. 실현 주 AMRAP로 1RM을 갱신합니다.",
+    descriptionEn: "16-week 10s/8s/5s/3s waves.",
     sortOrder: 40,
     weeks,
   };
@@ -887,8 +887,8 @@ function cowboyProgram(): SeedProgram {
     category: "파워리프팅",
     completeness: "working",
     descriptionKo:
-      "공개 지식 주 4일 볼륨(5×5 전후) 스쿼트/벤치/데드/프레스. 4주는 회복. Wendler 원본·시트 변형의 복제가 아닙니다.",
-    descriptionEn: "4-day volume 5x5-style shell. Approximate; not a spreadsheet clone.",
+      "주 4일 볼륨(5×5 전후) 스쿼트/벤치/데드/프레스. 4주는 회복.",
+    descriptionEn: "4-day volume 5x5-style shell.",
     sortOrder: 50,
     weeks: weeks.map((pct, i) => ({
       weekNumber: i + 1,
@@ -1186,15 +1186,15 @@ function olympicBlock(
     category: "역도",
     completeness: "working",
     descriptionKo,
-    descriptionEn: "4-week public-knowledge Olympic block. Approximate — not an official coaching cycle.",
+    descriptionEn: "4-week Olympic lifting block.",
     sortOrder,
     weeks: [1, 2, 3, 4].map((w) => ({
       weekNumber: w,
       nameKo: w === 4 ? "4주차 — 테이퍼" : `${w}주차`,
       notesKo:
         w === 4
-          ? "테이퍼. 공식 장기 주기화가 아니며 퍼센트는 공개 지식 근사입니다."
-          : "워밍업 후 메인. 공식 코칭 사이클이 아닌 공개 지식 골격입니다.",
+          ? "테이퍼."
+          : "워밍업 후 메인.",
       days: [
         {
           dayNumber: 1,

@@ -27,7 +27,7 @@ export const P1_META: Record<string, P1Meta> = {
       { id: "II", label: "Class II", weekStart: 5 },
       { id: "I", label: "Class I", weekStart: 9 },
     ],
-    listedBlocks: ["Class III·II·I 시드 주 진행 가능 (각 4주). 유료 엑셀 8/9/12주 그리드는 저장소에 없음."],
+    listedBlocks: ["Class III·II·I 시드 주 진행 가능 (각 4주)."],
   },
   rehab: {
     extraOneRmFields: [{ key: "rehab_target", label: "재활 목표 동작" }],
@@ -39,7 +39,7 @@ export const P1_META: Record<string, P1Meta> = {
       { id: "5s", label: "5s", weekStart: 9 },
       { id: "3s", label: "3s", weekStart: 13 },
     ],
-    listedBlocks: ["W1–16 Acc/Int/Real/Deload (월/수/금/토)", "피킹 블록 — W16 이후 시트/코치 5주. realizationMaxHook만 자동."],
+    listedBlocks: ["W1–16 Acc/Int/Real/Deload (월/수/금/토)", "피킹 블록 — W16 이후 노트. realizationMaxHook만 자동."],
   },
   cowboy: {
     extraOneRmFields: [{ key: "front_squat", label: "프론트 스쿼트" }],
@@ -52,14 +52,14 @@ export const P1_META: Record<string, P1Meta> = {
   lbeb: {
     listedBlocks: [
       "W1–6 하이브리드 시드",
-      "W7–12 공개 LBEB 12주 (Cycle 2 W3–Cycle 3 W4). 월·화·목 작업 / 수·금·토 휴식",
+      "W7–12 LBEB 12주 (Cycle 2 W3–Cycle 3 W4). 월·화·목 작업 / 수·금·토 휴식",
     ],
   },
   catalyst: {
-    listedBlocks: ["12주 세션 진행 가능. 공식 기본+스페셜티 엑셀 블록은 저장소에 없음."],
+    listedBlocks: ["12주 세션 진행 가능."],
   },
   torokhtiy: {
-    listedBlocks: ["13주 월–금 세션 진행 가능. 공식 앱 사이클 아님."],
+    listedBlocks: ["13주 월–금 세션 진행 가능."],
   },
 };
 

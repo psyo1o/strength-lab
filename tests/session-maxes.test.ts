@@ -162,9 +162,9 @@ describe("completeness badges", () => {
     expect(raw.programs.find((p: { id: string }) => p.id === "lbeb").completeness).toBe("working");
     expect(programBadge("catalyst", "working")).toBe("진행 가능");
     expect(programBadge("torokhtiy", "working")).toBe("진행 가능");
-    expect(programSubtitle("bob-takano")).toBe("엑셀 기반 샘플 사이클");
-    expect(programSubtitle("catalyst")).toBe("엑셀 기반 샘플 사이클");
-    expect(programSubtitle("torokhtiy")).toBe("엑셀 기반 샘플 사이클");
+    expect(programSubtitle("bob-takano")).toBeNull();
+    expect(programSubtitle("catalyst")).toBeNull();
+    expect(programSubtitle("torokhtiy")).toBeNull();
     expect(programSubtitle("lbeb")).toBeNull();
     expect(programSubtitle("jim-wendler-531")).toBeNull();
     expect(raw.programs.find((p: { id: string }) => p.id === "cowboy").completeness).toBe("working");

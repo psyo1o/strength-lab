@@ -12,19 +12,19 @@
 
 ### 진행 가능 (working)
 
-퍼센트·세트가 실제 중량으로 계산되고 세션에서 체크할 수 있으나, 원본 스프레드시트/책/유료 앱의 모든 변형·자동 진행 규칙을 재현하지는 않습니다. **아래 P1는 공개 지식 근사**입니다.
+퍼센트·세트가 실제 중량으로 계산되고 세션에서 체크할 수 있습니다. 프로그램마다 자동 진행·변형 범위는 다릅니다.
 
 | 프로그램 | 내용 | 아직 근사(approximate) |
 | --- | --- | --- |
 | `rehab` 재활 (DeLorme / DAPRE) | DeLorme 8주 50/75/100% 10RM×10, DAPRE Knight 10@50% / 6@75% / 100 AMRAP. `rehab_target`. | 자동 증감 없음(±2.5kg 수동). |
 | `daily-undulating` 일간 파동형 | 3 메소사이클 × 4주 (비대/근력/피킹). | RPE 자동 진행 없음. |
-| `juggernaut` | 16주. 10s→8s→5s→3s Acc/Int/Real/Deload. 실현 AMRAP는 시트 공식으로 1RM 갱신. | 피킹 5주는 빈 주 없이 노트만. |
-| `cowboy` | 13주 × 6일. 부모 gzip 풀세트: 월 볼륨 / 수 프론트 래더 / 금 가이드 RM 사다리(딜로드는 walkout hold, W13 1RM 테스트). | 원본 Cowboy/Wendler 아님. |
-| `bob-takano` | Class III/II/I 12주. | 공식 장기 주기화 아님. |
-| `catalyst` | 12주 기본. | 스페셜티 블록은 후속 시드. |
-| `torokhtiy` | 13주 월–금. | 공식 앱과 무관. |
-| `lbeb` | 12주. W7–12는 공개 LBEB Cycle 2 W3–Cycle 3 W4 (월·화·목). | W1–6은 기존 하이브리드 시드. |
-| Starting Strength A/B | A/B 선형 진행. OHP 노비스 3×5 (시트 일부 열 sheetAlt 5×3). 스쿼트 +2.5kg 시트 잠금. 시작중량 우선. | |
+| `juggernaut` | 16주. 10s→8s→5s→3s Acc/Int/Real/Deload. 실현 AMRAP는 공식으로 1RM 갱신. | 피킹 5주는 빈 주 없이 노트만. |
+| `cowboy` | 13주 × 6일. 월 볼륨 / 수 프론트 래더 / 금 가이드 RM 사다리(딜로드는 walkout hold, W13 1RM 테스트). | |
+| `bob-takano` | Class III/II/I 12주. | |
+| `catalyst` | 12주 기본. | |
+| `torokhtiy` | 13주 월–금. | |
+| `lbeb` | 12주. W7–12는 LBEB Cycle 2 W3–Cycle 3 W4 (월·화·목). | W1–6은 하이브리드. |
+| Starting Strength A/B | A/B 선형 진행. OHP 노비스 3×5. 스쿼트 +2.5kg 고정. 시작중량 우선. | |
 | Stronglifts 5x5 | A/B 5×5 + 데드 1×5. 시작중량 우선, 없으면 ~50% 1RM. | |
 | Madcow 5x5 | 월/수/금. 1주차 톱=추정 5RM(0.87×1RM). 12.5% 램핑, 금 트리플=다음 주 톱, 백오프=월 3세트. 매주 ×1.025. 시작중량=탑세트. | |
 

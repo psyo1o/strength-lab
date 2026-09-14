@@ -101,8 +101,8 @@ export function dailyUndulatingProgram(): SeedProgram {
     category: "주기화",
     completeness: "working",
     descriptionKo:
-      "기본 국면은 비대(월–토). 근력·피킹은 프로그램 화면에서 고릅니다. extra 1RM: 프론트스쿼트·파워클린. 공개 지식 근사 — RPE 자동 진행 없음.",
-    descriptionEn: "Default hypertrophy Mon–Sat. Strength/peaking via phase picker. Approximate.",
+      "기본 국면은 비대(월–토). 근력·피킹은 프로그램 화면에서 고릅니다. extra 1RM: 프론트스쿼트·파워클린. RPE 자동 진행 없음.",
+    descriptionEn: "Default hypertrophy Mon–Sat. Strength/peaking via phase picker.",
     extraOneRmFields: { front_squat: { label: "프론트 스쿼트" }, power_clean: { label: "파워클린" } },
     copy: {
       help: "3 메소사이클 × 4주(비대 → 근력 → 피킹). 각 4주차는 회복(작업중량 −10%p). extra 1RM: 프론트스쿼트·파워클린. RPE 자동 진행 없음.",
@@ -174,17 +174,17 @@ export function juggernautP1(): SeedProgram {
     category: "파워리프팅",
     completeness: "working",
     descriptionKo:
-      "16주 월/수/금/토. 10s→8s→5s→3s Acc/Int/Real/Deload. 실현 주 AMRAP는 시트 공식으로 1RM을 갱신. 피킹 블록은 W16 이후 노트.",
+      "16주 월/수/금/토. 10s→8s→5s→3s Acc/Int/Real/Deload. 실현 주 AMRAP는 공식으로 1RM을 갱신. 피킹 블록은 W16 이후 노트.",
     descriptionEn: "16-week waves Mon/Wed/Fri/Sat plus peaking notes after W16.",
     coverage: "w1-16_full_sets_plus_peaking",
     copy: {
-      help: "16주 웨이브(10s/8s/5s/3s) 후 피킹 5주는 시트/코치 블록. 실현 주 AMRAP만 1RM을 자동 갱신합니다.",
+      help: "16주 웨이브(10s/8s/5s/3s) 후 피킹 5주는 노트. 실현 주 AMRAP만 1RM을 자동 갱신합니다.",
     },
     weekRules: [
       ...waves.flatMap((wave, wi) =>
         kinds.map((kind, ki) => `W${wi * 4 + ki + 1}: ${wave.label} ${kindRow(kind, wave).name}`),
       ),
-      "peakingBlock: W16 이후 피킹 5주는 시트/코치 블록. 앱은 realizationMaxHook만 자동.",
+      "peakingBlock: W16 이후 피킹 5주는 노트. 앱은 realizationMaxHook만 자동.",
     ],
     sortOrder: 40,
     weeks: waves.flatMap((wave, wi) =>
@@ -193,7 +193,7 @@ export function juggernautP1(): SeedProgram {
         return {
           weekNumber: wi * 4 + ki + 1,
           nameKo: `${wi * 4 + ki + 1}주차 — ${wave.label} ${row.name}`,
-          notesKo: row.amrap ? "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신." : "딜로드 60% × 3×5.",
+          notesKo: row.amrap ? "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신." : "딜로드 60% × 3×5.",
           days: [
             liftDay(lifts[0], row),
             restDay(2, "화요일 — 휴식"),
@@ -492,17 +492,16 @@ export function bobTakanoP1(): SeedProgram {
     completeness: "working",
     coverage: "seeded_sample_not_full_cycle",
     copy: {
-      help: "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다. 유료 엑셀 Class III 8 / II 9 / I 12 그리드는 이 저장소에 없습니다.",
+      help: "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다.",
     },
-    descriptionKo:
-      "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다. 유료 엑셀 8/9/12주 그리드는 이 저장소에 없으며 퍼센트는 공개 지식 근사입니다.",
-    descriptionEn: "12 seeded class weeks are usable. Paid Excel Class III 8 / II 9 / I 12 grids are not in this repo.",
+    descriptionKo: "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다.",
+    descriptionEn: "12 seeded Class III·II·I weeks are usable.",
     sortOrder: 90,
     weeks: classes.flatMap((cl, ci) =>
       [1, 2, 3, 4].map((off) => ({
         weekNumber: ci * 4 + off,
         nameKo: `${ci * 4 + off}주차 — ${cl.label}`,
-        notesKo: `${cl.label}. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.`,
+        notesKo: `${cl.label}. 클래스 피커로 이동.`,
         days: olympicWeek1Days("takano", off).map((d) => ({
           ...d,
           exercises: d.exercises.map((ex) => ({
@@ -526,16 +525,15 @@ export function catalystP1(): SeedProgram {
     completeness: "working",
     coverage: "seeded_sample_not_full_cycle",
     copy: {
-      help: "12주 세션이 시드되어 진행 가능합니다. 공식 기본+스페셜티 엑셀 블록은 이 저장소에 없습니다.",
+      help: "12주 세션이 시드되어 진행 가능합니다.",
     },
-    descriptionKo:
-      "12주 세션이 시드되어 진행 가능합니다. 공식 기본+스페셜티 엑셀 블록은 이 저장소에 없으며 퍼센트는 공개 지식 근사입니다.",
-    descriptionEn: "12 seeded weeks are usable. Official Catalyst base + specialty Excel blocks are not in this repo.",
+    descriptionKo: "12주 세션이 시드되어 진행 가능합니다.",
+    descriptionEn: "12 seeded weeks are usable.",
     sortOrder: 100,
     weeks: Array.from({ length: 12 }, (_, i) => ({
       weekNumber: i + 1,
       nameKo: `${i + 1}주차 — 기본`,
-      notesKo: i === 0 ? "시드 샘플 W1. 공식 12주 블록 아님." : `시드 샘플 ${i + 1}주차. 작업중량 +${i}%p. 공식 파동 아님.`,
+      notesKo: i === 0 ? "1주차." : `${i + 1}주차. 작업중량 +${i}%p.`,
       days: olympicWeek1Days("catalyst", i + 1),
     })),
   };
@@ -549,15 +547,15 @@ export function torokhtiyP1(): SeedProgram {
     category: "역도",
     completeness: "working",
     copy: {
-      help: "13주 월–금 세션이 시드되어 진행 가능합니다. 공식 Torokhtiy 앱 사이클은 아닙니다.",
+      help: "13주 월–금 세션이 시드되어 진행 가능합니다.",
     },
-    descriptionKo: "13주 월–금 세션이 시드되어 진행 가능합니다. W2–13은 같은 골격에 주당 +1%p. 공식 앱과 무관.",
-    descriptionEn: "13 seeded Mon–Fri weeks are usable. Not the official Torokhtiy app cycle.",
+    descriptionKo: "13주 월–금 세션이 시드되어 진행 가능합니다. W2–13은 같은 골격에 주당 +1%p.",
+    descriptionEn: "13 seeded Mon–Fri weeks are usable.",
     sortOrder: 110,
     weeks: Array.from({ length: 13 }, (_, i) => ({
       weekNumber: i + 1,
       nameKo: i === 0 ? "1주차 — 월–금" : `${i + 1}주차`,
-      notesKo: i === 0 ? "토로흐티 스타일 5일. 공개 지식 근사." : `W${i + 1} — W1 골격 유지, 강도 +${i}%p. 상세 파동은 노트만.`,
+      notesKo: i === 0 ? "토로흐티 스타일 5일." : `W${i + 1} — W1 골격 유지, 강도 +${i}%p. 상세 파동은 노트만.`,
       days: olympicWeek1Days("torokhtiy", i + 1),
     })),
   };
@@ -809,19 +807,19 @@ export function lbebP1(): SeedProgram {
     completeness: "working",
     coverage: "public-lbeb-12w-olympic",
     copy: {
-      help: "12주 진행 가능. W1–6은 기존 하이브리드 시드. W7–12는 공개 LBEB 12주(Cycle 2 W3–Cycle 3 W4, 월·화·목). 출처 public-lbeb-12w-olympic.",
+      help: "12주 진행 가능. W1–6은 하이브리드, W7–12는 LBEB 12주(Cycle 2 W3–Cycle 3 W4, 월·화·목).",
     },
     descriptionKo:
-      "12주 진행 가능. W1–6은 기존 하이브리드 시드. W7–12는 공개 LBEB 12주(Cycle 2 W3–Cycle 3 W4). 유료 시트를 추정해 채우지 않았습니다.",
+      "12주 진행 가능. W1–6은 하이브리드, W7–12는 LBEB 12주(Cycle 2 W3–Cycle 3 W4).",
     descriptionEn:
-      "12 weeks usable. W7–12 from public LBEB 12-week Olympic text (Cycle 2 W3–Cycle 3 W4). Paid Excel weeks were not invented.",
+      "12 weeks usable. Weeks 1–6 hybrid; weeks 7–12 follow LBEB Cycle 2 W3 – Cycle 3 W4.",
     sortOrder: 120,
     weeks: [
       ...Array.from({ length: 6 }, (_, i) => ({
         weekNumber: i + 1,
         nameKo: `${i + 1}주차`,
         notesKo:
-          i === 0 ? "하이브리드 W1." : `W${i + 1} 노트: W1 골격 + 소폭 강도. 원본 시트 파동 아님.`,
+          i === 0 ? "하이브리드 W1." : `W${i + 1} 노트: W1 골격 + 소폭 강도.`,
         days: olympicWeek1Days("lbeb", i + 1),
       })),
       ...lbebPublicWeeks7to12(),

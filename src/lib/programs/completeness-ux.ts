@@ -33,13 +33,8 @@ export function programBadge(
   return "진행 가능";
 }
 
-/** One-line note under the badge. Sample cycles are usable; do not say 불완전. */
-export function programSubtitle(slug: string, coverage?: string | null): string | null {
-  const cov = coverageOf(slug, coverage);
-  if (cov === "excel-w1-6-only") return null;
-  if (SAMPLE_CYCLE_SLUGS.has(slug) || cov === "seeded_sample_not_full_cycle") {
-    return "엑셀 기반 샘플 사이클";
-  }
+/** One-line note under the badge. Usable cycles do not say 불완전. */
+export function programSubtitle(_slug: string, _coverage?: string | null): string | null {
   return null;
 }
 

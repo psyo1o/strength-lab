@@ -3461,7 +3461,7 @@
       "category": "주기화",
       "completeness": "working",
       "descriptionKo": "3 메소사이클 × 4주(비대 → 근력 → 피킹). 각 4주차는 회복(작업중량 −10%p). extra 1RM: 프론트스쿼트·파워클린. RPE 자동 진행 없음.",
-      "descriptionEn": "Default hypertrophy Mon–Sat. Strength/peaking via phase picker. Approximate.",
+      "descriptionEn": "Default hypertrophy Mon–Sat. Strength/peaking via phase picker.",
       "copy": {
         "help": "3 메소사이클 × 4주(비대 → 근력 → 피킹). 각 4주차는 회복(작업중량 −10%p). extra 1RM: 프론트스쿼트·파워클린. RPE 자동 진행 없음."
       },
@@ -10541,7 +10541,7 @@
       "nameEn": "Juggernaut Method",
       "category": "파워리프팅",
       "completeness": "working",
-      "descriptionKo": "16주 웨이브(10s/8s/5s/3s) 후 피킹 5주는 시트/코치 블록. 실현 주 AMRAP만 1RM을 자동 갱신합니다.",
+      "descriptionKo": "16주 웨이브(10s/8s/5s/3s) 후 피킹 5주는 노트. 실현 주 AMRAP만 1RM을 자동 갱신합니다.",
       "descriptionEn": "16-week waves Mon/Wed/Fri/Sat plus peaking notes after W16.",
       "usesTM": false,
       "tmFactor": 0.9,
@@ -10550,7 +10550,7 @@
         {
           "week": 1,
           "nameKo": "1주차 — 10s 축적",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -11081,7 +11081,7 @@
         {
           "week": 2,
           "nameKo": "2주차 — 10s 강화",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -11564,7 +11564,7 @@
         {
           "week": 3,
           "nameKo": "3주차 — 10s 실현",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -12550,7 +12550,7 @@
         {
           "week": 5,
           "nameKo": "5주차 — 8s 축적",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -13081,7 +13081,7 @@
         {
           "week": 6,
           "nameKo": "6주차 — 8s 강화",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -13564,7 +13564,7 @@
         {
           "week": 7,
           "nameKo": "7주차 — 8s 실현",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -14550,7 +14550,7 @@
         {
           "week": 9,
           "nameKo": "9주차 — 5s 축적",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -15105,7 +15105,7 @@
         {
           "week": 10,
           "nameKo": "10주차 — 5s 강화",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -15612,7 +15612,7 @@
         {
           "week": 11,
           "nameKo": "11주차 — 5s 실현",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -16598,7 +16598,7 @@
         {
           "week": 13,
           "nameKo": "13주차 — 3s 축적",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -17177,7 +17177,7 @@
         {
           "week": 14,
           "nameKo": "14주차 — 3s 강화",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -17708,7 +17708,7 @@
         {
           "week": 15,
           "nameKo": "15주차 — 3s 실현",
-          "notesKo": "마지막 AMRAP. 실현 주면 시트 공식으로 1RM 갱신.",
+          "notesKo": "마지막 AMRAP. 실현 주면 공식으로 1RM 갱신.",
           "days": [
             {
               "day": 1,
@@ -18709,11 +18709,11 @@
         "W14: 3s 강화",
         "W15: 3s 실현",
         "W16: 3s 딜로드",
-        "peakingBlock: W16 이후 피킹 5주는 시트/코치 블록. 앱은 realizationMaxHook만 자동."
+        "peakingBlock: W16 이후 피킹 5주는 노트. 앱은 realizationMaxHook만 자동."
       ],
       "coverage": "w1-16_full_sets_plus_peaking",
       "copy": {
-        "help": "16주 웨이브(10s/8s/5s/3s) 후 피킹 5주는 시트/코치 블록. 실현 주 AMRAP만 1RM을 자동 갱신합니다."
+        "help": "16주 웨이브(10s/8s/5s/3s) 후 피킹 5주는 노트. 실현 주 AMRAP만 1RM을 자동 갱신합니다."
       }
     },
     {
@@ -25343,8 +25343,8 @@
       "nameEn": "Bob Takano",
       "category": "역도",
       "completeness": "working",
-      "descriptionKo": "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다. 유료 엑셀 Class III 8 / II 9 / I 12 그리드는 이 저장소에 없으며 퍼센트는 공개 지식 근사입니다.",
-      "descriptionEn": "12 seeded class weeks are usable. Paid Excel Class III 8 / II 9 / I 12 grids are not in this repo.",
+      "descriptionKo": "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다.",
+      "descriptionEn": "12 seeded class weeks are usable.",
       "usesTM": false,
       "tmFactor": 0.9,
       "sortOrder": 90,
@@ -25352,7 +25352,7 @@
         {
           "week": 1,
           "nameKo": "1주차 — Class III",
-          "notesKo": "Class III. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class III. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -25838,7 +25838,7 @@
         {
           "week": 2,
           "nameKo": "2주차 — Class III",
-          "notesKo": "Class III. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class III. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -26324,7 +26324,7 @@
         {
           "week": 3,
           "nameKo": "3주차 — Class III",
-          "notesKo": "Class III. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class III. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -26810,7 +26810,7 @@
         {
           "week": 4,
           "nameKo": "4주차 — Class III",
-          "notesKo": "Class III. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class III. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -27296,7 +27296,7 @@
         {
           "week": 5,
           "nameKo": "5주차 — Class II",
-          "notesKo": "Class II. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class II. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -27782,7 +27782,7 @@
         {
           "week": 6,
           "nameKo": "6주차 — Class II",
-          "notesKo": "Class II. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class II. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -28268,7 +28268,7 @@
         {
           "week": 7,
           "nameKo": "7주차 — Class II",
-          "notesKo": "Class II. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class II. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -28754,7 +28754,7 @@
         {
           "week": 8,
           "nameKo": "8주차 — Class II",
-          "notesKo": "Class II. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class II. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -29240,7 +29240,7 @@
         {
           "week": 9,
           "nameKo": "9주차 — Class I",
-          "notesKo": "Class I. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class I. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -29726,7 +29726,7 @@
         {
           "week": 10,
           "nameKo": "10주차 — Class I",
-          "notesKo": "Class I. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class I. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -30212,7 +30212,7 @@
         {
           "week": 11,
           "nameKo": "11주차 — Class I",
-          "notesKo": "Class I. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class I. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -30698,7 +30698,7 @@
         {
           "week": 12,
           "nameKo": "12주차 — Class I",
-          "notesKo": "Class I. 클래스 피커로 이동. 퍼센트는 공개 지식 근사.",
+          "notesKo": "Class I. 클래스 피커로 이동.",
           "days": [
             {
               "day": 1,
@@ -31184,7 +31184,7 @@
       ],
       "coverage": "seeded_sample_not_full_cycle",
       "copy": {
-        "help": "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다. 유료 엑셀 Class III 8 / II 9 / I 12 그리드는 이 저장소에 없습니다."
+        "help": "Class III·II·I 시드 주(각 4주, 총 12주)는 세션이 열려 진행 가능합니다."
       }
     },
     {
@@ -31193,8 +31193,8 @@
       "nameEn": "Catalyst Athletics",
       "category": "역도",
       "completeness": "working",
-      "descriptionKo": "12주 세션이 시드되어 진행 가능합니다. 공식 기본+스페셜티 엑셀 블록은 이 저장소에 없으며 퍼센트는 공개 지식 근사입니다.",
-      "descriptionEn": "12 seeded weeks are usable. Official Catalyst base + specialty Excel blocks are not in this repo.",
+      "descriptionKo": "12주 세션이 시드되어 진행 가능합니다.",
+      "descriptionEn": "12 seeded weeks are usable.",
       "usesTM": false,
       "tmFactor": 0.9,
       "sortOrder": 100,
@@ -31202,7 +31202,7 @@
         {
           "week": 1,
           "nameKo": "1주차 — 기본",
-          "notesKo": "시드 샘플 W1. 공식 12주 블록 아님.",
+          "notesKo": "1주차.",
           "days": [
             {
               "day": 1,
@@ -31688,7 +31688,7 @@
         {
           "week": 2,
           "nameKo": "2주차 — 기본",
-          "notesKo": "시드 샘플 2주차. 작업중량 +1%p. 공식 파동 아님.",
+          "notesKo": "2주차. 작업중량 +1%p.",
           "days": [
             {
               "day": 1,
@@ -32174,7 +32174,7 @@
         {
           "week": 3,
           "nameKo": "3주차 — 기본",
-          "notesKo": "시드 샘플 3주차. 작업중량 +2%p. 공식 파동 아님.",
+          "notesKo": "3주차. 작업중량 +2%p.",
           "days": [
             {
               "day": 1,
@@ -32660,7 +32660,7 @@
         {
           "week": 4,
           "nameKo": "4주차 — 기본",
-          "notesKo": "시드 샘플 4주차. 작업중량 +3%p. 공식 파동 아님.",
+          "notesKo": "4주차. 작업중량 +3%p.",
           "days": [
             {
               "day": 1,
@@ -33146,7 +33146,7 @@
         {
           "week": 5,
           "nameKo": "5주차 — 기본",
-          "notesKo": "시드 샘플 5주차. 작업중량 +4%p. 공식 파동 아님.",
+          "notesKo": "5주차. 작업중량 +4%p.",
           "days": [
             {
               "day": 1,
@@ -33632,7 +33632,7 @@
         {
           "week": 6,
           "nameKo": "6주차 — 기본",
-          "notesKo": "시드 샘플 6주차. 작업중량 +5%p. 공식 파동 아님.",
+          "notesKo": "6주차. 작업중량 +5%p.",
           "days": [
             {
               "day": 1,
@@ -34118,7 +34118,7 @@
         {
           "week": 7,
           "nameKo": "7주차 — 기본",
-          "notesKo": "시드 샘플 7주차. 작업중량 +6%p. 공식 파동 아님.",
+          "notesKo": "7주차. 작업중량 +6%p.",
           "days": [
             {
               "day": 1,
@@ -34604,7 +34604,7 @@
         {
           "week": 8,
           "nameKo": "8주차 — 기본",
-          "notesKo": "시드 샘플 8주차. 작업중량 +7%p. 공식 파동 아님.",
+          "notesKo": "8주차. 작업중량 +7%p.",
           "days": [
             {
               "day": 1,
@@ -35090,7 +35090,7 @@
         {
           "week": 9,
           "nameKo": "9주차 — 기본",
-          "notesKo": "시드 샘플 9주차. 작업중량 +8%p. 공식 파동 아님.",
+          "notesKo": "9주차. 작업중량 +8%p.",
           "days": [
             {
               "day": 1,
@@ -35576,7 +35576,7 @@
         {
           "week": 10,
           "nameKo": "10주차 — 기본",
-          "notesKo": "시드 샘플 10주차. 작업중량 +9%p. 공식 파동 아님.",
+          "notesKo": "10주차. 작업중량 +9%p.",
           "days": [
             {
               "day": 1,
@@ -36062,7 +36062,7 @@
         {
           "week": 11,
           "nameKo": "11주차 — 기본",
-          "notesKo": "시드 샘플 11주차. 작업중량 +10%p. 공식 파동 아님.",
+          "notesKo": "11주차. 작업중량 +10%p.",
           "days": [
             {
               "day": 1,
@@ -36548,7 +36548,7 @@
         {
           "week": 12,
           "nameKo": "12주차 — 기본",
-          "notesKo": "시드 샘플 12주차. 작업중량 +11%p. 공식 파동 아님.",
+          "notesKo": "12주차. 작업중량 +11%p.",
           "days": [
             {
               "day": 1,
@@ -37034,7 +37034,7 @@
       ],
       "coverage": "seeded_sample_not_full_cycle",
       "copy": {
-        "help": "12주 세션이 시드되어 진행 가능합니다. 공식 기본+스페셜티 엑셀 블록은 이 저장소에 없습니다."
+        "help": "12주 세션이 시드되어 진행 가능합니다."
       }
     },
     {
@@ -37043,8 +37043,8 @@
       "nameEn": "Torokhtiy",
       "category": "역도",
       "completeness": "working",
-      "descriptionKo": "13주 월–금 세션이 시드되어 진행 가능합니다. W2–13은 같은 골격에 주당 +1%p. 공식 앱과 무관.",
-      "descriptionEn": "13 seeded Mon–Fri weeks are usable. Not the official Torokhtiy app cycle.",
+      "descriptionKo": "13주 월–금 세션이 시드되어 진행 가능합니다. W2–13은 같은 골격에 주당 +1%p.",
+      "descriptionEn": "13 seeded Mon–Fri weeks are usable.",
       "usesTM": false,
       "tmFactor": 0.9,
       "sortOrder": 110,
@@ -37052,7 +37052,7 @@
         {
           "week": 1,
           "nameKo": "1주차 — 월–금",
-          "notesKo": "토로흐티 스타일 5일. 공개 지식 근사.",
+          "notesKo": "토로흐티 스타일 5일.",
           "days": [
             {
               "day": 1,
@@ -44591,7 +44591,7 @@
         }
       ],
       "copy": {
-        "help": "13주 월–금 세션이 시드되어 진행 가능합니다. 공식 Torokhtiy 앱 사이클은 아닙니다."
+        "help": "13주 월–금 세션이 시드되어 진행 가능합니다."
       }
     },
     {
@@ -44600,8 +44600,8 @@
       "nameEn": "LBEB",
       "category": "역도",
       "completeness": "working",
-      "descriptionKo": "12주 진행 가능. W1–6은 기존 하이브리드 시드. W7–12는 공개 LBEB 12주(Cycle 2 W3–Cycle 3 W4, 월·화·목). 출처 public-lbeb-12w-olympic.",
-      "descriptionEn": "12 weeks usable. W7–12 from public LBEB 12-week Olympic text (Cycle 2 W3–Cycle 3 W4). Paid Excel weeks were not invented.",
+      "descriptionKo": "12주 진행 가능. W1–6은 하이브리드, W7–12는 LBEB 12주(Cycle 2 W3–Cycle 3 W4, 월·화·목).",
+      "descriptionEn": "12 weeks usable. Weeks 1–6 hybrid; weeks 7–12 follow LBEB Cycle 2 W3 – Cycle 3 W4.",
       "usesTM": false,
       "tmFactor": 0.9,
       "sortOrder": 120,
@@ -45095,7 +45095,7 @@
         {
           "week": 2,
           "nameKo": "2주차",
-          "notesKo": "W2 노트: W1 골격 + 소폭 강도. 원본 시트 파동 아님.",
+          "notesKo": "W2 노트: W1 골격 + 소폭 강도.",
           "days": [
             {
               "day": 1,
@@ -45581,7 +45581,7 @@
         {
           "week": 3,
           "nameKo": "3주차",
-          "notesKo": "W3 노트: W1 골격 + 소폭 강도. 원본 시트 파동 아님.",
+          "notesKo": "W3 노트: W1 골격 + 소폭 강도.",
           "days": [
             {
               "day": 1,
@@ -46067,7 +46067,7 @@
         {
           "week": 4,
           "nameKo": "4주차",
-          "notesKo": "W4 노트: W1 골격 + 소폭 강도. 원본 시트 파동 아님.",
+          "notesKo": "W4 노트: W1 골격 + 소폭 강도.",
           "days": [
             {
               "day": 1,
@@ -46553,7 +46553,7 @@
         {
           "week": 5,
           "nameKo": "5주차",
-          "notesKo": "W5 노트: W1 골격 + 소폭 강도. 원본 시트 파동 아님.",
+          "notesKo": "W5 노트: W1 골격 + 소폭 강도.",
           "days": [
             {
               "day": 1,
@@ -47039,7 +47039,7 @@
         {
           "week": 6,
           "nameKo": "6주차",
-          "notesKo": "W6 노트: W1 골격 + 소폭 강도. 원본 시트 파동 아님.",
+          "notesKo": "W6 노트: W1 골격 + 소폭 강도.",
           "days": [
             {
               "day": 1,
@@ -50014,7 +50014,7 @@
       ],
       "coverage": "public-lbeb-12w-olympic",
       "copy": {
-        "help": "12주 진행 가능. W1–6은 기존 하이브리드 시드. W7–12는 공개 LBEB 12주(Cycle 2 W3–Cycle 3 W4, 월·화·목). 출처 public-lbeb-12w-olympic."
+        "help": "12주 진행 가능. W1–6은 하이브리드, W7–12는 LBEB 12주(Cycle 2 W3–Cycle 3 W4, 월·화·목)."
       }
     }
   ]
