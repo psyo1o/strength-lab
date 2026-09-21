@@ -43,15 +43,19 @@ describe("deploy must not wipe sqlite", () => {
     expect(sh).toMatch(/Never delete/);
   });
 
-  it("seed catalog SQL never deletes users, maxes, sessions, or WOD history", () => {
+  it("seed catalog SQL never deletes users, maxes, sessions, WOD history, or set_logs", () => {
     const seed = read("src/lib/db/seed.ts");
     expect(seed).not.toMatch(/DELETE FROM users\b/);
     expect(seed).not.toMatch(/DELETE FROM user_maxes\b/);
     expect(seed).not.toMatch(/DELETE FROM wod_results\b/);
     expect(seed).not.toMatch(/DELETE FROM sessions\b/);
+    expect(seed).not.toMatch(/DELETE FROM set_logs\b/);
     expect(seed).toMatch(/FORCE_RESEED === "1"/);
+    expect(seed).toMatch(/upserting catalog in place/);
+    expect(seed).toMatch(/seed refused: set_logs would be wiped/);
     expect(seed).toMatch(/seed refused: users would be wiped/);
     const deploy = read("DEPLOY-CI.md");
     expect(deploy).toMatch(/pull does not wipe user data/);
+    expect(deploy).toMatch(/pull does not wipe logs/);
   });
 });

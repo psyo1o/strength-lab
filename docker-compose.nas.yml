@@ -2,7 +2,7 @@
 # Pin a known-good git SHA if :latest is stale, e.g. ghcr.io/psyo1o/strength-lab:ce9cc71
 #
 # Persistent SQLite: host DATA_DIR → /data/app.db
-# pull + up does NOT wipe this folder. Do not `docker compose down -v`.
+# pull + up does NOT wipe this folder. pull does not wipe logs. Do not `docker compose down -v`.
 services:
   strength-lab:
     image: ghcr.io/psyo1o/strength-lab:latest

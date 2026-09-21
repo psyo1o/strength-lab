@@ -233,135 +233,140 @@ function currentSeedRevision(raw: Database.Database): string | null {
   return row?.value ?? null;
 }
 
-type SetLogSnapshot = {
-  userId: number;
-  completed: number;
-  completedAt: number;
-  weightKg: number | null;
-  slug: string;
-  weekNumber: number;
-  dayNumber: number;
-  exerciseKey: string;
-  role: string;
-  sortOrder: number;
-  setNumber: number;
-};
-
-function setLogKey(
-  slug: string,
-  weekNumber: number,
-  dayNumber: number,
-  exerciseKey: string,
-  role: string,
-  sortOrder: number,
-  setNumber: number,
-): string {
-  return `${slug}\t${weekNumber}\t${dayNumber}\t${exerciseKey}\t${role}\t${sortOrder}\t${setNumber}`;
-}
-
-/** Snapshot logs by catalog path so IDs can change without wiping progress. */
-function snapshotSetLogs(raw: Database.Database): SetLogSnapshot[] {
-  return raw
-    .prepare(
-      `SELECT sl.user_id AS userId, sl.completed AS completed, sl.completed_at AS completedAt,
-              sl.weight_kg AS weightKg,
-              p.slug AS slug, w.week_number AS weekNumber, d.day_number AS dayNumber,
-              pe.exercise_key AS exerciseKey, pe.role AS role, pe.sort_order AS sortOrder,
-              s.set_number AS setNumber
-       FROM set_logs sl
-       JOIN program_sets s ON s.id = sl.program_set_id
-       JOIN program_exercises pe ON pe.id = s.exercise_id
-       JOIN program_days d ON d.id = pe.day_id
-       JOIN program_weeks w ON w.id = d.week_id
-       JOIN programs p ON p.slug = w.program_slug`,
-    )
-    .all() as SetLogSnapshot[];
-}
-
-function restoreSetLogs(raw: Database.Database, logs: SetLogSnapshot[], setIds: Map<string, number>) {
-  const insert = raw.prepare(
-    `INSERT INTO set_logs (user_id, program_set_id, completed, completed_at, weight_kg)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(user_id, program_set_id) DO UPDATE SET
-       completed = excluded.completed,
-       completed_at = excluded.completed_at,
-       weight_kg = excluded.weight_kg`,
-  );
-  for (const log of logs) {
-    const id = setIds.get(
-      setLogKey(log.slug, log.weekNumber, log.dayNumber, log.exerciseKey, log.role, log.sortOrder, log.setNumber),
-    );
-    if (id == null) continue;
-    insert.run(log.userId, id, log.completed, log.completedAt, log.weightKg);
+function countRows(
+  raw: Database.Database,
+  table: "set_logs" | "users" | "user_maxes" | "wod_results" | "programs",
+): number {
+  try {
+    return (raw.prepare(`SELECT COUNT(*) AS c FROM ${table}`).get() as { c: number }).c;
+  } catch {
+    return 0;
   }
 }
 
+function existingId(stmt: { get: (...args: unknown[]) => unknown }, ...args: unknown[]): number | undefined {
+  const row = stmt.get(...args) as { id: number } | undefined;
+  return row?.id;
+}
+
 /** First boot (empty catalog), stale SEED_REVISION, or FORCE_RESEED=1.
- * Rebuilds program/exercise tables only. Never wipes users, 1RMs, sessions, or WOD history.
- * FORCE_RESEED=1 is catalog-only — it is not a user-data wipe. */
+ * Upserts programs/exercises/weeks in place. Never DELETEs set_logs.
+ * Default boot / seed_revision bump preserves set_logs, wod_results, and user progress.
+ * FORCE_RESEED=1 may prune unused catalog rows that have no logs — explicit + logged. */
 export function seedIfEmpty(raw: Database.Database) {
   seedCatalog(raw);
 }
 
 export function seedCatalog(raw: Database.Database) {
-  const count = (raw.prepare("SELECT COUNT(*) AS c FROM programs").get() as { c: number }).c;
+  const count = countRows(raw, "programs");
   const force = process.env.FORCE_RESEED === "1";
   if (count > 0 && !force && currentSeedRevision(raw) === SEED_REVISION) return;
-  applySeed(raw);
+  applySeed(raw, {
+    pruneUnused: force,
+    reason: force ? "FORCE_RESEED=1" : count === 0 ? "empty catalog" : "seed_revision bump",
+  });
 }
 
-export function applySeed(raw: Database.Database) {
+export function applySeed(raw: Database.Database, opts?: { pruneUnused?: boolean; reason?: string }) {
   const seed = loadSeedFile();
+  const pruneUnused = opts?.pruneUnused ?? process.env.FORCE_RESEED === "1";
+  const reason = opts?.reason ?? (pruneUnused ? "FORCE_RESEED=1" : "catalog upsert");
   const tx = raw.transaction(() => {
-    const savedLogs = snapshotSetLogs(raw);
-    const usersBefore = (raw.prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c;
-    const maxesBefore = (raw.prepare("SELECT COUNT(*) AS c FROM user_maxes").get() as { c: number }).c;
-    let wodBefore = 0;
-    try {
-      wodBefore = (raw.prepare("SELECT COUNT(*) AS c FROM wod_results").get() as { c: number }).c;
-    } catch {
-      wodBefore = 0;
+    const logsBefore = countRows(raw, "set_logs");
+    const usersBefore = countRows(raw, "users");
+    const maxesBefore = countRows(raw, "user_maxes");
+    const wodBefore = countRows(raw, "wod_results");
+    if (pruneUnused) {
+      console.warn(
+        `[seed] ${reason}: upserting catalog in place, then pruning unused catalog rows with no set_logs. ` +
+          `Must preserve set_logs=${logsBefore}, users=${usersBefore}, user_maxes=${maxesBefore}, wod_results=${wodBefore}.`,
+      );
+    } else {
+      console.info(
+        `[seed] ${reason}: upserting catalog in place (never DELETE set_logs). ` +
+          `set_logs=${logsBefore}, users=${usersBefore}, user_maxes=${maxesBefore}, wod_results=${wodBefore}.`,
+      );
     }
-    // Catalog tables only. Never DELETE users / user_maxes / sessions / wod_results.
-    raw.exec(`
-      DELETE FROM set_logs;
-      DELETE FROM program_sets;
-      DELETE FROM program_exercises;
-      DELETE FROM program_days;
-      DELETE FROM program_weeks;
-      DELETE FROM programs;
-      DELETE FROM exercises;
-    `);
 
-    const insertEx = raw.prepare(
+    const upsertEx = raw.prepare(
       `INSERT INTO exercises (key, name_ko, name_en, "group", is_max, tips_ko, tips_en)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET
+         name_ko = excluded.name_ko,
+         name_en = excluded.name_en,
+         "group" = excluded."group",
+         is_max = excluded.is_max,
+         tips_ko = excluded.tips_ko,
+         tips_en = excluded.tips_en`,
     );
-    for (const e of seed.exercises) {
-      insertEx.run(e.key, e.nameKo, e.nameEn, e.group, e.isMax ? 1 : 0, e.tipsKo, e.tipsEn);
-    }
-
-    const insertP = raw.prepare(
+    const upsertP = raw.prepare(
       `INSERT INTO programs (slug, name_ko, name_en, category, completeness, description_ko, description_en, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(slug) DO UPDATE SET
+         name_ko = excluded.name_ko,
+         name_en = excluded.name_en,
+         category = excluded.category,
+         completeness = excluded.completeness,
+         description_ko = excluded.description_ko,
+         description_en = excluded.description_en,
+         sort_order = excluded.sort_order`,
     );
-    const insertW = raw.prepare(
+    const selectWeek = raw.prepare(
+      `SELECT id FROM program_weeks WHERE program_slug = ? AND week_number = ? ORDER BY id ASC LIMIT 1`,
+    );
+    const updateWeek = raw.prepare(`UPDATE program_weeks SET name_ko = ?, notes_ko = ? WHERE id = ?`);
+    const insertWeek = raw.prepare(
       `INSERT INTO program_weeks (program_slug, week_number, name_ko, notes_ko) VALUES (?, ?, ?, ?)`,
     );
-    const insertD = raw.prepare(
+    const selectDay = raw.prepare(
+      `SELECT id FROM program_days WHERE week_id = ? AND day_number = ? ORDER BY id ASC LIMIT 1`,
+    );
+    const updateDay = raw.prepare(`UPDATE program_days SET name_ko = ?, notes_ko = ? WHERE id = ?`);
+    const insertDay = raw.prepare(
       `INSERT INTO program_days (week_id, day_number, name_ko, notes_ko) VALUES (?, ?, ?, ?)`,
+    );
+    const selectPeExact = raw.prepare(
+      `SELECT id FROM program_exercises
+       WHERE day_id = ? AND exercise_key = ? AND role = ? AND sort_order = ?
+       ORDER BY id ASC LIMIT 1`,
+    );
+    const selectPeLoose = raw.prepare(
+      `SELECT id FROM program_exercises
+       WHERE day_id = ? AND exercise_key = ? AND role = ?
+       ORDER BY id ASC LIMIT 1`,
+    );
+    const updatePe = raw.prepare(
+      `UPDATE program_exercises SET exercise_key = ?, role = ?, sort_order = ?, notes_ko = ? WHERE id = ?`,
     );
     const insertPe = raw.prepare(
       `INSERT INTO program_exercises (day_id, exercise_key, role, sort_order, notes_ko) VALUES (?, ?, ?, ?, ?)`,
     );
-    const insertS = raw.prepare(
+    const selectSet = raw.prepare(
+      `SELECT id FROM program_sets WHERE exercise_id = ? AND set_number = ? ORDER BY id ASC LIMIT 1`,
+    );
+    const updateSet = raw.prepare(
+      `UPDATE program_sets SET percent_base = ?, percent = ?, reps = ?, amrap = ?, rest_sec = ?, note_ko = ? WHERE id = ?`,
+    );
+    const insertSet = raw.prepare(
       `INSERT INTO program_sets (exercise_id, set_number, percent_base, percent, reps, amrap, rest_sec, note_ko)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
-    const setIds = new Map<string, number>();
+    const keepProgramSlugs = new Set<string>();
+    const keepWeekIds = new Set<number>();
+    const keepDayIds = new Set<number>();
+    const keepPeIds = new Set<number>();
+    const keepSetIds = new Set<number>();
+    const keepExerciseKeys = new Set<string>();
+
+    for (const e of seed.exercises) {
+      keepExerciseKeys.add(e.key);
+      upsertEx.run(e.key, e.nameKo, e.nameEn, e.group, e.isMax ? 1 : 0, e.tipsKo, e.tipsEn);
+    }
+
     for (const p of seed.programs) {
-      insertP.run(
+      keepProgramSlugs.add(p.slug);
+      upsertP.run(
         p.slug,
         p.nameKo,
         p.nameEn,
@@ -372,41 +377,138 @@ export function applySeed(raw: Database.Database) {
         p.sortOrder,
       );
       for (const w of p.weeks) {
-        const wres = insertW.run(p.slug, w.weekNumber, w.nameKo, w.notesKo ?? "");
-        const weekId = Number(wres.lastInsertRowid);
+        let weekId = existingId(selectWeek, p.slug, w.weekNumber);
+        if (weekId != null) updateWeek.run(w.nameKo, w.notesKo ?? "", weekId);
+        else weekId = Number(insertWeek.run(p.slug, w.weekNumber, w.nameKo, w.notesKo ?? "").lastInsertRowid);
+        keepWeekIds.add(weekId);
         for (const d of w.days) {
-          const dres = insertD.run(weekId, d.dayNumber, d.nameKo, d.notesKo ?? "");
-          const dayId = Number(dres.lastInsertRowid);
+          let dayId = existingId(selectDay, weekId, d.dayNumber);
+          if (dayId != null) updateDay.run(d.nameKo, d.notesKo ?? "", dayId);
+          else dayId = Number(insertDay.run(weekId, d.dayNumber, d.nameKo, d.notesKo ?? "").lastInsertRowid);
+          keepDayIds.add(dayId);
           d.exercises.forEach((ex, idx) => {
-            const eres = insertPe.run(dayId, ex.exerciseKey, ex.role, idx, ex.notesKo ?? "");
-            const exId = Number(eres.lastInsertRowid);
+            let peId = existingId(selectPeExact, dayId, ex.exerciseKey, ex.role, idx);
+            if (peId == null) peId = existingId(selectPeLoose, dayId, ex.exerciseKey, ex.role);
+            if (peId != null) updatePe.run(ex.exerciseKey, ex.role, idx, ex.notesKo ?? "", peId);
+            else peId = Number(insertPe.run(dayId, ex.exerciseKey, ex.role, idx, ex.notesKo ?? "").lastInsertRowid);
+            keepPeIds.add(peId);
             for (const s of ex.sets) {
-              const sres = insertS.run(
-                exId,
-                s.setNumber,
-                s.percentBase,
-                s.percent,
-                s.reps,
-                s.amrap ? 1 : 0,
-                s.restSec ?? null,
-                s.noteKo ?? "",
-              );
-              setIds.set(
-                setLogKey(p.slug, w.weekNumber, d.dayNumber, ex.exerciseKey, ex.role, idx, s.setNumber),
-                Number(sres.lastInsertRowid),
-              );
+              let setId = existingId(selectSet, peId, s.setNumber);
+              if (setId != null) {
+                updateSet.run(
+                  s.percentBase,
+                  s.percent,
+                  s.reps,
+                  s.amrap ? 1 : 0,
+                  s.restSec ?? null,
+                  s.noteKo ?? "",
+                  setId,
+                );
+              } else {
+                setId = Number(
+                  insertSet.run(
+                    peId,
+                    s.setNumber,
+                    s.percentBase,
+                    s.percent,
+                    s.reps,
+                    s.amrap ? 1 : 0,
+                    s.restSec ?? null,
+                    s.noteKo ?? "",
+                  ).lastInsertRowid,
+                );
+              }
+              keepSetIds.add(setId);
             }
           });
         }
       }
     }
-    restoreSetLogs(raw, savedLogs, setIds);
-    const usersAfter = (raw.prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c;
-    const maxesAfter = (raw.prepare("SELECT COUNT(*) AS c FROM user_maxes").get() as { c: number }).c;
+
+    if (pruneUnused) {
+      raw.exec(`
+        CREATE TEMP TABLE IF NOT EXISTS seed_keep_sets (id INTEGER PRIMARY KEY);
+        CREATE TEMP TABLE IF NOT EXISTS seed_keep_pe (id INTEGER PRIMARY KEY);
+        CREATE TEMP TABLE IF NOT EXISTS seed_keep_days (id INTEGER PRIMARY KEY);
+        CREATE TEMP TABLE IF NOT EXISTS seed_keep_weeks (id INTEGER PRIMARY KEY);
+        CREATE TEMP TABLE IF NOT EXISTS seed_keep_programs (slug TEXT PRIMARY KEY);
+        CREATE TEMP TABLE IF NOT EXISTS seed_keep_exercises (key TEXT PRIMARY KEY);
+        DELETE FROM seed_keep_sets;
+        DELETE FROM seed_keep_pe;
+        DELETE FROM seed_keep_days;
+        DELETE FROM seed_keep_weeks;
+        DELETE FROM seed_keep_programs;
+        DELETE FROM seed_keep_exercises;
+      `);
+      const insSet = raw.prepare("INSERT OR IGNORE INTO seed_keep_sets (id) VALUES (?)");
+      const insPe = raw.prepare("INSERT OR IGNORE INTO seed_keep_pe (id) VALUES (?)");
+      const insDay = raw.prepare("INSERT OR IGNORE INTO seed_keep_days (id) VALUES (?)");
+      const insWeek = raw.prepare("INSERT OR IGNORE INTO seed_keep_weeks (id) VALUES (?)");
+      const insProg = raw.prepare("INSERT OR IGNORE INTO seed_keep_programs (slug) VALUES (?)");
+      const insExKey = raw.prepare("INSERT OR IGNORE INTO seed_keep_exercises (key) VALUES (?)");
+      for (const id of keepSetIds) insSet.run(id);
+      for (const id of keepPeIds) insPe.run(id);
+      for (const id of keepDayIds) insDay.run(id);
+      for (const id of keepWeekIds) insWeek.run(id);
+      for (const slug of keepProgramSlugs) insProg.run(slug);
+      for (const key of keepExerciseKeys) insExKey.run(key);
+      // Never DELETE set_logs. CASCADE is safe: we skip program_sets referenced by logs,
+      // then only drop parents that have no remaining children.
+      const delSets = raw
+        .prepare(
+          `DELETE FROM program_sets
+           WHERE id NOT IN (SELECT id FROM seed_keep_sets)
+             AND id NOT IN (SELECT program_set_id FROM set_logs)`,
+        )
+        .run();
+      const delPe = raw
+        .prepare(
+          `DELETE FROM program_exercises
+           WHERE id NOT IN (SELECT id FROM seed_keep_pe)
+             AND id NOT IN (SELECT exercise_id FROM program_sets)`,
+        )
+        .run();
+      const delDays = raw
+        .prepare(
+          `DELETE FROM program_days
+           WHERE id NOT IN (SELECT id FROM seed_keep_days)
+             AND id NOT IN (SELECT day_id FROM program_exercises)`,
+        )
+        .run();
+      const delWeeks = raw
+        .prepare(
+          `DELETE FROM program_weeks
+           WHERE id NOT IN (SELECT id FROM seed_keep_weeks)
+             AND id NOT IN (SELECT week_id FROM program_days)`,
+        )
+        .run();
+      const delPrograms = raw
+        .prepare(
+          `DELETE FROM programs
+           WHERE slug NOT IN (SELECT slug FROM seed_keep_programs)
+             AND slug NOT IN (SELECT program_slug FROM program_weeks)`,
+        )
+        .run();
+      const delExercises = raw
+        .prepare(
+          `DELETE FROM exercises
+           WHERE key NOT IN (SELECT key FROM seed_keep_exercises)
+             AND key NOT IN (SELECT exercise_key FROM program_exercises)`,
+        )
+        .run();
+      console.warn(
+        `[seed] FORCE_RESEED prune (rows with no set_logs): program_sets=${delSets.changes} program_exercises=${delPe.changes} program_days=${delDays.changes} program_weeks=${delWeeks.changes} programs=${delPrograms.changes} exercises=${delExercises.changes}`,
+      );
+    }
+
+    const logsAfter = countRows(raw, "set_logs");
+    const usersAfter = countRows(raw, "users");
+    const maxesAfter = countRows(raw, "user_maxes");
+    if (logsAfter < logsBefore) throw new Error("seed refused: set_logs would be wiped");
     if (usersAfter < usersBefore) throw new Error("seed refused: users would be wiped");
     if (maxesAfter < maxesBefore) throw new Error("seed refused: 1RMs would be wiped");
     try {
-      const wodAfter = (raw.prepare("SELECT COUNT(*) AS c FROM wod_results").get() as { c: number }).c;
+      const wodAfter = countRows(raw, "wod_results");
       if (wodAfter < wodBefore) throw new Error("seed refused: WOD history would be wiped");
     } catch (err) {
       if (err instanceof Error && err.message.startsWith("seed refused")) throw err;

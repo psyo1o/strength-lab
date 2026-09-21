@@ -1,6 +1,6 @@
 #!/bin/sh
 # Routine NAS update: pull image + recreate container.
-# pull does not wipe user data.
+# pull does not wipe user data. pull does not wipe logs.
 # Never: docker compose down -v, docker volume rm, rm app.db, FORCE_RESEED=1.
 set -e
 
@@ -27,4 +27,4 @@ mkdir -p "$DATA_DIR"
 "$COMPOSE_BIN" compose -f "$COMPOSE_FILE" up -d --remove-orphans
 "$COMPOSE_BIN" ps --filter name=strength-lab
 "$COMPOSE_BIN" exec strength-lab cat /app/.next/BUILD_ID || true
-echo "DEPLOY_PULL_OK (sqlite on ${DATA_DIR} — pull does not wipe user data)"
+echo "DEPLOY_PULL_OK (sqlite on ${DATA_DIR} — pull does not wipe user data; pull does not wipe logs)"
