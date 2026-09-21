@@ -19,11 +19,13 @@ import {
   getWodTemplate,
   listBenchmarkTemplates,
   listWodTemplates,
+  loadWodFile,
   resetWodCache,
+  roundLbTo2p5Kg,
   todayWodSlug,
 } from "../src/lib/wod/templates";
 import { estimateWod, ESTIMATE_LABEL, MISSING_LABEL } from "../src/lib/wod/estimate";
-import { formatClock, parseClock, scoreTypeFor } from "../src/lib/wod/types";
+import { formatClock, parseClock, RX_DISCLAIMER, scoreTypeFor } from "../src/lib/wod/types";
 import { youtubeWatchUrl } from "../src/lib/media";
 import { tipHasVideo } from "../src/lib/tip-copy";
 import { buildMaxesGroups, MAX_GROUP_WOD, WOD_RAW_MAX_KEYS } from "../src/lib/maxes-fields";
@@ -40,41 +42,56 @@ function freshDb() {
 beforeEach(freshDb);
 afterEach(() => resetDbConnection());
 
+const RX_IDS = [
+  "angie",
+  "barbara",
+  "chelsea",
+  "diane",
+  "elizabeth",
+  "fran",
+  "grace",
+  "helen",
+  "isabel",
+  "jackie",
+  "karen",
+  "linda",
+  "mary",
+  "nancy",
+  "annie",
+  "cindy",
+  "nicole",
+  "murph",
+  "dt",
+  "fight_gone_bad",
+] as const;
+
 describe("WOD templates", () => {
-  it("seeds public benchmarks with Rx/Scaled/Beginner and no trademarked brand string", () => {
-    const file = fs.readFileSync(path.join(process.cwd(), "data", "wod-templates.ko.json"), "utf8");
-    expect(file).not.toMatch(/CrossFit/i);
+  it("loads 20 public Rx benchmarks plus extras with no trademarked brand string", () => {
+    const rxFile = fs.readFileSync(path.join(process.cwd(), "data", "benchmark-wods.rx.json"), "utf8");
+    const extras = fs.readFileSync(path.join(process.cwd(), "data", "wod-templates.ko.json"), "utf8");
+    expect(rxFile).not.toMatch(/CrossFit/i);
+    expect(extras).not.toMatch(/CrossFit/i);
+    const raw = JSON.parse(rxFile) as { wods: { id: string }[]; disclaimerKo: string };
+    expect(raw.wods.map((w) => w.id)).toEqual([...RX_IDS]);
+    expect(raw.disclaimerKo).toBe(RX_DISCLAIMER);
+
     const templates = listWodTemplates();
     const slugs = templates.map((t) => t.slug);
-    expect(slugs).toEqual(
-      expect.arrayContaining([
-        "fran",
-        "grace",
-        "helen",
-        "cindy",
-        "murph",
-        "annie",
-        "kelly",
-        "isabel",
-        "diane",
-        "elizabeth",
-        "nancy",
-        "karen",
-        "jackie",
-        "angie",
-        "barbara",
-        "chelsea",
-        "dt",
-        "fight-gone-bad",
-        "linda",
-        "mary",
-        "nicole",
-        "emom-engine",
-      ]),
-    );
-    expect(getWodTemplate("isabel")?.movements[0]?.rxKg).toBe(61);
+    expect(slugs.slice(0, 20)).toEqual([...RX_IDS]);
+    expect(slugs).toEqual(expect.arrayContaining(["kelly", "emom-engine"]));
+    expect(getWodTemplate("fight_gone_bad")?.slug).toBe("fight_gone_bad");
+    expect(getWodTemplate("fight-gone-bad")?.slug).toBe("fight_gone_bad");
+    expect(getWodTemplate("fight_gone_bad")?.family).toBe("benchmark");
+    expect(getWodTemplate("murph")?.family).toBe("hero");
+    expect(getWodTemplate("fran")?.family).toBe("girls");
+    expect(getWodTemplate("isabel")?.movements[0]?.rxKg).toBe(60);
+    expect(getWodTemplate("isabel")?.movements[0]?.rxLb).toBe(135);
     expect(getWodTemplate("diane")?.movements[0]?.exerciseKey).toBe("deadlift");
+    expect(getWodTemplate("diane")?.movements[0]?.rxKg).toBe(102.5);
     expect(getWodTemplate("chelsea")?.format).toBe("emom");
+    expect(getWodTemplate("angie")?.format).toBe("chipper");
+    expect(getWodTemplate("jackie")?.format).toBe("chipper");
+    expect(getWodTemplate("linda")?.format).toBe("chipper");
     expect(getWodTemplate("fight-gone-bad")?.format).toBe("amrap");
     expect(listBenchmarkTemplates().length).toBeGreaterThanOrEqual(21);
     expect(getWodTemplate("fran")?.format).toBe("for_time");
@@ -84,12 +101,25 @@ describe("WOD templates", () => {
     expect(getWodTemplate("kelly")?.wallBallTargetM).toBe(3.05);
     const fran = getWodTemplate("fran")!;
     expect(fran.scaling.map((s) => s.tier)).toEqual(["rx", "scaled", "beginner"]);
-    expect(fran.movements.some((m) => m.exerciseKey === "thruster" && m.rxKg === 43)).toBe(true);
+    expect(fran.movements.some((m) => m.exerciseKey === "thruster" && m.rxKg === 42.5 && m.rxLb === 95)).toBe(true);
+    const grace = getWodTemplate("grace")!;
+    expect(grace.movements[0]?.rxKg).toBe(60);
+    expect(grace.movements[0]?.rxLb).toBe(135);
+    expect(grace.equipmentKo).toMatch(/115\/75/);
+    expect(grace.movements[0]?.rxNote).toMatch(/115\/75/);
+    expect(roundLbTo2p5Kg(95)).toBe(42.5);
+    expect(roundLbTo2p5Kg(135)).toBe(60);
+    expect(loadWodFile().disclaimer).toBe(RX_DISCLAIMER);
     expect(todayWodSlug(Date.parse("2026-03-15T03:00:00.000Z"))).toBe(
       todayWodSlug(Date.parse("2026-03-15T04:00:00.000Z")),
     );
     expect(scoreTypeFor("for_time")).toBe("time_sec");
+    expect(scoreTypeFor("chipper")).toBe("time_sec");
     expect(scoreTypeFor("amrap")).toBe("rounds_reps");
+    const wodPage = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/wod/page.tsx"), "utf8");
+    const wodDetail = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/wod/[slug]/page.tsx"), "utf8");
+    expect(wodPage).toMatch(/RX_DISCLAIMER/);
+    expect(wodDetail).toMatch(/RX_DISCLAIMER/);
   });
 
   it("estimates named-WOD time from 1RMs and hides when lifts are missing", () => {
@@ -109,6 +139,8 @@ describe("WOD templates", () => {
     const grace = estimateWod("grace", { clean: 100 });
     expect(parseClock(grace!.valueLabel)!).toBeGreaterThanOrEqual(90);
     expect(parseClock(grace!.valueLabel)!).toBeLessThanOrEqual(420);
+    expect(estimateWod("fight-gone-bad", { squat: 140, deadlift: 170 })?.kind).toBe("reps");
+    expect(estimateWod("fight_gone_bad", { squat: 140, deadlift: 170 })?.kind).toBe("reps");
 
     const isabel = estimateWod("isabel", { snatch: 70 });
     expect(isabel?.kind).toBe("time");
@@ -155,6 +187,13 @@ describe("WOD results", () => {
     const slower = listWodResults(created.user.id, "fran")[0]!;
     const faster = listWodResults(created.user.id, "fran")[1]!;
     expect(betterWodResult("for_time", slower, faster).timeSec).toBe(190);
+    expect(betterWodResult("chipper", slower, faster).timeSec).toBe(190);
+
+    saveWodResult(created.user.id, { templateSlug: "fight-gone-bad", tier: "rx", rounds: 3, extraReps: 250 });
+    expect(getWodTemplate("fight-gone-bad")?.slug).toBe("fight_gone_bad");
+    expect(listWodResults(created.user.id, "fight_gone_bad")).toHaveLength(1);
+    expect(listWodResults(created.user.id, "fight-gone-bad")).toHaveLength(1);
+    expect(wodPr(created.user.id, "fight-gone-bad")?.rounds).toBe(3);
 
     const days = wodTrainingDayKeys(created.user.id);
     expect(days.length).toBeGreaterThanOrEqual(1);

@@ -8,7 +8,7 @@ import { WodEstimateCard } from "@/components/WodEstimateCard";
 import { formatWodScore, listWodResults, wodPr } from "@/lib/wod/queries";
 import { estimateWod } from "@/lib/wod/estimate";
 import { getWodTemplate, toClientTemplate } from "@/lib/wod/templates";
-import { categoryLabel, formatLabel, wodTipKeys } from "@/lib/wod/types";
+import { RX_DISCLAIMER, categoryLabel, familyLabel, formatLabel, wodTipKeys } from "@/lib/wod/types";
 
 export const runtime = "nodejs";
 
@@ -35,11 +35,12 @@ export default async function WodDetailPage({ params }: { params: Promise<{ slug
         ← 벤치마크
       </Link>
       <p className="mt-2 text-sm font-bold text-[var(--accent)]">
-        {categoryLabel(template.category)} · {formatLabel(template.format)}
+        {familyLabel(template.family) || categoryLabel(template.category)} · {formatLabel(template.format)}
       </p>
       <h1 className="mt-1 text-3xl font-black">{template.nameKo}</h1>
       <p className="mt-2 text-base leading-relaxed text-[var(--muted)]">{template.prescriptionKo}</p>
       {template.equipmentKo ? <p className="mt-1 text-sm text-[var(--muted)]">{template.equipmentKo}</p> : null}
+      <p className="mt-2 text-xs font-bold text-[var(--muted)]">{RX_DISCLAIMER}</p>
       {estimate ? <WodEstimateCard estimate={estimate} /> : null}
       <WodClient
         template={toClientTemplate(template)}

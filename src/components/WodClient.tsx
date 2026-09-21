@@ -28,7 +28,9 @@ type HistoryRow = {
 
 function rxLine(m: WodTemplate["movements"][number], unit: "kg" | "lb"): string {
   const bits: string[] = [m.scheme];
-  if (m.rxKg != null) {
+  if (unit === "lb" && m.rxLb != null) {
+    bits.push(m.rxLbF != null ? `${m.rxLb}lb / ${m.rxLbF}lb` : `${m.rxLb}lb`);
+  } else if (m.rxKg != null) {
     bits.push(m.rxKgF != null ? `${formatWeight(m.rxKg, unit)} / ${formatWeight(m.rxKgF, unit)}` : formatWeight(m.rxKg, unit));
   }
   if (m.rxNote) bits.push(m.rxNote);

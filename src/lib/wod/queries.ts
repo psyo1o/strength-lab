@@ -1,6 +1,6 @@
 import { getSqlite } from "../db/client";
 import { formatKoDate, trainingDayKey } from "../progress";
-import { getWodTemplate, listWodTemplates } from "./templates";
+import { getWodTemplate, listWodTemplates, wodSlugAliases } from "./templates";
 import { formatClock, scoreTypeFor, type WodFormat, type WodScoreType, type WodTier } from "./types";
 
 export type { WodScoreType };
@@ -104,8 +104,9 @@ export function betterWodResult(format: WodFormat, a: WodResult, b: WodResult): 
   const rb = scoreRank(b);
   if (ra == null) return b;
   if (rb == null) return a;
-  if (format === "for_time") return ra <= rb ? a : b;
-  return ra >= rb ? a : b;
+  const higherIsBetter = format === "amrap" || format === "emom";
+  if (higherIsBetter) return ra >= rb ? a : b;
+  return ra <= rb ? a : b;
 }
 
 export function saveWodResult(userId: number, input: WodResultInput): WodResult {
@@ -165,17 +166,17 @@ export function getWodResult(id: number): WodResult | null {
 }
 
 export function listWodResults(userId: number, slug?: string, limit = 30): WodResult[] {
-  const sql = slug
-    ? `SELECT id, user_id, template_slug, completed_at, tier, score_type,
+  const aliases = slug ? wodSlugAliases(slug) : [];
+  const select = `SELECT id, user_id, template_slug, completed_at, tier, score_type,
               time_sec, rounds, extra_reps, notes_ko, scale_notes, substitutions, equipment_json
-       FROM wod_results WHERE user_id = ? AND template_slug = ?
+       FROM wod_results`;
+  const sql = aliases.length
+    ? `${select} WHERE user_id = ? AND template_slug IN (${aliases.map(() => "?").join(", ")})
        ORDER BY completed_at DESC LIMIT ?`
-    : `SELECT id, user_id, template_slug, completed_at, tier, score_type,
-              time_sec, rounds, extra_reps, notes_ko, scale_notes, substitutions, equipment_json
-       FROM wod_results WHERE user_id = ?
+    : `${select} WHERE user_id = ?
        ORDER BY completed_at DESC LIMIT ?`;
-  const rows = slug
-    ? (getSqlite().prepare(sql).all(userId, slug, limit) as Parameters<typeof rowToResult>[0][])
+  const rows = aliases.length
+    ? (getSqlite().prepare(sql).all(userId, ...aliases, limit) as Parameters<typeof rowToResult>[0][])
     : (getSqlite().prepare(sql).all(userId, limit) as Parameters<typeof rowToResult>[0][]);
   return rows.map(rowToResult);
 }
@@ -195,6 +196,7 @@ export function listWodBoard(userId: number) {
       slug: template.slug,
       nameKo: template.nameKo,
       category: template.category,
+      family: template.family,
       format: template.format,
       prescriptionKo: template.prescriptionKo,
       pr,

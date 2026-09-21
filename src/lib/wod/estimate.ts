@@ -1,4 +1,5 @@
 import type { MaxMap } from "../maxes";
+import { getWodTemplate, normalizeWodSlug } from "./templates";
 import { formatClock } from "./types";
 
 export const ESTIMATE_LABEL = "예상 · 참고용";
@@ -150,12 +151,17 @@ function couplet21(barbellSec: number, gymSec: number, intensity: number): numbe
   return 45 * barbellSec + 45 * gymSec + restSec(90, intensity);
 }
 
+function rxKgOf(slug: string, exerciseKey: string, fallback: number): number {
+  const m = getWodTemplate(slug)?.movements.find((row) => row.exerciseKey === exerciseKey && row.rxKg != null);
+  return m?.rxKg ?? fallback;
+}
+
 export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
-  switch (slug) {
+  switch (normalizeWodSlug(slug)) {
     case "fran": {
       const tm = lift(maxes, "thruster");
       if (!tm) return missing(["스러스터"]);
-      const rx = 43;
+      const rx = rxKgOf(slug, "thruster", 42.5);
       const i = rx / tm;
       const pull = 1.05 + i; // no pull-up max; slower when the bar is heavy
       return timeEst(couplet21(barbellCycleSec(rx, tm, 1.45), pull, i));
@@ -163,21 +169,21 @@ export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
     case "grace": {
       const rm = lift(maxes, "clean_jerk") ?? lift(maxes, "clean");
       if (!rm) return missing(["클린앤저크"]);
-      const rx = 61;
+      const rx = rxKgOf(slug, "clean_jerk", 60);
       const i = rx / rm;
       return timeEst(30 * barbellCycleSec(rx, rm, 2.35) + restSec(30, i));
     }
     case "isabel": {
       const rm = lift(maxes, "snatch");
       if (!rm) return missing(["스네치"]);
-      const rx = 61;
+      const rx = rxKgOf(slug, "snatch", 60);
       const i = rx / rm;
       return timeEst(30 * barbellCycleSec(rx, rm, 2.05) + restSec(30, i));
     }
     case "diane": {
       const rm = lift(maxes, "deadlift");
       if (!rm) return missing(["데드리프트"]);
-      const rx = 102;
+      const rx = rxKgOf(slug, "deadlift", 102.5);
       const i = rx / rm;
       const hspu = 2.2 + 1.1 * i;
       return timeEst(couplet21(barbellCycleSec(rx, rm, 1.35), hspu, i));
@@ -185,7 +191,7 @@ export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
     case "elizabeth": {
       const rm = lift(maxes, "clean");
       if (!rm) return missing(["클린"]);
-      const rx = 61;
+      const rx = rxKgOf(slug, "clean", 60);
       const i = rx / rm;
       const dip = 1.8 + i;
       return timeEst(couplet21(barbellCycleSec(rx, rm, 2.1), dip, i));
@@ -194,7 +200,7 @@ export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
       const swing = lift(maxes, "kb_swing");
       const p = fitnessProxy(maxes);
       if (!swing && !p) return missing(["케틀벨 스윙", "데드리프트"]);
-      const rx = 24;
+      const rx = rxKgOf(slug, "kb_swing", 24);
       const rm = swing ?? 40;
       const i = rx / rm;
       const run400 = 125 / (p ?? 0.85);
@@ -237,7 +243,7 @@ export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
       const rm = lift(maxes, "ohs");
       const p = fitnessProxy(maxes);
       if (!rm) return missing(["오버헤드스쿼트"]);
-      const rx = 43;
+      const rx = rxKgOf(slug, "ohs", 42.5);
       const i = rx / rm;
       const run = 125 / (p ?? 0.85);
       return timeEst(5 * (run + 15 * barbellCycleSec(rx, rm, 1.8)) + restSec(75, i) * 0.3);
@@ -252,7 +258,7 @@ export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
     case "jackie": {
       const tm = lift(maxes, "thruster");
       if (!tm) return missing(["스러스터"]);
-      const rx = 20;
+      const rx = rxKgOf(slug, "thruster", 20);
       const i = rx / tm;
       const row = 210 / (fitnessProxy(maxes) ?? 0.9);
       return timeEst(row + 50 * barbellCycleSec(rx, tm, 1.2) + 30 * (1.1 + 0.4 * i) + 20);
@@ -278,14 +284,14 @@ export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
     case "dt": {
       const rm = lift(maxes, "deadlift");
       if (!rm) return missing(["데드리프트"]);
-      const rx = 70;
+      const rx = rxKgOf(slug, "deadlift", 70);
       const i = rx / rm;
       const hang = barbellCycleSec(rx, lift(maxes, "clean") ?? rm * 0.7, 1.7);
       const jerk = barbellCycleSec(rx, lift(maxes, "clean_jerk") ?? lift(maxes, "push_press") ?? rm * 0.55, 1.9);
       const round = 12 * barbellCycleSec(rx, rm, 1.25) + 9 * hang + 6 * jerk;
       return timeEst(5 * round + restSec(135, i) * 0.5);
     }
-    case "fight-gone-bad": {
+    case "fight_gone_bad": {
       const p = fitnessProxy(maxes);
       const wb = lift(maxes, "wall_ball");
       const pp = lift(maxes, "push_press");

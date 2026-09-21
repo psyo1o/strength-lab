@@ -1,6 +1,7 @@
-export type WodFormat = "amrap" | "for_time" | "emom";
+export type WodFormat = "amrap" | "for_time" | "emom" | "chipper";
 export type WodTier = "rx" | "scaled" | "beginner";
 export type WodCategory = "benchmark" | "conditioning";
+export type WodFamily = "girls" | "hero" | "benchmark";
 export type WodScoreType = "time_sec" | "rounds_reps";
 
 export type WodMovement = {
@@ -9,6 +10,8 @@ export type WodMovement = {
   scheme: string;
   rxKg: number | null;
   rxKgF: number | null;
+  rxLb: number | null;
+  rxLbF: number | null;
   rxNote: string;
 };
 
@@ -22,6 +25,7 @@ export type WodTemplate = {
   slug: string;
   nameKo: string;
   category: WodCategory;
+  family: WodFamily | null;
   format: WodFormat;
   timeCapSec: number | null;
   targetRounds: number | null;
@@ -37,6 +41,8 @@ export type WodTemplate = {
   movements: WodMovement[];
   scaling: WodScaling[];
 };
+
+export const RX_DISCLAIMER = "참고 처방 · 예상 시간은 참고용.";
 
 export const WOD_SUBS: Record<string, string[]> = {
   pull_up: ["밴드 풀업", "링 로우", "점프 풀업"],
@@ -69,7 +75,15 @@ export const WOD_SUBS: Record<string, string[]> = {
 export function formatLabel(format: WodFormat): string {
   if (format === "amrap") return "AMRAP";
   if (format === "emom") return "EMOM";
+  if (format === "chipper") return "Chipper";
   return "For Time";
+}
+
+export function familyLabel(family: WodFamily | null): string {
+  if (family === "girls") return "걸스";
+  if (family === "hero") return "히어로";
+  if (family === "benchmark") return "벤치마크";
+  return "";
 }
 
 export function categoryLabel(category: WodCategory): string {
@@ -83,7 +97,7 @@ export function tierLabel(tier: WodTier): string {
 }
 
 export function scoreTypeFor(format: WodFormat): WodScoreType {
-  return format === "for_time" ? "time_sec" : "rounds_reps";
+  return format === "amrap" || format === "emom" ? "rounds_reps" : "time_sec";
 }
 
 export function formatClock(sec: number): string {

@@ -390,6 +390,7 @@ describe("mobile UX P0", () => {
       "src/components/Nav.tsx",
       "src/app/(app)/dashboard/page.tsx",
       "data/wod-templates.ko.json",
+      "data/benchmark-wods.rx.json",
       "data/gear-affiliates.json",
       "src/app/(app)/gear/page.tsx",
       "src/lib/wod/estimate.ts",
