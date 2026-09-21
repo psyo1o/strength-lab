@@ -1,5 +1,5 @@
 import type { MaxMap } from "../maxes";
-import type { EquipmentPrefs } from "../equipment";
+import type { EquipmentPrefs } from "../equipment-types";
 import { getWodTemplate, normalizeWodSlug } from "./templates";
 import { formatClock } from "./types";
 

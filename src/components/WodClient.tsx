@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatWeight } from "@/lib/calc/round";
 import type { Tip } from "@/lib/tip-copy";
 import { TIP_SAFETY_FOOTER, tipHasVideo } from "@/lib/tip-copy";
-import type { EquipmentPrefs } from "@/lib/equipment";
+import type { EquipmentPrefs } from "@/lib/equipment-types";
 import {
   formatClock,
   formatLabel,

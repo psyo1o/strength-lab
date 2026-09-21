@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { EQUIPMENT_COPY, type EquipmentPrefs } from "@/lib/equipment";
+import { EQUIPMENT_COPY, type EquipmentPrefs } from "@/lib/equipment-types";
 
 function metersToCm(m: number | null): string {
   return m != null && m > 0 ? String(Number((m * 100).toFixed(1))) : "";
