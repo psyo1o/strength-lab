@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatWeight } from "@/lib/calc/round";
 import type { Tip } from "@/lib/tip-copy";
 import { TIP_SAFETY_FOOTER, tipHasVideo } from "@/lib/tip-copy";
+import type { EquipmentPrefs } from "@/lib/equipment";
 import {
   formatClock,
   formatLabel,
@@ -43,6 +44,7 @@ export function WodClient({
   prLabel,
   history,
   maxes,
+  equipment,
   tips,
   disclaimer,
 }: {
@@ -51,6 +53,7 @@ export function WodClient({
   prLabel: string | null;
   history: HistoryRow[];
   maxes: Record<string, number>;
+  equipment?: Pick<EquipmentPrefs, "boxHeightCm" | "wallBallKg" | "wallBallTargetM">;
   tips: Record<string, Tip>;
   disclaimer: string;
 }) {
@@ -70,13 +73,13 @@ export function WodClient({
   const [pending, setPending] = useState(false);
   const [tipKey, setTipKey] = useState<string | null>(null);
   const [boxHeightCm, setBoxHeightCm] = useState(
-    String(maxes.box_height_cm || template.boxHeightCm || ""),
+    String(equipment?.boxHeightCm || template.boxHeightCm || ""),
   );
   const [wallBallKg, setWallBallKg] = useState(
-    String(maxes.wall_ball || template.wallBallKg || ""),
+    String(equipment?.wallBallKg || template.wallBallKg || ""),
   );
   const [wallBallTargetM, setWallBallTargetM] = useState(
-    String(maxes.wall_ball_target_m || template.wallBallTargetM || ""),
+    String(equipment?.wallBallTargetM || template.wallBallTargetM || ""),
   );
 
   useEffect(() => {
@@ -262,7 +265,8 @@ export function WodClient({
 
       {showBox || showWall ? (
         <section className="card mt-4 space-y-3 p-4">
-          <div className="text-sm font-bold text-[var(--accent)]">장비</div>
+          <div className="text-sm font-bold text-[var(--accent)]">내 장비 · Rx 기본값</div>
+          <p className="text-xs text-[var(--muted)]">1RM이 아닙니다. 상시 세팅은 장비 페이지.</p>
           {showBox ? (
             <label className="block">
               <span className="text-xs font-bold text-[var(--muted)]">박스 높이 (cm)</span>

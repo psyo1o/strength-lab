@@ -6,7 +6,6 @@ import {
   extraProgramMaxKeys,
   labelForMaxField,
   MAX_GROUP_WOD,
-  WOD_RAW_MAX_KEYS,
 } from "@/lib/maxes-fields";
 import { canonicalOneRmFields } from "@/lib/tips";
 import { displayWeight } from "@/lib/calc/round";
@@ -14,6 +13,7 @@ import { getSqlite } from "@/lib/db/client";
 import { Nav } from "@/components/Nav";
 import { UnitToggle } from "@/components/UnitToggle";
 import { MaxesForm } from "@/components/MaxesForm";
+import Link from "next/link";
 
 export const runtime = "nodejs";
 
@@ -37,18 +37,16 @@ export default async function MaxesPage() {
   const wodWeight = new Set<string>(MAX_GROUP_WOD);
   const toFields = (keys: readonly string[]) =>
     keys.map((key) => {
-      const raw = WOD_RAW_MAX_KEYS.has(key);
-      const skipBarCheck = raw || wodWeight.has(key);
+      const skipBarCheck = wodWeight.has(key);
       const stored = maxes[key];
       return {
         key,
         nameKo: labelForMaxField(key, byKey[key]?.name_ko),
-        value: stored ? (raw ? stored : displayWeight(stored, user.unit)) : "",
+        value: stored ? displayWeight(stored, user.unit) : "",
         showStart: startSet.has(key),
         startValue: starts[key] ? displayWeight(starts[key], user.unit) : "",
         skipBarCheck,
-        unitLabel: key === "box_height_cm" ? "cm" : key === "wall_ball_target_m" ? "m" : user.unit,
-        step: key === "box_height_cm" ? 1 : key === "wall_ball_target_m" ? 0.01 : undefined,
+        unitLabel: user.unit,
       };
     });
 
@@ -60,6 +58,13 @@ export default async function MaxesPage() {
           <p className="text-sm text-[var(--muted)]">저장은 항상 kg. 화면만 {user.unit}.</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
             초보 프로그램(SS/StrongLifts/Madcow)용 첫 운동 무게예요. 1RM을 모르면 여기만 넣어도 됩니다. 모르면 비워도 OK.
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+            박스 높이·월볼 무게·타깃은 1RM이 아닙니다.{" "}
+            <Link href="/gear#equipment" className="font-bold text-[var(--accent)]">
+              내 장비
+            </Link>
+            에서 수정하세요.
           </p>
         </div>
         <UnitToggle unit={user.unit} />

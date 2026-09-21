@@ -151,3 +151,14 @@ export const wodResults = sqliteTable("wod_results", {
   substitutions: text("substitutions").notNull().default(""),
   equipmentJson: text("equipment_json").notNull().default(""),
 });
+
+export const userEquipment = sqliteTable("user_equipment", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  boxHeightCm: real("box_height_cm"),
+  wallBallKg: real("wall_ball_kg"),
+  wallBallTargetM: real("wall_ball_target_m"),
+  duRope: text("du_rope").notNull().default(""),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});

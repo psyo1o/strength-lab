@@ -1,4 +1,5 @@
 import type { MaxMap } from "../maxes";
+import type { EquipmentPrefs } from "../equipment";
 import { getWodTemplate, normalizeWodSlug } from "./templates";
 import { formatClock } from "./types";
 
@@ -53,9 +54,6 @@ function lift(maxes: MaxMap, kind: string): number | null {
   if (kind === "bench") {
     return pick(maxes, ["bench", "bench_press"]);
   }
-  if (kind === "wall_ball") {
-    return pick(maxes, ["wall_ball"]) ?? scale(pick(maxes, ["thruster"]), 0.35) ?? scale(pick(maxes, ["squat", "front_squat"]), 0.18);
-  }
   if (kind === "kb_swing") {
     return pick(maxes, ["kb_swing"]) ?? scale(pick(maxes, ["deadlift"]), 0.22);
   }
@@ -92,6 +90,19 @@ function fitnessProxy(maxes: MaxMap): number | null {
   if (clean) samples.push(clean / 90);
   if (!samples.length) return null;
   return clamp(mean(samples), 0.45, 1.35);
+}
+
+/** Barbell 1RMs if present; otherwise bodyweight heuristic. Never treats box/WB as 1RM. */
+function gymWorkCapacity(maxes: MaxMap): number {
+  return fitnessProxy(maxes) ?? clamp(bodyweightKg(maxes) / 80, 0.55, 1.25);
+}
+
+function ballKg(equipment: EquipmentPrefs | undefined, fallback = 9): number {
+  return equipment?.wallBallKg && equipment.wallBallKg > 0 ? equipment.wallBallKg : fallback;
+}
+
+function boxCm(equipment: EquipmentPrefs | undefined, fallback = 61): number {
+  return equipment?.boxHeightCm && equipment.boxHeightCm > 0 ? equipment.boxHeightCm : fallback;
 }
 
 function missing(liftsKo: string[]): WodEstimate {
@@ -156,7 +167,7 @@ function rxKgOf(slug: string, exerciseKey: string, fallback: number): number {
   return m?.rxKg ?? fallback;
 }
 
-export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
+export function estimateWod(slug: string, maxes: MaxMap, equipment?: EquipmentPrefs): WodEstimate | null {
   switch (normalizeWodSlug(slug)) {
     case "fran": {
       const tm = lift(maxes, "thruster");
@@ -229,15 +240,14 @@ export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
       return timeEst((150 * (0.55 / p) + 150 * (1.15 / p) + 70) );
     }
     case "kelly": {
-      const wb = lift(maxes, "wall_ball");
-      const p = fitnessProxy(maxes);
-      if (!wb && !p) return missing(["월볼", "스쿼트"]);
-      const rx = 9;
-      const rm = wb ?? 12;
-      const i = rx / Math.max(rm, 8);
-      const run = 125 / (p ?? 0.85);
-      const round = run + 30 * (1.3 / (p ?? 0.85)) + 30 * barbellCycleSec(rx, rm, 1.5);
-      return timeEst(5 * round + restSec(300, i) * 0.25);
+      const p = gymWorkCapacity(maxes);
+      const rx = ballKg(equipment, 9);
+      const i = rx / 9;
+      const box = boxCm(equipment, 61);
+      const boxFactor = clamp(box / 61, 0.85, 1.2);
+      const run = 125 / p;
+      const round = run + 30 * ((1.3 * boxFactor) / p) + 30 * (1.5 * i) / p;
+      return timeEst(5 * round + restSec(300, i) * 0.25, "바벨 1RM·체중·내 장비로 만든 참고 추정입니다. 기록이 아닙니다.");
     }
     case "nancy": {
       const rm = lift(maxes, "ohs");
@@ -249,11 +259,10 @@ export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
       return timeEst(5 * (run + 15 * barbellCycleSec(rx, rm, 1.8)) + restSec(75, i) * 0.3);
     }
     case "karen": {
-      const rm = lift(maxes, "wall_ball");
-      if (!rm) return missing(["월볼"]);
-      const rx = 9;
-      const i = rx / Math.max(rm, 8);
-      return timeEst(150 * barbellCycleSec(rx, rm, 1.55) + restSec(150, i));
+      const p = gymWorkCapacity(maxes);
+      const rx = ballKg(equipment, 9);
+      const i = clamp(rx / 9, 0.5, 1.4);
+      return timeEst(150 * ((1.55 * i) / p) + restSec(150, i * 0.45), "바벨 1RM·체중·내 장비로 만든 참고 추정입니다. 기록이 아닙니다.");
     }
     case "jackie": {
       const tm = lift(maxes, "thruster");
@@ -292,12 +301,11 @@ export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
       return timeEst(5 * round + restSec(135, i) * 0.5);
     }
     case "fight_gone_bad": {
-      const p = fitnessProxy(maxes);
-      const wb = lift(maxes, "wall_ball");
+      const p = gymWorkCapacity(maxes);
+      const ball = ballKg(equipment, 9);
       const pp = lift(maxes, "push_press");
-      if (!p && !wb && !pp) return missing(["월볼", "푸쉬프레스", "스쿼트"]);
-      const pace = 14 * (p ?? 0.85) + (wb ? clamp(wb / 12, 0.7, 1.2) : 1) + (pp ? clamp(pp / 50, 0.7, 1.2) : 1);
-      // 3 rounds × 5 stations × ~1 min. Playful total-rep guess.
+      const pace =
+        14 * p * clamp(ball / 9, 0.7, 1.3) + (pp ? clamp(pp / 50, 0.7, 1.2) : 1);
       return repsEst(3 * 5 * clamp(pace, 8, 22));
     }
     case "linda": {

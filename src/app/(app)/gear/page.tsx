@@ -1,6 +1,8 @@
 import { getCurrentUser } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
+import { EquipmentForm } from "@/components/EquipmentForm";
 import { loadGearCatalog } from "@/lib/gear/affiliates";
+import { getUserEquipment } from "@/lib/equipment";
 
 export const runtime = "nodejs";
 
@@ -16,6 +18,8 @@ export default async function GearPage() {
         {catalog.disclosureKo}
       </p>
       {catalog.noteKo ? <p className="mt-3 text-sm text-[var(--muted)]">{catalog.noteKo}</p> : null}
+
+      <EquipmentForm initial={getUserEquipment(user.id)} />
 
       {catalog.categories.map((cat) => (
         <section key={cat.id} id={`gear-${cat.id}`} className="mt-6">

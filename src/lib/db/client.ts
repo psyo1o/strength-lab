@@ -145,6 +145,14 @@ function applySchema(raw: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS wod_results_user_at ON wod_results (user_id, completed_at);
     CREATE INDEX IF NOT EXISTS wod_results_user_slug ON wod_results (user_id, template_slug, completed_at);
+    CREATE TABLE IF NOT EXISTS user_equipment (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      box_height_cm REAL,
+      wall_ball_kg REAL,
+      wall_ball_target_m REAL,
+      du_rope TEXT NOT NULL DEFAULT '',
+      updated_at INTEGER NOT NULL
+    );
   `);
   const logCols = new Set(
     (raw.prepare("PRAGMA table_info(set_logs)").all() as { name: string }[]).map((c) => c.name),
