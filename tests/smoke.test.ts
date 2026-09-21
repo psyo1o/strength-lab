@@ -341,6 +341,8 @@ describe("mobile UX P0", () => {
     const sheet = fs.readFileSync(path.join(process.cwd(), "src/components/WorkoutClient.tsx"), "utf8");
     expect(sheet).not.toMatch(/from ["']@\/lib\/tips["']/);
     expect(sheet).toMatch(/from ["']@\/lib\/tip-copy["']/);
+    expect(sheet).toMatch(/팁·영상/);
+    expect(sheet).toMatch(/영상\s*</);
     expect(sheet).toMatch(/큐 ·/);
     expect(sheet).toMatch(/실수 ·/);
     expect(sheet).toMatch(/대안 ·/);
@@ -353,6 +355,12 @@ describe("mobile UX P0", () => {
     expect(home).not.toMatch(/UnitToggle/);
     expect(home).not.toMatch(/오늘의 운동/);
     expect(fs.existsSync(path.join(process.cwd(), "src/app/(app)/history/page.tsx"))).toBe(true);
+    const maxes = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/maxes/page.tsx"), "utf8");
+    expect(maxes).toMatch(/초보 프로그램\(SS\/StrongLifts\/Madcow\)용 첫 운동 무게예요/);
+    expect(maxes).toMatch(/모르면 비워도 OK/);
+    const form = fs.readFileSync(path.join(process.cwd(), "src/components/MaxesForm.tsx"), "utf8");
+    expect(form).toMatch(/시작 중량/);
+    expect(form).not.toMatch(/>시작</);
   });
 });
 

@@ -41,8 +41,9 @@ export default async function MaxesPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-black">1RM</h1>
-          <p className="text-sm text-[var(--muted)]">
-            저장은 항상 kg. 화면만 {user.unit}. SS/SL/Madcow는 시작중량이 있으면 그 값을 씁니다.
+          <p className="text-sm text-[var(--muted)]">저장은 항상 kg. 화면만 {user.unit}.</p>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+            초보 프로그램(SS/StrongLifts/Madcow)용 첫 운동 무게예요. 1RM을 모르면 여기만 넣어도 됩니다. 모르면 비워도 OK.
           </p>
         </div>
         <UnitToggle unit={user.unit} />

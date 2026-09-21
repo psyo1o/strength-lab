@@ -244,9 +244,9 @@ export function resolveWorkout(opts: {
             if (preferStart && startKg) {
               if (s.percent != null && topPercent > 0 && Math.abs(s.percent - topPercent) > 0.05) {
                 const frac = Math.round((s.percent / topPercent) * 1000) / 10;
-                return `${frac % 1 === 0 ? String(frac) : frac}% 시작`;
+                return `${frac % 1 === 0 ? String(frac) : frac}% 시작 중량`;
               }
-              return "시작중량";
+              return "시작 중량";
             }
             if (s.percent != null) {
               const base =

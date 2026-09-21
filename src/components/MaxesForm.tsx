@@ -107,7 +107,7 @@ export function MaxesForm({
                   </span>
                   {f.showStart ? (
                     <span className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[var(--muted)]">시작</span>
+                      <span className="text-xs font-bold text-[var(--muted)]">시작 중량</span>
                       <input
                         name={`${f.key}__start`}
                         type="number"
@@ -140,7 +140,7 @@ export function MaxesForm({
       ) : null}
       <div className="fixed inset-x-0 bottom-16 z-30 mx-auto max-w-lg px-4 pb-2">
         <button className="btn-primary tap w-full text-lg" disabled={pending || hasError}>
-          {pending ? "저장 중…" : "1RM / 시작중량 저장"}
+          {pending ? "저장 중…" : "1RM / 시작 중량 저장"}
         </button>
       </div>
     </form>

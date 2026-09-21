@@ -81,6 +81,9 @@ export function WorkoutClient({
 
   if (!current) return null;
   const tip = tips[current.exercise.exerciseKey];
+  const hasVideo = Boolean(
+    tip?.youtubeUrl || (tip?.youtubeLinks ?? []).some((link) => link.youtubeUrl),
+  );
   const bar = defaultBar(unit);
 
   function markDone() {
@@ -133,14 +136,25 @@ export function WorkoutClient({
           </div>
           <h2 className="text-3xl font-black leading-tight">{current.exercise.nameKo}</h2>
         </div>
-        <button
-          type="button"
-          aria-label="운동 팁"
-          className="tap flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg-elev)] text-2xl font-black text-[var(--accent)]"
-          onClick={() => setTipOpen(true)}
-        >
-          ?
-        </button>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {hasVideo ? (
+            <button
+              type="button"
+              className="tap rounded-full bg-[var(--accent)] px-3 py-1 text-sm font-black text-[#1a1204]"
+              onClick={() => setTipOpen(true)}
+            >
+              영상
+            </button>
+          ) : null}
+          <button
+            type="button"
+            aria-label={hasVideo ? "팁·영상" : "운동 팁"}
+            className="tap min-h-14 rounded-full bg-[var(--bg-elev)] px-4 text-sm font-black text-[var(--accent)]"
+            onClick={() => setTipOpen(true)}
+          >
+            {hasVideo ? "팁·영상" : "팁"}
+          </button>
+        </div>
       </div>
 
       <button
