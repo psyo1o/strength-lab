@@ -1,0 +1,165 @@
+{
+  "version": "1.0.0",
+  "disclaimer": "참고 영상일 뿐. 찌릿·저림은 전문가.",
+  "sourceNoteKo": "일반적으로 알려진 공개 벤치마크·컨디셔닝 패턴입니다. 유료 박스 프로그램이 아닙니다.",
+  "templates": [
+    {
+      "slug": "fran",
+      "nameKo": "Fran",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 600,
+      "prescriptionKo": "21-15-9 스러스터 · 풀업. 타임캡 10분.",
+      "equipmentKo": "바벨. Rx 43/30kg (95/65lb).",
+      "movements": [
+        { "exerciseKey": "thruster", "nameKo": "스러스터", "scheme": "21-15-9", "rxKg": 43, "rxKgF": 30, "rxNote": "95/65 lb" },
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "21-15-9" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "처방 무게와 풀업 그대로." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "스러스터 무게를 낮추세요. 풀업 → 밴드 풀업 또는 링 로우." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨·고블릿 스러스터. 풀업 → 점프 풀업/링 로우. 횟수 15-12-9도 OK." }
+      ]
+    },
+    {
+      "slug": "grace",
+      "nameKo": "Grace",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 600,
+      "prescriptionKo": "클린앤저크 30회. 타임캡 10분.",
+      "equipmentKo": "바벨. Rx 61/43kg (135/95lb).",
+      "movements": [
+        { "exerciseKey": "clean_jerk", "nameKo": "클린앤저크", "scheme": "30회", "rxKg": 61, "rxKgF": 43, "rxNote": "135/95 lb" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "처방 무게 30회." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "무게를 낮추거나 파워클린+푸시저크." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨 클린앤저크 또는 행 클린+푸치프레스. 횟수 20회." }
+      ]
+    },
+    {
+      "slug": "helen",
+      "nameKo": "Helen",
+      "category": "benchmark",
+      "format": "for_time",
+      "targetRounds": 3,
+      "timeCapSec": 1200,
+      "prescriptionKo": "3라운드: 400m 런 · 케틀벨 스윙 21 · 풀업 12.",
+      "equipmentKo": "케틀벨 Rx 24/16kg (53/35lb).",
+      "movements": [
+        { "exerciseKey": "run", "nameKo": "런", "scheme": "400m × 3" },
+        { "exerciseKey": "kb_swing", "nameKo": "케틀벨 스윙", "scheme": "21 × 3", "rxKg": 24, "rxKgF": 16, "rxNote": "53/35 lb" },
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "12 × 3" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "런·스윙·풀업 그대로 3라운드." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "런 200–300m. 스윙 무게 낮춤. 풀업 → 밴드/링 로우." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "런 대신 행. 러시안 스윙. 풀업 → 링 로우. 2라운드도 OK." }
+      ]
+    },
+    {
+      "slug": "cindy",
+      "nameKo": "Cindy",
+      "category": "benchmark",
+      "format": "amrap",
+      "timeCapSec": 1200,
+      "prescriptionKo": "20분 AMRAP: 풀업 5 · 푸시업 10 · 에어스쿼트 15.",
+      "equipmentKo": "풀업바. 체중.",
+      "movements": [
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "5 / 라운드" },
+        { "exerciseKey": "push_up", "nameKo": "푸시업", "scheme": "10 / 라운드" },
+        { "exerciseKey": "air_squat", "nameKo": "에어스쿼트", "scheme": "15 / 라운드" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "풀업·푸시업·스쿼트 그대로 20분." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "풀업 → 밴드/링 로우. 푸시업 → 무릎 푸시업." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "12분 AMRAP. 링 로우 · 무릎 푸시업 · 박스 스쿼트." }
+      ]
+    },
+    {
+      "slug": "murph",
+      "nameKo": "Murph",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 5400,
+      "prescriptionKo": "1.6km 런 · 풀업 100 · 푸시업 200 · 스쿼트 300 · 1.6km 런. 조끼는 선택(9/6kg).",
+      "equipmentKo": "풀업바. 조끼 선택.",
+      "movements": [
+        { "exerciseKey": "run", "nameKo": "런", "scheme": "1.6km" },
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "100" },
+        { "exerciseKey": "push_up", "nameKo": "푸시업", "scheme": "200" },
+        { "exerciseKey": "air_squat", "nameKo": "스쿼트", "scheme": "300" },
+        { "exerciseKey": "run", "nameKo": "런", "scheme": "1.6km" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "조끼 착용 여부는 기록에 남기세요. 파티션(20라운드 5-10-15) OK." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "조끼 없이. 풀업·푸시업 스케일. 런 800m+800m." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "하프: 800m · 50 · 100 · 150 · 800m. 링 로우·무릎 푸시업." }
+      ]
+    },
+    {
+      "slug": "annie",
+      "nameKo": "Annie",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 900,
+      "prescriptionKo": "50-40-30-20-10 더블언더 · 싯업.",
+      "equipmentKo": "줄넘기.",
+      "movements": [
+        { "exerciseKey": "double_under", "nameKo": "더블언더", "scheme": "50-40-30-20-10" },
+        { "exerciseKey": "sit_up", "nameKo": "싯업", "scheme": "50-40-30-20-10" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "더블언더와 싯업 그대로." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "더블언더 → 싱글언더 ×2." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "싱글언더. 횟수 40-30-20-10. 크런치도 OK." }
+      ]
+    },
+    {
+      "slug": "kelly",
+      "nameKo": "Kelly",
+      "category": "benchmark",
+      "format": "for_time",
+      "targetRounds": 5,
+      "timeCapSec": 1800,
+      "prescriptionKo": "5라운드: 400m 런 · 박스점프 30 · 월볼 30.",
+      "equipmentKo": "박스 61/51cm (24/20in). 월볼 9/6kg, 타깃 3.05/2.74m (10/9ft).",
+      "boxHeightCm": 61,
+      "boxHeightCmF": 51,
+      "wallBallKg": 9,
+      "wallBallKgF": 6,
+      "wallBallTargetM": 3.05,
+      "wallBallTargetMF": 2.74,
+      "movements": [
+        { "exerciseKey": "run", "nameKo": "런", "scheme": "400m × 5" },
+        { "exerciseKey": "box_jump", "nameKo": "박스점프", "scheme": "30 × 5", "rxNote": "61/51 cm" },
+        { "exerciseKey": "wall_ball", "nameKo": "월볼", "scheme": "30 × 5", "rxKg": 9, "rxKgF": 6, "rxNote": "20/14 lb · 10/9 ft" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "박스·월볼 타깃 그대로 5라운드." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "박스 낮춤·스텝업. 월볼 무게·타깃 낮춤. 런 200–300m." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "3라운드. 스텝업. 고블릿 스쿼트. 런 대신 행." }
+      ]
+    },
+    {
+      "slug": "emom-engine",
+      "nameKo": "엔진 EMOM",
+      "category": "conditioning",
+      "format": "emom",
+      "targetRounds": 12,
+      "timeCapSec": 720,
+      "prescriptionKo": "12분 EMOM: 스러스터 8 + 버피 6. 분마다 시작.",
+      "equipmentKo": "바벨 또는 덤벨.",
+      "movements": [
+        { "exerciseKey": "thruster", "nameKo": "스러스터", "scheme": "8 / 분", "rxKg": 30, "rxKgF": 20 },
+        { "exerciseKey": "burpee", "nameKo": "버피", "scheme": "6 / 분" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "분 안에 두 동작을 끝내고 나머진 휴식." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "스러스터 무게 낮춤. 버피 4회. 또는 8분." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨 스러스터 6 + 버피 4. 8분 EMOM." }
+      ]
+    }
+  ]
+}

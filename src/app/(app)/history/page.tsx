@@ -2,35 +2,52 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { recentCardCopy, recentSessions } from "@/lib/progress";
 import { Nav } from "@/components/Nav";
+import { getWodTemplate } from "@/lib/wod/templates";
+import { listWodResults, wodCardCopy } from "@/lib/wod/queries";
 
 export const runtime = "nodejs";
 
 export default async function HistoryPage() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const sessions = recentSessions(user.id, 30);
+  const sessions = recentSessions(user.id, 30).map((s) => {
+    const copy = recentCardCopy(s);
+    return {
+      key: `s-${s.date}-${s.programSlug}-${s.weekNumber}-${s.dayNumber}`,
+      at: s.latestAt,
+      href: `/session/${s.programSlug}/${s.weekNumber}/${s.dayNumber}`,
+      title: copy.title,
+      line: copy.line,
+    };
+  });
+  const wods = listWodResults(user.id, undefined, 30).map((row) => {
+    const template = getWodTemplate(row.templateSlug);
+    const copy = wodCardCopy(row, template?.nameKo ?? row.templateSlug);
+    return {
+      key: `w-${row.id}`,
+      at: row.completedAt,
+      href: `/wod/${row.templateSlug}`,
+      title: copy.title,
+      line: copy.line,
+    };
+  });
+  const items = [...sessions, ...wods].sort((a, b) => b.at - a.at).slice(0, 40);
 
   return (
     <main className="px-4 pt-6 pb-8">
       <h1 className="text-2xl font-black">기록</h1>
-      {sessions.length === 0 ? (
+      {items.length === 0 ? (
         <p className="mt-6 text-sm text-[var(--muted)]">아직 기록이 없습니다.</p>
       ) : (
         <ul className="mt-4 space-y-2">
-          {sessions.map((s) => {
-            const copy = recentCardCopy(s);
-            return (
-              <li key={`${s.date}-${s.programSlug}-${s.weekNumber}-${s.dayNumber}`}>
-                <Link
-                  href={`/session/${s.programSlug}/${s.weekNumber}/${s.dayNumber}`}
-                  className="card tap block p-4"
-                >
-                  <div className="text-lg font-black leading-tight">{copy.title}</div>
-                  <p className="mt-1 truncate text-sm text-[var(--muted)]">{copy.line}</p>
-                </Link>
-              </li>
-            );
-          })}
+          {items.map((s) => (
+            <li key={s.key}>
+              <Link href={s.href} className="card tap block p-4">
+                <div className="text-lg font-black leading-tight">{s.title}</div>
+                <p className="mt-1 truncate text-sm text-[var(--muted)]">{s.line}</p>
+              </Link>
+            </li>
+          ))}
         </ul>
       )}
       <Nav current="/dashboard" />

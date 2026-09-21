@@ -9,15 +9,20 @@ type Field = {
   value: number | string;
   startValue?: number | string;
   showStart?: boolean;
+  skipBarCheck?: boolean;
+  unitLabel?: string;
+  step?: number;
 };
 
-function validate(value: string, unit: "kg" | "lb"): string {
+function validate(value: string, unit: "kg" | "lb", skipBarCheck?: boolean): string {
   if (value === "") return "";
   const n = Number(value);
   if (!Number.isFinite(n)) return "숫자를 입력하세요.";
   if (n < 0) return "0 이상이어야 합니다.";
-  if (unit === "kg" && n > 0 && n < 20) return "바(20kg)보다 작습니다.";
-  if (unit === "lb" && n > 0 && n < 45) return "바(45lb)보다 작습니다.";
+  if (!skipBarCheck) {
+    if (unit === "kg" && n > 0 && n < 20) return "바(20kg)보다 작습니다.";
+    if (unit === "lb" && n > 0 && n < 45) return "바(45lb)보다 작습니다.";
+  }
   if (unit === "kg" && n > 600) return "값이 너무 큽니다.";
   if (unit === "lb" && n > 1300) return "값이 너무 큽니다.";
   return "";
@@ -46,12 +51,21 @@ export function MaxesForm({
 
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
+    const skip = new Set<string>();
+    for (const g of groups) {
+      for (const f of g.fields) {
+        if (f.skipBarCheck) {
+          skip.add(f.key);
+          skip.add(`${f.key}__start`);
+        }
+      }
+    }
     for (const [k, v] of Object.entries(values)) {
-      const err = validate(v, unit);
+      const err = validate(v, unit, skip.has(k));
       if (err) e[k] = err;
     }
     return e;
-  }, [values, unit]);
+  }, [values, unit, groups]);
 
   const hasError = Object.keys(errors).length > 0;
 
@@ -98,12 +112,12 @@ export function MaxesForm({
                       type="number"
                       inputMode="decimal"
                       min={0}
-                      step={unit === "lb" ? 5 : 2.5}
+                      step={f.step ?? (unit === "lb" ? 5 : 2.5)}
                       value={values[f.key] ?? ""}
                       onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
                       className="tap w-28 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-3xl font-black"
                     />
-                    <span className="text-sm text-[var(--muted)]">{unit}</span>
+                    <span className="text-sm text-[var(--muted)]">{f.unitLabel ?? unit}</span>
                   </span>
                   {f.showStart ? (
                     <span className="flex items-center gap-2">

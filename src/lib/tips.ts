@@ -59,6 +59,9 @@ const TIP_ALIASES: Record<string, string> = {
   clean_jerk: "split_jerk",
   jerk: "split_jerk",
   snatch: "squat_snatch",
+  ttb: "toes_to_bar",
+  du: "double_under",
+  kb_swing: "kb_swing",
 };
 
 function text(value: unknown): string {

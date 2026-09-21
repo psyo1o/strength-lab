@@ -128,6 +128,23 @@ function applySchema(raw: Database.Database) {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS auth_throttle_key_at ON auth_throttle (throttle_key, created_at);
+    CREATE TABLE IF NOT EXISTS wod_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      template_slug TEXT NOT NULL,
+      completed_at INTEGER NOT NULL,
+      tier TEXT NOT NULL DEFAULT 'rx',
+      score_type TEXT NOT NULL,
+      time_sec INTEGER,
+      rounds INTEGER,
+      extra_reps INTEGER,
+      notes_ko TEXT NOT NULL DEFAULT '',
+      scale_notes TEXT NOT NULL DEFAULT '',
+      substitutions TEXT NOT NULL DEFAULT '',
+      equipment_json TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS wod_results_user_at ON wod_results (user_id, completed_at);
+    CREATE INDEX IF NOT EXISTS wod_results_user_slug ON wod_results (user_id, template_slug, completed_at);
   `);
   const logCols = new Set(
     (raw.prepare("PRAGMA table_info(set_logs)").all() as { name: string }[]).map((c) => c.name),

@@ -315,6 +315,11 @@ describe("korean exercise tips", () => {
     expect(tipFor("ohp")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=8dacy5hjaE8");
     expect(tipFor("front_squat")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=Cnc0qKLAgcU");
     expect(tipFor("front_squat")?.youtubeCredit).toBe("JTS");
+    expect(tipFor("thruster")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=L219ltL15zk");
+    expect(tipFor("kipping_pull_up")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=r45xLlH7r_M");
+    expect(tipFor("burpee")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=auBLPXO8Fww");
+    expect(tipFor("double_under")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=-tF3hUsPZAI");
+    expect(tipFor("pull_up")?.youtubeLinks?.map((l) => l.label)).toEqual(["키핑 풀업", "버터플라이 풀업"]);
     expect(tipFor("snatch")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=1Lv1IyigIUY");
     expect(tipFor("power_snatch")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=ydHHsju1-Nc");
     expect(tipFor("clean")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=oQIaWLrB318");
@@ -347,14 +352,37 @@ describe("mobile UX P0", () => {
     expect(sheet).toMatch(/실수 ·/);
     expect(sheet).toMatch(/대안 ·/);
     expect(sheet).toMatch(/markDone/);
+    const wodClient = fs.readFileSync(path.join(process.cwd(), "src/components/WodClient.tsx"), "utf8");
+    expect(wodClient).not.toMatch(/from ["']@\/lib\/tips["']/);
+    expect(wodClient).not.toMatch(/from ["']@\/lib\/wod\/templates["']/);
+    expect(wodClient).toMatch(/팁·영상/);
+    expect(wodClient).toMatch(/WOD 완료/);
     const home = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/dashboard/page.tsx"), "utf8");
     expect(home).toMatch(/오늘 운동/);
+    expect(home).toMatch(/오늘 WOD/);
+    expect(home).toMatch(/벤치마크 보드/);
     expect(home).toMatch(/>최근</);
     expect(home).toMatch(/>PR</);
     expect(home).toMatch(/일 연속/);
     expect(home).not.toMatch(/UnitToggle/);
     expect(home).not.toMatch(/오늘의 운동/);
     expect(fs.existsSync(path.join(process.cwd(), "src/app/(app)/history/page.tsx"))).toBe(true);
+    const nav = fs.readFileSync(path.join(process.cwd(), "src/components/Nav.tsx"), "utf8");
+    expect(nav).toMatch(/href: "\/wod"/);
+    expect(nav).toMatch(/label: "WOD"/);
+    expect(nav).toMatch(/grid-cols-5/);
+    const wodUi = [
+      "src/components/WodClient.tsx",
+      "src/app/(app)/wod/page.tsx",
+      "src/app/(app)/wod/[slug]/page.tsx",
+      "src/components/Nav.tsx",
+      "src/app/(app)/dashboard/page.tsx",
+      "data/wod-templates.ko.json",
+    ];
+    for (const rel of wodUi) {
+      const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+      expect(text, rel).not.toMatch(/CrossFit/i);
+    }
     const maxes = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/maxes/page.tsx"), "utf8");
     expect(maxes).toMatch(/초보 프로그램\(SS\/StrongLifts\/Madcow\)용 첫 운동 무게예요/);
     expect(maxes).toMatch(/모르면 비워도 OK/);

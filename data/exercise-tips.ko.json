@@ -213,6 +213,174 @@
       "mistake": "턱만 넘기려다 어깨가 움츠러듦.",
       "alternative": "밴드 풀업이나 랫풀다운.",
       "sheet": "손바닥은 앞을 향하게, 견갑부터 내리고 팔꿈치로 몸을 당겨. 턱만 넘기려 하면 어깨가 움츠러. 힘들면 밴드 풀업이나 랫풀다운으로.",
+      "youtubeLinks": [
+        {
+          "label": "키핑 풀업",
+          "youtubeUrl": "https://www.youtube.com/watch?v=r45xLlH7r_M",
+          "youtubeCredit": "Invictus"
+        },
+        {
+          "label": "버터플라이 풀업",
+          "youtubeUrl": "https://www.youtube.com/watch?v=OenVG15QMj8",
+          "youtubeCredit": "The Gymnastics Method"
+        }
+      ],
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "thruster": {
+      "exerciseId": "thruster",
+      "name": "스러스터",
+      "cue": "프론트랙에서 스쿼트 깊이를 찍고, 일어남과 동시에 바를 머리 위로 밀어 팔꿈치를 잠가.",
+      "mistake": "스쿼트가 얕거나, 바가 앞으로 나가며 허리가 꺾임.",
+      "alternative": "무게를 낮추거나 덤벨·고블릿 스러스터.",
+      "sheet": "프론트랙에서 스쿼트 깊이를 찍고, 일어남과 동시에 바를 머리 위로 밀어 팔꿈치를 잠가. 바가 앞으로 나가면 무게를 낮추거나 덤벨 스러스터로. 찌릿하면 멈춰.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=L219ltL15zk",
+        "youtubeCredit": "James Hobart",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "kipping_pull_up": {
+      "exerciseId": "kipping_pull_up",
+      "name": "키핑 풀업",
+      "cue": "어깨를 열고 닫는 아크부터. 힙 드라이브로 올라가고, 내려올 때 몸을 다시 늘려.",
+      "mistake": "팔만 당기거나 바가 목에 부딪힘. 어깨가 움츠러든 채 스윙.",
+      "alternative": "스트릭트·밴드 풀업. 어깨가 아프면 키핑 금지.",
+      "sheet": "어깨를 열고 닫는 아크부터. 힙 드라이브로 올라가고 내려올 때 몸을 다시 늘려. 어깨가 아프면 키핑 하지 마. 스트릭트나 밴드 풀업으로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=r45xLlH7r_M",
+        "youtubeCredit": "Invictus",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "butterfly_pull_up": {
+      "exerciseId": "butterfly_pull_up",
+      "name": "버터플라이 풀업",
+      "cue": "키핑이 안정된 뒤에. 원 궤도로 연속. 바가 가슴이 아니라 턱 높이.",
+      "mistake": "성급하게 원을 키우다 어깨가 앞쪽으로 빠짐.",
+      "alternative": "키핑 또는 밴드. 어깨·팔꿈치가 찌릿하면 즉시 중단.",
+      "sheet": "키핑이 안정된 뒤에만. 원 궤도로 연속하되 어깨가 앞으로 빠지면 멈춰. 아프면 키핑·밴드로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=OenVG15QMj8",
+        "youtubeCredit": "The Gymnastics Method",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "toes_to_bar": {
+      "exerciseId": "toes_to_bar",
+      "name": "토투바",
+      "cue": "견갑을 내리고 골반을 말며 발을 바에 찍고, 내려올 때 몸을 길게.",
+      "mistake": "허리만 꺾거나 팔로 매달린 채 스윙만 함.",
+      "alternative": "니레이즈, 행잉 니업. 허리 찌릿하면 바닥 V업.",
+      "sheet": "견갑을 내리고 골반을 말며 발을 바에 찍어. 허리만 꺾지 마. 힘들면 니레이즈. 찌릿하면 멈춰.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=_03pCKOv4l4",
+        "youtubeCredit": "WODstar",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "double_under": {
+      "exerciseId": "double_under",
+      "name": "더블언더",
+      "cue": "손목으로 줄을 돌리고 점프는 작게. 시선은 앞.",
+      "mistake": "팔이 벌어지거나 무릎을 과도하게 들어 올림.",
+      "alternative": "싱글언더 ×2. 줄이 발에 자주 걸리면 천천히.",
+      "sheet": "손목으로 줄을 돌리고 점프는 작게. 팔이 벌어지면 옆구리를 붙여. 안 되면 싱글언더 ×2로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=-tF3hUsPZAI",
+        "youtubeCredit": "Julie Foucher",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "burpee": {
+      "exerciseId": "burpee",
+      "name": "버피",
+      "cue": "손 짚고 발이 뒤로, 가슴이 바닥에 닿은 뒤 발로 모아 점프.",
+      "mistake": "허리가 처지며 플랭크가 무너짐. 착지가 무거움.",
+      "alternative": "스텝 버피, 업다운. 무릎·손목이 아프면 박스 업다운.",
+      "sheet": "손 짚고 발이 뒤로, 가슴이 바닥에 닿은 뒤 발로 모아 점프. 허리가 무너지면 스텝 버피로. 찌릿하면 멈춰.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=auBLPXO8Fww",
+        "youtubeCredit": "The Body Coach",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "kb_swing": {
+      "exerciseId": "kb_swing",
+      "name": "케틀벨 스윙",
+      "cue": "힙 힌지로 벨을 뒤로 보냈다가 힙을 닫으며 어깨 높이까지.",
+      "mistake": "스쿼트처럼 앉거나 팔로 들어 올림. 허리가 말림.",
+      "alternative": "러시안 스윙, 무게 낮춤. 허리 아프면 힙 힌지 드릴.",
+      "sheet": "힙 힌지로 벨을 뒤로 보냈다가 힙을 닫으며 올려. 팔로 들지 마. 허리가 말리면 무게를 낮추거나 러시안 스윙으로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "wall_ball": {
+      "exerciseId": "wall_ball",
+      "name": "월볼",
+      "cue": "볼을 가슴에 붙인 채 스쿼트하고, 일어남과 동시에 타깃을 향해 밀어 올려 받아.",
+      "mistake": "팔만 던지거나 착지 때 허리가 둥글어짐.",
+      "alternative": "타깃·무게를 낮추거나 고블릿 스쿼트.",
+      "sheet": "볼을 가슴에 붙인 채 스쿼트하고 일어남과 동시에 타깃을 밀어. 허리가 둥글면 무게·타깃을 낮추거나 고블릿 스쿼트로.",
       "media": {
         "imageUrl": null,
         "videoUrl": null,

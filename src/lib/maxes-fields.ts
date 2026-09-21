@@ -19,6 +19,17 @@ export const MAX_GROUP_OLYMPIC = [
   "ohs",
 ] as const;
 
+/** Conditioning / WOD presets. Weights in kg; height/target stored as raw numbers. */
+export const MAX_GROUP_WOD = ["thruster", "wall_ball", "kb_swing"] as const;
+export const MAX_GROUP_WOD_EQUIP = ["box_height_cm", "wall_ball_target_m"] as const;
+export const WOD_RAW_MAX_KEYS = new Set<string>(MAX_GROUP_WOD_EQUIP);
+
+export const MAX_GROUPS = {
+  pl: MAX_GROUP_PL,
+  olympic: MAX_GROUP_OLYMPIC,
+  wod: MAX_GROUP_WOD,
+};
+
 /** Distinct Korean labels so similar lifts are not read as typos/dupes. */
 export const MAX_LABELS: Record<string, string> = {
   squat: "스쿼트",
@@ -38,11 +49,11 @@ export const MAX_LABELS: Record<string, string> = {
   push_press: "푸쉬프레스 (레그 드라이브)",
   ohs: "오버헤드스쿼트",
   rehab_target: "재활 목표 동작",
-};
-
-export const MAX_GROUPS = {
-  pl: MAX_GROUP_PL,
-  olympic: MAX_GROUP_OLYMPIC,
+  thruster: "스러스터",
+  wall_ball: "월볼",
+  kb_swing: "케틀벨 스윙",
+  box_height_cm: "박스 높이",
+  wall_ball_target_m: "월볼 타깃",
 };
 
 export type MaxesGroupSpec = { title: string; keys: string[] };
@@ -94,6 +105,7 @@ export function buildMaxesGroups(opts?: {
   return [
     { title: "파워리프팅", keys: take(MAX_GROUP_PL) },
     { title: "역도", keys: take(MAX_GROUP_OLYMPIC) },
+    { title: "컨디셔닝", keys: take([...MAX_GROUP_WOD, ...MAX_GROUP_WOD_EQUIP]) },
     { title: "프로그램 추가 1RM", keys: take(leftovers) },
   ].filter((g) => g.keys.length > 0);
 }

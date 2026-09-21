@@ -1,6 +1,13 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getUserMaxes, getUserStarts, START_WEIGHT_KEYS } from "@/lib/maxes";
-import { buildMaxesGroups, canonicalOneRmKeysFromSeed, extraProgramMaxKeys, labelForMaxField } from "@/lib/maxes-fields";
+import {
+  buildMaxesGroups,
+  canonicalOneRmKeysFromSeed,
+  extraProgramMaxKeys,
+  labelForMaxField,
+  MAX_GROUP_WOD,
+  WOD_RAW_MAX_KEYS,
+} from "@/lib/maxes-fields";
 import { canonicalOneRmFields } from "@/lib/tips";
 import { displayWeight } from "@/lib/calc/round";
 import { getSqlite } from "@/lib/db/client";
@@ -27,14 +34,23 @@ export default async function MaxesPage() {
     seedOneRmFields: canonicalOneRmKeysFromSeed(),
   });
 
+  const wodWeight = new Set<string>(MAX_GROUP_WOD);
   const toFields = (keys: readonly string[]) =>
-    keys.map((key) => ({
-      key,
-      nameKo: labelForMaxField(key, byKey[key]?.name_ko),
-      value: maxes[key] ? displayWeight(maxes[key], user.unit) : "",
-      showStart: startSet.has(key),
-      startValue: starts[key] ? displayWeight(starts[key], user.unit) : "",
-    }));
+    keys.map((key) => {
+      const raw = WOD_RAW_MAX_KEYS.has(key);
+      const skipBarCheck = raw || wodWeight.has(key);
+      const stored = maxes[key];
+      return {
+        key,
+        nameKo: labelForMaxField(key, byKey[key]?.name_ko),
+        value: stored ? (raw ? stored : displayWeight(stored, user.unit)) : "",
+        showStart: startSet.has(key),
+        startValue: starts[key] ? displayWeight(starts[key], user.unit) : "",
+        skipBarCheck,
+        unitLabel: key === "box_height_cm" ? "cm" : key === "wall_ball_target_m" ? "m" : user.unit,
+        step: key === "box_height_cm" ? 1 : key === "wall_ball_target_m" ? 0.01 : undefined,
+      };
+    });
 
   return (
     <main className="px-4 pt-6">

@@ -18,6 +18,7 @@ export type RecentSession = {
   programNameKo: string;
   weekNumber: number;
   dayNumber: number;
+  latestAt: number;
   lifts: { nameKo: string; weightKg: number | null }[];
 };
 
@@ -122,11 +123,13 @@ export function recentSessions(userId: number, limit = 5): RecentSession[] {
         programNameKo: row.programNameKo,
         weekNumber: row.weekNumber,
         dayNumber: row.dayNumber,
+        latestAt: row.completedAt,
         lifts: [],
       };
       groups.set(key, session);
       order.push(key);
     }
+    if (row.completedAt > session.latestAt) session.latestAt = row.completedAt;
     const existing = session.lifts.find((l) => l.nameKo === row.nameKo);
     if (!existing) session.lifts.push({ nameKo: row.nameKo, weightKg: row.weightKg });
     else if (row.weightKg != null && (existing.weightKg == null || row.weightKg > existing.weightKg)) {
@@ -145,8 +148,8 @@ export function recentCardCopy(session: RecentSession): { title: string; line: s
   };
 }
 
-export function dashboardProgress(userId: number) {
-  const days = trainingDayKeys(userId);
+export function dashboardProgress(userId: number, extraDayKeys: string[] = []) {
+  const days = [...new Set([...trainingDayKeys(userId), ...extraDayKeys])];
   return {
     streakDays: computeStreakDays(days),
     prs: homePrs(userId),

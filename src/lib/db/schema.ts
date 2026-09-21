@@ -133,3 +133,21 @@ export const setLogs = sqliteTable(
   },
   (t) => [uniqueIndex("set_logs_user_set").on(t.userId, t.programSetId)],
 );
+
+export const wodResults = sqliteTable("wod_results", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  templateSlug: text("template_slug").notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp_ms" }).notNull(),
+  tier: text("tier").notNull().default("rx"),
+  scoreType: text("score_type").notNull(),
+  timeSec: integer("time_sec"),
+  rounds: integer("rounds"),
+  extraReps: integer("extra_reps"),
+  notesKo: text("notes_ko").notNull().default(""),
+  scaleNotes: text("scale_notes").notNull().default(""),
+  substitutions: text("substitutions").notNull().default(""),
+  equipmentJson: text("equipment_json").notNull().default(""),
+});

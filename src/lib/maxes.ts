@@ -1,6 +1,6 @@
 import { getSqlite } from "./db/client";
 import { inputToKg, type WeightUnit } from "./calc/round";
-import { MAX_GROUPS } from "./maxes-fields";
+import { MAX_GROUPS, WOD_RAW_MAX_KEYS } from "./maxes-fields";
 
 export { MAX_GROUPS };
 
@@ -43,9 +43,14 @@ export function saveUserMaxes(
   );
   const tx = getSqlite().transaction(() => {
     for (const e of entries) {
-      const one = e.value > 0 ? inputToKg(e.value, e.unit) : 0;
+      const raw = WOD_RAW_MAX_KEYS.has(e.exerciseKey);
+      const one = e.value > 0 ? (raw ? e.value : inputToKg(e.value, e.unit)) : 0;
       const start =
-        e.startValue != null && e.startValue > 0 ? inputToKg(e.startValue, e.unit) : null;
+        e.startValue != null && e.startValue > 0
+          ? raw
+            ? e.startValue
+            : inputToKg(e.startValue, e.unit)
+          : null;
       if (one <= 0 && start == null) {
         del.run(userId, e.exerciseKey);
         continue;
