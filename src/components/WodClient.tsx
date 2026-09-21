@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { formatWeight } from "@/lib/calc/round";
 import type { Tip } from "@/lib/tip-copy";
 import { TIP_SAFETY_FOOTER, tipHasVideo } from "@/lib/tip-copy";
-import type { EquipmentPrefs } from "@/lib/equipment-types";
 import {
   formatClock,
   formatLabel,
@@ -60,7 +59,6 @@ export function WodClient({
   prLabel,
   history,
   maxes,
-  equipment,
   tips,
   disclaimer,
 }: {
@@ -69,7 +67,6 @@ export function WodClient({
   prLabel: string | null;
   history: HistoryRow[];
   maxes: Record<string, number>;
-  equipment?: Pick<EquipmentPrefs, "boxHeightCm" | "wallBallKg" | "wallBallTargetM">;
   tips: Record<string, Tip>;
   disclaimer: string;
 }) {
@@ -88,15 +85,6 @@ export function WodClient({
   const [msg, setMsg] = useState("");
   const [pending, setPending] = useState(false);
   const [tipKey, setTipKey] = useState<string | null>(null);
-  const [boxHeightCm, setBoxHeightCm] = useState(
-    String(equipment?.boxHeightCm || template.boxHeightCm || ""),
-  );
-  const [wallBallKg, setWallBallKg] = useState(
-    String(equipment?.wallBallKg || template.wallBallKg || ""),
-  );
-  const [wallBallTargetM, setWallBallTargetM] = useState(
-    String(equipment?.wallBallTargetM || template.wallBallTargetM || ""),
-  );
 
   useEffect(() => {
     setScaleNotes(template.scaling.find((s) => s.tier === tier)?.bodyKo ?? "");
@@ -175,9 +163,9 @@ export function WodClient({
         .map(([from, to]) => ({ from, to })),
     );
     const equipmentJson = JSON.stringify({
-      boxHeightCm: boxHeightCm ? Number(boxHeightCm) : null,
-      wallBallKg: wallBallKg ? Number(wallBallKg) : null,
-      wallBallTargetM: wallBallTargetM ? Number(wallBallTargetM) : null,
+      boxHeightCm: template.boxHeightCm,
+      wallBallKg: template.wallBallKg,
+      wallBallTargetM: template.wallBallTargetM,
       thrusterKg: maxes.thruster ?? null,
     });
     const res = await fetch("/api/wod/results", {
@@ -204,9 +192,6 @@ export function WodClient({
     setMsg("저장했습니다. 기록과 PR에 반영됩니다.");
     router.refresh();
   }
-
-  const showBox = template.boxHeightCm != null || template.movements.some((m) => m.exerciseKey === "box_jump");
-  const showWall = template.wallBallKg != null || template.movements.some((m) => m.exerciseKey === "wall_ball");
 
   return (
     <div className="pb-36">
@@ -278,50 +263,6 @@ export function WodClient({
           );
         })}
       </ul>
-
-      {showBox || showWall ? (
-        <section className="card mt-4 space-y-3 p-4">
-          <div className="text-sm font-bold text-[var(--accent)]">내 장비 · Rx 기본값</div>
-          <p className="text-xs text-[var(--muted)]">1RM이 아닙니다. 상시 세팅은 장비 페이지.</p>
-          {showBox ? (
-            <label className="block">
-              <span className="text-xs font-bold text-[var(--muted)]">박스 높이 (cm)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={boxHeightCm}
-                onChange={(e) => setBoxHeightCm(e.target.value)}
-                className="field mt-1"
-              />
-            </label>
-          ) : null}
-          {showWall ? (
-            <>
-              <label className="block">
-                <span className="text-xs font-bold text-[var(--muted)]">월볼 (kg)</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={wallBallKg}
-                  onChange={(e) => setWallBallKg(e.target.value)}
-                  className="field mt-1"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-bold text-[var(--muted)]">월볼 타깃 (m)</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  value={wallBallTargetM}
-                  onChange={(e) => setWallBallTargetM(e.target.value)}
-                  className="field mt-1"
-                />
-              </label>
-            </>
-          ) : null}
-        </section>
-      ) : null}
 
       <section className="card mt-4 p-5 text-center">
         <div className="text-sm font-bold text-[var(--accent)]">

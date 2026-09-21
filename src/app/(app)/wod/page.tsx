@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserMaxes } from "@/lib/maxes";
-import { getUserEquipment } from "@/lib/equipment";
 import { Nav } from "@/components/Nav";
 import { WodEstimateLine } from "@/components/WodEstimateCard";
 import { RX_DISCLAIMER, familyLabel, formatLabel, type WodFamily } from "@/lib/wod/types";
@@ -18,16 +17,14 @@ type BoardRow = ReturnType<typeof listWodBoard>[number];
 function BoardList({
   rows,
   maxes,
-  equipment,
 }: {
   rows: BoardRow[];
   maxes: ReturnType<typeof getUserMaxes>;
-  equipment: ReturnType<typeof getUserEquipment>;
 }) {
   return (
     <ul className="mt-2 space-y-2">
       {rows.map((row) => {
-        const estimate = estimateWod(row.slug, maxes, equipment);
+        const estimate = estimateWod(row.slug, maxes);
         return (
           <li key={row.slug}>
             <Link href={`/wod/${row.slug}`} className="card tap block p-4">
@@ -54,8 +51,7 @@ export default async function WodIndexPage() {
   const today = getWodTemplate(todaySlug);
   const board = listWodBoard(user.id);
   const maxes = getUserMaxes(user.id);
-  const equipment = getUserEquipment(user.id);
-  const todayEstimate = today ? estimateWod(today.slug, maxes, equipment) : null;
+  const todayEstimate = today ? estimateWod(today.slug, maxes) : null;
   const used = new Set<string>();
   const familySections = FAMILY_ORDER.map((family) => {
     const rows = board.filter((row) => row.family === family);
@@ -87,21 +83,21 @@ export default async function WodIndexPage() {
       {familySections.map((section) => (
         <section key={section.family} className="mt-6">
           <h2 className="text-sm font-bold text-[var(--accent)]">{section.title}</h2>
-          <BoardList rows={section.rows} maxes={maxes} equipment={equipment} />
+          <BoardList rows={section.rows} maxes={maxes} />
         </section>
       ))}
 
       {leftoverBench.length > 0 ? (
         <section className="mt-6">
           <h2 className="text-sm font-bold text-[var(--accent)]">벤치마크</h2>
-          <BoardList rows={leftoverBench} maxes={maxes} equipment={equipment} />
+          <BoardList rows={leftoverBench} maxes={maxes} />
         </section>
       ) : null}
 
       {conditioning.length > 0 ? (
         <section className="mt-6">
           <h2 className="text-sm font-bold text-[var(--accent)]">컨디셔닝</h2>
-          <BoardList rows={conditioning} maxes={maxes} equipment={equipment} />
+          <BoardList rows={conditioning} maxes={maxes} />
         </section>
       ) : null}
 

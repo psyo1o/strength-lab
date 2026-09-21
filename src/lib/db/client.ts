@@ -145,6 +145,7 @@ function applySchema(raw: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS wod_results_user_at ON wod_results (user_id, completed_at);
     CREATE INDEX IF NOT EXISTS wod_results_user_slug ON wod_results (user_id, template_slug, completed_at);
+    -- Unused leftover table. Kept so NAS DBs are not migrated/wiped. No UI reads it.
     CREATE TABLE IF NOT EXISTS user_equipment (
       user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       box_height_cm REAL,

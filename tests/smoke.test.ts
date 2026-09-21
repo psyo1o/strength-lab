@@ -395,8 +395,6 @@ describe("mobile UX P0", () => {
       "src/app/(app)/gear/page.tsx",
       "src/lib/wod/estimate.ts",
       "src/components/WodEstimateCard.tsx",
-      "src/lib/equipment.ts",
-      "src/components/EquipmentForm.tsx",
     ];
     for (const rel of wodUi) {
       const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
@@ -407,8 +405,9 @@ describe("mobile UX P0", () => {
     const maxes = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/maxes/page.tsx"), "utf8");
     expect(maxes).toMatch(/초보 프로그램\(SS\/StrongLifts\/Madcow\)용 첫 운동 무게예요/);
     expect(maxes).toMatch(/모르면 비워도 OK/);
-    expect(maxes).toMatch(/내 장비/);
+    expect(maxes).toMatch(/WOD 처방/);
     expect(maxes).toMatch(/1RM이 아닙니다/);
+    expect(maxes).not.toMatch(/내 장비/);
     const form = fs.readFileSync(path.join(process.cwd(), "src/components/MaxesForm.tsx"), "utf8");
     expect(form).toMatch(/시작 중량/);
     expect(form).not.toMatch(/>시작</);

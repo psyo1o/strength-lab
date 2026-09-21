@@ -1,5 +1,4 @@
 import type { MaxMap } from "../maxes";
-import type { EquipmentPrefs } from "../equipment-types";
 import { getWodTemplate, normalizeWodSlug } from "./templates";
 import { formatClock } from "./types";
 
@@ -54,9 +53,6 @@ function lift(maxes: MaxMap, kind: string): number | null {
   if (kind === "bench") {
     return pick(maxes, ["bench", "bench_press"]);
   }
-  if (kind === "kb_swing") {
-    return pick(maxes, ["kb_swing"]) ?? scale(pick(maxes, ["deadlift"]), 0.22);
-  }
   if (kind === "push_press") {
     return pick(maxes, ["push_press", "jerk", "power_jerk"]) ?? scale(pick(maxes, ["ohp"]), 1.1);
   }
@@ -95,14 +91,6 @@ function fitnessProxy(maxes: MaxMap): number | null {
 /** Barbell 1RMs if present; otherwise bodyweight heuristic. Never treats box/WB as 1RM. */
 function gymWorkCapacity(maxes: MaxMap): number {
   return fitnessProxy(maxes) ?? clamp(bodyweightKg(maxes) / 80, 0.55, 1.25);
-}
-
-function ballKg(equipment: EquipmentPrefs | undefined, fallback = 9): number {
-  return equipment?.wallBallKg && equipment.wallBallKg > 0 ? equipment.wallBallKg : fallback;
-}
-
-function boxCm(equipment: EquipmentPrefs | undefined, fallback = 61): number {
-  return equipment?.boxHeightCm && equipment.boxHeightCm > 0 ? equipment.boxHeightCm : fallback;
 }
 
 function missing(liftsKo: string[]): WodEstimate {
@@ -167,7 +155,11 @@ function rxKgOf(slug: string, exerciseKey: string, fallback: number): number {
   return m?.rxKg ?? fallback;
 }
 
-export function estimateWod(slug: string, maxes: MaxMap, equipment?: EquipmentPrefs): WodEstimate | null {
+function rxBoxCm(slug: string, fallback = 61): number {
+  return getWodTemplate(slug)?.boxHeightCm ?? fallback;
+}
+
+export function estimateWod(slug: string, maxes: MaxMap): WodEstimate | null {
   switch (normalizeWodSlug(slug)) {
     case "fran": {
       const tm = lift(maxes, "thruster");
@@ -208,14 +200,12 @@ export function estimateWod(slug: string, maxes: MaxMap, equipment?: EquipmentPr
       return timeEst(couplet21(barbellCycleSec(rx, rm, 2.1), dip, i));
     }
     case "helen": {
-      const swing = lift(maxes, "kb_swing");
       const p = fitnessProxy(maxes);
-      if (!swing && !p) return missing(["케틀벨 스윙", "데드리프트"]);
+      if (!p) return missing(["스쿼트", "데드리프트"]);
       const rx = rxKgOf(slug, "kb_swing", 24);
-      const rm = swing ?? 40;
-      const i = rx / rm;
-      const run400 = 125 / (p ?? 0.85);
-      const round = run400 + 21 * barbellCycleSec(rx, rm, 1.05) + 12 * (1.15 + i);
+      const i = rx / 24;
+      const run400 = 125 / p;
+      const round = run400 + 21 * (1.05 / p) * i + 12 * (1.15 + 0.2 * i);
       return timeEst(3 * round + 25);
     }
     case "cindy": {
@@ -241,13 +231,13 @@ export function estimateWod(slug: string, maxes: MaxMap, equipment?: EquipmentPr
     }
     case "kelly": {
       const p = gymWorkCapacity(maxes);
-      const rx = ballKg(equipment, 9);
+      const rx = rxKgOf(slug, "wall_ball", 9);
       const i = rx / 9;
-      const box = boxCm(equipment, 61);
+      const box = rxBoxCm(slug, 61);
       const boxFactor = clamp(box / 61, 0.85, 1.2);
       const run = 125 / p;
       const round = run + 30 * ((1.3 * boxFactor) / p) + 30 * (1.5 * i) / p;
-      return timeEst(5 * round + restSec(300, i) * 0.25, "바벨 1RM·체중·내 장비로 만든 참고 추정입니다. 기록이 아닙니다.");
+      return timeEst(5 * round + restSec(300, i) * 0.25, "WOD Rx와 바벨 1RM으로 만든 참고 추정입니다. 기록이 아닙니다.");
     }
     case "nancy": {
       const rm = lift(maxes, "ohs");
@@ -260,9 +250,9 @@ export function estimateWod(slug: string, maxes: MaxMap, equipment?: EquipmentPr
     }
     case "karen": {
       const p = gymWorkCapacity(maxes);
-      const rx = ballKg(equipment, 9);
+      const rx = rxKgOf(slug, "wall_ball", 9);
       const i = clamp(rx / 9, 0.5, 1.4);
-      return timeEst(150 * ((1.55 * i) / p) + restSec(150, i * 0.45), "바벨 1RM·체중·내 장비로 만든 참고 추정입니다. 기록이 아닙니다.");
+      return timeEst(150 * ((1.55 * i) / p) + restSec(150, i * 0.45), "WOD Rx와 바벨 1RM으로 만든 참고 추정입니다. 기록이 아닙니다.");
     }
     case "jackie": {
       const tm = lift(maxes, "thruster");
@@ -302,7 +292,7 @@ export function estimateWod(slug: string, maxes: MaxMap, equipment?: EquipmentPr
     }
     case "fight_gone_bad": {
       const p = gymWorkCapacity(maxes);
-      const ball = ballKg(equipment, 9);
+      const ball = rxKgOf(slug, "wall_ball", 9);
       const pp = lift(maxes, "push_press");
       const pace =
         14 * p * clamp(ball / 9, 0.7, 1.3) + (pp ? clamp(pp / 50, 0.7, 1.2) : 1);

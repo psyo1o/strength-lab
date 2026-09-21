@@ -13,7 +13,6 @@ import { getSqlite } from "@/lib/db/client";
 import { Nav } from "@/components/Nav";
 import { UnitToggle } from "@/components/UnitToggle";
 import { MaxesForm } from "@/components/MaxesForm";
-import Link from "next/link";
 
 export const runtime = "nodejs";
 
@@ -60,11 +59,7 @@ export default async function MaxesPage() {
             초보 프로그램(SS/StrongLifts/Madcow)용 첫 운동 무게예요. 1RM을 모르면 여기만 넣어도 됩니다. 모르면 비워도 OK.
           </p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-            박스 높이·월볼 무게·타깃은 1RM이 아닙니다.{" "}
-            <Link href="/gear#equipment" className="font-bold text-[var(--accent)]">
-              내 장비
-            </Link>
-            에서 수정하세요.
+            월볼·박스·케틀벨 무게는 WOD 처방에 있어요. 1RM이 아닙니다.
           </p>
         </div>
         <UnitToggle unit={user.unit} />

@@ -28,7 +28,7 @@ export default async function SettingsPage() {
           1RM 헬퍼 (Epley)
         </Link>
         <Link href="/gear" className="card tap block p-4 font-bold">
-          장비 · 내 장비
+          장비
         </Link>
         <Link href="/plates" className="card tap block p-4 font-bold">
           원판 계산기

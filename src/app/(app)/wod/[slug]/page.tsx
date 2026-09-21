@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserMaxes } from "@/lib/maxes";
-import { getUserEquipment, resolveWodEquipment } from "@/lib/equipment";
 import { clientTipsFor, tipDisclaimer } from "@/lib/tips";
 import { WodClient } from "@/components/WodClient";
 import { WodEstimateCard } from "@/components/WodEstimateCard";
@@ -28,9 +27,7 @@ export default async function WodDetailPage({ params }: { params: Promise<{ slug
   }));
   const tips = clientTipsFor(wodTipKeys(template));
   const maxes = getUserMaxes(user.id);
-  const prefs = getUserEquipment(user.id);
-  const estimate = estimateWod(template.slug, maxes, prefs);
-  const equipment = resolveWodEquipment(template, prefs);
+  const estimate = estimateWod(template.slug, maxes);
 
   return (
     <main className="px-4 pt-6">
@@ -51,7 +48,6 @@ export default async function WodDetailPage({ params }: { params: Promise<{ slug
         prLabel={pr ? formatWodScore(pr) : null}
         history={history}
         maxes={maxes}
-        equipment={equipment}
         tips={tips}
         disclaimer={tipDisclaimer()}
       />

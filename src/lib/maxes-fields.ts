@@ -19,10 +19,11 @@ export const MAX_GROUP_OLYMPIC = [
   "ohs",
 ] as const;
 
-/** Conditioning 1RMs only. Box/wall-ball gear lives in user_equipment, not here. */
-export const MAX_GROUP_WOD = ["thruster", "kb_swing", "bodyweight"] as const;
+/** Conditioning 1RMs only. Box/wall-ball/KB loads live on WOD Rx, not here. */
+export const MAX_GROUP_WOD = ["thruster", "bodyweight"] as const;
 export const MAX_GROUP_WOD_EQUIP = ["box_height_cm", "wall_ball_target_m"] as const;
 export const WOD_RAW_MAX_KEYS = new Set<string>(MAX_GROUP_WOD_EQUIP);
+const NOT_ONE_RM = new Set(["kb_swing", "wall_ball", "box_height_cm", "wall_ball_target_m"]);
 
 export const MAX_GROUPS = {
   pl: MAX_GROUP_PL,
@@ -98,7 +99,9 @@ export function buildMaxesGroups(opts?: {
     });
 
   const extras = opts?.extraKeys ?? extraProgramMaxKeys();
-  const leftovers = uniqueKeys([...(opts?.canonicalOneRmFields ?? []), ...(opts?.seedOneRmFields ?? []), ...extras]);
+  const leftovers = uniqueKeys([...(opts?.canonicalOneRmFields ?? []), ...(opts?.seedOneRmFields ?? []), ...extras]).filter(
+    (key) => !NOT_ONE_RM.has(key),
+  );
 
   return [
     { title: "파워리프팅", keys: take(MAX_GROUP_PL) },

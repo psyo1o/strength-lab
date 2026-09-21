@@ -88,8 +88,9 @@ describe("maxes fields", () => {
     expect(groups.find((g) => g.title === "역도")?.keys).toContain("power_clean");
     expect(groups.find((g) => g.title === "프로그램 추가 1RM")?.keys).toEqual(["rehab_target"]);
     expect(groups.find((g) => g.title === "컨디셔닝")?.keys).toEqual(
-      expect.arrayContaining(["thruster", "kb_swing", "bodyweight"]),
+      expect.arrayContaining(["thruster", "bodyweight"]),
     );
+    expect(groups.find((g) => g.title === "컨디셔닝")?.keys).not.toContain("kb_swing");
     expect(groups.find((g) => g.title === "컨디셔닝")?.keys).not.toContain("wall_ball");
     expect(groups.find((g) => g.title === "컨디셔닝")?.keys).not.toContain("box_height_cm");
     expect(groups.find((g) => g.title === "컨디셔닝")?.keys).not.toContain("wall_ball_target_m");

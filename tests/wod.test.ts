@@ -30,7 +30,6 @@ import { youtubeWatchUrl } from "../src/lib/media";
 import { tipHasVideo } from "../src/lib/tip-copy";
 import { buildMaxesGroups, MAX_GROUP_WOD } from "../src/lib/maxes-fields";
 import { getUserMaxes, saveUserMaxes } from "../src/lib/maxes";
-import { getUserEquipment, saveUserEquipment } from "../src/lib/equipment";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-wod-"));
@@ -142,10 +141,11 @@ describe("WOD templates", () => {
     expect(parseClock(grace!.valueLabel)!).toBeLessThanOrEqual(420);
     expect(estimateWod("fight-gone-bad", { squat: 140, deadlift: 170 })?.kind).toBe("reps");
     expect(estimateWod("fight_gone_bad", { squat: 140, deadlift: 170 })?.kind).toBe("reps");
-    const karen = estimateWod("karen", { squat: 140, deadlift: 170 }, { boxHeightCm: null, wallBallKg: 6, wallBallTargetM: 2.74, duRope: "" });
+    const karen = estimateWod("karen", { squat: 140, deadlift: 170 });
     expect(karen?.kind).toBe("time");
     expect(karen?.labelKo).toBe(ESTIMATE_LABEL);
-    expect(estimateWod("karen", {})?.kind).toBe("time");
+    expect(estimateWod("helen", { squat: 140, deadlift: 170 })?.kind).toBe("time");
+    expect(estimateWod("helen", {})?.kind).toBe("missing");
 
     const isabel = estimateWod("isabel", { snatch: 70 });
     expect(isabel?.kind).toBe("time");
@@ -206,44 +206,40 @@ describe("WOD results", () => {
     expect(progress.streakDays).toBeGreaterThanOrEqual(1);
   });
 
-  it("stores gym equipment prefs off the 1RM page without wiping logs", () => {
+  it("keeps box/WB/KB off the 1RM page and does not wipe logs", () => {
     const created = registerUser("eq@example.com", "password123");
     if ("error" in created) throw new Error(created.error);
     saveUserMaxes(created.user.id, [
       { exerciseKey: "thruster", value: 43, unit: "kg" },
       { exerciseKey: "wall_ball", value: 9, unit: "kg" },
-      { exerciseKey: "box_height_cm", value: 61, unit: "kg" },
-      { exerciseKey: "wall_ball_target_m", value: 3.05, unit: "kg" },
+      { exerciseKey: "kb_swing", value: 24, unit: "kg" },
     ]);
     const maxes = getUserMaxes(created.user.id);
     expect(maxes.thruster).toBe(43);
-    const legacy = getUserEquipment(created.user.id);
-    expect(legacy.wallBallKg).toBe(9);
-    expect(legacy.boxHeightCm).toBe(61);
-    expect(legacy.wallBallTargetM).toBe(3.05);
-    saveUserEquipment(created.user.id, {
-      boxHeightCm: 51,
-      wallBallKg: 6,
-      wallBallTargetM: 2.74,
-      duRope: "스피드 로프",
-    });
-    const prefs = getUserEquipment(created.user.id);
-    expect(prefs.boxHeightCm).toBe(51);
-    expect(prefs.wallBallKg).toBe(6);
-    expect(prefs.duRope).toBe("스피드 로프");
-    expect(getUserMaxes(created.user.id).thruster).toBe(43);
-    expect(getUserMaxes(created.user.id).wall_ball).toBe(9);
     const groups = buildMaxesGroups();
-    expect(groups.find((g) => g.title === "컨디셔닝")?.keys).toEqual(
-      expect.arrayContaining([...MAX_GROUP_WOD]),
-    );
-    expect(groups.find((g) => g.title === "컨디셔닝")?.keys).not.toContain("wall_ball");
-    expect(groups.find((g) => g.title === "컨디셔닝")?.keys).not.toContain("box_height_cm");
+    const cond = groups.find((g) => g.title === "컨디셔닝")?.keys ?? [];
+    expect(cond).toEqual(expect.arrayContaining([...MAX_GROUP_WOD]));
+    expect(cond).not.toContain("wall_ball");
+    expect(cond).not.toContain("kb_swing");
+    expect(cond).not.toContain("box_height_cm");
+    const leftover = groups.find((g) => g.title === "프로그램 추가 1RM")?.keys ?? [];
+    expect(leftover).not.toContain("kb_swing");
     const seed = fs.readFileSync(path.join(process.cwd(), "src/lib/db/seed.ts"), "utf8");
     expect(seed).not.toMatch(/DELETE FROM set_logs\b/);
     const maxesPage = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/maxes/page.tsx"), "utf8");
-    expect(maxesPage).toMatch(/내 장비/);
+    expect(maxesPage).toMatch(/WOD 처방/);
     expect(maxesPage).toMatch(/1RM이 아닙니다/);
+    expect(maxesPage).not.toMatch(/내 장비/);
+    const wodClient = fs.readFileSync(path.join(process.cwd(), "src/components/WodClient.tsx"), "utf8");
+    expect(wodClient).not.toMatch(/내 장비/);
+    expect(wodClient).not.toMatch(/박스 높이/);
+    const gear = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/gear/page.tsx"), "utf8");
+    expect(gear).not.toMatch(/내 장비/);
+    expect(fs.existsSync(path.join(process.cwd(), "src/components/EquipmentForm.tsx"))).toBe(false);
+    const tables = getSqlite()
+      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+      .all() as { name: string }[];
+    expect(tables.map((t) => t.name)).toContain("user_equipment");
   });
 });
 
