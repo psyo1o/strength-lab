@@ -27,12 +27,28 @@ type HistoryRow = {
   score: string;
 };
 
+function formatStoredWeight(kg: number, unit: "kg" | "lb", lb: number | null): string {
+  if (unit === "lb") {
+    if (lb != null) {
+      const text = Number.isInteger(lb) ? String(lb) : String(lb);
+      return `${text}lb`;
+    }
+    return formatWeight(kg, "lb");
+  }
+  const text = Number.isInteger(kg) ? String(kg) : kg.toFixed(1);
+  return `${text}kg`;
+}
+
 function rxLine(m: WodTemplate["movements"][number], unit: "kg" | "lb"): string {
   const bits: string[] = [m.scheme];
   if (unit === "lb" && m.rxLb != null) {
     bits.push(m.rxLbF != null ? `${m.rxLb}lb / ${m.rxLbF}lb` : `${m.rxLb}lb`);
   } else if (m.rxKg != null) {
-    bits.push(m.rxKgF != null ? `${formatWeight(m.rxKg, unit)} / ${formatWeight(m.rxKgF, unit)}` : formatWeight(m.rxKg, unit));
+    bits.push(
+      m.rxKgF != null
+        ? `${formatStoredWeight(m.rxKg, unit, m.rxLb)} / ${formatStoredWeight(m.rxKgF, unit, m.rxLbF)}`
+        : formatStoredWeight(m.rxKg, unit, m.rxLb),
+    );
   }
   if (m.rxNote) bits.push(m.rxNote);
   return bits.filter(Boolean).join(" · ");
