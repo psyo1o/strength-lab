@@ -54,6 +54,19 @@ This is `docker compose -f docker-compose.nas.yml pull && up -d --remove-orphans
 
 시드 리비전이 바뀌면 컨테이너가 프로그램 테이블을 **제자리 upsert**합니다. **pull does not wipe logs** — `set_logs` / `wod_results` / 유저 진행은 유지됩니다. 강제 카탈로그 재시드는 `.env`에 `FORCE_RESEED=1`(명시 + 로그). 유저 데이터를 지우는 플래그는 없습니다.
 
+## 장비 제휴 링크 (NAS)
+
+로그인 후 하단 「장비」(`/gear`). JSON만 고치면 되고 앱 코드·이미지 재빌드는 필요 없습니다. **가짜 쿠팡 파트너 ID를 만들지 마세요.** 파트너스 대시보드에서 복사한 실제 URL만 넣습니다.
+
+1. 컨테이너가 한 번 뜨면 `$DATA_DIR/gear-affiliates.json` 이 생깁니다 (`DATA_DIR` 기본 `/volume1/docker/strength-lab/data`). 이미 있으면 **덮어쓰지 않습니다**.
+2. 각 아이템의 `affiliateUrl`에 쿠팡 파트너스(또는 다른 몰) 링크를 붙입니다. `merchant`는 화면에 보일 이름(`쿠팡` 등).
+3. `imageUrl`은 나중에. 비우면 이미지 없음.
+4. 빈 문자열 또는 `https://example.com/...` 는 화면에 **링크 미설정**.
+5. 저장 후 `/gear` 를 새로고침하면 반영됩니다(mtime 재읽기). 재시작은 선택.
+6. 경로를 강제하려면 `.env`에 `GEAR_JSON_PATH=/data/gear-affiliates.json`.
+
+이미지 안의 `data/gear-affiliates.json` 은 슬롯 기본값입니다. NAS 파일이 있으면 그게 이깁니다.
+
 비밀번호 재설정 `.env` (NAS `docker-compose.nas.yml`이 읽음). **반드시** 공개 호스트를 넣으세요. HTTPS 종료가 없으면 `http://` 입니다.
 
 ```

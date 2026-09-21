@@ -23,4 +23,10 @@ if [ -z "$AUTH_SECRET" ] || [ "$AUTH_SECRET" = "change-me-to-a-long-random-secre
 fi
 
 # Never delete $DATABASE_PATH. First boot creates it; later boots reuse it.
+
+# Affiliate catalog: copy bundled slots once. Never overwrite a NAS-edited file.
+if [ ! -f /data/gear-affiliates.json ] && [ -f /app/data/gear-affiliates.json ]; then
+  cp /app/data/gear-affiliates.json /data/gear-affiliates.json
+fi
+
 exec node server.js

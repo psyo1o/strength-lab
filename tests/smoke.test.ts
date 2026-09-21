@@ -380,7 +380,9 @@ describe("mobile UX P0", () => {
     const nav = fs.readFileSync(path.join(process.cwd(), "src/components/Nav.tsx"), "utf8");
     expect(nav).toMatch(/href: "\/wod"/);
     expect(nav).toMatch(/label: "WOD"/);
-    expect(nav).toMatch(/grid-cols-5/);
+    expect(nav).toMatch(/href: "\/gear"/);
+    expect(nav).toMatch(/label: "장비"/);
+    expect(nav).toMatch(/grid-cols-6/);
     const wodUi = [
       "src/components/WodClient.tsx",
       "src/app/(app)/wod/page.tsx",
@@ -388,6 +390,8 @@ describe("mobile UX P0", () => {
       "src/components/Nav.tsx",
       "src/app/(app)/dashboard/page.tsx",
       "data/wod-templates.ko.json",
+      "data/gear-affiliates.json",
+      "src/app/(app)/gear/page.tsx",
     ];
     for (const rel of wodUi) {
       const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
