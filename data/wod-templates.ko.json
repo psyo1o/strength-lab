@@ -143,6 +143,280 @@
       ]
     },
     {
+      "slug": "isabel",
+      "nameKo": "Isabel",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 600,
+      "prescriptionKo": "스네치 30회. 타임캡 10분.",
+      "equipmentKo": "바벨. Rx 61/43kg (135/95lb).",
+      "movements": [
+        { "exerciseKey": "snatch", "nameKo": "스네치", "scheme": "30회", "rxKg": 61, "rxKgF": 43, "rxNote": "135/95 lb" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "처방 무게 30회. 파워스네치 OK." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "무게를 낮추거나 행 스네치." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨 스네치. 횟수 20회." }
+      ]
+    },
+    {
+      "slug": "diane",
+      "nameKo": "Diane",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 720,
+      "prescriptionKo": "21-15-9 데드리프트 · 핸드스탠드 푸시업. 타임캡 12분.",
+      "equipmentKo": "바벨. Rx 102/70kg (225/155lb). 벽.",
+      "movements": [
+        { "exerciseKey": "deadlift", "nameKo": "데드리프트", "scheme": "21-15-9", "rxKg": 102, "rxKgF": 70, "rxNote": "225/155 lb" },
+        { "exerciseKey": "hspu", "nameKo": "핸드스탠드 푸시업", "scheme": "21-15-9" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "데드 무게와 HSPU 그대로." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "데드 무게 낮춤. HSPU → 파이크/박스 HSPU." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "가벼운 데드. 파이크 푸시업. 횟수 15-12-9." }
+      ]
+    },
+    {
+      "slug": "elizabeth",
+      "nameKo": "Elizabeth",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 720,
+      "prescriptionKo": "21-15-9 스쿼트클린 · 링 딥. 타임캡 12분.",
+      "equipmentKo": "바벨. Rx 61/43kg (135/95lb). 링.",
+      "movements": [
+        { "exerciseKey": "clean", "nameKo": "스쿼트클린", "scheme": "21-15-9", "rxKg": 61, "rxKgF": 43, "rxNote": "135/95 lb" },
+        { "exerciseKey": "ring_dip", "nameKo": "링 딥", "scheme": "21-15-9" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "스쿼트클린과 링 딥 그대로." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "무게 낮춤. 딥 → 밴드 딥/벤치 딥." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨 클린. 벤치 딥. 횟수 15-12-9." }
+      ]
+    },
+    {
+      "slug": "nancy",
+      "nameKo": "Nancy",
+      "category": "benchmark",
+      "format": "for_time",
+      "targetRounds": 5,
+      "timeCapSec": 1500,
+      "prescriptionKo": "5라운드: 400m 런 · 오버헤드스쿼트 15.",
+      "equipmentKo": "바벨. Rx 43/29kg (95/65lb).",
+      "movements": [
+        { "exerciseKey": "run", "nameKo": "런", "scheme": "400m × 5" },
+        { "exerciseKey": "ohs", "nameKo": "오버헤드스쿼트", "scheme": "15 × 5", "rxKg": 43, "rxKgF": 29, "rxNote": "95/65 lb" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "런과 OHS 무게 그대로 5라운드." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "런 200–300m. OHS 무게 낮춤 또는 프론트 스쿼트." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "런 대신 행. 고블릿 스쿼트 15. 3라운드." }
+      ]
+    },
+    {
+      "slug": "karen",
+      "nameKo": "Karen",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 900,
+      "prescriptionKo": "월볼 150회. 타임캡 15분.",
+      "equipmentKo": "월볼 Rx 9/6kg, 타깃 3.05/2.74m (10/9ft).",
+      "wallBallKg": 9,
+      "wallBallKgF": 6,
+      "wallBallTargetM": 3.05,
+      "wallBallTargetMF": 2.74,
+      "movements": [
+        { "exerciseKey": "wall_ball", "nameKo": "월볼", "scheme": "150회", "rxKg": 9, "rxKgF": 6, "rxNote": "20/14 lb · 10/9 ft" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "무게·타깃 그대로 150회." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "가벼운 볼. 타깃 낮춤. 횟수 100회." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "고블릿 스쿼트 80–100회." }
+      ]
+    },
+    {
+      "slug": "jackie",
+      "nameKo": "Jackie",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 900,
+      "prescriptionKo": "1000m 로잉 · 스러스터 50 · 풀업 30.",
+      "equipmentKo": "로잉. 바벨 Rx 20/15kg (45/35lb). 풀업바.",
+      "movements": [
+        { "exerciseKey": "row", "nameKo": "로잉", "scheme": "1000m" },
+        { "exerciseKey": "thruster", "nameKo": "스러스터", "scheme": "50회", "rxKg": 20, "rxKgF": 15, "rxNote": "45/35 lb" },
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "30회" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "로잉·스러스터·풀업 그대로." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "로잉 750m. 풀업 → 밴드/링 로우." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "로잉 500m. 덤벨 스러스터 30. 링 로우 20." }
+      ]
+    },
+    {
+      "slug": "angie",
+      "nameKo": "Angie",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 1800,
+      "prescriptionKo": "풀업 100 · 푸시업 100 · 싯업 100 · 스쿼트 100. 타임캡 30분.",
+      "equipmentKo": "풀업바. 체중.",
+      "movements": [
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "100" },
+        { "exerciseKey": "push_up", "nameKo": "푸시업", "scheme": "100" },
+        { "exerciseKey": "sit_up", "nameKo": "싯업", "scheme": "100" },
+        { "exerciseKey": "air_squat", "nameKo": "스쿼트", "scheme": "100" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "네 동작 각 100회. 쪼개도 OK." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "풀업 → 밴드/링 로우. 푸시업 → 무릎." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "각 50회. 링 로우·무릎 푸시업." }
+      ]
+    },
+    {
+      "slug": "barbara",
+      "nameKo": "Barbara",
+      "category": "benchmark",
+      "format": "for_time",
+      "targetRounds": 5,
+      "timeCapSec": 2400,
+      "prescriptionKo": "5라운드: 풀업 20 · 푸시업 30 · 싯업 40 · 스쿼트 50. 라운드 사이 3분 휴식.",
+      "equipmentKo": "풀업바. 체중.",
+      "movements": [
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "20 × 5" },
+        { "exerciseKey": "push_up", "nameKo": "푸시업", "scheme": "30 × 5" },
+        { "exerciseKey": "sit_up", "nameKo": "싯업", "scheme": "40 × 5" },
+        { "exerciseKey": "air_squat", "nameKo": "스쿼트", "scheme": "50 × 5" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "휴식 3분을 포함해 전체 시간으로 기록." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "풀업·푸시업 스케일. 3라운드." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "링 로우·무릎 푸시업. 2–3라운드." }
+      ]
+    },
+    {
+      "slug": "chelsea",
+      "nameKo": "Chelsea",
+      "category": "benchmark",
+      "format": "emom",
+      "targetRounds": 30,
+      "timeCapSec": 1800,
+      "prescriptionKo": "30분 EMOM: 풀업 5 · 푸시업 10 · 스쿼트 15. 점수는 완료한 분.",
+      "equipmentKo": "풀업바. 체중.",
+      "movements": [
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "5 / 분" },
+        { "exerciseKey": "push_up", "nameKo": "푸시업", "scheme": "10 / 분" },
+        { "exerciseKey": "air_squat", "nameKo": "스쿼트", "scheme": "15 / 분" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "분 안에 30회를 끝내고 나머진 휴식. 최대 30점." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "풀업 → 밴드/링 로우. 푸시업 → 무릎. 또는 20분." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "링 로우 3 · 무릎 푸시업 8 · 스쿼트 10. 12–15분." }
+      ]
+    },
+    {
+      "slug": "dt",
+      "nameKo": "DT",
+      "category": "benchmark",
+      "format": "for_time",
+      "targetRounds": 5,
+      "timeCapSec": 900,
+      "prescriptionKo": "5라운드: 데드리프트 12 · 행 파워클린 9 · 푸시저크 6.",
+      "equipmentKo": "바벨. Rx 70/47kg (155/105lb).",
+      "movements": [
+        { "exerciseKey": "deadlift", "nameKo": "데드리프트", "scheme": "12 × 5", "rxKg": 70, "rxKgF": 47, "rxNote": "155/105 lb" },
+        { "exerciseKey": "hang_power_clean", "nameKo": "행 파워클린", "scheme": "9 × 5", "rxKg": 70, "rxKgF": 47 },
+        { "exerciseKey": "push_jerk", "nameKo": "푸시저크", "scheme": "6 × 5", "rxKg": 70, "rxKgF": 47 }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "한 바벨로 세 동작. 무게 그대로 5라운드." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "무게를 낮추거나 파워클린+푸치프레스." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "가벼운 바. 3라운드." }
+      ]
+    },
+    {
+      "slug": "fight-gone-bad",
+      "nameKo": "Fight Gone Bad",
+      "category": "benchmark",
+      "format": "amrap",
+      "targetRounds": 3,
+      "timeCapSec": 1020,
+      "prescriptionKo": "3라운드: 월볼 1분 · SDHP 1분 · 박스점프 1분 · 푸쉬프레스 1분 · 로잉 1분 · 휴식 1분. 점수는 총 횟수(로잉은 칼로리).",
+      "equipmentKo": "월볼 9/6kg. 바벨 34/25kg (75/55lb). 박스 51cm.",
+      "boxHeightCm": 51,
+      "wallBallKg": 9,
+      "wallBallKgF": 6,
+      "movements": [
+        { "exerciseKey": "wall_ball", "nameKo": "월볼", "scheme": "1분 × 3", "rxKg": 9, "rxKgF": 6 },
+        { "exerciseKey": "sdhp", "nameKo": "SDHP", "scheme": "1분 × 3", "rxKg": 34, "rxKgF": 25, "rxNote": "75/55 lb" },
+        { "exerciseKey": "box_jump", "nameKo": "박스점프", "scheme": "1분 × 3", "rxNote": "51 cm" },
+        { "exerciseKey": "push_press", "nameKo": "푸쉬프레스", "scheme": "1분 × 3", "rxKg": 34, "rxKgF": 25 },
+        { "exerciseKey": "row", "nameKo": "로잉", "scheme": "1분 × 3", "rxNote": "칼로리" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "스테이션을 1분씩. 총 횟수+칼로리가 점수." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "바·월볼 무게 낮춤. 박스 스텝업. 2라운드." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨. 스텝업. 1–2라운드." }
+      ]
+    },
+    {
+      "slug": "linda",
+      "nameKo": "Linda",
+      "category": "benchmark",
+      "format": "for_time",
+      "timeCapSec": 1800,
+      "prescriptionKo": "10-9-8-7-6-5-4-3-2-1 데드리프트(체중×1.5) · 벤치(체중) · 클린(체중×0.75).",
+      "equipmentKo": "바벨 3대 또는 원판 교체. 체중 기준.",
+      "movements": [
+        { "exerciseKey": "deadlift", "nameKo": "데드리프트", "scheme": "10→1", "rxNote": "체중 × 1.5" },
+        { "exerciseKey": "bench", "nameKo": "벤치프레스", "scheme": "10→1", "rxNote": "체중 × 1" },
+        { "exerciseKey": "clean", "nameKo": "클린", "scheme": "10→1", "rxNote": "체중 × 0.75" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "체중 비율 그대로. 체중은 1RM의 체중 칸." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "비율을 낮추거나 고정 무게." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "가벼운 고정 무게. 6→1." }
+      ]
+    },
+    {
+      "slug": "mary",
+      "nameKo": "Mary",
+      "category": "benchmark",
+      "format": "amrap",
+      "timeCapSec": 1200,
+      "prescriptionKo": "20분 AMRAP: HSPU 5 · 피스톨 10 · 풀업 15.",
+      "equipmentKo": "벽. 풀업바. 체중.",
+      "movements": [
+        { "exerciseKey": "hspu", "nameKo": "핸드스탠드 푸시업", "scheme": "5 / 라운드" },
+        { "exerciseKey": "pistol", "nameKo": "피스톨", "scheme": "10 / 라운드" },
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "15 / 라운드" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "HSPU·피스톨·풀업 그대로 20분." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "HSPU → 파이크. 피스톨 → 박스 피스톨/런지." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "12분. 파이크 푸시업 · 런지 · 링 로우." }
+      ]
+    },
+    {
+      "slug": "nicole",
+      "nameKo": "Nicole",
+      "category": "benchmark",
+      "format": "amrap",
+      "timeCapSec": 1200,
+      "prescriptionKo": "20분 AMRAP: 400m 런 + 풀업 최대.",
+      "equipmentKo": "풀업바.",
+      "movements": [
+        { "exerciseKey": "run", "nameKo": "런", "scheme": "400m / 라운드" },
+        { "exerciseKey": "pull_up", "nameKo": "풀업", "scheme": "최대 / 라운드" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "런 후 풀업을 멈추기 직전까지. 총 풀업이 점수인 기록도 있음." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "런 200–300m. 풀업 → 밴드/링 로우." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "12분. 행 + 링 로우." }
+      ]
+    },
+    {
       "slug": "emom-engine",
       "nameKo": "엔진 EMOM",
       "category": "conditioning",

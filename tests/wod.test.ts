@@ -22,6 +22,7 @@ import {
   resetWodCache,
   todayWodSlug,
 } from "../src/lib/wod/templates";
+import { estimateWod, ESTIMATE_LABEL, MISSING_LABEL } from "../src/lib/wod/estimate";
 import { formatClock, parseClock, scoreTypeFor } from "../src/lib/wod/types";
 import { youtubeWatchUrl } from "../src/lib/media";
 import { tipHasVideo } from "../src/lib/tip-copy";
@@ -46,8 +47,36 @@ describe("WOD templates", () => {
     const templates = listWodTemplates();
     const slugs = templates.map((t) => t.slug);
     expect(slugs).toEqual(
-      expect.arrayContaining(["fran", "grace", "helen", "cindy", "murph", "annie", "kelly", "emom-engine"]),
+      expect.arrayContaining([
+        "fran",
+        "grace",
+        "helen",
+        "cindy",
+        "murph",
+        "annie",
+        "kelly",
+        "isabel",
+        "diane",
+        "elizabeth",
+        "nancy",
+        "karen",
+        "jackie",
+        "angie",
+        "barbara",
+        "chelsea",
+        "dt",
+        "fight-gone-bad",
+        "linda",
+        "mary",
+        "nicole",
+        "emom-engine",
+      ]),
     );
+    expect(getWodTemplate("isabel")?.movements[0]?.rxKg).toBe(61);
+    expect(getWodTemplate("diane")?.movements[0]?.exerciseKey).toBe("deadlift");
+    expect(getWodTemplate("chelsea")?.format).toBe("emom");
+    expect(getWodTemplate("fight-gone-bad")?.format).toBe("amrap");
+    expect(listBenchmarkTemplates().length).toBeGreaterThanOrEqual(21);
     expect(getWodTemplate("fran")?.format).toBe("for_time");
     expect(getWodTemplate("cindy")?.format).toBe("amrap");
     expect(getWodTemplate("emom-engine")?.format).toBe("emom");
@@ -56,12 +85,42 @@ describe("WOD templates", () => {
     const fran = getWodTemplate("fran")!;
     expect(fran.scaling.map((s) => s.tier)).toEqual(["rx", "scaled", "beginner"]);
     expect(fran.movements.some((m) => m.exerciseKey === "thruster" && m.rxKg === 43)).toBe(true);
-    expect(listBenchmarkTemplates().length).toBeGreaterThanOrEqual(7);
     expect(todayWodSlug(Date.parse("2026-03-15T03:00:00.000Z"))).toBe(
       todayWodSlug(Date.parse("2026-03-15T04:00:00.000Z")),
     );
     expect(scoreTypeFor("for_time")).toBe("time_sec");
     expect(scoreTypeFor("amrap")).toBe("rounds_reps");
+  });
+
+  it("estimates named-WOD time from 1RMs and hides when lifts are missing", () => {
+    expect(estimateWod("emom-engine", { thruster: 80 })).toBeNull();
+    const none = estimateWod("fran", {});
+    expect(none?.kind).toBe("missing");
+    expect(none?.valueLabel).toBe(MISSING_LABEL);
+    expect(none?.labelKo).toBe(ESTIMATE_LABEL);
+    expect(none?.hintKo).toMatch(/스러스터/);
+
+    const fran = estimateWod("fran", { thruster: 80 });
+    expect(fran?.kind).toBe("time");
+    const franSec = parseClock(fran!.valueLabel)!;
+    expect(franSec).toBeGreaterThanOrEqual(120);
+    expect(franSec).toBeLessThanOrEqual(480);
+
+    const grace = estimateWod("grace", { clean: 100 });
+    expect(parseClock(grace!.valueLabel)!).toBeGreaterThanOrEqual(90);
+    expect(parseClock(grace!.valueLabel)!).toBeLessThanOrEqual(420);
+
+    const isabel = estimateWod("isabel", { snatch: 70 });
+    expect(isabel?.kind).toBe("time");
+    expect(estimateWod("isabel", { thruster: 80 })?.kind).toBe("missing");
+
+    const cindy = estimateWod("cindy", { squat: 140, deadlift: 170 });
+    expect(cindy?.kind).toBe("rounds");
+    expect(cindy?.valueLabel).toMatch(/R/);
+    expect(estimateWod("cindy", {})?.valueLabel).toBe(MISSING_LABEL);
+
+    const seed = fs.readFileSync(path.join(process.cwd(), "src/lib/db/seed.ts"), "utf8");
+    expect(seed).not.toMatch(/DELETE FROM set_logs\b/);
   });
 });
 

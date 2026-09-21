@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { getUserMaxes } from "@/lib/maxes";
 import { Nav } from "@/components/Nav";
+import { WodEstimateLine } from "@/components/WodEstimateCard";
 import { categoryLabel, formatLabel } from "@/lib/wod/types";
+import { estimateWod } from "@/lib/wod/estimate";
 import { getWodTemplate, listWodTemplates, todayWodSlug } from "@/lib/wod/templates";
 import { listWodBoard } from "@/lib/wod/queries";
 
@@ -13,6 +16,8 @@ export default async function WodIndexPage() {
   const todaySlug = todayWodSlug();
   const today = getWodTemplate(todaySlug);
   const board = listWodBoard(user.id);
+  const maxes = getUserMaxes(user.id);
+  const todayEstimate = today ? estimateWod(today.slug, maxes) : null;
   const benchmarks = board.filter((row) => row.category === "benchmark");
   const conditioning = board.filter((row) => row.category === "conditioning");
   const sourceNote = listWodTemplates()[0]?.sourceNoteKo ?? "";
@@ -29,13 +34,16 @@ export default async function WodIndexPage() {
             {today.nameKo} · {formatLabel(today.format)}
           </div>
           <p className="mt-1 text-sm text-[var(--muted)]">{today.prescriptionKo}</p>
+          {todayEstimate ? <WodEstimateLine estimate={todayEstimate} /> : null}
         </Link>
       ) : null}
 
       <section className="mt-6">
         <h2 className="text-sm font-bold text-[var(--accent)]">벤치마크</h2>
         <ul className="mt-2 space-y-2">
-          {benchmarks.map((row) => (
+          {benchmarks.map((row) => {
+            const estimate = estimateWod(row.slug, maxes);
+            return (
             <li key={row.slug}>
               <Link href={`/wod/${row.slug}`} className="card tap block p-4">
                 <div className="flex items-baseline justify-between gap-3">
@@ -45,9 +53,11 @@ export default async function WodIndexPage() {
                   </div>
                 </div>
                 <p className="mt-1 text-sm text-[var(--muted)]">{row.prescriptionKo}</p>
+                {estimate ? <WodEstimateLine estimate={estimate} /> : null}
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </section>
 

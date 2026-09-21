@@ -20,7 +20,7 @@ export const MAX_GROUP_OLYMPIC = [
 ] as const;
 
 /** Conditioning / WOD presets. Weights in kg; height/target stored as raw numbers. */
-export const MAX_GROUP_WOD = ["thruster", "wall_ball", "kb_swing"] as const;
+export const MAX_GROUP_WOD = ["thruster", "wall_ball", "kb_swing", "bodyweight"] as const;
 export const MAX_GROUP_WOD_EQUIP = ["box_height_cm", "wall_ball_target_m"] as const;
 export const WOD_RAW_MAX_KEYS = new Set<string>(MAX_GROUP_WOD_EQUIP);
 
@@ -52,6 +52,7 @@ export const MAX_LABELS: Record<string, string> = {
   thruster: "스러스터",
   wall_ball: "월볼",
   kb_swing: "케틀벨 스윙",
+  bodyweight: "체중",
   box_height_cm: "박스 높이",
   wall_ball_target_m: "월볼 타깃",
 };

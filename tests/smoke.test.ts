@@ -392,11 +392,15 @@ describe("mobile UX P0", () => {
       "data/wod-templates.ko.json",
       "data/gear-affiliates.json",
       "src/app/(app)/gear/page.tsx",
+      "src/lib/wod/estimate.ts",
+      "src/components/WodEstimateCard.tsx",
     ];
     for (const rel of wodUi) {
       const text = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
       expect(text, rel).not.toMatch(/CrossFit/i);
     }
+    const wodPage = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/wod/page.tsx"), "utf8");
+    expect(wodPage).toMatch(/예상 · 참고용|ESTIMATE_LABEL|WodEstimateLine/);
     const maxes = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/maxes/page.tsx"), "utf8");
     expect(maxes).toMatch(/초보 프로그램\(SS\/StrongLifts\/Madcow\)용 첫 운동 무게예요/);
     expect(maxes).toMatch(/모르면 비워도 OK/);

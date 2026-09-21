@@ -51,6 +51,19 @@ export const WOD_SUBS: Record<string, string[]> = {
   push_up: ["무릎 푸시업"],
   sit_up: ["크런치"],
   air_squat: ["박스 스쿼트"],
+  hspu: ["파이크 푸시업", "박스 HSPU"],
+  ring_dip: ["밴드 딥", "벤치 딥"],
+  pistol: ["박스 피스톨", "런지"],
+  row: ["짧은 로잉", "바이크"],
+  sdhp: ["덤벨 하이풀"],
+  ohs: ["프론트 스쿼트"],
+  snatch: ["행 스네치", "덤벨 스네치"],
+  deadlift: ["가벼운 무게"],
+  clean: ["파워클린", "덤벨 클린"],
+  hang_power_clean: ["파워클린"],
+  push_jerk: ["푸쉬프레스"],
+  push_press: ["덤벨 푸쉬프레스"],
+  bench: ["가벼운 벤치"],
 };
 
 export function formatLabel(format: WodFormat): string {

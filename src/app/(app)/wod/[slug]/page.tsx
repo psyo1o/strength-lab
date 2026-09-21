@@ -4,7 +4,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { getUserMaxes } from "@/lib/maxes";
 import { clientTipsFor, tipDisclaimer } from "@/lib/tips";
 import { WodClient } from "@/components/WodClient";
+import { WodEstimateCard } from "@/components/WodEstimateCard";
 import { formatWodScore, listWodResults, wodPr } from "@/lib/wod/queries";
+import { estimateWod } from "@/lib/wod/estimate";
 import { getWodTemplate, toClientTemplate } from "@/lib/wod/templates";
 import { categoryLabel, formatLabel, wodTipKeys } from "@/lib/wod/types";
 
@@ -25,6 +27,7 @@ export default async function WodDetailPage({ params }: { params: Promise<{ slug
   }));
   const tips = clientTipsFor(wodTipKeys(template));
   const maxes = getUserMaxes(user.id);
+  const estimate = estimateWod(template.slug, maxes);
 
   return (
     <main className="px-4 pt-6">
@@ -37,6 +40,7 @@ export default async function WodDetailPage({ params }: { params: Promise<{ slug
       <h1 className="mt-1 text-3xl font-black">{template.nameKo}</h1>
       <p className="mt-2 text-base leading-relaxed text-[var(--muted)]">{template.prescriptionKo}</p>
       {template.equipmentKo ? <p className="mt-1 text-sm text-[var(--muted)]">{template.equipmentKo}</p> : null}
+      {estimate ? <WodEstimateCard estimate={estimate} /> : null}
       <WodClient
         template={toClientTemplate(template)}
         unit={user.unit}
