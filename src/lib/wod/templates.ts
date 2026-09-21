@@ -152,13 +152,14 @@ export function loadWodFile() {
   const rxTemplates = (rxRaw.wods ?? rxRaw.templates ?? [])
     .filter((row) => row && typeof row === "object")
     .map((row) => parseTemplate(row, sourceNoteKo))
-    .filter((row): row is WodTemplate => Boolean(row));
+    .filter((row): row is WodTemplate => row != null);
 
   const seen = new Set(rxTemplates.map((t) => normalizeWodSlug(t.slug)));
   const extras = (extraRaw.templates ?? extraRaw.wods ?? [])
     .filter((row) => row && typeof row === "object")
     .map((row) => parseTemplate(row, text(extraRaw.sourceNoteKo) || sourceNoteKo))
-    .filter((row): row is WodTemplate => Boolean(row) && !seen.has(normalizeWodSlug(row.slug)));
+    .filter((row): row is WodTemplate => row != null)
+    .filter((row) => !seen.has(normalizeWodSlug(row.slug)));
 
   cached = {
     disclaimer,
