@@ -27,10 +27,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends libsqlite3-0 \
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+# JSON catalog/tips only. SQLite lives on the /data volume, never in this layer.
 COPY --from=builder /app/data ./data
 COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 EXPOSE 3000
+# Hint only — compose/NAS must bind-mount or use named volume strength-lab-data.
 VOLUME ["/data"]
 ENTRYPOINT ["/docker-entrypoint.sh"]

@@ -296,7 +296,9 @@ function restoreSetLogs(raw: Database.Database, logs: SetLogSnapshot[], setIds: 
   }
 }
 
-/** First boot, stale catalog, or FORCE_RESEED=1. Rebuilds program tables; keeps users/1RMs/set logs. */
+/** First boot (empty catalog), stale SEED_REVISION, or FORCE_RESEED=1.
+ * Rebuilds program/exercise tables only. Never wipes users, 1RMs, sessions, or WOD history.
+ * FORCE_RESEED=1 is catalog-only — it is not a user-data wipe. */
 export function seedIfEmpty(raw: Database.Database) {
   seedCatalog(raw);
 }
@@ -312,6 +314,15 @@ export function applySeed(raw: Database.Database) {
   const seed = loadSeedFile();
   const tx = raw.transaction(() => {
     const savedLogs = snapshotSetLogs(raw);
+    const usersBefore = (raw.prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c;
+    const maxesBefore = (raw.prepare("SELECT COUNT(*) AS c FROM user_maxes").get() as { c: number }).c;
+    let wodBefore = 0;
+    try {
+      wodBefore = (raw.prepare("SELECT COUNT(*) AS c FROM wod_results").get() as { c: number }).c;
+    } catch {
+      wodBefore = 0;
+    }
+    // Catalog tables only. Never DELETE users / user_maxes / sessions / wod_results.
     raw.exec(`
       DELETE FROM set_logs;
       DELETE FROM program_sets;
@@ -390,6 +401,16 @@ export function applySeed(raw: Database.Database) {
       }
     }
     restoreSetLogs(raw, savedLogs, setIds);
+    const usersAfter = (raw.prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c;
+    const maxesAfter = (raw.prepare("SELECT COUNT(*) AS c FROM user_maxes").get() as { c: number }).c;
+    if (usersAfter < usersBefore) throw new Error("seed refused: users would be wiped");
+    if (maxesAfter < maxesBefore) throw new Error("seed refused: 1RMs would be wiped");
+    try {
+      const wodAfter = (raw.prepare("SELECT COUNT(*) AS c FROM wod_results").get() as { c: number }).c;
+      if (wodAfter < wodBefore) throw new Error("seed refused: WOD history would be wiped");
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("seed refused")) throw err;
+    }
   });
   tx();
   stampSeedRevision(raw);

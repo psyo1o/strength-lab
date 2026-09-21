@@ -66,7 +66,8 @@ openssl rand -hex 32
    - 프로젝트 이름: `strength-lab`
    - 이미지는 compose의 `build: .`로 **로컬 빌드**됩니다 (레지스트리 풀 아님)
    - 포트: `7001:3000`
-   - 볼륨: `strength-lab-data` → 컨테이너 `/data` (SQLite `DATABASE_PATH=/data/app.db`)
+   - 볼륨: 이름이 고정된 `strength-lab-data` → 컨테이너 `/data` (SQLite `DATABASE_PATH=/data/app.db`). **`docker compose down -v` 하지 마세요** — 유저 데이터가 지워집니다.
+   - NAS GHCR 배포는 `docker-compose.nas.yml` + `./deploy-pull.sh` (호스트 `/volume1/docker/strength-lab/data` 바인드). **pull does not wipe user data.**
    - 빌드 후 시작
 4. 또는 SSH:
 

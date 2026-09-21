@@ -1,6 +1,10 @@
 # Synology pull deploy / NAS GHCR 배포
 
-NAS must **not** run `next build`. CI builds `linux/arm64` and pushes to GHCR. Everyday update is `./deploy-pull.sh`. Do **not** use `--no-cache` for routine deploys.
+**pull does not wipe user data.** `./deploy-pull.sh` is `compose pull` + `up -d --remove-orphans` only. It never runs `down -v`, never `docker volume rm`, never deletes `app.db`. SQLite lives on the host bind `/volume1/docker/strength-lab/data` (override `DATA_DIR`) or the named volume `strength-lab-data`.
+
+일상 업데이트는 유저/1RM/세트 로그/WOD 기록을 지우지 않습니다. 프로그램 카탈로그만 `SEED_REVISION`이 바뀔 때 다시 심습니다. 강제 카탈로그 재시드는 `.env`에 `FORCE_RESEED=1` (유저 데이터는 그대로).
+
+NAS must **not** run `next build`. CI builds `linux/arm64` and pushes to GHCR. Everyday update is `./deploy-pull.sh`. Do **not** use `--no-cache` for routine deploys. Do **not** use `docker compose down -v`.
 
 NAS에서는 `next build` 하지 않습니다. CI가 `linux/arm64` 이미지를 만들어 GHCR에 올립니다. 일상 업데이트는 `./deploy-pull.sh` 입니다.
 
@@ -46,9 +50,9 @@ mkdir -p /volume1/docker/strength-lab/data
 ./deploy-pull.sh
 ```
 
-This is `docker compose -f docker-compose.nas.yml pull && up -d --force-recreate --remove-orphans`. No rebuild. No `--no-cache`.
+This is `docker compose -f docker-compose.nas.yml pull && up -d --remove-orphans`. No rebuild. No `--no-cache`. No `--force-recreate`. No `down -v`.
 
-시드 리비전이 바뀌면 컨테이너가 프로그램 테이블을 다시 심습니다(유저/1RM/세트 로그는 유지). 강제 재시드는 `.env`에 `FORCE_RESEED=1`.
+시드 리비전이 바뀌면 컨테이너가 **프로그램 테이블만** 다시 심습니다(유저/1RM/세트 로그/WOD 기록은 유지). 강제 카탈로그 재시드는 `.env`에 `FORCE_RESEED=1`. 유저 데이터를 지우는 플래그는 없습니다.
 
 비밀번호 재설정 `.env` (NAS `docker-compose.nas.yml`이 읽음). **반드시** 공개 호스트를 넣으세요. HTTPS 종료가 없으면 `http://` 입니다.
 

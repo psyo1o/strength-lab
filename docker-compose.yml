@@ -21,7 +21,10 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       SMTP_SECURE: ${SMTP_SECURE:-0}
     volumes:
-      # SQLite at /data/app.db. Exercise photos/videos at /data/media (MEDIA_PATH).
+      # SQLite at /data/app.db. Named volume is pinned so a different compose
+      # project name does not create an empty new volume on every deploy.
+      # NAS: prefer docker-compose.nas.yml bind mount instead.
+      # Do not `docker compose down -v` — that deletes user data.
       - strength-lab-data:/data
       # Drop local files on the NAS (no third-party hotlink or coaching clips):
       # mkdir -p /volume1/docker/strength-lab/media
@@ -31,3 +34,4 @@ services:
 
 volumes:
   strength-lab-data:
+    name: strength-lab-data

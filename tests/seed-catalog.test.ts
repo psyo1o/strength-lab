@@ -14,6 +14,7 @@ describe("seed catalog revision", () => {
 
   afterEach(() => {
     resetDbConnection();
+    delete process.env.FORCE_RESEED;
     if (prev === undefined) delete process.env.DATABASE_PATH;
     else process.env.DATABASE_PATH = prev;
     if (prevSecret === undefined) delete process.env.AUTH_SECRET;
@@ -90,5 +91,30 @@ describe("seed catalog revision", () => {
     };
     expect(takano.description_ko).not.toMatch(/유료 엑셀/);
     expect(takano.description_ko).toMatch(/진행 가능/);
+  });
+
+  it("FORCE_RESEED=1 rebuilds catalog without wiping users, maxes, or WOD rows", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "strength-lab-seed-"));
+    process.env.DATABASE_PATH = path.join(dir, "app.db");
+    process.env.AUTH_SECRET = "test-secret-at-least-32-characters-long";
+    delete process.env.FORCE_RESEED;
+    resetDbConnection();
+    const created = registerUser("keep-force@example.com", "password123");
+    if ("error" in created) throw new Error(created.error);
+    saveUserMaxes(created.user.id, [{ exerciseKey: "bench", value: 100, unit: "kg" }]);
+    const db = getSqlite();
+    db.prepare(
+      `INSERT INTO wod_results (user_id, template_slug, completed_at, tier, score_type, time_sec, notes_ko, scale_notes, substitutions, equipment_json)
+       VALUES (?, 'fran', ?, 'rx', 'time_sec', 214, '', '', '', '')`,
+    ).run(created.user.id, Date.now());
+    process.env.FORCE_RESEED = "1";
+    resetDbConnection();
+    const again = getSqlite();
+    expect(again.prepare("SELECT email FROM users WHERE id=?").get(created.user.id)).toEqual({
+      email: "keep-force@example.com",
+    });
+    expect(getUserMaxes(created.user.id).bench).toBe(100);
+    expect(again.prepare("SELECT COUNT(*) AS c FROM wod_results").get()).toEqual({ c: 1 });
+    delete process.env.FORCE_RESEED;
   });
 });
