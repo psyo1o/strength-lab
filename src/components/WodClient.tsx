@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatWeight } from "@/lib/calc/round";
 import type { Tip } from "@/lib/tip-copy";
-import { TIP_SAFETY_FOOTER } from "@/lib/tip-copy";
+import { TIP_SAFETY_FOOTER, tipHasVideo } from "@/lib/tip-copy";
 import {
   formatClock,
   formatLabel,
@@ -17,6 +17,7 @@ import {
 } from "@/lib/wod/types";
 import { BottomSheet } from "./BottomSheet";
 import { TipMedia } from "./TipMedia";
+import { TipVideoButtons } from "./TipVideoButtons";
 
 type HistoryRow = {
   id: number;
@@ -215,11 +216,7 @@ export function WodClient({
 
       <ul className="mt-4 space-y-2">
         {template.movements.map((m, i) => {
-          const hasVideo = Boolean(
-            tips[m.exerciseKey]?.youtubeUrl ||
-              (tips[m.exerciseKey]?.youtubeLinks ?? []).some((l) => l.youtubeUrl) ||
-              (m.exerciseKey === "pull_up" && (tips.kipping_pull_up || tips.butterfly_pull_up)),
-          );
+          const hasVideo = tipHasVideo(tips[m.exerciseKey]) || (m.exerciseKey === "pull_up" && (tipHasVideo(tips.kipping_pull_up) || tipHasVideo(tips.butterfly_pull_up)));
           return (
             <li key={`${m.exerciseKey}-${i}`} className="card p-4">
               <div className="flex items-start justify-between gap-3">
@@ -230,13 +227,7 @@ export function WodClient({
                     <p className="mt-1 text-sm font-bold text-[var(--accent)]">대체 · {subs[m.exerciseKey]}</p>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  className="tap shrink-0 rounded-full bg-[var(--bg-elev)] px-3 text-sm font-black text-[var(--accent)]"
-                  onClick={() => setTipKey(m.exerciseKey)}
-                >
-                  {hasVideo ? "팁·영상" : "팁"}
-                </button>
+                <TipVideoButtons hasVideo={hasVideo} onOpen={() => setTipKey(m.exerciseKey)} />
               </div>
               {(WOD_SUBS[m.exerciseKey] ?? []).length > 0 ? (
                 <div className="mt-3 flex flex-wrap gap-2">

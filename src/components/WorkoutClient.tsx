@@ -6,10 +6,11 @@ import { juggernautWaveFromWeek } from "@/lib/calc/juggernaut";
 import { displayWeight } from "@/lib/calc/round";
 import type { ResolvedExercise } from "@/lib/programs/queries";
 import type { Tip } from "@/lib/tip-copy";
-import { TIP_SAFETY_FOOTER } from "@/lib/tip-copy";
+import { TIP_SAFETY_FOOTER, tipHasVideo } from "@/lib/tip-copy";
 import { BottomSheet } from "./BottomSheet";
 import { RestTimer } from "./RestTimer";
 import { TipMedia } from "./TipMedia";
+import { TipVideoButtons } from "./TipVideoButtons";
 
 const ROLE: Record<string, string> = {
   warmup: "워밍업",
@@ -81,9 +82,7 @@ export function WorkoutClient({
 
   if (!current) return null;
   const tip = tips[current.exercise.exerciseKey];
-  const hasVideo = Boolean(
-    tip?.youtubeUrl || (tip?.youtubeLinks ?? []).some((link) => link.youtubeUrl),
-  );
+  const hasVideo = tipHasVideo(tip);
   const bar = defaultBar(unit);
 
   function markDone() {
@@ -136,25 +135,7 @@ export function WorkoutClient({
           </div>
           <h2 className="text-3xl font-black leading-tight">{current.exercise.nameKo}</h2>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          {hasVideo ? (
-            <button
-              type="button"
-              className="tap rounded-full bg-[var(--accent)] px-3 py-1 text-sm font-black text-[#1a1204]"
-              onClick={() => setTipOpen(true)}
-            >
-              영상
-            </button>
-          ) : null}
-          <button
-            type="button"
-            aria-label={hasVideo ? "팁·영상" : "운동 팁"}
-            className="tap min-h-14 rounded-full bg-[var(--bg-elev)] px-4 text-sm font-black text-[var(--accent)]"
-            onClick={() => setTipOpen(true)}
-          >
-            {hasVideo ? "팁·영상" : "팁"}
-          </button>
-        </div>
+        <TipVideoButtons hasVideo={hasVideo} onOpen={() => setTipOpen(true)} />
       </div>
 
       <button
@@ -210,7 +191,7 @@ export function WorkoutClient({
                 />
               ))
             ) : (
-              <TipMedia />
+              <TipMedia youtubeUrl={tip.youtubeUrl} youtubeCredit={tip.youtubeCredit} />
             )}
             <p>
               <span className="font-black">큐 · </span>

@@ -23,6 +23,8 @@ import {
   todayWodSlug,
 } from "../src/lib/wod/templates";
 import { formatClock, parseClock, scoreTypeFor } from "../src/lib/wod/types";
+import { youtubeWatchUrl } from "../src/lib/media";
+import { tipHasVideo } from "../src/lib/tip-copy";
 import { buildMaxesGroups, MAX_GROUP_WOD, WOD_RAW_MAX_KEYS } from "../src/lib/maxes-fields";
 import { getUserMaxes, saveUserMaxes } from "../src/lib/maxes";
 
@@ -130,11 +132,19 @@ describe("WOD clock + CF tips", () => {
     expect(parseClock("1:02:03")).toBe(3723);
     expect(tipDisclaimer()).toMatch(/전문가/);
     expect(tipFor("thruster")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=L219ltL15zk");
+    expect(tipFor("thruster")?.youtubeCredit).toBe("CrossFit");
     expect(tipFor("kipping_pull_up")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=r45xLlH7r_M");
     expect(tipFor("butterfly_pull_up")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=OenVG15QMj8");
     expect(tipFor("toes_to_bar")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=_03pCKOv4l4");
     expect(tipFor("double_under")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=-tF3hUsPZAI");
-    expect(tipFor("burpee")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=auBLPXO8Fww");
+    expect(tipFor("burpee")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=TU8QYVW0gDU");
+    expect(tipFor("wall_ball")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=EqjGKsiIMCE");
+    expect(tipFor("box_jump")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=52r_Ul5k03g");
+    expect(tipHasVideo(tipFor("thruster"))).toBe(true);
+    expect(tipHasVideo(tipFor("box_jump"))).toBe(true);
+    expect(youtubeWatchUrl("https://www.youtube.com/watch?v=-tF3hUsPZAI")).toBe(
+      "https://www.youtube.com/watch?v=-tF3hUsPZAI",
+    );
     expect(tipFor("ttb")?.name).toBe("토투바");
     expect(JSON.stringify(tipFor("thruster"))).not.toMatch(/<iframe|<video/i);
   });

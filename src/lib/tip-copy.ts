@@ -29,3 +29,9 @@ export type Tip = {
   media?: TipMediaFields | null;
   hasDeclaredUrl?: boolean;
 };
+
+export function tipHasVideo(tip?: Pick<Tip, "youtubeUrl" | "youtubeLinks"> | null): boolean {
+  if (!tip) return false;
+  if (typeof tip.youtubeUrl === "string" && tip.youtubeUrl.trim()) return true;
+  return (tip.youtubeLinks ?? []).some((link) => Boolean(link.youtubeUrl));
+}
