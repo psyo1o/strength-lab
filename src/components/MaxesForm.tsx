@@ -14,6 +14,19 @@ type Field = {
   step?: number;
 };
 
+function fieldsToValues(groups: { fields: Field[] }[]): Record<string, string> {
+  const init: Record<string, string> = {};
+  for (const g of groups) {
+    for (const f of g.fields) {
+      init[f.key] = f.value === "" ? "" : String(f.value);
+      if (f.showStart) {
+        init[`${f.key}__start`] = f.startValue === "" || f.startValue == null ? "" : String(f.startValue);
+      }
+    }
+  }
+  return init;
+}
+
 function validate(value: string, unit: "kg" | "lb", skipBarCheck?: boolean): string {
   if (value === "") return "";
   const n = Number(value);
@@ -38,16 +51,12 @@ export function MaxesForm({
   const router = useRouter();
   const [msg, setMsg] = useState("");
   const [pending, setPending] = useState(false);
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
-    for (const g of groups) {
-      for (const f of g.fields) {
-        init[f.key] = f.value === "" ? "" : String(f.value);
-        if (f.showStart) init[`${f.key}__start`] = f.startValue === "" || f.startValue == null ? "" : String(f.startValue);
-      }
-    }
-    return init;
-  });
+  const [values, setValues] = useState<Record<string, string>>(() => fieldsToValues(groups));
+  const [seenUnit, setSeenUnit] = useState(unit);
+  if (seenUnit !== unit) {
+    setSeenUnit(unit);
+    setValues(fieldsToValues(groups));
+  }
 
   const errors = useMemo(() => {
     const e: Record<string, string> = {};
@@ -118,7 +127,7 @@ export function MaxesForm({
                         onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
                         className="tap w-28 max-w-full min-w-0 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-3xl font-black"
                       />
-                      <span className="shrink-0 text-sm text-[var(--muted)]">{f.unitLabel ?? unit}</span>
+                      <span className="shrink-0 text-sm text-[var(--muted)]">{unit}</span>
                     </span>
                   </span>
                   {f.showStart ? (

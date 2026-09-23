@@ -403,6 +403,12 @@ describe("mobile UX P0", () => {
     const maxesForm = fs.readFileSync(path.join(process.cwd(), "src/components/MaxesForm.tsx"), "utf8");
     expect(maxesForm).toMatch(/pb-fixed-stack/);
     expect(maxesForm).not.toMatch(/내 장비/);
+    expect(maxesForm).not.toMatch(/unitLabel \?\? unit/);
+    const toggle = fs.readFileSync(path.join(process.cwd(), "src/components/UnitToggle.tsx"), "utf8");
+    expect(toggle).toMatch(/shrink-0/);
+    expect(toggle).toMatch(/w-14/);
+    expect(toggle).toMatch(/min-w-14/);
+    expect(toggle).toMatch(/calc\(7rem\+2px\)/);
     const wodUi = [
       "src/components/WodClient.tsx",
       "src/app/(app)/wod/page.tsx",
