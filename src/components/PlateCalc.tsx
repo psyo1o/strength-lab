@@ -10,7 +10,7 @@ export function PlateCalc({ unit }: { unit: "kg" | "lb" }) {
   const result = useMemo(() => calculatePlates(target, unit, bar), [target, unit, bar]);
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className="mt-6 min-w-0 space-y-4">
       <label className="block">
         <span className="text-sm text-[var(--muted)]">목표 중량 ({unit})</span>
         <input
@@ -31,7 +31,7 @@ export function PlateCalc({ unit }: { unit: "kg" | "lb" }) {
       </label>
       <div className="card p-4">
         <div className="text-sm text-[var(--muted)]">로드 가능</div>
-        <div className="text-5xl font-black tabular-nums">
+        <div className="max-w-full break-words text-[clamp(2.25rem,12vw,3rem)] font-black tabular-nums">
           {result.loadable}
           {unit}
         </div>

@@ -30,15 +30,15 @@ export default async function WodDetailPage({ params }: { params: Promise<{ slug
   const estimate = estimateWod(template.slug, maxes);
 
   return (
-    <main className="px-4 pt-6">
+    <main className="min-w-0 px-4 pt-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <Link href="/wod" className="text-sm font-bold text-[var(--accent)]">
         ← 벤치마크
       </Link>
       <p className="mt-2 text-sm font-bold text-[var(--accent)]">
         {familyLabel(template.family) || categoryLabel(template.category)} · {formatLabel(template.format)}
       </p>
-      <h1 className="mt-1 text-3xl font-black">{template.nameKo}</h1>
-      <p className="mt-2 text-base leading-relaxed text-[var(--muted)]">{template.prescriptionKo}</p>
+      <h1 className="mt-1 break-words text-3xl font-black">{template.nameKo}</h1>
+      <p className="mt-2 break-words text-base leading-relaxed text-[var(--muted)]">{template.prescriptionKo}</p>
       {template.equipmentKo ? <p className="mt-1 text-sm text-[var(--muted)]">{template.equipmentKo}</p> : null}
       <p className="mt-2 text-xs font-bold text-[var(--muted)]">{RX_DISCLAIMER}</p>
       {estimate ? <WodEstimateCard estimate={estimate} /> : null}

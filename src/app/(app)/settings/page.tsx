@@ -10,14 +10,14 @@ export default async function SettingsPage() {
   const user = await getCurrentUser();
   if (!user) return null;
   return (
-    <main className="px-4 pt-6">
+    <main className="min-w-0 px-4 pt-6">
       <h1 className="text-2xl font-black">설정</h1>
-      <p className="text-sm text-[var(--muted)]">{user.email}</p>
+      <p className="break-all text-sm text-[var(--muted)]">{user.email}</p>
       <div className="mt-6 space-y-4">
-        <div className="card flex items-center justify-between p-4">
-          <div>
+        <div className="card flex min-w-0 flex-wrap items-center justify-between gap-3 p-4">
+          <div className="min-w-0">
             <div className="font-bold">단위</div>
-            <div className="text-sm text-[var(--muted)]">표시만 바뀝니다. 저장은 kg.</div>
+            <div className="break-words text-sm text-[var(--muted)]">표시만 바뀝니다. 저장은 kg.</div>
           </div>
           <UnitToggle unit={user.unit} />
         </div>

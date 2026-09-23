@@ -9,7 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   return (
-    <div className="mx-auto min-h-dvh max-w-lg pb-20">
+    <div className="mx-auto min-h-dvh w-full min-w-0 max-w-lg pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
       {children}
       <Footer />
     </div>

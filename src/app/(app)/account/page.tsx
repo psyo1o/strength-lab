@@ -9,12 +9,12 @@ export default async function AccountPage() {
   const user = await getCurrentUser();
   if (!user) return null;
   return (
-    <main className="px-4 pt-6 pb-36">
+    <main className="min-w-0 px-4 pt-6 pb-fixed-stack">
       <Link href="/settings" className="text-sm font-bold text-[var(--accent)]">
         ← 설정
       </Link>
       <h1 className="mt-2 text-2xl font-black">비밀번호 변경</h1>
-      <p className="mt-1 text-sm text-[var(--muted)]">{user.email}</p>
+      <p className="mt-1 break-all text-sm text-[var(--muted)]">{user.email}</p>
       <div className="mt-6">
         <ChangePasswordForm />
       </div>

@@ -65,14 +65,14 @@ export function SetRow({
         {localDone ? "✓" : setNumber}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-2xl font-black tracking-tight">
+        <span className="block break-words text-2xl font-black tracking-tight">
           {display ?? "—"}
           <span className="ml-2 text-lg font-bold text-[var(--muted)]">
             × {reps}
             {amrap ? "+" : ""}
           </span>
         </span>
-        <span className="block text-xs text-[var(--muted)]">
+        <span className="block break-words text-xs text-[var(--muted)]">
           {percent != null ? `${percent}% ${baseLabel}` : "작업중량"}
           {plates ? ` · 한쪽 ${plates}` : ""}
           {noteKo ? ` · ${noteKo}` : ""}

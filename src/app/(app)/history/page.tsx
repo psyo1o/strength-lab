@@ -34,7 +34,7 @@ export default async function HistoryPage() {
   const items = [...sessions, ...wods].sort((a, b) => b.at - a.at).slice(0, 40);
 
   return (
-    <main className="px-4 pt-6 pb-8">
+    <main className="min-w-0 px-4 pt-6 pb-8">
       <h1 className="text-2xl font-black">기록</h1>
       {items.length === 0 ? (
         <p className="mt-6 text-sm text-[var(--muted)]">아직 기록이 없습니다.</p>
@@ -42,9 +42,11 @@ export default async function HistoryPage() {
         <ul className="mt-4 space-y-2">
           {items.map((s) => (
             <li key={s.key}>
-              <Link href={s.href} className="card tap block p-4">
-                <div className="text-lg font-black leading-tight">{s.title}</div>
-                <p className="mt-1 truncate text-sm text-[var(--muted)]">{s.line}</p>
+              <Link href={s.href} className="card tap block min-w-0 p-4">
+                <div className="break-words text-lg font-black leading-tight">{s.title}</div>
+                <p className="mt-1 truncate text-sm text-[var(--muted)]" title={s.line}>
+                  {s.line}
+                </p>
               </Link>
             </li>
           ))}

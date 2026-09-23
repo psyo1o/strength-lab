@@ -20,15 +20,15 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
   const subtitle = programSubtitle(program.slug);
 
   return (
-    <main className="px-4 pt-6">
+    <main className="min-w-0 px-4 pt-6">
       <Link href="/programs" className="text-sm font-bold text-[var(--accent)]">
         ← 목록
       </Link>
-      <h1 className="mt-2 text-2xl font-black">{program.name_ko}</h1>
+      <h1 className="mt-2 break-words text-2xl font-black">{program.name_ko}</h1>
       <p className="mt-1 text-xs font-bold text-[var(--accent)]">{programBadge(program.slug, program.completeness)}</p>
       {subtitle ? <p className="text-[11px] font-bold text-[var(--muted)]">{subtitle}</p> : null}
       <CompletenessBanner slug={program.slug} completeness={program.completeness} />
-      <p className="mt-3 text-sm text-[var(--muted)]">{helpOrDescription(program.slug, program.description_ko)}</p>
+      <p className="mt-3 break-words text-sm text-[var(--muted)]">{helpOrDescription(program.slug, program.description_ko)}</p>
       <PinProgramButton slug={program.slug} pinned={user?.currentProgram === program.slug} />
       <ProgramWeekList
         slug={program.slug}

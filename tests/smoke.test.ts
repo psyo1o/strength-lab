@@ -374,6 +374,9 @@ describe("mobile UX P0", () => {
     expect(home).toMatch(/>최근</);
     expect(home).toMatch(/>PR</);
     expect(home).toMatch(/일 연속/);
+    expect(home).toMatch(/line-clamp-2/);
+    expect(home).toMatch(/pb-fixed-stack/);
+    expect(home).not.toMatch(/className="truncate /);
     expect(home).not.toMatch(/UnitToggle/);
     expect(home).not.toMatch(/오늘의 운동/);
     expect(fs.existsSync(path.join(process.cwd(), "src/app/(app)/history/page.tsx"))).toBe(true);
@@ -383,6 +386,29 @@ describe("mobile UX P0", () => {
     expect(nav).toMatch(/href: "\/gear"/);
     expect(nav).toMatch(/label: "장비"/);
     expect(nav).toMatch(/grid-cols-6/);
+    expect(nav).toMatch(/title=\{it\.label\}/);
+    const benchmarks = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/benchmarks/page.tsx"), "utf8");
+    expect(benchmarks).toMatch(/redirect\("\/wod"\)/);
+    const css = fs.readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    expect(css).toMatch(/overflow-x:\s*clip/);
+    expect(css).toMatch(/overflow-wrap:\s*break-word/);
+    expect(css).not.toMatch(/min-width:\s*56px/);
+    const bottomSheet = fs.readFileSync(path.join(process.cwd(), "src/components/BottomSheet.tsx"), "utf8");
+    expect(bottomSheet).toMatch(/85dvh/);
+    expect(bottomSheet).toMatch(/sheet-open/);
+    expect(bottomSheet).toMatch(/data-sheet-scroll/);
+    expect(wodClient).toMatch(/"rx", "scaled", "beginner"/);
+    expect(wodClient).toMatch(/pb-fixed-cta/);
+    expect(css).toMatch(/--fixed-stack:/);
+    const maxesForm = fs.readFileSync(path.join(process.cwd(), "src/components/MaxesForm.tsx"), "utf8");
+    expect(maxesForm).toMatch(/pb-fixed-stack/);
+    expect(maxesForm).not.toMatch(/내 장비/);
+    expect(maxesForm).not.toMatch(/unitLabel \?\? unit/);
+    const toggle = fs.readFileSync(path.join(process.cwd(), "src/components/UnitToggle.tsx"), "utf8");
+    expect(toggle).toMatch(/shrink-0/);
+    expect(toggle).toMatch(/w-14/);
+    expect(toggle).toMatch(/min-w-14/);
+    expect(toggle).toMatch(/calc\(7rem\+2px\)/);
     const wodUi = [
       "src/components/WodClient.tsx",
       "src/app/(app)/wod/page.tsx",

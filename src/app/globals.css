@@ -11,6 +11,13 @@
   --accent-2: #ff6b35;
   --ok: #3ddc97;
   --danger: #ff5d6c;
+  /* 56px control + bar padding. Nav row is separate so safe-area is added once. */
+  --cta-bar: 5.5rem;
+  --nav-bar: 3.75rem;
+  --fixed-stack: calc(var(--cta-bar) + var(--nav-bar) + env(safe-area-inset-bottom) + 1.5rem);
+  --fixed-cta: calc(var(--cta-bar) + env(safe-area-inset-bottom) + 2rem);
+  /* Session bar grows when the rest timer is open. */
+  --fixed-session: calc(var(--cta-bar) + 6rem + env(safe-area-inset-bottom) + 1.5rem);
 }
 
 html,
@@ -18,15 +25,56 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100%;
+  max-width: 100%;
+}
+
+html {
+  overflow-x: clip;
+  scroll-padding-bottom: var(--fixed-stack);
+}
+
+html.sheet-open,
+html.sheet-open body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
   font-family: var(--font-sans), "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+  overflow-x: clip;
+  overflow-wrap: break-word;
+  padding-top: env(safe-area-inset-top);
+}
+
+img,
+video,
+svg {
+  max-width: 100%;
 }
 
 .tap {
+  /* Height-only. A 56px min-width overflows the 6-column phone nav (6×56 > 320). */
   min-height: 56px;
-  min-width: 56px;
+}
+
+.pb-fixed-stack {
+  padding-bottom: var(--fixed-stack);
+}
+
+.pb-fixed-cta {
+  padding-bottom: var(--fixed-cta);
+}
+
+.pb-fixed-session {
+  padding-bottom: var(--fixed-session);
+}
+
+.scroll-clear-stack {
+  scroll-margin-bottom: var(--fixed-stack);
+}
+
+.scroll-clear-cta {
+  scroll-margin-bottom: var(--fixed-cta);
 }
 
 .card {

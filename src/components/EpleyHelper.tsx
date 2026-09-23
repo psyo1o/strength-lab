@@ -15,7 +15,7 @@ export function EpleyHelper({ unit }: { unit: "kg" | "lb" }) {
   );
 
   return (
-    <div className="mt-6 space-y-4 pb-8">
+    <div className="mt-6 min-w-0 space-y-4 pb-8">
       <div className="grid grid-cols-2 gap-3">
         <label>
           <span className="text-sm text-[var(--muted)]">무게 ({unit})</span>

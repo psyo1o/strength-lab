@@ -50,9 +50,9 @@ export default async function MaxesPage() {
     });
 
   return (
-    <main className="px-4 pt-6">
-      <div className="flex items-start justify-between">
-        <div>
+    <main className="min-w-0 px-4 pt-6">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-black">1RM</h1>
           <p className="text-sm text-[var(--muted)]">저장은 항상 kg. 화면만 {user.unit}.</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
@@ -62,7 +62,9 @@ export default async function MaxesPage() {
             월볼·박스·케틀벨 무게는 WOD 처방에 있어요. 1RM이 아닙니다.
           </p>
         </div>
-        <UnitToggle unit={user.unit} />
+        <div className="shrink-0">
+          <UnitToggle unit={user.unit} />
+        </div>
       </div>
       <MaxesForm
         unit={user.unit}

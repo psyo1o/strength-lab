@@ -127,13 +127,13 @@ export function WorkoutClient({
       : null;
 
   return (
-    <div className="pb-36">
-      <div className="flex items-center justify-between gap-3">
-        <div>
+    <div className="min-w-0 pb-fixed-session">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
           <div className="text-sm font-bold text-[var(--accent)]">
             {ROLE[current.exercise.role] ?? current.exercise.role} · 세트 {current.index}/{current.total}
           </div>
-          <h2 className="text-3xl font-black leading-tight">{current.exercise.nameKo}</h2>
+          <h2 className="break-words text-3xl font-black leading-tight">{current.exercise.nameKo}</h2>
         </div>
         <TipVideoButtons hasVideo={hasVideo} onOpen={() => setTipOpen(true)} />
       </div>
@@ -141,9 +141,9 @@ export function WorkoutClient({
       <button
         type="button"
         onClick={() => current.set.display && setPlateOpen(true)}
-        className="card mt-5 w-full p-6 text-left"
+        className="card scroll-clear-cta mt-5 w-full min-w-0 p-5 text-left"
       >
-        <div className="text-6xl font-black leading-none tabular-nums tracking-tight">
+        <div className="max-w-full break-words py-1 text-[clamp(2.5rem,14vw,3.75rem)] font-black leading-none tabular-nums tracking-tight">
           {current.set.display ?? "—"}
         </div>
         <div className="mt-2 text-3xl font-black text-[var(--muted)]">
@@ -167,15 +167,17 @@ export function WorkoutClient({
       ) : null}
       {hookMsg ? <p className="mt-3 text-sm font-bold text-[var(--accent)]">{hookMsg}</p> : null}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg bg-[#0f1117]/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
-        <RestTimer
-          seconds={rest.seconds}
-          running={rest.running}
-          onStop={() => setRest((r) => ({ ...r, running: false }))}
-        />
-        <button type="button" className="btn-primary tap w-full text-xl" onClick={markDone}>
-          {done[current.set.id] ? "완료 취소" : "완료 / 다음"}
-        </button>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[#0f1117]/95 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-2 backdrop-blur">
+        <div className="mx-auto max-w-lg">
+          <RestTimer
+            seconds={rest.seconds}
+            running={rest.running}
+            onStop={() => setRest((r) => ({ ...r, running: false }))}
+          />
+          <button type="button" className="btn-primary tap w-full px-3 text-xl" onClick={markDone}>
+            {done[current.set.id] ? "완료 취소" : "완료 / 다음"}
+          </button>
+        </div>
       </div>
 
       <BottomSheet open={tipOpen} title={tip?.name || current.exercise.nameKo} onClose={() => setTipOpen(false)}>
@@ -220,7 +222,7 @@ export function WorkoutClient({
       <BottomSheet open={plateOpen} title="원판" onClose={() => setPlateOpen(false)}>
         {plates ? (
           <div>
-            <div className="text-5xl font-black tabular-nums">
+            <div className="max-w-full break-words text-[clamp(2.25rem,12vw,3rem)] font-black tabular-nums">
               {plates.loadable}
               {unit}
             </div>
@@ -233,7 +235,7 @@ export function WorkoutClient({
                 <li className="text-xl font-bold text-[var(--muted)]">원판 없음</li>
               ) : (
                 plates.perSide.map((p) => (
-                  <li key={p.weight} className="flex justify-between text-3xl font-black tabular-nums">
+                  <li key={p.weight} className="flex min-w-0 justify-between gap-3 text-3xl font-black tabular-nums">
                     <span>
                       {p.weight}
                       {unit}
@@ -243,7 +245,7 @@ export function WorkoutClient({
                 ))
               )}
             </ul>
-            <p className="mt-3 text-sm text-[var(--muted)]">한쪽 {formatPerSide(plates.perSide, unit)}</p>
+            <p className="mt-3 break-words text-sm text-[var(--muted)]">한쪽 {formatPerSide(plates.perSide, unit)}</p>
           </div>
         ) : (
           <p>1RM을 저장하면 원판이 계산됩니다.</p>
