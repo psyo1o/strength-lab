@@ -383,6 +383,16 @@ describe("mobile UX P0", () => {
     expect(nav).toMatch(/href: "\/gear"/);
     expect(nav).toMatch(/label: "장비"/);
     expect(nav).toMatch(/grid-cols-6/);
+    expect(nav).toMatch(/title=\{it\.label\}/);
+    const benchmarks = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/benchmarks/page.tsx"), "utf8");
+    expect(benchmarks).toMatch(/redirect\("\/wod"\)/);
+    const css = fs.readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
+    expect(css).toMatch(/overflow-x:\s*clip/);
+    expect(css).toMatch(/overflow-wrap:\s*break-word/);
+    expect(css).not.toMatch(/min-width:\s*56px/);
+    const bottomSheet = fs.readFileSync(path.join(process.cwd(), "src/components/BottomSheet.tsx"), "utf8");
+    expect(bottomSheet).toMatch(/85dvh/);
+    expect(wodClient).toMatch(/"rx", "scaled", "beginner"/);
     const wodUi = [
       "src/components/WodClient.tsx",
       "src/app/(app)/wod/page.tsx",

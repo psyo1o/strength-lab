@@ -20,11 +20,14 @@ export function BottomSheet({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55" onClick={onClose}>
       <div
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-[var(--line)] bg-[var(--bg-card)] p-5 pb-8"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-[var(--line)] bg-[var(--bg-card)] max-h-[min(85dvh,calc(100dvh-env(safe-area-inset-top)-0.75rem))]"
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="flex cursor-grab flex-col items-center pb-2"
+          className="shrink-0 cursor-grab px-5 pt-3"
           onTouchStart={(e) => {
             startY.current = e.touches[0]?.clientY ?? null;
           }}
@@ -35,15 +38,19 @@ export function BottomSheet({
             if (start != null && end != null && end - start > 56) onClose();
           }}
         >
-          <div className="h-1.5 w-12 rounded-full bg-[var(--line)]" aria-hidden />
+          <div className="flex flex-col items-center pb-2">
+            <div className="h-1.5 w-12 rounded-full bg-[var(--line)]" aria-hidden />
+          </div>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <h3 className="min-w-0 flex-1 break-words text-lg font-black">{title}</h3>
+            <button type="button" className="btn-ghost tap shrink-0 px-4 text-sm font-bold" onClick={onClose}>
+              닫기
+            </button>
+          </div>
         </div>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="text-lg font-black">{title}</h3>
-          <button type="button" className="btn-ghost tap px-4 text-sm font-bold" onClick={onClose}>
-            닫기
-          </button>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
+          {children}
         </div>
-        {children}
       </div>
     </div>
   );

@@ -32,7 +32,9 @@ export function BottomCta({
   return (
     <div
       className={`fixed inset-x-0 z-30 border-t border-[var(--line)] bg-[#0b0c10] px-5 pt-3 ${
-        aboveNav ? "bottom-16 pb-3" : "bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        aboveNav
+          ? "bottom-[calc(3.5rem+env(safe-area-inset-bottom))] pb-3 pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]"
+          : "bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))]"
       }`}
     >
       <div className="mx-auto max-w-lg">

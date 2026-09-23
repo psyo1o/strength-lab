@@ -96,45 +96,49 @@ export function MaxesForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 space-y-6 pb-28">
+    <form onSubmit={onSubmit} className="mt-6 space-y-6 pb-[calc(9.5rem+env(safe-area-inset-bottom))]">
       {groups.map((g) => (
         <section key={g.title}>
           <h2 className="mb-2 font-bold">{g.title}</h2>
           <div className="space-y-2">
             {g.fields.map((f) => (
-              <label key={f.key} className="card block px-3 py-3">
-                <span className="text-lg font-bold">{f.nameKo}</span>
-                <span className="mt-2 flex flex-wrap items-center justify-end gap-3">
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[var(--muted)]">1RM</span>
-                    <input
-                      name={f.key}
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step={f.step ?? (unit === "lb" ? 5 : 2.5)}
-                      value={values[f.key] ?? ""}
-                      onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                      className="tap w-28 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-3xl font-black"
-                    />
-                    <span className="text-sm text-[var(--muted)]">{f.unitLabel ?? unit}</span>
-                  </span>
-                  {f.showStart ? (
-                    <span className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[var(--muted)]">시작 중량</span>
+              <label key={f.key} className="card block min-w-0 px-3 py-3">
+                <span className="block break-words text-lg font-bold">{f.nameKo}</span>
+                <span className="mt-2 flex min-w-0 flex-col gap-3">
+                  <span className="flex min-w-0 items-center justify-between gap-2">
+                    <span className="shrink-0 text-xs font-bold text-[var(--muted)]">1RM</span>
+                    <span className="flex min-w-0 items-center gap-2">
                       <input
-                        name={`${f.key}__start`}
+                        name={f.key}
                         type="number"
                         inputMode="decimal"
                         min={0}
-                        step={unit === "lb" ? 5 : 2.5}
-                        value={values[`${f.key}__start`] ?? ""}
-                        onChange={(e) =>
-                          setValues((prev) => ({ ...prev, [`${f.key}__start`]: e.target.value }))
-                        }
-                        className="tap w-28 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-3xl font-black"
+                        step={f.step ?? (unit === "lb" ? 5 : 2.5)}
+                        value={values[f.key] ?? ""}
+                        onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                        className="tap w-28 max-w-full min-w-0 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-3xl font-black"
                       />
-                      <span className="text-sm text-[var(--muted)]">{unit}</span>
+                      <span className="shrink-0 text-sm text-[var(--muted)]">{f.unitLabel ?? unit}</span>
+                    </span>
+                  </span>
+                  {f.showStart ? (
+                    <span className="flex min-w-0 items-center justify-between gap-2">
+                      <span className="shrink-0 text-xs font-bold text-[var(--muted)]">시작 중량</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        <input
+                          name={`${f.key}__start`}
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step={unit === "lb" ? 5 : 2.5}
+                          value={values[`${f.key}__start`] ?? ""}
+                          onChange={(e) =>
+                            setValues((prev) => ({ ...prev, [`${f.key}__start`]: e.target.value }))
+                          }
+                          className="tap w-28 max-w-full min-w-0 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-3xl font-black"
+                        />
+                        <span className="shrink-0 text-sm text-[var(--muted)]">{unit}</span>
+                      </span>
                     </span>
                   ) : null}
                 </span>
@@ -152,10 +156,12 @@ export function MaxesForm({
           {msg}
         </p>
       ) : null}
-      <div className="fixed inset-x-0 bottom-16 z-30 mx-auto max-w-lg px-4 pb-2">
-        <button className="btn-primary tap w-full text-lg" disabled={pending || hasError}>
-          {pending ? "저장 중…" : "1RM / 시작 중량 저장"}
-        </button>
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 border-t border-[var(--line)] bg-[#0f1117]/95 py-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] backdrop-blur">
+        <div className="mx-auto max-w-lg">
+          <button className="btn-primary tap w-full px-3 text-lg" disabled={pending || hasError}>
+            {pending ? "저장 중…" : "1RM / 시작 중량 저장"}
+          </button>
+        </div>
       </div>
     </form>
   );

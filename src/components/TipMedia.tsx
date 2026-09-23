@@ -28,7 +28,7 @@ export function TipMedia({
 
   return (
     <div className="space-y-1">
-      {label ? <p className="text-sm font-black">{label}</p> : null}
+      {label ? <p className="break-words text-sm font-black">{label}</p> : null}
       <a
         href={watch}
         target="_blank"
@@ -50,7 +50,7 @@ export function TipMedia({
           <span className="rounded-full bg-black/75 px-4 py-2 text-sm font-black text-white">영상 보기</span>
         </span>
       </a>
-      {youtubeCredit ? <p className="text-xs text-[var(--muted)]">{youtubeCredit}</p> : null}
+      {youtubeCredit ? <p className="break-words text-xs text-[var(--muted)]">{youtubeCredit}</p> : null}
     </div>
   );
 }

@@ -52,7 +52,7 @@ export function ProgramWeekList({
                 setPick(p.id);
                 setWeekChip("all");
               }}
-              className={`tap rounded-full px-4 py-2 text-sm font-black ${
+              className={`tap max-w-full whitespace-normal rounded-full px-4 py-2 text-center text-sm font-black leading-tight ${
                 pick === p.id ? "bg-[var(--accent)] text-[#1a1204]" : "bg-[var(--bg-elev)] text-[var(--muted)]"
               }`}
             >
@@ -66,7 +66,7 @@ export function ProgramWeekList({
           <button
             type="button"
             onClick={() => setWeekChip("all")}
-            className={`tap rounded-full px-3 py-1.5 text-xs font-black ${
+            className={`tap max-w-full whitespace-normal rounded-full px-3 py-1.5 text-center text-xs font-black leading-tight ${
               weekChip === "all" ? "bg-[var(--accent)] text-[#1a1204]" : "bg-[var(--bg-elev)] text-[var(--muted)]"
             }`}
           >
@@ -80,7 +80,7 @@ export function ProgramWeekList({
                 type="button"
                 onClick={() => setWeekChip(w.week_number)}
                 title={isLocked ? "잠금 — 시드된 세션 없음" : undefined}
-                className={`tap rounded-full px-3 py-1.5 text-xs font-black ${
+                className={`tap max-w-full whitespace-normal rounded-full px-3 py-1.5 text-center text-xs font-black leading-tight ${
                   weekChip === w.week_number
                     ? "bg-[var(--accent)] text-[#1a1204]"
                     : isLocked
@@ -99,7 +99,7 @@ export function ProgramWeekList({
         const empty = days.length === 0;
         return (
           <section key={w.id}>
-            <h2 className="font-black">{w.name_ko}</h2>
+            <h2 className="break-words font-black">{w.name_ko}</h2>
             {w.notes_ko ? <p className="text-xs text-[var(--muted)]">{w.notes_ko}</p> : null}
             {empty ? (
               <p className="mt-2 rounded-xl border border-[var(--line)] bg-[#2a1d12] p-3 text-sm">
@@ -117,7 +117,7 @@ export function ProgramWeekList({
                     <Link
                       key={d.id}
                       href={`/session/${slug}/${w.week_number}/${d.day_number}`}
-                      className="card tap block p-4 font-bold"
+                      className="card tap block min-w-0 break-words p-4 font-bold"
                     >
                       {d.name_ko}
                       {d.notes_ko ? (

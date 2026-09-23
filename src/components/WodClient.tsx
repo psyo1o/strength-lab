@@ -194,13 +194,13 @@ export function WodClient({
   }
 
   return (
-    <div className="pb-36">
+    <div className="min-w-0 pb-[calc(9rem+env(safe-area-inset-bottom))]">
       <div className="mt-4 grid grid-cols-3 gap-2">
         {(["rx", "scaled", "beginner"] as const).map((t) => (
           <button
             key={t}
             type="button"
-            className={`tap rounded-xl text-sm font-black ${
+            className={`tap min-w-0 rounded-xl px-1 text-sm font-black leading-tight ${
               tier === t ? "bg-[var(--accent)] text-[#1a1204]" : "btn-ghost"
             }`}
             onClick={() => setTier(t)}
@@ -224,11 +224,11 @@ export function WodClient({
         {template.movements.map((m, i) => {
           const hasVideo = tipHasVideo(tips[m.exerciseKey]) || (m.exerciseKey === "pull_up" && (tipHasVideo(tips.kipping_pull_up) || tipHasVideo(tips.butterfly_pull_up)));
           return (
-            <li key={`${m.exerciseKey}-${i}`} className="card p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-lg font-black">{m.nameKo}</div>
-                  <p className="mt-1 text-sm text-[var(--muted)]">{rxLine(m, unit)}</p>
+            <li key={`${m.exerciseKey}-${i}`} className="card min-w-0 p-4">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="break-words text-lg font-black">{m.nameKo}</div>
+                  <p className="mt-1 break-words text-sm text-[var(--muted)]">{rxLine(m, unit)}</p>
                   {subs[m.exerciseKey] ? (
                     <p className="mt-1 text-sm font-bold text-[var(--accent)]">대체 · {subs[m.exerciseKey]}</p>
                   ) : null}
@@ -264,31 +264,33 @@ export function WodClient({
         })}
       </ul>
 
-      <section className="card mt-4 p-5 text-center">
-        <div className="text-sm font-bold text-[var(--accent)]">
+      <section className="card mt-4 min-w-0 p-4 text-center sm:p-5">
+        <div className="break-words text-sm font-bold text-[var(--accent)]">
           {formatLabel(template.format)}
           {cap != null ? ` · 캡 ${formatClock(cap)}` : ""}
           {template.format === "emom" && template.targetRounds
             ? ` · ${emomMinute}/${template.targetRounds}분`
             : ""}
         </div>
-        <div className="mt-2 text-7xl font-black tabular-nums leading-none">{clock}</div>
+        <div className="mt-2 max-w-full py-1 text-[clamp(2.75rem,16vw,4.5rem)] font-black tabular-nums leading-none">
+          {clock}
+        </div>
         {prLabel ? <p className="mt-3 text-sm text-[var(--muted)]">PR {prLabel}</p> : null}
         <div className="mt-4 grid grid-cols-3 gap-2">
           <button
             type="button"
-            className="btn-primary tap text-base"
+            className="btn-primary tap min-w-0 px-1 text-sm leading-tight"
             onClick={phase === "running" ? pause : start}
             disabled={phase === "done"}
           >
             {phase === "running" ? "일시정지" : phase === "paused" ? "계속" : "시작"}
           </button>
-          <button type="button" className="btn-ghost tap text-base font-bold" onClick={reset} disabled={phase === "done"}>
+          <button type="button" className="btn-ghost tap min-w-0 px-1 text-sm font-bold leading-tight" onClick={reset} disabled={phase === "done"}>
             리셋
           </button>
           <button
             type="button"
-            className="btn-ghost tap text-base font-bold"
+            className="btn-ghost tap min-w-0 px-1 text-sm font-bold leading-tight"
             onClick={() => {
               if (cap != null) {
                 setElapsedMs(cap * 1000);
@@ -303,11 +305,11 @@ export function WodClient({
       </section>
 
       {scoreKind === "rounds_reps" ? (
-        <section className="mt-4 grid grid-cols-2 gap-3">
-          <label className="card p-4">
+        <section className="mt-4 grid min-w-0 grid-cols-2 gap-2">
+          <label className="card min-w-0 p-3">
             <span className="text-xs font-bold text-[var(--muted)]">라운드</span>
-            <div className="mt-2 flex items-center gap-2">
-              <button type="button" className="tap btn-ghost w-14 text-2xl font-black" onClick={() => setRounds((n) => Math.max(0, n - 1))}>
+            <div className="mt-2 flex min-w-0 items-center gap-1">
+              <button type="button" className="tap btn-ghost w-9 shrink-0 px-0 text-xl font-black" onClick={() => setRounds((n) => Math.max(0, n - 1))}>
                 −
               </button>
               <input
@@ -316,17 +318,17 @@ export function WodClient({
                 min={0}
                 value={rounds}
                 onChange={(e) => setRounds(Math.max(0, Number(e.target.value) || 0))}
-                className="w-full bg-transparent text-center text-4xl font-black tabular-nums outline-none"
+                className="min-w-0 flex-1 bg-transparent text-center text-3xl font-black tabular-nums outline-none"
               />
-              <button type="button" className="tap btn-ghost w-14 text-2xl font-black" onClick={() => setRounds((n) => n + 1)}>
+              <button type="button" className="tap btn-ghost w-9 shrink-0 px-0 text-xl font-black" onClick={() => setRounds((n) => n + 1)}>
                 +
               </button>
             </div>
           </label>
-          <label className="card p-4">
+          <label className="card min-w-0 p-3">
             <span className="text-xs font-bold text-[var(--muted)]">추가 횟수</span>
-            <div className="mt-2 flex items-center gap-2">
-              <button type="button" className="tap btn-ghost w-14 text-2xl font-black" onClick={() => setExtraReps((n) => Math.max(0, n - 1))}>
+            <div className="mt-2 flex min-w-0 items-center gap-1">
+              <button type="button" className="tap btn-ghost w-9 shrink-0 px-0 text-xl font-black" onClick={() => setExtraReps((n) => Math.max(0, n - 1))}>
                 −
               </button>
               <input
@@ -335,9 +337,9 @@ export function WodClient({
                 min={0}
                 value={extraReps}
                 onChange={(e) => setExtraReps(Math.max(0, Number(e.target.value) || 0))}
-                className="w-full bg-transparent text-center text-4xl font-black tabular-nums outline-none"
+                className="min-w-0 flex-1 bg-transparent text-center text-3xl font-black tabular-nums outline-none"
               />
-              <button type="button" className="tap btn-ghost w-14 text-2xl font-black" onClick={() => setExtraReps((n) => n + 1)}>
+              <button type="button" className="tap btn-ghost w-9 shrink-0 px-0 text-xl font-black" onClick={() => setExtraReps((n) => n + 1)}>
                 +
               </button>
             </div>
@@ -352,7 +354,7 @@ export function WodClient({
             placeholder="3:24"
             value={manualClock}
             onChange={(e) => setManualClock(e.target.value)}
-            className="mt-2 w-full bg-transparent text-4xl font-black tabular-nums outline-none"
+            className="mt-2 w-full min-w-0 bg-transparent text-[clamp(2rem,10vw,2.25rem)] font-black tabular-nums outline-none"
           />
         </label>
       )}
@@ -367,8 +369,8 @@ export function WodClient({
           <h2 className="text-sm font-bold text-[var(--accent)]">이 벤치마크 기록</h2>
           <ul className="mt-2 space-y-2">
             {history.map((row) => (
-              <li key={row.id} className="card flex items-baseline justify-between gap-3 px-4 py-3">
-                <span className="font-black tabular-nums">{row.score}</span>
+              <li key={row.id} className="card flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-3">
+                <span className="min-w-0 break-words font-black tabular-nums">{row.score}</span>
                 <span className="text-sm text-[var(--muted)]">
                   {tierLabel(row.tier)} · {new Date(row.completedAt).toLocaleDateString("ko-KR")}
                 </span>
@@ -384,8 +386,8 @@ export function WodClient({
         </p>
       ) : null}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg bg-[#0f1117]/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
-        <button type="button" className="btn-primary tap w-full text-xl" disabled={pending || phase === "done"} onClick={() => void complete()}>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[#0f1117]/95 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-2 backdrop-blur">
+        <button type="button" className="btn-primary tap mx-auto block w-full max-w-lg px-3 text-xl" disabled={pending || phase === "done"} onClick={() => void complete()}>
           {pending ? "저장 중…" : "WOD 완료"}
         </button>
       </div>

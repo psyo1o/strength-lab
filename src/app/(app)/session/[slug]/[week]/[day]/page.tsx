@@ -27,18 +27,20 @@ export default async function SessionPage({
   const { program, workout, tips, disclaimer } = loaded;
 
   return (
-    <main className="px-4 pt-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <Link href={`/programs/${program.slug}`} className="text-sm font-bold text-[var(--accent)]">
+    <main className="min-w-0 px-4 pt-6">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link href={`/programs/${program.slug}`} className="break-words text-sm font-bold text-[var(--accent)]">
             ← {program.name_ko}
           </Link>
-          <h1 className="mt-1 text-2xl font-black">{workout.nameKo}</h1>
+          <h1 className="mt-1 break-words text-2xl font-black">{workout.nameKo}</h1>
           <p className="text-sm text-[var(--muted)]">
             {week}주차 · {day}일
           </p>
         </div>
-        <UnitToggle unit={user.unit} />
+        <div className="shrink-0">
+          <UnitToggle unit={user.unit} />
+        </div>
       </div>
       <CompletenessBanner slug={program.slug} completeness={program.completeness} />
       {workout.notesKo ? <p className="mt-3 text-sm text-[var(--muted)]">{workout.notesKo}</p> : null}

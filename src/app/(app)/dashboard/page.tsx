@@ -33,15 +33,17 @@ export default async function DashboardPage() {
 
   return (
     <main className="px-4 pt-6 pb-[calc(9.5rem+env(safe-area-inset-bottom))]">
-      <p className="truncate text-base font-black">안녕 · {current?.name_ko ?? "프로그램 고르기"}</p>
+      <p className="truncate text-base font-black" title={`안녕 · ${current?.name_ko ?? "프로그램 고르기"}`}>
+        안녕 · {current?.name_ko ?? "프로그램 고르기"}
+      </p>
 
       {todayWod ? (
         <Link href={`/wod/${todayWod.slug}`} className="card tap mt-5 block p-5">
           <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
-          <div className="mt-1 text-2xl font-black leading-tight">
+          <div className="mt-1 break-words text-2xl font-black leading-tight">
             {todayWod.nameKo} · {formatLabel(todayWod.format)}
           </div>
-          <p className="mt-1 text-sm text-[var(--muted)]">{todayWod.prescriptionKo}</p>
+          <p className="mt-1 break-words text-sm text-[var(--muted)]">{todayWod.prescriptionKo}</p>
           <p className="mt-3 text-base font-black text-[var(--accent)]">시작하기 →</p>
         </Link>
       ) : null}
@@ -50,8 +52,10 @@ export default async function DashboardPage() {
         <div className="text-sm font-bold text-[var(--accent)]">최근</div>
         {recentCopy ? (
           <>
-            <div className="mt-1 text-xl font-black leading-tight">{recentCopy.title}</div>
-            <p className="mt-1 truncate text-sm text-[var(--muted)]">{recentCopy.line}</p>
+            <div className="mt-1 break-words text-xl font-black leading-tight">{recentCopy.title}</div>
+            <p className="mt-1 truncate text-sm text-[var(--muted)]" title={recentCopy.line}>
+              {recentCopy.line}
+            </p>
           </>
         ) : (
           <p className="mt-1 text-sm text-[var(--muted)]">아직 기록이 없습니다</p>
@@ -62,9 +66,9 @@ export default async function DashboardPage() {
         <div className="text-sm font-bold text-[var(--accent)]">PR</div>
         <ul className="mt-2 space-y-1">
           {progress.prs.map((pr) => (
-            <li key={pr.key} className="flex items-baseline justify-between gap-3 text-base">
-              <span className="font-bold">{pr.label}</span>
-              <span className="tabular-nums text-[var(--muted)]">
+            <li key={pr.key} className="flex min-w-0 items-baseline justify-between gap-3 text-base">
+              <span className="min-w-0 break-words font-bold">{pr.label}</span>
+              <span className="shrink-0 tabular-nums text-[var(--muted)]">
                 {pr.weightKg > 0 ? formatWeight(pr.weightKg, user.unit) : "—"}
               </span>
             </li>
@@ -72,9 +76,11 @@ export default async function DashboardPage() {
         </ul>
       </section>
 
-      <section className="card mt-3 p-5 text-center">
+      <section className="card mt-3 min-w-0 p-5 text-center">
         <div className="text-sm font-bold text-[var(--accent)]">연속일</div>
-        <div className="mt-1 text-6xl font-black tabular-nums leading-none">{progress.streakDays}</div>
+        <div className="mt-1 max-w-full py-1 text-[clamp(3rem,18vw,3.75rem)] font-black tabular-nums leading-none">
+          {progress.streakDays}
+        </div>
         <p className="mt-2 text-lg font-black">일 연속</p>
       </section>
 
@@ -84,10 +90,10 @@ export default async function DashboardPage() {
         </Link>
       </p>
 
-      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-lg border-t border-[var(--line)] bg-[#0f1117]/95 px-4 py-3">
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 border-t border-[var(--line)] bg-[#0f1117]/95 py-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
         <Link
           href={todayHref}
-          className="btn-primary tap flex w-full items-center justify-center text-lg no-underline"
+          className="btn-primary tap mx-auto flex w-full max-w-lg items-center justify-center px-3 text-lg no-underline"
         >
           오늘 운동
         </Link>

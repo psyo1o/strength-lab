@@ -27,14 +27,14 @@ function BoardList({
         const estimate = estimateWod(row.slug, maxes);
         return (
           <li key={row.slug}>
-            <Link href={`/wod/${row.slug}`} className="card tap block p-4">
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="text-lg font-black">{row.nameKo}</div>
-                <div className="text-sm font-bold tabular-nums text-[var(--muted)]">
+            <Link href={`/wod/${row.slug}`} className="card tap block min-w-0 p-4">
+              <div className="flex min-w-0 items-baseline justify-between gap-3">
+                <div className="min-w-0 break-words text-lg font-black">{row.nameKo}</div>
+                <div className="shrink-0 text-sm font-bold tabular-nums text-[var(--muted)]">
                   {row.prLabel ? `PR ${row.prLabel}` : formatLabel(row.format)}
                 </div>
               </div>
-              <p className="mt-1 text-sm text-[var(--muted)]">{row.prescriptionKo}</p>
+              <p className="mt-1 break-words text-sm text-[var(--muted)]">{row.prescriptionKo}</p>
               {estimate ? <WodEstimateLine estimate={estimate} /> : null}
             </Link>
           </li>
@@ -64,18 +64,18 @@ export default async function WodIndexPage() {
   const sourceNote = loadWodFile().sourceNoteKo;
 
   return (
-    <main className="px-4 pt-6 pb-8">
+    <main className="min-w-0 px-4 pt-6 pb-8">
       <h1 className="text-2xl font-black">WOD / 벤치마크</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">공개된 컨디셔닝 패턴입니다. 유료 박스 프로그램이 아니에요.</p>
       <p className="mt-1 text-xs font-bold text-[var(--muted)]">{RX_DISCLAIMER}</p>
 
       {today ? (
-        <Link href={`/wod/${today.slug}`} className="card tap mt-5 block p-5">
+        <Link href={`/wod/${today.slug}`} className="card tap mt-5 block min-w-0 p-5">
           <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
-          <div className="mt-1 text-2xl font-black">
+          <div className="mt-1 break-words text-2xl font-black leading-tight">
             {today.nameKo} · {formatLabel(today.format)}
           </div>
-          <p className="mt-1 text-sm text-[var(--muted)]">{today.prescriptionKo}</p>
+          <p className="mt-1 break-words text-sm text-[var(--muted)]">{today.prescriptionKo}</p>
           {todayEstimate ? <WodEstimateLine estimate={todayEstimate} /> : null}
         </Link>
       ) : null}

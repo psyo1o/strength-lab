@@ -18,15 +18,29 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100%;
+  max-width: 100%;
+}
+
+html {
+  overflow-x: clip;
 }
 
 body {
   font-family: var(--font-sans), "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+  overflow-x: clip;
+  overflow-wrap: break-word;
+  padding-top: env(safe-area-inset-top);
+}
+
+img,
+video,
+svg {
+  max-width: 100%;
 }
 
 .tap {
+  /* Height-only. A 56px min-width overflows the 6-column phone nav (6×56 > 320). */
   min-height: 56px;
-  min-width: 56px;
 }
 
 .card {
