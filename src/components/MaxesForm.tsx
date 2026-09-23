@@ -96,13 +96,13 @@ export function MaxesForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-6 space-y-6 pb-[calc(9.5rem+env(safe-area-inset-bottom))]">
+    <form onSubmit={onSubmit} className="mt-6 space-y-6 pb-fixed-stack">
       {groups.map((g) => (
         <section key={g.title}>
           <h2 className="mb-2 font-bold">{g.title}</h2>
           <div className="space-y-2">
             {g.fields.map((f) => (
-              <label key={f.key} className="card block min-w-0 px-3 py-3">
+              <label key={f.key} className="card scroll-clear-stack block min-w-0 px-3 py-3">
                 <span className="block break-words text-lg font-bold">{f.nameKo}</span>
                 <span className="mt-2 flex min-w-0 flex-col gap-3">
                   <span className="flex min-w-0 items-center justify-between gap-2">

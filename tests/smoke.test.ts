@@ -374,6 +374,9 @@ describe("mobile UX P0", () => {
     expect(home).toMatch(/>최근</);
     expect(home).toMatch(/>PR</);
     expect(home).toMatch(/일 연속/);
+    expect(home).toMatch(/line-clamp-2/);
+    expect(home).toMatch(/pb-fixed-stack/);
+    expect(home).not.toMatch(/className="truncate /);
     expect(home).not.toMatch(/UnitToggle/);
     expect(home).not.toMatch(/오늘의 운동/);
     expect(fs.existsSync(path.join(process.cwd(), "src/app/(app)/history/page.tsx"))).toBe(true);
@@ -392,7 +395,14 @@ describe("mobile UX P0", () => {
     expect(css).not.toMatch(/min-width:\s*56px/);
     const bottomSheet = fs.readFileSync(path.join(process.cwd(), "src/components/BottomSheet.tsx"), "utf8");
     expect(bottomSheet).toMatch(/85dvh/);
+    expect(bottomSheet).toMatch(/sheet-open/);
+    expect(bottomSheet).toMatch(/data-sheet-scroll/);
     expect(wodClient).toMatch(/"rx", "scaled", "beginner"/);
+    expect(wodClient).toMatch(/pb-fixed-cta/);
+    expect(css).toMatch(/--fixed-stack:/);
+    const maxesForm = fs.readFileSync(path.join(process.cwd(), "src/components/MaxesForm.tsx"), "utf8");
+    expect(maxesForm).toMatch(/pb-fixed-stack/);
+    expect(maxesForm).not.toMatch(/내 장비/);
     const wodUi = [
       "src/components/WodClient.tsx",
       "src/app/(app)/wod/page.tsx",

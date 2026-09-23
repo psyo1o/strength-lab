@@ -194,7 +194,7 @@ export function WodClient({
   }
 
   return (
-    <div className="min-w-0 pb-[calc(9rem+env(safe-area-inset-bottom))]">
+    <div className="min-w-0 pb-fixed-cta">
       <div className="mt-4 grid grid-cols-3 gap-2">
         {(["rx", "scaled", "beginner"] as const).map((t) => (
           <button
@@ -359,7 +359,7 @@ export function WodClient({
         </label>
       )}
 
-      <label className="mt-4 block">
+      <label className="scroll-clear-cta mt-4 block">
         <span className="text-xs font-bold text-[var(--muted)]">메모</span>
         <textarea value={notesKo} onChange={(e) => setNotesKo(e.target.value)} rows={2} className="field mt-1 min-h-16 py-3 text-sm" />
       </label>

@@ -32,8 +32,8 @@ export default async function DashboardPage() {
   const todayWod = getWodTemplate(todayWodSlug());
 
   return (
-    <main className="px-4 pt-6 pb-[calc(9.5rem+env(safe-area-inset-bottom))]">
-      <p className="truncate text-base font-black" title={`안녕 · ${current?.name_ko ?? "프로그램 고르기"}`}>
+    <main className="px-4 pt-6 pb-fixed-stack">
+      <p className="line-clamp-2 text-base font-black leading-snug" title={`안녕 · ${current?.name_ko ?? "프로그램 고르기"}`}>
         안녕 · {current?.name_ko ?? "프로그램 고르기"}
       </p>
 
@@ -53,7 +53,7 @@ export default async function DashboardPage() {
         {recentCopy ? (
           <>
             <div className="mt-1 break-words text-xl font-black leading-tight">{recentCopy.title}</div>
-            <p className="mt-1 truncate text-sm text-[var(--muted)]" title={recentCopy.line}>
+            <p className="mt-1 line-clamp-2 text-sm leading-snug text-[var(--muted)]" title={recentCopy.line}>
               {recentCopy.line}
             </p>
           </>
@@ -84,7 +84,7 @@ export default async function DashboardPage() {
         <p className="mt-2 text-lg font-black">일 연속</p>
       </section>
 
-      <p className="mt-3 text-center text-sm">
+      <p className="scroll-clear-stack mt-3 pb-2 text-center text-sm">
         <Link href="/wod" className="font-bold text-[var(--accent)]">
           벤치마크 보드
         </Link>

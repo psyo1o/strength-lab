@@ -127,7 +127,7 @@ export function WorkoutClient({
       : null;
 
   return (
-    <div className="min-w-0 pb-[calc(14rem+env(safe-area-inset-bottom))]">
+    <div className="min-w-0 pb-fixed-session">
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm font-bold text-[var(--accent)]">
@@ -141,7 +141,7 @@ export function WorkoutClient({
       <button
         type="button"
         onClick={() => current.set.display && setPlateOpen(true)}
-        className="card mt-5 w-full min-w-0 p-5 text-left"
+        className="card scroll-clear-cta mt-5 w-full min-w-0 p-5 text-left"
       >
         <div className="max-w-full break-words py-1 text-[clamp(2.5rem,14vw,3.75rem)] font-black leading-none tabular-nums tracking-tight">
           {current.set.display ?? "—"}

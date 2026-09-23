@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
 export function BottomSheet({
   open,
@@ -14,6 +14,46 @@ export function BottomSheet({
   children: React.ReactNode;
 }) {
   const startY = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const scrollY = window.scrollY;
+    html.classList.add("sheet-open");
+    const prev = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+    };
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+
+    const blockBackground = (event: Event) => {
+      const scroller = document.querySelector("[data-sheet-scroll]");
+      if (event.target instanceof Node && scroller?.contains(event.target)) return;
+      event.preventDefault();
+    };
+    document.addEventListener("touchmove", blockBackground, { passive: false });
+    document.addEventListener("wheel", blockBackground, { passive: false });
+
+    return () => {
+      html.classList.remove("sheet-open");
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.left = prev.left;
+      body.style.right = prev.right;
+      body.style.width = prev.width;
+      document.removeEventListener("touchmove", blockBackground);
+      document.removeEventListener("wheel", blockBackground);
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -48,7 +88,10 @@ export function BottomSheet({
             </button>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pb-[max(2rem,env(safe-area-inset-bottom))]">
+        <div
+          data-sheet-scroll
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-5 pb-[max(2rem,env(safe-area-inset-bottom))]"
+        >
           {children}
         </div>
       </div>

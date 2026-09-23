@@ -9,7 +9,7 @@ export default async function AccountPage() {
   const user = await getCurrentUser();
   if (!user) return null;
   return (
-    <main className="min-w-0 px-4 pt-6 pb-[calc(10rem+env(safe-area-inset-bottom))]">
+    <main className="min-w-0 px-4 pt-6 pb-fixed-stack">
       <Link href="/settings" className="text-sm font-bold text-[var(--accent)]">
         ← 설정
       </Link>
