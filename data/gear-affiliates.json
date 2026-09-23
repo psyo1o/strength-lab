@@ -1,0 +1,114 @@
+{
+  "disclosureKo": "이 페이지의 일부 링크는 파트너스(제휴) 링크이며, 구매 시 수수료를 받을 수 있습니다.",
+  "noteKo": "컨디셔닝·바벨 세션에서 자주 쓰는 소모품입니다. 링크가 없으면 「링크 미설정」입니다. 의료용이 아닙니다.",
+  "categories": [
+    {
+      "id": "grip",
+      "nameKo": "손/그립",
+      "items": [
+        {
+          "id": "hand-grips",
+          "nameKo": "핸드 그립",
+          "whyKo": "풀업·토바에서 손바닥이 까지기 쉬운 날을 위한 소모품.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        },
+        {
+          "id": "chalk",
+          "nameKo": "초크 / 마그네슘",
+          "whyKo": "바가 미끄러울 때 손 마찰을 돕기 위한 소모품.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        }
+      ]
+    },
+    {
+      "id": "support",
+      "nameKo": "무릎·손목 보호",
+      "items": [
+        {
+          "id": "knee-sleeves",
+          "nameKo": "니슬리브",
+          "whyKo": "스쿼트·박스점프처럼 무릎이 반복될 때 압박용. 의료용이 아닙니다.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        },
+        {
+          "id": "wrist-wraps",
+          "nameKo": "손목 랩",
+          "whyKo": "프레스·스러스터에서 손목이 꺾일 때 고정용.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        }
+      ]
+    },
+    {
+      "id": "rope",
+      "nameKo": "로프(DU)",
+      "items": [
+        {
+          "id": "speed-rope",
+          "nameKo": "스피드 로프",
+          "whyKo": "더블언더 연습용 줄넘기. 길이는 키에 맞춰 자르세요.",
+          "imageUrl": "",
+          "affiliateUrl": "https://example.com/gear-slot",
+          "merchant": "쿠팡"
+        }
+      ]
+    },
+    {
+      "id": "belt",
+      "nameKo": "벨트",
+      "items": [
+        {
+          "id": "lifting-belt",
+          "nameKo": "리프팅 벨트",
+          "whyKo": "무거운 스쿼트·데드리프트에서 복압을 모을 때 쓰는 벨트.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        }
+      ]
+    },
+    {
+      "id": "shoes",
+      "nameKo": "슈즈(선택)",
+      "items": [
+        {
+          "id": "lifting-shoes",
+          "nameKo": "리프팅 슈즈",
+          "whyKo": "굽이 있는 리프팅화. 맨발·일반화 대신 쓰는 선택 장비.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        }
+      ]
+    },
+    {
+      "id": "consumables",
+      "nameKo": "기타 소모품",
+      "items": [
+        {
+          "id": "finger-tape",
+          "nameKo": "손가락 테이프",
+          "whyKo": "토바·링에서 물집·까짐을 줄이려는 소모품.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        },
+        {
+          "id": "thumb-tape",
+          "nameKo": "엄지 테이프",
+          "whyKo": "바벨을 감아쥘 때 엄지가 쓸리는 날을 위한 소모품.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        }
+      ]
+    }
+  ]
+}

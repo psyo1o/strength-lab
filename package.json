@@ -1,0 +1,36 @@
+{
+  "name": "strength-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Strength-training web app for Synology NAS self-hosting",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "test": "vitest run",
+    "seed": "tsx scripts/export-seed.ts",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "better-sqlite3": "^11.10.0",
+    "drizzle-orm": "^0.44.2",
+    "next": "^15.3.3",
+    "nodemailer": "^10.0.9",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.10",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.15.32",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "tailwindcss": "^4.1.10",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
