@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { BottomSheet } from "@/components/BottomSheet";
-import { addDays, formatHistoryDate, monthMatrix, weekOf } from "@/lib/month-plan/history-day";
+import { addDays, formatHistoryDate, monthMatrix, visibleCompareRows, weekOf } from "@/lib/month-plan/history-day";
 import type { HistoryCard } from "@/lib/month-plan/history";
 
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"] as const;
@@ -43,6 +43,7 @@ export function HistoryScreen({ initialDate, cards }: { initialDate: string; car
   function pick(date: string) {
     setSelected(date);
     setSheetOpen(false);
+    setExpanded({});
   }
 
   return (
@@ -70,6 +71,7 @@ export function HistoryScreen({ initialDate, cards }: { initialDate: string; car
           const dy = event.clientY - start.y;
           if (Math.abs(dx) < 56 || Math.abs(dx) <= Math.abs(dy)) return;
           ignoreClick.current = true;
+          setExpanded({});
           setSelected((current) => addDays(current, dx < 0 ? 7 : -7));
         }}
         onPointerCancel={() => {
@@ -94,6 +96,7 @@ export function HistoryScreen({ initialDate, cards }: { initialDate: string; car
                   ignoreClick.current = false;
                   return;
                 }
+                setExpanded({});
                 setSelected(date);
               }}
             >
@@ -194,7 +197,7 @@ function LiftCard({ card }: { card: HistoryCard }) {
 }
 
 function MetconCard({ card, open, onExpand }: { card: HistoryCard; open: boolean; onExpand: () => void }) {
-  const visible = open ? card.compares : card.compares.slice(0, 3);
+  const visible = visibleCompareRows(card.compares, open);
   const title = card.summary ? `${card.name} · ${card.summary}` : card.name;
   return (
     <article className="card min-w-0 p-4">
@@ -206,7 +209,7 @@ function MetconCard({ card, open, onExpand }: { card: HistoryCard; open: boolean
       {visible.length > 0 ? (
         <ul className="mt-4 space-y-2 border-t border-[var(--line)] pt-3">
           {visible.map((row, index) => (
-            <li key={`${row.date}-${row.score}-${index}`} className="text-sm text-[var(--muted)]">
+            <li key={`${row.labelKo}-${row.date}-${row.score}-${index}`} className="text-sm text-[var(--muted)]">
               <span className="font-bold">{row.labelKo}</span>
               <span className="ml-2">{formatHistoryDate(row.date)}</span>
               <span className="ml-2 font-bold tabular-nums">{row.score}</span>
@@ -214,7 +217,7 @@ function MetconCard({ card, open, onExpand }: { card: HistoryCard; open: boolean
           ))}
         </ul>
       ) : null}
-      {card.compares.length > 3 && !open ? (
+      {card.compares.length > visible.length ? (
         <button type="button" className="tap mt-2 w-full text-sm font-bold" onClick={onExpand}>
           더 보기
         </button>

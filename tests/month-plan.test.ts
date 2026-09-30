@@ -12,7 +12,15 @@ import { defaultMetconAdapter, serverModelKey } from "../src/lib/month-plan/adap
 import { buildWeek, dayByKey, dayText, weekText } from "../src/lib/month-plan/build-week";
 import { kstParts } from "../src/lib/month-plan/calendar";
 import { comparesForDay, listHistoryCards, listTrainingHistory, loadHistoryContext, namedWodComparison } from "../src/lib/month-plan/history";
-import { cardsOnDate, defaultHistoryDate, formatHistoryDate, formatSetGroups, planCalendarDate, weekOf } from "../src/lib/month-plan/history-day";
+import {
+  cardsOnDate,
+  defaultHistoryDate,
+  formatHistoryDate,
+  formatSetGroups,
+  planCalendarDate,
+  visibleCompareRows,
+  weekOf,
+} from "../src/lib/month-plan/history-day";
 import { pieceSignature } from "../src/lib/month-plan/signature";
 import { MILE_M, TRACK_LAP_M } from "../src/lib/month-plan/distance";
 import {
@@ -365,6 +373,27 @@ describe("history day screen", () => {
     expect(defaultHistoryDate(["2026-10-02"], "2026-09-30")).toBe("2026-09-30");
     expect(defaultHistoryDate([], "2026-09-30")).toBe("2026-09-30");
     expect(formatHistoryDate("2026-09-30")).toBe("9월 30일");
+    const franEarlier = [
+      { labelKo: "같은 이름" as const, date: "2026-09-29", score: "5:00" },
+      { labelKo: "같은 이름" as const, date: "2026-09-25", score: "5:10" },
+      { labelKo: "같은 이름" as const, date: "2026-09-22", score: "5:20" },
+      { labelKo: "같은 이름" as const, date: "2026-09-20", score: "5:40" },
+    ];
+    expect(visibleCompareRows(franEarlier, false).map((row) => row.date)).toEqual(["2026-09-29", "2026-09-25", "2026-09-22"]);
+    expect(visibleCompareRows(franEarlier, true).map((row) => row.date)).toEqual([
+      "2026-09-29",
+      "2026-09-25",
+      "2026-09-22",
+      "2026-09-20",
+    ]);
+    const sameShape = [
+      { labelKo: "같은 구성" as const, date: "2026-09-01", score: "1R" },
+      { labelKo: "같은 구성" as const, date: "2026-09-02", score: "2R" },
+      { labelKo: "같은 구성" as const, date: "2026-09-03", score: "3R" },
+      { labelKo: "같은 구성" as const, date: "2026-09-04", score: "4R" },
+    ];
+    expect(visibleCompareRows(sameShape, false)).toHaveLength(3);
+    expect(visibleCompareRows(sameShape, false).map((row) => row.date)).not.toContain("2026-09-04");
     expect(weekOf("2026-09-30")).toEqual([
       "2026-09-28",
       "2026-09-29",
@@ -399,7 +428,9 @@ describe("history day screen", () => {
     const page = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/history/page.tsx"), "utf8");
     const historySrc = fs.readFileSync(path.join(process.cwd(), "src/lib/month-plan/history.ts"), "utf8");
     expect(screen).toContain("이 날 기록 없음");
+    expect(screen).toContain("visibleCompareRows");
     expect(screen).toContain("더 보기");
+    expect(screen).not.toMatch(/<Link[^>]*>\s*더 보기/);
     expect(screen).not.toMatch(/truncate/);
     expect(historySrc).toContain('labelKo: "같은 이름" | "같은 구성"');
     expect(page).toContain("listHistoryCards");

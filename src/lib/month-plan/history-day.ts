@@ -55,6 +55,14 @@ export function monthMatrix(year: number, month: number): string[][] {
   return weeks;
 }
 
+export const VISIBLE_COMPARE_ROWS = 3;
+
+/** Collapsed cards show at most three earlier scores. Expanding returns the same rows, still on that card. */
+export function visibleCompareRows<T>(rows: readonly T[], expanded: boolean): T[] {
+  if (expanded) return rows.slice();
+  return rows.slice(0, VISIBLE_COMPARE_ROWS);
+}
+
 export function cardsOnDate<T extends { date: string }>(cards: readonly T[], date: string): T[] {
   return cards.filter((card) => card.date === date);
 }
