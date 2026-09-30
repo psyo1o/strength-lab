@@ -1,8 +1,10 @@
+import type { WeightUnit } from "../calc/round";
 import { getSqlite } from "../db/client";
 import { formatKoDate, trainingDayKey } from "../progress";
 import { listWodResults, type WodResult } from "../wod/queries";
 import { getWodTemplate } from "../wod/templates";
 import { daySummary } from "./build-week";
+import { formatSetGroups, planCalendarDate } from "./history-day";
 import {
   liftComparison,
   metconComparison,
@@ -21,7 +23,7 @@ import {
   type StoredPlan,
 } from "./store";
 import { topSetKg } from "./loads";
-import type { PlannedDay } from "./types";
+import type { DayKey, PlannedDay } from "./types";
 
 export type HistoryScore = {
   id: string;
@@ -340,6 +342,232 @@ export function listTrainingHistory(userId: number): HistoryItem[] {
   }
 
   return items.sort((a, b) => b.at - a.at || b.key.localeCompare(a.key)).slice(0, 250);
+}
+
+export type HistoryCompareRow = {
+  labelKo: "같은 이름" | "같은 구성";
+  date: string;
+  score: string;
+};
+
+export type HistoryCard = {
+  key: string;
+  at: number;
+  date: string;
+  href: string;
+  badge: "리프트" | "메트콘" | "벤치마크";
+  name: string;
+  summary: string;
+  sets: string[];
+  score: string | null;
+  compares: HistoryCompareRow[];
+};
+
+function movementSummary(names: string[]): string {
+  return names.map((name) => name.trim()).filter(Boolean).join(" · ");
+}
+
+function compareRows(
+  pool: Comparable[],
+  current: { sourceId: string; compareBefore: number; pieceKey: string; signature: string; named: boolean },
+): HistoryCompareRow[] {
+  const hits = pool.filter((row) => {
+    if (row.id === current.sourceId) return false;
+    if (row.at >= current.compareBefore) return false;
+    if (current.named && current.pieceKey && row.pieceKey === current.pieceKey) return true;
+    if (current.signature && row.signature === current.signature) return true;
+    return false;
+  });
+  hits.sort((a, b) => b.at - a.at || b.id.localeCompare(a.id));
+  return hits.map((row) => ({
+    labelKo: current.named && current.pieceKey && row.pieceKey === current.pieceKey ? "같은 이름" : "같은 구성",
+    date: trainingDayKey(row.at),
+    score: scoreLabel(row.snap),
+  }));
+}
+
+function calendarStamp(date: string, planId: number): number {
+  return Date.parse(`${date}T00:00:00.000Z`) + planId;
+}
+
+type LoggedSet = {
+  completedAt: number;
+  weightKg: number | null;
+  reps: number;
+  amrap: boolean;
+  setNumber: number;
+  sortOrder: number;
+  exerciseKey: string;
+  nameKo: string;
+  slug: string;
+  weekNumber: number;
+  dayNumber: number;
+};
+
+function loadLoggedSets(userId: number): LoggedSet[] {
+  return getSqlite()
+    .prepare(
+      `SELECT sl.completed_at AS completedAt, sl.weight_kg AS weightKg,
+              ps.reps AS reps, ps.amrap AS amrap, ps.set_number AS setNumber,
+              pe.sort_order AS sortOrder, pe.exercise_key AS exerciseKey,
+              COALESCE(e.name_ko, pe.exercise_key) AS nameKo,
+              p.slug AS slug, w.week_number AS weekNumber, d.day_number AS dayNumber
+       FROM set_logs sl
+       JOIN program_sets ps ON ps.id = sl.program_set_id
+       JOIN program_exercises pe ON pe.id = ps.exercise_id
+       JOIN program_days d ON d.id = pe.day_id
+       JOIN program_weeks w ON w.id = d.week_id
+       JOIN programs p ON p.slug = w.program_slug
+       LEFT JOIN exercises e ON e.key = pe.exercise_key
+       WHERE sl.user_id = ? AND sl.completed = 1
+       ORDER BY ps.set_number ASC, sl.id ASC`,
+    )
+    .all(userId) as LoggedSet[];
+}
+
+function sessionLiftCards(userId: number, unit: WeightUnit): HistoryCard[] {
+  const groups = new Map<string, LoggedSet[]>();
+  for (const row of loadLoggedSets(userId)) {
+    const date = trainingDayKey(row.completedAt);
+    const key = `session:${date}:${row.slug}:${row.weekNumber}:${row.dayNumber}:${row.exerciseKey}`;
+    const list = groups.get(key);
+    if (list) list.push(row);
+    else groups.set(key, [row]);
+  }
+  const cards: HistoryCard[] = [];
+  for (const [key, rows] of groups) {
+    rows.sort((a, b) => a.setNumber - b.setNumber || a.completedAt - b.completedAt);
+    const first = rows[0]!;
+    const date = trainingDayKey(Math.min(...rows.map((row) => row.completedAt)));
+    cards.push({
+      key,
+      at: Math.min(...rows.map((row) => row.completedAt)) + first.sortOrder,
+      date,
+      href: `/session/${first.slug}/${first.weekNumber}/${first.dayNumber}`,
+      badge: "리프트",
+      name: first.nameKo,
+      summary: "",
+      sets: formatSetGroups(
+        rows.map((row) => ({ reps: row.reps, amrap: Boolean(row.amrap), weightKg: row.weightKg })),
+        unit,
+      ),
+      score: null,
+      compares: [],
+    });
+  }
+  return cards;
+}
+
+function planCards(ctx: HistoryContext, pool: Comparable[], unit: WeightUnit): HistoryCard[] {
+  const cards: HistoryCard[] = [];
+  for (const plan of ctx.plans) {
+    for (const day of plan.week.days) {
+      if (day.rest) continue;
+      const date = planCalendarDate(plan.weekStart, day.day as DayKey);
+      const href = planDayHref(plan.id, day.day);
+      if (day.lift) {
+        cards.push({
+          key: `plan:${plan.id}:${day.day}:lift`,
+          at: calendarStamp(date, plan.id),
+          date,
+          href,
+          badge: "리프트",
+          name: day.lift.nameKo,
+          summary: "",
+          sets: formatSetGroups(day.lift.sets, unit),
+          score: null,
+          compares: [],
+        });
+      }
+      if (!day.piece?.signature && !day.piece) continue;
+      const piece = day.piece;
+      if (!piece) continue;
+      const summary = movementSummary(piece.movements.map((move) => move.nameKo));
+      const badge = piece.named ? "벤치마크" : "메트콘";
+      const identity = {
+        pieceKey: piece.named ? `named:${piece.id}` : `sig:${piece.signature}`,
+        signature: piece.signature,
+        named: piece.named,
+      };
+      const logged = scoresForDay(ctx.scores, plan.id, day.day);
+      if (logged.length === 0) {
+        cards.push({
+          key: `plan:${plan.id}:${day.day}:metcon`,
+          at: calendarStamp(date, plan.id) + 1,
+          date,
+          href,
+          badge,
+          name: piece.nameKo,
+          summary,
+          sets: [],
+          score: null,
+          compares: compareRows(pool, { sourceId: `plan:${plan.id}:${day.day}:metcon`, compareBefore: plan.createdAt, ...identity }),
+        });
+        continue;
+      }
+      for (const score of logged) {
+        const snap = snapOf(score);
+        cards.push({
+          key: `plan:${plan.id}:${day.day}:score:${score.id}`,
+          at: score.completedAt,
+          date: trainingDayKey(score.completedAt),
+          href,
+          badge,
+          name: score.pieceNameKo || piece.nameKo,
+          summary,
+          sets: [],
+          score: scoreLabel(snap) || null,
+          compares: compareRows(pool, {
+            sourceId: `ps:${score.id}`,
+            compareBefore: score.completedAt,
+            pieceKey: score.pieceKey,
+            signature: score.signature,
+            named: score.named,
+          }),
+        });
+      }
+    }
+  }
+  return cards;
+}
+
+function wodCards(userId: number, pool: Comparable[]): HistoryCard[] {
+  const cards: HistoryCard[] = [];
+  for (const result of listWodResults(userId, undefined, 200)) {
+    const template = getWodTemplate(result.templateSlug);
+    const current = wodComparable(result);
+    const summary = movementSummary((template?.movements ?? []).map((move) => move.nameKo));
+    const badge = template && (template.category === "benchmark" || template.family) ? "벤치마크" : "메트콘";
+    cards.push({
+      key: `wod:${result.id}`,
+      at: result.completedAt,
+      date: trainingDayKey(result.completedAt),
+      href: `/wod/${result.templateSlug}`,
+      badge,
+      name: template?.nameKo ?? result.templateSlug,
+      summary,
+      sets: [],
+      score: current ? scoreLabel(current.snap) || null : null,
+      compares: current
+        ? compareRows(pool, {
+            sourceId: current.id,
+            compareBefore: current.at,
+            pieceKey: current.pieceKey,
+            signature: current.signature,
+            named: true,
+          })
+        : [],
+    });
+  }
+  return cards;
+}
+
+/** One card per lift or metcon. Comparisons stay on the metcon card they belong to. */
+export function listHistoryCards(userId: number, unit: WeightUnit): HistoryCard[] {
+  const ctx = loadHistoryContext(userId);
+  const pool = planPool(ctx);
+  const cards = [...planCards(ctx, pool, unit), ...wodCards(userId, pool), ...sessionLiftCards(userId, unit)];
+  return cards.sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at || a.key.localeCompare(b.key));
 }
 
 export function namedWodComparison(userId: number, slug: string): HistoryCompare | null {

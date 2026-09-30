@@ -11,7 +11,8 @@ import { saveWodResult, listWodResults } from "../src/lib/wod/queries";
 import { defaultMetconAdapter, serverModelKey } from "../src/lib/month-plan/adapter";
 import { buildWeek, dayByKey, dayText, weekText } from "../src/lib/month-plan/build-week";
 import { kstParts } from "../src/lib/month-plan/calendar";
-import { comparesForDay, listTrainingHistory, loadHistoryContext, namedWodComparison } from "../src/lib/month-plan/history";
+import { comparesForDay, listHistoryCards, listTrainingHistory, loadHistoryContext, namedWodComparison } from "../src/lib/month-plan/history";
+import { cardsOnDate, defaultHistoryDate, formatSetGroups, planCalendarDate, weekOf } from "../src/lib/month-plan/history-day";
 import { pieceSignature } from "../src/lib/month-plan/signature";
 import { MILE_M, TRACK_LAP_M } from "../src/lib/month-plan/distance";
 import {
@@ -323,5 +324,84 @@ describe("generated week is the plan, and history keeps scores", () => {
     expect(names).toContain("month_plans");
     expect(names).toContain("wod_results");
     expect(listPlans(userId).length).toBeGreaterThanOrEqual(2);
+
+    const cards = listHistoryCards(userId, "kg");
+    const newerFran = cards.find((card) => card.href === "/wod/fran" && card.score === "4:10");
+    const olderFran = cards.find((card) => card.href === "/wod/fran" && card.score === "5:00");
+    expect(newerFran?.date).toBe("2026-09-30");
+    expect(newerFran?.badge).toBe("벤치마크");
+    expect(newerFran?.compares).toEqual([
+      expect.objectContaining({ labelKo: "같은 이름", date: "2026-09-29", score: "5:00" }),
+    ]);
+    expect(olderFran?.compares).toEqual([]);
+    expect(cardsOnDate(cards, "2020-01-01")).toEqual([]);
+    expect(cardsOnDate(cards, "2026-09-30").every((card) => card.date === "2026-09-30")).toBe(true);
+
+    expect(planCalendarDate(first.weekStart, "mon")).toBe("2026-09-28");
+    const squatCard = cards.find((card) => card.key === `plan:${first.id}:mon:lift`);
+    expect(squatCard?.date).toBe("2026-09-28");
+    expect(squatCard?.sets).toEqual(["1×5 · 117.5kg", "1×5 · 135kg", "1×5+ · 152.5kg"]);
+    expect(squatCard?.compares).toEqual([]);
+
+    const secondMetcon = cards.find((card) => card.key === `plan:${second.id}:mon:metcon`);
+    expect(secondMetcon?.compares.some((row) => row.labelKo === "같은 구성" && row.score === "8R + 2")).toBe(true);
+    expect(cards.filter((card) => card.key === `plan:${second.id}:mon:metcon`)).toHaveLength(1);
+
+    const laterBenchmark = cards.find((card) => card.key === `plan:${benchmarkAgain.id}:thu:metcon`);
+    expect(laterBenchmark?.badge).toBe("벤치마크");
+    expect(laterBenchmark?.compares.some((row) => row.labelKo === "같은 이름" && row.score === "12:00")).toBe(true);
+
+    const sessionCard = cards.find((card) => card.badge === "리프트" && card.href.startsWith("/session/"));
+    expect(sessionCard?.sets.join("\n")).toMatch(/100kg/);
+    expect(sessionCard?.sets.join("\n")).not.toMatch(/…|\.\.\./);
+    expect(sessionCard?.compares).toEqual([]);
+  });
+});
+
+describe("history day screen", () => {
+  it("defaults to today, otherwise the nearest past logged day", () => {
+    expect(defaultHistoryDate(["2026-09-28", "2026-09-30", "2026-10-02"], "2026-09-30")).toBe("2026-09-30");
+    expect(defaultHistoryDate(["2026-09-28", "2026-09-29", "2026-10-02"], "2026-09-30")).toBe("2026-09-29");
+    expect(defaultHistoryDate(["2026-10-02"], "2026-09-30")).toBe("2026-09-30");
+    expect(defaultHistoryDate([], "2026-09-30")).toBe("2026-09-30");
+    expect(weekOf("2026-09-30")).toEqual([
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-01",
+      "2026-10-02",
+      "2026-10-03",
+      "2026-10-04",
+    ]);
+  });
+
+  it("keeps other days out of an empty day and does not invent kg", () => {
+    expect(cardsOnDate([{ date: "2026-09-28" }, { date: "2026-09-30" }], "2026-09-29")).toEqual([]);
+    expect(
+      formatSetGroups(
+        [
+          { reps: 5, amrap: false, weightKg: 100 },
+          { reps: 5, amrap: false, weightKg: 100 },
+          { reps: 5, amrap: false, weightKg: 100 },
+          { reps: 5, amrap: false, weightKg: 100 },
+          { reps: 5, amrap: false, weightKg: 100 },
+        ],
+        "kg",
+      ),
+    ).toEqual(["5×5 · 100kg"]);
+    expect(formatSetGroups([{ reps: 5, amrap: true, weightKg: 152.5 }], "kg")).toEqual(["1×5+ · 152.5kg"]);
+    const missing = formatSetGroups(dayByKey(buildWeek(input({ weekIndex: 1, maxes: { squat: 200 } })), "fri")!.lift!.sets, "kg");
+    expect(missing.join("\n")).not.toMatch(/kg|lb/);
+    expect(missing).toEqual(["2×5", "1×5+"]);
+
+    const screen = fs.readFileSync(path.join(process.cwd(), "src/components/HistoryScreen.tsx"), "utf8");
+    const page = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/history/page.tsx"), "utf8");
+    const historySrc = fs.readFileSync(path.join(process.cwd(), "src/lib/month-plan/history.ts"), "utf8");
+    expect(screen).toContain("이 날 기록 없음");
+    expect(screen).toContain("더 보기");
+    expect(screen).not.toMatch(/truncate/);
+    expect(historySrc).toContain('labelKo: "같은 이름" | "같은 구성"');
+    expect(page).toContain("listHistoryCards");
+    expect(page).not.toContain("listTrainingHistory");
   });
 });
