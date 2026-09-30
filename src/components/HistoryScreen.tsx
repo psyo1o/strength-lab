@@ -204,8 +204,8 @@ function MetconCard({ card, open, onExpand }: { card: HistoryCard; open: boolean
     <article className="card min-w-0 p-4">
       {metcon ? (
         <div className="flex items-start gap-2">
-          <Link href={card.href} className="flex min-w-0 items-baseline gap-2">
-            <span className="shrink-0 text-xs font-bold text-[var(--accent)]">메트콘</span>
+          <Link href={card.href} className="flex min-w-0 items-start gap-2">
+            <span className="shrink-0 pt-1 text-xs font-bold text-[var(--accent)]">메트콘</span>
             <span className="min-w-0 line-clamp-2 break-words text-lg font-black leading-snug">{title}</span>
           </Link>
           {card.stimulus ? (
