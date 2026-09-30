@@ -95,6 +95,7 @@ function applySchema(raw: Database.Database) {
   const names = new Set(userCols.map((c) => c.name));
   if (!names.has("current_program")) raw.exec("ALTER TABLE users ADD COLUMN current_program TEXT");
   if (!names.has("last_session")) raw.exec("ALTER TABLE users ADD COLUMN last_session TEXT");
+  if (!names.has("sex")) raw.exec("ALTER TABLE users ADD COLUMN sex TEXT");
   const maxCols = raw.prepare("PRAGMA table_info(user_maxes)").all() as { name: string }[];
   if (!maxCols.some((c) => c.name === "start_kg")) {
     raw.exec("ALTER TABLE user_maxes ADD COLUMN start_kg REAL");
@@ -160,6 +161,36 @@ function applySchema(raw: Database.Database) {
   );
   if (!logCols.has("weight_kg")) raw.exec("ALTER TABLE set_logs ADD COLUMN weight_kg REAL");
   raw.exec("CREATE INDEX IF NOT EXISTS set_logs_user_at ON set_logs (user_id, completed_at)");
+  raw.exec(`
+    CREATE TABLE IF NOT EXISTS month_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      week_index INTEGER NOT NULL,
+      week_start TEXT NOT NULL,
+      sex TEXT,
+      plan_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS month_plans_user_created ON month_plans (user_id, created_at);
+    CREATE TABLE IF NOT EXISTS month_plan_scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      plan_id INTEGER NOT NULL REFERENCES month_plans(id) ON DELETE CASCADE,
+      day_key TEXT NOT NULL,
+      completed_at INTEGER NOT NULL,
+      time_sec INTEGER,
+      rounds INTEGER,
+      extra_reps INTEGER,
+      piece_key TEXT NOT NULL DEFAULT '',
+      piece_name_ko TEXT NOT NULL DEFAULT '',
+      named INTEGER NOT NULL DEFAULT 0,
+      signature TEXT NOT NULL DEFAULT '',
+      notes_ko TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS month_plan_scores_user_at ON month_plan_scores (user_id, completed_at);
+    CREATE INDEX IF NOT EXISTS month_plan_scores_user_sig ON month_plan_scores (user_id, signature, completed_at);
+    CREATE INDEX IF NOT EXISTS month_plan_scores_user_piece ON month_plan_scores (user_id, piece_key, completed_at);
+  `);
 }
 
 export function getSqlite(): Database.Database {

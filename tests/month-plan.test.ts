@@ -1,0 +1,327 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { registerUser } from "../src/lib/auth";
+import { wendlerMainSets } from "../src/lib/calc/wendler";
+import { getSqlite, resetDbConnection } from "../src/lib/db/client";
+import { saveUserMaxes, getUserMaxes } from "../src/lib/maxes";
+import { toggleSetLog } from "../src/lib/programs/queries";
+import { saveWodResult, listWodResults } from "../src/lib/wod/queries";
+import { defaultMetconAdapter, serverModelKey } from "../src/lib/month-plan/adapter";
+import { buildWeek, dayByKey, dayText, weekText } from "../src/lib/month-plan/build-week";
+import { kstParts } from "../src/lib/month-plan/calendar";
+import { comparesForDay, listTrainingHistory, loadHistoryContext, namedWodComparison } from "../src/lib/month-plan/history";
+import { pieceSignature } from "../src/lib/month-plan/signature";
+import { MILE_M, TRACK_LAP_M } from "../src/lib/month-plan/distance";
+import {
+  addPlanScore,
+  currentWeekPlan,
+  generatePlanForUser,
+  getPlan,
+  listPlans,
+  todayPlanDay,
+} from "../src/lib/month-plan/store";
+import type { WeekBuildInput } from "../src/lib/month-plan/types";
+
+const NOW = Date.parse("2026-09-30T01:00:00.000Z");
+
+function input(partial: Partial<WeekBuildInput> & Pick<WeekBuildInput, "weekIndex" | "maxes">): WeekBuildInput {
+  return {
+    sex: partial.sex ?? null,
+    recentMetcons: partial.recentMetcons ?? [],
+    trainingDays: partial.trainingDays,
+    weekIndex: partial.weekIndex,
+    maxes: partial.maxes,
+  };
+}
+
+describe("month plan rules", () => {
+  it("builds week-1 strength sets from a known 1RM", () => {
+    const week = buildWeek(
+      input({
+        weekIndex: 1,
+        sex: "m",
+        maxes: { squat: 200, ohp: 100, bench: 140, deadlift: 220 },
+      }),
+    );
+    const squat = dayByKey(week, "mon")!.lift!;
+    expect(squat.sets).toHaveLength(3);
+    expect(squat.trainingMaxKg).toBe(180);
+    expect(squat.sets.map((set) => set.percentOfTm)).toEqual([65, 75, 85]);
+    expect(squat.sets.map((set) => set.reps)).toEqual([5, 5, 5]);
+    expect(squat.sets.map((set) => set.weightKg)).toEqual([117.5, 135, 152.5]);
+    expect(squat.sets.map((set) => set.weightKg)).toEqual(wendlerMainSets(200, 1, "kg").map((set) => set.weightKg));
+    expect(squat.sets[2]?.amrap).toBe(true);
+
+    const press = dayByKey(week, "tue")!.lift!;
+    expect(press.exerciseKey).toBe("ohp");
+    expect(press.sets.map((set) => set.weightKg)).toEqual(wendlerMainSets(100, 1, "kg").map((set) => set.weightKg));
+
+    const dead = dayByKey(week, "fri")!.lift!;
+    expect(dead.exerciseKey).toBe("deadlift");
+    expect(dead.sets.map((set) => set.weightKg)).toEqual(wendlerMainSets(220, 1, "kg").map((set) => set.weightKg));
+
+    const week2 = buildWeek(input({ weekIndex: 2, maxes: { bench: 120, squat: 200, deadlift: 220, ohp: 80 } }));
+    const bench = dayByKey(week2, "tue")!.lift!;
+    expect(bench.exerciseKey).toBe("bench");
+    expect(bench.sets.map((set) => [set.percentOfTm, set.reps, set.weightKg])).toEqual(
+      wendlerMainSets(120, 2, "kg").map((set) => [set.percentOfTm, set.reps, set.weightKg]),
+    );
+
+    const week4 = buildWeek(input({ weekIndex: 4, maxes: { squat: 200 } }));
+    expect(dayByKey(week4, "mon")!.lift!.sets.map((set) => set.percentOfTm)).toEqual([40, 50, 60]);
+    expect(dayByKey(week4, "thu")!.piece?.id).toBe("sl-month-benchmark");
+    expect(dayByKey(week4, "thu")!.piece?.named).toBe(true);
+  });
+
+  it("does not invent kg when the 1RM is missing", () => {
+    const week = buildWeek(input({ weekIndex: 1, sex: null, maxes: { deadlift: 220 } }));
+    const squat = dayByKey(week, "mon")!.lift!;
+    expect(squat.missingOneRm).toBe(true);
+    expect(squat.oneRmKg).toBeNull();
+    expect(squat.trainingMaxKg).toBeNull();
+    expect(squat.sets.map((set) => set.weightKg)).toEqual([null, null, null]);
+    expect(squat.noteKo).toMatch(/무거운 단수/);
+    expect(JSON.stringify(squat)).not.toMatch(/"weightKg":\s*\d/);
+    expect(JSON.stringify(squat)).not.toMatch(/"trainingMaxKg":\s*\d/);
+    expect(dayText(dayByKey(week, "mon")!)).not.toMatch(/\d+(\.\d+)?\s*kg/);
+
+    const empty = buildWeek(input({ weekIndex: 4, sex: null, maxes: {} }));
+    expect(weekText(empty)).not.toMatch(/\d+(\.\d+)?\s*kg/i);
+    expect(dayByKey(empty, "fri")!.lift!.weightKg).toBeUndefined();
+    expect(dayByKey(empty, "fri")!.lift!.sets.every((set) => set.weightKg == null)).toBe(true);
+  });
+
+  it("keeps saturday optional, long pieces on week 2 and 4 wednesday, and run meters", () => {
+    expect(TRACK_LAP_M).toBe(400);
+    expect(MILE_M).toBe(1600);
+    for (const weekIndex of [1, 2, 3, 4] as const) {
+      const week = buildWeek(input({ weekIndex, sex: "f", maxes: { squat: 100, ohp: 40, bench: 50, deadlift: 120 } }));
+      const wed = dayByKey(week, "wed")!;
+      const sat = dayByKey(week, "sat")!;
+      const sun = dayByKey(week, "sun")!;
+      expect(wed.longPiece).toBe(weekIndex === 2 || weekIndex === 4);
+      expect(sat.optional).toBe(true);
+      expect(dayText(sat)).toMatch(/선택/);
+      expect(dayText(sat)).toMatch(/월요일로 옮기지/);
+      expect(sun.rest).toBe(true);
+      expect(weekText(week)).not.toMatch(/km/i);
+      expect(weekText(week)).not.toMatch(/HWPO|CrossFit|Fran|Murph/i);
+      expect(dayText(dayByKey(week, "fri")!)).not.toMatch(/스쿼트|스윙|클린/);
+      expect(dayText(wed)).not.toMatch(/스내치/);
+      expect(dayByKey(week, "mon")!.longPiece).toBe(false);
+      expect(dayByKey(week, "mon")!.piece!.minutes).toBeLessThan(30);
+      if (wed.longPiece) {
+        expect(wed.piece!.minutes).toBeGreaterThanOrEqual(30);
+        expect(wed.piece!.minutes).toBeLessThanOrEqual(40);
+        expect(wed.blocks.some((block) => block.role === "extra_conditioning")).toBe(false);
+        expect(wed.piece!.bodyKo).toMatch(/1600m/);
+        expect(wed.piece!.bodyKo).toMatch(/트랙 4바퀴/);
+        expect(wed.piece!.bodyKo).toMatch(/팬바이크/);
+        expect(wed.piece!.bodyKo).toMatch(/스키/);
+      } else {
+        expect(wed.piece!.bodyKo).toMatch(/400m/);
+        expect(wed.piece!.bodyKo).toMatch(/트랙 1바퀴/);
+      }
+      const mon = dayByKey(week, "mon")!;
+      expect(mon.blocks.map((block) => block.role)).toEqual([
+        "warmup",
+        "main",
+        "metcon",
+        "skill",
+        "assistance",
+        "extra_conditioning",
+      ]);
+      expect(mon.blocks.find((block) => block.role === "warmup")!.kept).toBe(true);
+      expect(mon.blocks.find((block) => block.role === "warmup")!.cuttable).toBe(false);
+      expect(mon.blocks.find((block) => block.role === "metcon")!.kept).toBe(true);
+      expect(mon.blocks.find((block) => block.role === "extra_conditioning")!.kept).toBe(false);
+    }
+
+    const male = buildWeek(input({ weekIndex: 4, sex: "m", maxes: { squat: 200 } }));
+    const female = buildWeek(input({ weekIndex: 4, sex: "f", maxes: { squat: 200 } }));
+    expect(dayByKey(male, "mon")!.lift!.sets.map((set) => set.weightKg)).toEqual(
+      dayByKey(female, "mon")!.lift!.sets.map((set) => set.weightKg),
+    );
+    expect(dayByKey(male, "thu")!.piece!.bodyKo).toMatch(/9kg/);
+    expect(dayByKey(female, "thu")!.piece!.bodyKo).toMatch(/6kg/);
+    expect(dayByKey(male, "tue")!.piece!.bodyKo).toMatch(/60cm/);
+    expect(dayByKey(female, "tue")!.piece!.bodyKo).toMatch(/50cm/);
+    expect(dayByKey(male, "sat")!.piece!.bodyKo).toMatch(/24kg/);
+    expect(dayByKey(female, "sat")!.piece!.bodyKo).toMatch(/16kg/);
+
+    const plain = buildWeek(input({ weekIndex: 1, maxes: {}, recentMetcons: [] }));
+    const avoided = buildWeek(input({ weekIndex: 1, maxes: {}, recentMetcons: [{ pattern: "engine" }] }));
+    expect(dayByKey(plain, "mon")!.piece!.signature).not.toBe(dayByKey(avoided, "mon")!.piece!.signature);
+
+    expect(pieceSignature("amrap", [
+      { key: "run", amount: "400m" },
+      { key: "burpee", amount: "8" },
+    ])).toBe(pieceSignature("amrap", [
+      { key: "burpee", amount: "8" },
+      { key: "run", amount: "400m" },
+    ]));
+    expect(pieceSignature("amrap", [{ key: "run", amount: "400m" }])).not.toBe(
+      pieceSignature("for_time", [{ key: "run", amount: "400m" }]),
+    );
+    expect(pieceSignature("amrap", [{ key: "run", amount: "400m" }])).not.toBe(
+      pieceSignature("amrap", [{ key: "run", amount: "800m" }]),
+    );
+
+    const adapterSrc = fs.readFileSync(path.join(process.cwd(), "src/lib/month-plan/adapter.ts"), "utf8");
+    expect(adapterSrc).not.toMatch(/\bfetch\s*\(/);
+    expect(adapterSrc).not.toMatch(/api\.openai\.com/);
+    const previous = process.env.MONTH_PLAN_MODEL_KEY;
+    delete process.env.MONTH_PLAN_MODEL_KEY;
+    expect(serverModelKey()).toBeNull();
+    expect(defaultMetconAdapter().id).toBe("rules");
+    process.env.MONTH_PLAN_MODEL_KEY = "server-only";
+    expect(defaultMetconAdapter().id).toBe("model");
+    const filled = defaultMetconAdapter().fill({
+      weekIndex: 1,
+      day: "mon",
+      sex: null,
+      avoidPatterns: [],
+      longPiece: false,
+      forbid: ["squat"],
+    });
+    expect(filled.bodyKo).toMatch(/400m/);
+    expect(filled.signature).not.toBe("");
+    if (previous == null) delete process.env.MONTH_PLAN_MODEL_KEY;
+    else process.env.MONTH_PLAN_MODEL_KEY = previous;
+  });
+});
+
+describe("generated week is the plan, and history keeps scores", () => {
+  beforeEach(() => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-plan-"));
+    process.env.DATABASE_PATH = path.join(dir, "app.db");
+    process.env.AUTH_SECRET = "test-secret-at-least-32-characters-long";
+    delete process.env.MONTH_PLAN_MODEL_KEY;
+    resetDbConnection();
+  });
+
+  afterEach(() => {
+    resetDbConnection();
+  });
+
+  it("publishes the week immediately and keeps loads, times, and earlier scores", () => {
+    const created = registerUser("plan@example.com", "password123");
+    if ("error" in created) throw new Error(created.error);
+    const userId = created.user.id;
+    saveUserMaxes(userId, [
+      { exerciseKey: "squat", value: 200, unit: "kg" },
+      { exerciseKey: "ohp", value: 80, unit: "kg" },
+      { exerciseKey: "bench", value: 100, unit: "kg" },
+      { exerciseKey: "deadlift", value: 180, unit: "kg" },
+    ]);
+    saveWodResult(userId, { templateSlug: "fran", tier: "rx", timeSec: 300, completedAt: NOW - 86_400_000 });
+    saveWodResult(userId, { templateSlug: "fran", tier: "rx", timeSec: 250, completedAt: NOW - 3_600_000 });
+    const set = getSqlite().prepare("SELECT id FROM program_sets LIMIT 1").get() as { id: number };
+    toggleSetLog(userId, set.id, true, 100);
+    const maxesBefore = getUserMaxes(userId);
+    const wodBefore = listWodResults(userId).length;
+    const logsBefore = (
+      getSqlite().prepare("SELECT COUNT(*) AS c FROM set_logs WHERE user_id = ?").get(userId) as { c: number }
+    ).c;
+
+    const first = generatePlanForUser(userId, { weekIndex: 1, sex: "m", nowMs: NOW });
+    if ("error" in first) throw new Error(first.error);
+    expect(currentWeekPlan(userId, NOW)?.id).toBe(first.id);
+    const today = todayPlanDay(userId, NOW);
+    expect(today?.planId).toBe(first.id);
+    expect(today?.day.day).toBe(kstParts(NOW).day);
+    expect(JSON.stringify(first.week)).not.toMatch(/"status"\s*:\s*"draft"/);
+    expect(dayByKey(first.week, "mon")!.lift!.sets.map((setRow) => setRow.weightKg)).toEqual([117.5, 135, 152.5]);
+
+    const second = generatePlanForUser(userId, { weekIndex: 1, sex: "m", nowMs: NOW + 2_000 });
+    if ("error" in second) throw new Error(second.error);
+    expect(currentWeekPlan(userId, NOW + 2_000)?.id).toBe(second.id);
+    expect(listPlans(userId)).toHaveLength(2);
+    expect(getPlan(userId, first.id)?.week.days.find((day) => day.day === "mon")?.lift?.sets.map((setRow) => setRow.weightKg)).toEqual([
+      117.5, 135, 152.5,
+    ]);
+
+    const logged = addPlanScore(userId, {
+      planId: first.id,
+      day: "mon",
+      rounds: 8,
+      extraReps: 2,
+      completedAt: NOW + 1_000,
+    });
+    if ("error" in logged) throw new Error(logged.error);
+
+    saveUserMaxes(userId, [{ exerciseKey: "squat", value: 100, unit: "kg" }]);
+    expect(getPlan(userId, first.id)?.week.days.find((day) => day.day === "mon")?.lift?.sets[2]?.weightKg).toBe(152.5);
+
+    const secondMonday = second.week.days.find((day) => day.day === "mon")!;
+    const metconCompare = comparesForDay(loadHistoryContext(userId), second, secondMonday).find((row) => row.reason === "same_metcon");
+    expect(secondMonday.piece?.signature).toBe(first.week.days.find((day) => day.day === "mon")?.piece?.signature);
+    expect(metconCompare?.reasonKo).toMatch(/같은 동작 · 같은 형식/);
+    expect(metconCompare?.summaryKo).toMatch(/8R \+ 2/);
+
+    const third = generatePlanForUser(userId, { weekIndex: 1, sex: "m", nowMs: NOW + 6_000 });
+    if ("error" in third) throw new Error(third.error);
+    const thirdMonday = third.week.days.find((day) => day.day === "mon")!;
+    expect(thirdMonday.piece?.signature).not.toBe(secondMonday.piece?.signature);
+    expect(comparesForDay(loadHistoryContext(userId), third, thirdMonday).some((row) => row.reason === "same_metcon")).toBe(false);
+
+    const changed = buildWeek(
+      input({
+        weekIndex: 1,
+        sex: "m",
+        maxes: { squat: 200 },
+        recentMetcons: [{ pattern: "engine" }],
+      }),
+    );
+    expect(changed.days.find((day) => day.day === "mon")?.piece?.signature).not.toBe(secondMonday.piece?.signature);
+
+    const benchmark = generatePlanForUser(userId, { weekIndex: 4, sex: "m", nowMs: NOW + 3_000 });
+    if ("error" in benchmark) throw new Error(benchmark.error);
+    const benchScore = addPlanScore(userId, {
+      planId: benchmark.id,
+      day: "thu",
+      timeSec: 720,
+      completedAt: NOW + 4_000,
+    });
+    if ("error" in benchScore) throw new Error(benchScore.error);
+    const benchmarkAgain = generatePlanForUser(userId, { weekIndex: 4, sex: "m", nowMs: NOW + 5_000 });
+    if ("error" in benchmarkAgain) throw new Error(benchmarkAgain.error);
+    const thu = benchmarkAgain.week.days.find((day) => day.day === "thu")!;
+    const named = comparesForDay(loadHistoryContext(userId), benchmarkAgain, thu).find((row) => row.reason === "named");
+    expect(named?.reasonKo).toMatch(/같은 벤치마크/);
+    expect(named?.summaryKo).toMatch(/12:00/);
+    expect(thu.piece?.id).toBe("sl-month-benchmark");
+
+    const history = listTrainingHistory(userId);
+    expect(new Set(history.map((item) => item.kind))).toEqual(new Set(["plan", "wod", "session"]));
+    const frans = history.filter((item) => item.href === "/wod/fran");
+    expect(frans[0]?.compares[0]?.reason).toBe("named");
+    expect(frans[0]?.compares[0]?.summaryKo).toMatch(/5:00/);
+    expect(frans[0]?.compares[0]?.summaryKo).toMatch(/4:10/);
+    expect(frans[0]?.compares[0]?.reasonKo).toMatch(/같은 벤치마크/);
+    expect(frans[1]?.compares).toEqual([]);
+    expect(namedWodComparison(userId, "fran")?.summaryKo).toMatch(/50초 빠름/);
+
+    const mondayLog = history.find((item) => item.key === `plan:${first.id}:mon`);
+    expect(mondayLog?.scores.map((score) => score.label)).toContain("8R + 2");
+    expect(mondayLog?.line).toMatch(/117\.5kg/);
+
+    const session = history.find((item) => item.kind === "session");
+    expect(session?.line).toMatch(/100kg/);
+
+    expect(getUserMaxes(userId).squat).toBe(100);
+    expect(getUserMaxes(userId).ohp).toBe(maxesBefore.ohp);
+    expect(listWodResults(userId)).toHaveLength(wodBefore);
+    expect((getSqlite().prepare("SELECT COUNT(*) AS c FROM set_logs WHERE user_id = ?").get(userId) as { c: number }).c).toBe(
+      logsBefore,
+    );
+    const tables = getSqlite().prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[];
+    const names = tables.map((table) => table.name);
+    expect(names).toContain("user_equipment");
+    expect(names).toContain("month_plans");
+    expect(names).toContain("wod_results");
+    expect(listPlans(userId).length).toBeGreaterThanOrEqual(2);
+  });
+});

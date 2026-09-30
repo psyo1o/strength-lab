@@ -7,6 +7,7 @@ import { RX_DISCLAIMER, familyLabel, formatLabel, type WodFamily } from "@/lib/w
 import { estimateWod } from "@/lib/wod/estimate";
 import { getWodTemplate, loadWodFile, todayWodSlug } from "@/lib/wod/templates";
 import { listWodBoard } from "@/lib/wod/queries";
+import { todayPlanDay } from "@/lib/month-plan/store";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,7 @@ export default async function WodIndexPage() {
   if (!user) return null;
   const todaySlug = todayWodSlug();
   const today = getWodTemplate(todaySlug);
+  const todayPlan = todayPlanDay(user.id);
   const board = listWodBoard(user.id);
   const maxes = getUserMaxes(user.id);
   const todayEstimate = today ? estimateWod(today.slug, maxes) : null;
@@ -69,9 +71,19 @@ export default async function WodIndexPage() {
       <p className="mt-1 text-sm text-[var(--muted)]">공개된 컨디셔닝 패턴입니다. 유료 박스 프로그램이 아니에요.</p>
       <p className="mt-1 text-xs font-bold text-[var(--muted)]">{RX_DISCLAIMER}</p>
 
+      {todayPlan ? (
+        <Link href={todayPlan.href} className="card tap mt-5 block min-w-0 p-5">
+          <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
+          <div className="mt-1 break-words text-2xl font-black leading-tight">
+            {todayPlan.weekIndex}주 · {todayPlan.day.labelKo}
+          </div>
+          <p className="mt-1 break-words text-sm text-[var(--muted)]">{todayPlan.summary}</p>
+        </Link>
+      ) : null}
+
       {today ? (
         <Link href={`/wod/${today.slug}`} className="card tap mt-5 block min-w-0 p-5">
-          <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
+          <div className="text-sm font-bold text-[var(--accent)]">{todayPlan ? "순환 벤치마크" : "오늘 WOD"}</div>
           <div className="mt-1 break-words text-2xl font-black leading-tight">
             {today.nameKo} · {formatLabel(today.format)}
           </div>

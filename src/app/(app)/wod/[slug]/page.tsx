@@ -9,6 +9,7 @@ import { formatWodScore, listWodResults, wodPr } from "@/lib/wod/queries";
 import { estimateWod } from "@/lib/wod/estimate";
 import { getWodTemplate, toClientTemplate } from "@/lib/wod/templates";
 import { RX_DISCLAIMER, categoryLabel, familyLabel, formatLabel, wodTipKeys } from "@/lib/wod/types";
+import { namedWodComparison } from "@/lib/month-plan/history";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,7 @@ export default async function WodDetailPage({ params }: { params: Promise<{ slug
   const tips = clientTipsFor(wodTipKeys(template));
   const maxes = getUserMaxes(user.id);
   const estimate = estimateWod(template.slug, maxes);
+  const earlier = namedWodComparison(user.id, template.slug);
 
   return (
     <main className="min-w-0 px-4 pt-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
@@ -42,6 +44,12 @@ export default async function WodDetailPage({ params }: { params: Promise<{ slug
       {template.equipmentKo ? <p className="mt-1 text-sm text-[var(--muted)]">{template.equipmentKo}</p> : null}
       <p className="mt-2 text-xs font-bold text-[var(--muted)]">{RX_DISCLAIMER}</p>
       {estimate ? <WodEstimateCard estimate={estimate} /> : null}
+      {earlier ? (
+        <section className="card mt-4 p-4">
+          <div className="text-xs font-bold text-[var(--muted)]">{earlier.reasonKo}</div>
+          <p className="mt-1 break-words text-lg font-black">{earlier.summaryKo}</p>
+        </section>
+      ) : null}
       <WodClient
         template={toClientTemplate(template)}
         unit={user.unit}

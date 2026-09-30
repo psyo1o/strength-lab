@@ -5,13 +5,20 @@ import { getSqlite } from "./db/client";
 const SESSION_COOKIE = "sl_session";
 const SESSION_DAYS = 30;
 
+export type AthleteSex = "m" | "f" | null;
+
 export type SessionUser = {
   id: number;
   email: string;
   unit: "kg" | "lb";
   currentProgram: string | null;
   lastSession: string | null;
+  sex: AthleteSex;
 };
+
+export function asAthleteSex(value: unknown): AthleteSex {
+  return value === "m" || value === "f" ? value : null;
+}
 
 function authSecret(): string {
   return process.env.AUTH_SECRET || "dev-only-change-me-in-production-please!!";
@@ -55,7 +62,7 @@ export function userFromSession(sessionId: string | undefined | null): SessionUs
   if (!sessionId) return null;
   const row = getSqlite()
     .prepare(
-      `SELECT u.id, u.email, u.unit, u.current_program, u.last_session, s.expires_at
+      `SELECT u.id, u.email, u.unit, u.current_program, u.last_session, u.sex, s.expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.id = ?`,
     )
@@ -66,6 +73,7 @@ export function userFromSession(sessionId: string | undefined | null): SessionUs
         unit: "kg" | "lb";
         current_program: string | null;
         last_session: string | null;
+        sex: string | null;
         expires_at: number;
       }
     | undefined;
@@ -80,6 +88,7 @@ export function userFromSession(sessionId: string | undefined | null): SessionUs
     unit: row.unit,
     currentProgram: row.current_program,
     lastSession: row.last_session,
+    sex: asAthleteSex(row.sex),
   };
 }
 
@@ -140,6 +149,7 @@ export function registerUser(
     unit: "kg",
     currentProgram: null,
     lastSession: null,
+    sex: null,
   };
   return { user };
 }
@@ -147,7 +157,7 @@ export function registerUser(
 export function loginUser(email: string, password: string): { user: SessionUser } | { error: string } {
   const normalized = email.trim().toLowerCase();
   const row = getSqlite()
-    .prepare("SELECT id, email, password_hash, unit, current_program, last_session FROM users WHERE email = ?")
+    .prepare("SELECT id, email, password_hash, unit, current_program, last_session, sex FROM users WHERE email = ?")
     .get(normalized) as
     | {
         id: number;
@@ -156,6 +166,7 @@ export function loginUser(email: string, password: string): { user: SessionUser 
         unit: "kg" | "lb";
         current_program: string | null;
         last_session: string | null;
+        sex: string | null;
       }
     | undefined;
   if (!row || !verifyPassword(password, row.password_hash)) {
@@ -168,6 +179,7 @@ export function loginUser(email: string, password: string): { user: SessionUser 
       unit: row.unit,
       currentProgram: row.current_program,
       lastSession: row.last_session,
+      sex: asAthleteSex(row.sex),
     },
   };
 }
@@ -176,9 +188,20 @@ export function updateUserUnit(userId: number, unit: "kg" | "lb") {
   getSqlite().prepare("UPDATE users SET unit = ? WHERE id = ?").run(unit, userId);
 }
 
+export function readUserSex(userId: number): AthleteSex {
+  const row = getSqlite().prepare("SELECT sex FROM users WHERE id = ?").get(userId) as
+    | { sex: string | null }
+    | undefined;
+  return asAthleteSex(row?.sex);
+}
+
+export function writeUserSex(userId: number, sex: AthleteSex) {
+  getSqlite().prepare("UPDATE users SET sex = ? WHERE id = ?").run(sex, userId);
+}
+
 export function updateUserPrefs(
   userId: number,
-  prefs: { unit?: "kg" | "lb"; currentProgram?: string | null; lastSession?: string | null },
+  prefs: { unit?: "kg" | "lb"; currentProgram?: string | null; lastSession?: string | null; sex?: AthleteSex },
 ) {
   if (prefs.unit) updateUserUnit(userId, prefs.unit);
   if (prefs.currentProgram !== undefined) {
@@ -187,6 +210,7 @@ export function updateUserPrefs(
   if (prefs.lastSession !== undefined) {
     getSqlite().prepare("UPDATE users SET last_session = ? WHERE id = ?").run(prefs.lastSession, userId);
   }
+  if (prefs.sex !== undefined) writeUserSex(userId, prefs.sex);
 }
 
 export function destroyOtherSessions(userId: number, keepSessionId: string) {
