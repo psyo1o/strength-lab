@@ -19,6 +19,11 @@ export function defaultHistoryDate(loggedDates: readonly string[], today: string
   return nearest || today;
 }
 
+export function formatHistoryDate(iso: string): string {
+  const parts = iso.split("-").map(Number);
+  return `${parts[1] ?? 1}월 ${parts[2] ?? 1}일`;
+}
+
 export function addDays(iso: string, days: number): string {
   return new Date(Date.parse(`${iso}T00:00:00.000Z`) + days * DAY_MS).toISOString().slice(0, 10);
 }

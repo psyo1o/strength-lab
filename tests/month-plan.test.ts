@@ -12,7 +12,7 @@ import { defaultMetconAdapter, serverModelKey } from "../src/lib/month-plan/adap
 import { buildWeek, dayByKey, dayText, weekText } from "../src/lib/month-plan/build-week";
 import { kstParts } from "../src/lib/month-plan/calendar";
 import { comparesForDay, listHistoryCards, listTrainingHistory, loadHistoryContext, namedWodComparison } from "../src/lib/month-plan/history";
-import { cardsOnDate, defaultHistoryDate, formatSetGroups, planCalendarDate, weekOf } from "../src/lib/month-plan/history-day";
+import { cardsOnDate, defaultHistoryDate, formatHistoryDate, formatSetGroups, planCalendarDate, weekOf } from "../src/lib/month-plan/history-day";
 import { pieceSignature } from "../src/lib/month-plan/signature";
 import { MILE_M, TRACK_LAP_M } from "../src/lib/month-plan/distance";
 import {
@@ -364,6 +364,7 @@ describe("history day screen", () => {
     expect(defaultHistoryDate(["2026-09-28", "2026-09-29", "2026-10-02"], "2026-09-30")).toBe("2026-09-29");
     expect(defaultHistoryDate(["2026-10-02"], "2026-09-30")).toBe("2026-09-30");
     expect(defaultHistoryDate([], "2026-09-30")).toBe("2026-09-30");
+    expect(formatHistoryDate("2026-09-30")).toBe("9월 30일");
     expect(weekOf("2026-09-30")).toEqual([
       "2026-09-28",
       "2026-09-29",

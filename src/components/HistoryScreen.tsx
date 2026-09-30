@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { BottomSheet } from "@/components/BottomSheet";
-import { addDays, monthMatrix, weekOf } from "@/lib/month-plan/history-day";
+import { addDays, formatHistoryDate, monthMatrix, weekOf } from "@/lib/month-plan/history-day";
 import type { HistoryCard } from "@/lib/month-plan/history";
-import { formatKoDate } from "@/lib/progress";
 
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"] as const;
 
@@ -54,7 +53,7 @@ export function HistoryScreen({ initialDate, cards }: { initialDate: string; car
         onClick={openSheet}
         aria-haspopup="dialog"
       >
-        <span className="text-3xl font-black leading-none">{formatKoDate(selected)}</span>
+        <span className="text-3xl font-black leading-none">{formatHistoryDate(selected)}</span>
         <span className="shrink-0 text-sm font-bold text-[var(--muted)]">달력</span>
       </button>
 
@@ -209,7 +208,7 @@ function MetconCard({ card, open, onExpand }: { card: HistoryCard; open: boolean
           {visible.map((row, index) => (
             <li key={`${row.date}-${row.score}-${index}`} className="text-sm text-[var(--muted)]">
               <span className="font-bold">{row.labelKo}</span>
-              <span className="ml-2">{formatKoDate(row.date)}</span>
+              <span className="ml-2">{formatHistoryDate(row.date)}</span>
               <span className="ml-2 font-bold tabular-nums">{row.score}</span>
             </li>
           ))}
