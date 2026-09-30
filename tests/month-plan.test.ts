@@ -18,6 +18,8 @@ import {
   formatHistoryDate,
   formatSetGroups,
   planCalendarDate,
+  personalRankLabel,
+  samePersonalGroup,
   visibleCompareRows,
   weekOf,
 } from "../src/lib/month-plan/history-day";
@@ -338,6 +340,8 @@ describe("generated week is the plan, and history keeps scores", () => {
     const olderFran = cards.find((card) => card.href === "/wod/fran" && card.score === "5:00");
     expect(newerFran?.date).toBe("2026-09-30");
     expect(newerFran?.badge).toBe("벤치마크");
+    expect(newerFran?.rankKo).toBe("내 기록 1 / 2");
+    expect(olderFran?.rankKo).toBe("내 기록 2 / 2");
     expect(newerFran?.compares).toEqual([
       expect.objectContaining({ labelKo: "같은 이름", date: "2026-09-29", score: "5:00" }),
     ]);
@@ -350,9 +354,12 @@ describe("generated week is the plan, and history keeps scores", () => {
     expect(squatCard?.date).toBe("2026-09-28");
     expect(squatCard?.sets).toEqual(["1×5 · 117.5kg", "1×5 · 135kg", "1×5+ · 152.5kg"]);
     expect(squatCard?.compares).toEqual([]);
+    expect(squatCard?.rankKo).toBeNull();
 
     const secondMetcon = cards.find((card) => card.key === `plan:${second.id}:mon:metcon`);
     expect(secondMetcon?.compares.some((row) => row.labelKo === "같은 구성" && row.score === "8R + 2")).toBe(true);
+    expect(secondMetcon?.rankKo).toBeNull();
+    expect(cards.find((card) => card.score === "8R + 2")?.rankKo).toBeNull();
     expect(cards.filter((card) => card.key === `plan:${second.id}:mon:metcon`)).toHaveLength(1);
 
     const laterBenchmark = cards.find((card) => card.key === `plan:${benchmarkAgain.id}:thu:metcon`);
@@ -394,6 +401,24 @@ describe("history day screen", () => {
     ];
     expect(visibleCompareRows(sameShape, false)).toHaveLength(3);
     expect(visibleCompareRows(sameShape, false).map((row) => row.date)).not.toContain("2026-09-04");
+    expect(personalRankLabel(250, [340, 320, 310, 300, 250], "time")).toBe("내 기록 1 / 5");
+    expect(personalRankLabel(300, [340, 320, 310, 300, 250], "time")).toBe("내 기록 2 / 5");
+    expect(personalRankLabel(8002, [7000, 8002, 9000], "rounds")).toBe("내 기록 2 / 3");
+    expect(personalRankLabel(120, [90, 100, 120], "load")).toBe("내 기록 1 / 3");
+    expect(personalRankLabel(100, [100], "load")).toBeNull();
+    expect(personalRankLabel(250, [250, 250], "time")).toBe("내 기록 1 / 2");
+    expect(
+      samePersonalGroup(
+        { named: true, pieceKey: "named:fran", signature: "for_time|thruster" },
+        { pieceKey: "named:helen", signature: "for_time|thruster" },
+      ),
+    ).toBe(false);
+    expect(
+      samePersonalGroup(
+        { named: false, pieceKey: "sig:amrap|burpee", signature: "amrap|burpee" },
+        { pieceKey: "sig:amrap|run", signature: "amrap|run" },
+      ),
+    ).toBe(false);
     expect(weekOf("2026-09-30")).toEqual([
       "2026-09-28",
       "2026-09-29",
@@ -429,6 +454,11 @@ describe("history day screen", () => {
     const historySrc = fs.readFileSync(path.join(process.cwd(), "src/lib/month-plan/history.ts"), "utf8");
     expect(screen).toContain("이 날 기록 없음");
     expect(screen).toContain("visibleCompareRows");
+    const metcon = screen.slice(screen.indexOf("function MetconCard"));
+    expect(metcon.indexOf("{card.score}")).toBeLessThan(metcon.indexOf("{card.rankKo}"));
+    expect(metcon.indexOf("{card.rankKo}")).toBeLessThan(metcon.indexOf("visible.map"));
+    expect(metcon.indexOf("{card.rankKo}")).toBeLessThan(metcon.indexOf("더 보기"));
+    expect(metcon).toMatch(/<p[^>]*>\{card\.rankKo\}<\/p>/);
     expect(screen).toContain("더 보기");
     expect(screen).not.toMatch(/<Link[^>]*>\s*더 보기/);
     expect(screen).not.toMatch(/truncate/);

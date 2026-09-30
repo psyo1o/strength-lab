@@ -206,6 +206,7 @@ function MetconCard({ card, open, onExpand }: { card: HistoryCard; open: boolean
         <div className="mt-1 line-clamp-2 break-words text-lg font-black leading-snug">{title}</div>
       </Link>
       {card.score ? <p className="mt-3 text-4xl font-black tabular-nums text-[var(--text)]">{card.score}</p> : null}
+      {card.rankKo ? <p className="mt-1 text-sm font-bold tabular-nums">{card.rankKo}</p> : null}
       {visible.length > 0 ? (
         <ul className="mt-4 space-y-2 border-t border-[var(--line)] pt-3">
           {visible.map((row, index) => (

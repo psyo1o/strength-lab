@@ -4,7 +4,7 @@ import { formatKoDate, trainingDayKey } from "../progress";
 import { listWodResults, type WodResult } from "../wod/queries";
 import { getWodTemplate } from "../wod/templates";
 import { daySummary } from "./build-week";
-import { formatSetGroups, planCalendarDate } from "./history-day";
+import { formatSetGroups, personalRankLabel, planCalendarDate, samePersonalGroup } from "./history-day";
 import {
   liftComparison,
   metconComparison,
@@ -360,8 +360,32 @@ export type HistoryCard = {
   summary: string;
   sets: string[];
   score: string | null;
+  rankKo: string | null;
   compares: HistoryCompareRow[];
 };
+
+function rankValue(snap: ScoreSnap): { kind: "time" | "rounds"; value: number } | null {
+  if (snap.timeSec != null && snap.timeSec >= 0 && scoreLabel(snap) !== "") return { kind: "time", value: snap.timeSec };
+  const rounds = snap.rounds ?? 0;
+  const reps = snap.extraReps ?? 0;
+  if (rounds > 0 || reps > 0) return { kind: "rounds", value: rounds * 1000 + reps };
+  return null;
+}
+
+function rankLabelFor(pool: Comparable[], current: Comparable): string | null {
+  const mine = rankValue(current.snap);
+  if (!mine) return null;
+  const peers = pool.filter((row) => {
+    if (!samePersonalGroup(current, row)) return false;
+    const value = rankValue(row.snap);
+    return value != null && value.kind === mine.kind;
+  });
+  return personalRankLabel(
+    mine.value,
+    peers.map((row) => rankValue(row.snap)!.value),
+    mine.kind,
+  );
+}
 
 function movementSummary(names: string[]): string {
   return names.map((name) => name.trim()).filter(Boolean).join(" · ");
@@ -452,6 +476,7 @@ function sessionLiftCards(userId: number, unit: WeightUnit): HistoryCard[] {
         unit,
       ),
       score: null,
+      rankKo: null,
       compares: [],
     });
   }
@@ -476,6 +501,7 @@ function planCards(ctx: HistoryContext, pool: Comparable[], unit: WeightUnit): H
           summary: "",
           sets: formatSetGroups(day.lift.sets, unit),
           score: null,
+          rankKo: null,
           compares: [],
         });
       }
@@ -501,12 +527,14 @@ function planCards(ctx: HistoryContext, pool: Comparable[], unit: WeightUnit): H
           summary,
           sets: [],
           score: null,
+          rankKo: null,
           compares: compareRows(pool, { sourceId: `plan:${plan.id}:${day.day}:metcon`, compareBefore: plan.createdAt, ...identity }),
         });
         continue;
       }
       for (const score of logged) {
         const snap = snapOf(score);
+        const current = planComparable(score, piece.format);
         cards.push({
           key: `plan:${plan.id}:${day.day}:score:${score.id}`,
           at: score.completedAt,
@@ -517,6 +545,7 @@ function planCards(ctx: HistoryContext, pool: Comparable[], unit: WeightUnit): H
           summary,
           sets: [],
           score: scoreLabel(snap) || null,
+          rankKo: current ? rankLabelFor(pool, current) : null,
           compares: compareRows(pool, {
             sourceId: `ps:${score.id}`,
             compareBefore: score.completedAt,
@@ -548,6 +577,7 @@ function wodCards(userId: number, pool: Comparable[]): HistoryCard[] {
       summary,
       sets: [],
       score: current ? scoreLabel(current.snap) || null : null,
+      rankKo: current ? rankLabelFor(pool, current) : null,
       compares: current
         ? compareRows(pool, {
             sourceId: current.id,

@@ -57,6 +57,29 @@ export function monthMatrix(year: number, month: number): string[][] {
 
 export const VISIBLE_COMPARE_ROWS = 3;
 
+export type PersonalRankKind = "time" | "rounds" | "load";
+
+/**
+ * Place of this stored score among the same personal group.
+ * Time: faster is higher. Rounds, reps, and load: higher is better.
+ * A single score has no rank.
+ */
+export function personalRankLabel(current: number, peers: readonly number[], kind: PersonalRankKind): string | null {
+  if (peers.length < 2 || !Number.isFinite(current)) return null;
+  const higherIsBetter = kind !== "time";
+  const ahead = peers.filter((value) => (higherIsBetter ? value > current : value < current)).length;
+  return `내 기록 ${ahead + 1} / ${peers.length}`;
+}
+
+/** Named pieces share a name. Everything else shares movements and format. */
+export function samePersonalGroup(
+  current: { named: boolean; pieceKey: string; signature: string },
+  other: { pieceKey: string; signature: string },
+): boolean {
+  if (current.named) return current.pieceKey !== "" && other.pieceKey === current.pieceKey;
+  return current.signature !== "" && other.signature === current.signature;
+}
+
 /** Collapsed cards show at most three earlier scores. Expanding returns the same rows, still on that card. */
 export function visibleCompareRows<T>(rows: readonly T[], expanded: boolean): T[] {
   if (expanded) return rows.slice();
