@@ -1,7 +1,17 @@
 import type { AthleteSex } from "../auth";
 import { runDistanceLabel } from "./distance";
 import { pieceSignature } from "./signature";
-import type { DayKey, MetconPattern, MetconPiece, MetconRequest, PieceFormat, PieceMovement, WeekIndex } from "./types";
+import {
+  isMetconStimulus,
+  type DayKey,
+  type MetconPattern,
+  type MetconPiece,
+  type MetconRequest,
+  type MetconStimulus,
+  type PieceFormat,
+  type PieceMovement,
+  type WeekIndex,
+} from "./types";
 
 type Move = PieceMovement;
 
@@ -12,6 +22,7 @@ type Catalog = {
   format: PieceFormat;
   minutes: number;
   pattern: MetconPattern;
+  stimulus: MetconStimulus;
   days: DayKey[];
   weeks?: WeekIndex[];
   long: boolean;
@@ -98,6 +109,7 @@ const CATALOG: Catalog[] = [
     format: "amrap",
     minutes: 14,
     pattern: "engine",
+    stimulus: "숨차는",
     days: ["mon"],
     long: false,
     movements: () => [move("run", "400m", "런"), move("burpee", "8", "버피"), move("push_up", "10", "푸시업")],
@@ -109,23 +121,22 @@ const CATALOG: Catalog[] = [
     format: "amrap",
     minutes: 14,
     pattern: "gymnastic",
+    stimulus: "고반복",
     days: ["mon"],
     long: false,
     movements: () => [move("sit_up", "15", "싯업"), move("push_up", "12", "푸시업"), move("ring_row", "8", "링 로우")],
   },
   {
-    id: "tue-ski",
-    nameKo: "스키와 점프",
+    id: "tue-skill",
+    nameKo: "더블언더",
     named: false,
     format: "amrap",
     minutes: 12,
     pattern: "engine",
+    stimulus: "기술",
     days: ["tue"],
     long: false,
-    movements: (sex) => {
-      const jump = box(sex) ?? move("burpee", "8", "버피");
-      return [move("ski", "200m", "스키"), jump, move("double_under", "40", "더블언더")];
-    },
+    movements: () => [move("double_under", "40", "더블언더"), move("handstand", "20초", "핸드스탠드 홀드")],
   },
   {
     id: "tue-gym",
@@ -134,6 +145,7 @@ const CATALOG: Catalog[] = [
     format: "amrap",
     minutes: 12,
     pattern: "gymnastic",
+    stimulus: "고반복",
     days: ["tue"],
     long: false,
     movements: (sex) => {
@@ -150,6 +162,7 @@ const CATALOG: Catalog[] = [
     format: "intervals",
     minutes: 20,
     pattern: "engine",
+    stimulus: "숨차는",
     days: ["wed"],
     weeks: [1, 3],
     long: false,
@@ -167,6 +180,7 @@ const CATALOG: Catalog[] = [
     format: "for_time",
     minutes: 35,
     pattern: "engine",
+    stimulus: "숨차는",
     days: ["wed"],
     weeks: [2, 4],
     long: true,
@@ -183,15 +197,13 @@ const CATALOG: Catalog[] = [
     named: false,
     format: "amrap",
     minutes: 8,
-    pattern: "engine",
+    pattern: "squat",
+    stimulus: "고중량",
     days: ["thu"],
     weeks: [1, 2, 3],
     long: false,
-    movements: () => [
-      move("fan_bike", "10cal", "팬바이크"),
-      move("burpee", "6", "버피"),
-      move("push_up", "8", "푸시업"),
-    ],
+    noteKo: "무게는 적지 않습니다.",
+    movements: () => [move("thruster", "6", "스러스터"), move("lunge", "8", "런지")],
   },
   {
     id: "thu-gym",
@@ -200,6 +212,7 @@ const CATALOG: Catalog[] = [
     format: "amrap",
     minutes: 8,
     pattern: "gymnastic",
+    stimulus: "고반복",
     days: ["thu"],
     weeks: [1, 2, 3],
     long: false,
@@ -212,6 +225,7 @@ const CATALOG: Catalog[] = [
     format: "for_time",
     minutes: 20,
     pattern: "engine",
+    stimulus: "고반복",
     days: ["thu"],
     weeks: [4],
     long: false,
@@ -229,20 +243,35 @@ const CATALOG: Catalog[] = [
     format: "amrap",
     minutes: 8,
     pattern: "engine",
+    stimulus: "숨차는",
     days: ["fri"],
     long: false,
     movements: () => [move("run", "800m", "런"), move("push_up", "12", "푸시업"), move("knee_raise", "10", "니레이즈")],
   },
   {
-    id: "fri-gym",
-    nameKo: "상체 맨몸",
+    id: "fri-skill",
+    nameKo: "기술 연습",
     named: false,
     format: "amrap",
     minutes: 8,
     pattern: "gymnastic",
+    stimulus: "기술",
     days: ["fri"],
     long: false,
-    movements: () => [move("push_up", "15", "푸시업"), move("sit_up", "15", "싯업"), move("ring_row", "10", "링 로우")],
+    movements: () => [move("double_under", "30", "더블언더"), move("handstand", "15초", "핸드스탠드 홀드")],
+  },
+  {
+    id: "sat-reps",
+    nameKo: "맨몸 반복",
+    named: false,
+    format: "amrap",
+    minutes: 12,
+    pattern: "gymnastic",
+    stimulus: "고반복",
+    days: ["sat"],
+    long: false,
+    noteKo: "선택입니다. 안 해도 되고, 못 해도 월요일로 옮기지 않습니다.",
+    movements: () => [move("push_up", "15", "푸시업"), move("sit_up", "20", "싯업"), move("ring_row", "10", "링 로우")],
   },
   {
     id: "sat-easy",
@@ -251,6 +280,7 @@ const CATALOG: Catalog[] = [
     format: "for_time",
     minutes: 20,
     pattern: "engine",
+    stimulus: "숨차는",
     days: ["sat"],
     long: false,
     noteKo: "선택입니다. 안 해도 되고, 못 해도 월요일로 옮기지 않습니다.",
@@ -263,10 +293,23 @@ const CATALOG: Catalog[] = [
   },
 ];
 
-function allowed(piece: Catalog, req: MetconRequest, honorAvoid: boolean): boolean {
+/** Ids whose movements changed, so an old stored body must not inherit the new label. */
+const RELABELED_IDS = new Set(["thu-short"]);
+
+export function stimulusForPiece(piece: { id?: string; stimulus?: unknown } | null | undefined): MetconStimulus | null {
+  if (!piece) return null;
+  if (isMetconStimulus(piece.stimulus)) return piece.stimulus;
+  if (!piece.id || RELABELED_IDS.has(piece.id)) return null;
+  return CATALOG.find((row) => row.id === piece.id)?.stimulus ?? null;
+}
+
+function allowed(piece: Catalog, req: MetconRequest, honorPattern: boolean, honorStimulus: boolean): boolean {
   if (!piece.days.includes(req.day) || piece.long !== req.longPiece) return false;
   if (piece.weeks && !piece.weeks.includes(req.weekIndex)) return false;
-  if (honorAvoid && req.avoidPatterns.includes(piece.pattern)) return false;
+  if (piece.long && piece.stimulus !== "숨차는") return false;
+  if (req.allowHeavy === false && piece.stimulus === "고중량") return false;
+  if (honorPattern && req.avoidPatterns.includes(piece.pattern)) return false;
+  if (honorStimulus && (req.avoidStimuli ?? []).includes(piece.stimulus)) return false;
   const keys = piece.movements(req.sex).map((m) => m.key);
   for (const forbid of req.forbid) {
     const banned = FORBID_KEYS[forbid];
@@ -276,7 +319,10 @@ function allowed(piece: Catalog, req: MetconRequest, honorAvoid: boolean): boole
 }
 
 export function fillMetconFromRules(req: MetconRequest): MetconPiece {
-  const picked = CATALOG.find((piece) => allowed(piece, req, true)) ?? CATALOG.find((piece) => allowed(piece, req, false));
+  const picked =
+    CATALOG.find((piece) => allowed(piece, req, true, true)) ??
+    CATALOG.find((piece) => allowed(piece, req, false, true)) ??
+    CATALOG.find((piece) => allowed(piece, req, false, false));
   if (!picked) {
     throw new Error(`metcon missing for ${req.day} week ${req.weekIndex}`);
   }
@@ -289,6 +335,7 @@ export function fillMetconFromRules(req: MetconRequest): MetconPiece {
     format: picked.format,
     minutes: picked.minutes,
     pattern: picked.pattern,
+    stimulus: picked.stimulus,
     movements,
     signature,
     bodyKo: renderPiece({

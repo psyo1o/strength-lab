@@ -13,6 +13,7 @@ import {
   type HistoryCompare,
   type ScoreSnap,
 } from "./compare";
+import { stimulusForPiece } from "./pieces";
 import { pieceSignature } from "./signature";
 import {
   listPlans,
@@ -23,7 +24,7 @@ import {
   type StoredPlan,
 } from "./store";
 import { topSetKg } from "./loads";
-import type { DayKey, PlannedDay } from "./types";
+import type { DayKey, MetconStimulus, PlannedDay } from "./types";
 
 export type HistoryScore = {
   id: string;
@@ -361,8 +362,17 @@ export type HistoryCard = {
   sets: string[];
   score: string | null;
   rankKo: string | null;
+  stimulus: MetconStimulus | null;
   compares: HistoryCompareRow[];
 };
+
+function cardStimulus(
+  badge: HistoryCard["badge"],
+  piece: { id?: string; stimulus?: unknown } | null | undefined,
+): MetconStimulus | null {
+  if (badge !== "메트콘") return null;
+  return stimulusForPiece(piece);
+}
 
 function rankValue(snap: ScoreSnap): { kind: "time" | "rounds"; value: number } | null {
   if (snap.timeSec != null && snap.timeSec >= 0 && scoreLabel(snap) !== "") return { kind: "time", value: snap.timeSec };
@@ -477,6 +487,7 @@ function sessionLiftCards(userId: number, unit: WeightUnit): HistoryCard[] {
       ),
       score: null,
       rankKo: null,
+      stimulus: null,
       compares: [],
     });
   }
@@ -502,6 +513,7 @@ function planCards(ctx: HistoryContext, pool: Comparable[], unit: WeightUnit): H
           sets: formatSetGroups(day.lift.sets, unit),
           score: null,
           rankKo: null,
+          stimulus: null,
           compares: [],
         });
       }
@@ -528,6 +540,7 @@ function planCards(ctx: HistoryContext, pool: Comparable[], unit: WeightUnit): H
           sets: [],
           score: null,
           rankKo: null,
+          stimulus: cardStimulus(badge, piece),
           compares: compareRows(pool, { sourceId: `plan:${plan.id}:${day.day}:metcon`, compareBefore: plan.createdAt, ...identity }),
         });
         continue;
@@ -546,6 +559,7 @@ function planCards(ctx: HistoryContext, pool: Comparable[], unit: WeightUnit): H
           sets: [],
           score: scoreLabel(snap) || null,
           rankKo: current ? rankLabelFor(pool, current) : null,
+          stimulus: cardStimulus(badge, piece),
           compares: compareRows(pool, {
             sourceId: `ps:${score.id}`,
             compareBefore: score.completedAt,
@@ -578,6 +592,7 @@ function wodCards(userId: number, pool: Comparable[]): HistoryCard[] {
       sets: [],
       score: current ? scoreLabel(current.snap) || null : null,
       rankKo: current ? rankLabelFor(pool, current) : null,
+      stimulus: null,
       compares: current
         ? compareRows(pool, {
             sourceId: current.id,

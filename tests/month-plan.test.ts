@@ -33,7 +33,7 @@ import {
   listPlans,
   todayPlanDay,
 } from "../src/lib/month-plan/store";
-import type { WeekBuildInput } from "../src/lib/month-plan/types";
+import { METCON_STIMULI, type MetconStimulus, type WeekBuildInput } from "../src/lib/month-plan/types";
 
 const NOW = Date.parse("2026-09-30T01:00:00.000Z");
 
@@ -202,6 +202,41 @@ describe("month plan rules", () => {
     if (previous == null) delete process.env.MONTH_PLAN_MODEL_KEY;
     else process.env.MONTH_PLAN_MODEL_KEY = previous;
   });
+
+  it("assigns one stimulus per training day and keeps the long Wednesday piece 숨차는", () => {
+    const allowed = new Set<MetconStimulus>(METCON_STIMULI);
+    for (const weekIndex of [1, 2, 3, 4] as const) {
+      for (const recentMetcons of [[], [{ pattern: "engine" as const }]]) {
+        const week = buildWeek(
+          input({
+            weekIndex,
+            sex: "m",
+            maxes: { squat: 200, deadlift: 220 },
+            recentMetcons,
+          }),
+        );
+        const training = week.days.filter((day) => !day.rest);
+        expect(training.map((day) => day.piece?.stimulus)).toHaveLength(6);
+        for (const day of training) {
+          expect(allowed.has(day.piece!.stimulus)).toBe(true);
+        }
+        for (let index = 1; index < training.length; index += 1) {
+          expect(training[index]!.piece!.stimulus).not.toBe(training[index - 1]!.piece!.stimulus);
+        }
+        expect(dayByKey(week, "tue")!.piece!.stimulus).not.toBe("고중량");
+        expect(dayByKey(week, "sat")!.piece!.stimulus).not.toBe("고중량");
+        const wed = dayByKey(week, "wed")!;
+        if (weekIndex === 2 || weekIndex === 4) {
+          expect(wed.piece!.stimulus).toBe("숨차는");
+          expect(wed.piece!.minutes).toBeGreaterThanOrEqual(30);
+          expect(wed.piece!.minutes).toBeLessThanOrEqual(40);
+        }
+      }
+    }
+    const heavy = dayByKey(buildWeek(input({ weekIndex: 1, sex: null, maxes: {} })), "thu")!.piece!;
+    expect(heavy.stimulus).toBe("고중량");
+    expect(heavy.bodyKo).not.toMatch(/\d+(\.\d+)?\s*kg/i);
+  });
 });
 
 describe("generated week is the plan, and history keeps scores", () => {
@@ -340,6 +375,8 @@ describe("generated week is the plan, and history keeps scores", () => {
     const olderFran = cards.find((card) => card.href === "/wod/fran" && card.score === "5:00");
     expect(newerFran?.date).toBe("2026-09-30");
     expect(newerFran?.badge).toBe("벤치마크");
+    expect(newerFran?.stimulus).toBeNull();
+    expect(olderFran?.stimulus).toBeNull();
     expect(newerFran?.rankKo).toBe("내 기록 1 / 2");
     expect(olderFran?.rankKo).toBe("내 기록 2 / 2");
     expect(newerFran?.compares).toEqual([
@@ -355,8 +392,11 @@ describe("generated week is the plan, and history keeps scores", () => {
     expect(squatCard?.sets).toEqual(["1×5 · 117.5kg", "1×5 · 135kg", "1×5+ · 152.5kg"]);
     expect(squatCard?.compares).toEqual([]);
     expect(squatCard?.rankKo).toBeNull();
+    expect(squatCard?.stimulus).toBeNull();
 
     const secondMetcon = cards.find((card) => card.key === `plan:${second.id}:mon:metcon`);
+    expect(secondMetcon?.badge).toBe("메트콘");
+    expect(secondMetcon?.stimulus).toBe("숨차는");
     expect(secondMetcon?.compares.some((row) => row.labelKo === "같은 구성" && row.score === "8R + 2")).toBe(true);
     expect(secondMetcon?.rankKo).toBeNull();
     expect(cards.find((card) => card.score === "8R + 2")?.rankKo).toBeNull();
@@ -364,12 +404,14 @@ describe("generated week is the plan, and history keeps scores", () => {
 
     const laterBenchmark = cards.find((card) => card.key === `plan:${benchmarkAgain.id}:thu:metcon`);
     expect(laterBenchmark?.badge).toBe("벤치마크");
+    expect(laterBenchmark?.stimulus).toBeNull();
     expect(laterBenchmark?.compares.some((row) => row.labelKo === "같은 이름" && row.score === "12:00")).toBe(true);
 
     const sessionCard = cards.find((card) => card.badge === "리프트" && card.href.startsWith("/session/"));
     expect(sessionCard?.sets.join("\n")).toMatch(/100kg/);
     expect(sessionCard?.sets.join("\n")).not.toMatch(/…|\.\.\./);
     expect(sessionCard?.compares).toEqual([]);
+    expect(sessionCard?.stimulus).toBeNull();
   });
 });
 
@@ -455,10 +497,19 @@ describe("history day screen", () => {
     expect(screen).toContain("이 날 기록 없음");
     expect(screen).toContain("visibleCompareRows");
     const metcon = screen.slice(screen.indexOf("function MetconCard"));
+    expect(metcon.indexOf("{card.stimulus}")).toBeLessThan(metcon.indexOf("{card.score}"));
     expect(metcon.indexOf("{card.score}")).toBeLessThan(metcon.indexOf("{card.rankKo}"));
     expect(metcon.indexOf("{card.rankKo}")).toBeLessThan(metcon.indexOf("visible.map"));
     expect(metcon.indexOf("{card.rankKo}")).toBeLessThan(metcon.indexOf("더 보기"));
     expect(metcon).toMatch(/<p[^>]*>\{card\.rankKo\}<\/p>/);
+    expect(metcon).toContain('card.badge === "메트콘"');
+    expect(screen.match(/\{card\.stimulus\}/g)).toHaveLength(1);
+    const chip = metcon.slice(Math.max(0, metcon.indexOf("{card.stimulus}") - 160), metcon.indexOf("{card.stimulus}"));
+    expect(chip).toContain("<span");
+    expect(chip).not.toContain("<button");
+    const lift = screen.slice(screen.indexOf("function LiftCard"), screen.indexOf("function MetconCard"));
+    expect(lift).not.toContain("stimulus");
+    expect(lift).not.toContain("숨차는");
     expect(screen).toContain("더 보기");
     expect(screen).not.toMatch(/<Link[^>]*>\s*더 보기/);
     expect(screen).not.toMatch(/truncate/);

@@ -199,12 +199,27 @@ function LiftCard({ card }: { card: HistoryCard }) {
 function MetconCard({ card, open, onExpand }: { card: HistoryCard; open: boolean; onExpand: () => void }) {
   const visible = visibleCompareRows(card.compares, open);
   const title = card.summary ? `${card.name} · ${card.summary}` : card.name;
+  const metcon = card.badge === "메트콘";
   return (
     <article className="card min-w-0 p-4">
-      <Link href={card.href} className="block min-w-0">
-        <div className="text-xs font-bold text-[var(--accent)]">{card.badge}</div>
-        <div className="mt-1 line-clamp-2 break-words text-lg font-black leading-snug">{title}</div>
-      </Link>
+      {metcon ? (
+        <div className="flex items-start gap-2">
+          <Link href={card.href} className="flex min-w-0 items-baseline gap-2">
+            <span className="shrink-0 text-xs font-bold text-[var(--accent)]">메트콘</span>
+            <span className="min-w-0 line-clamp-2 break-words text-lg font-black leading-snug">{title}</span>
+          </Link>
+          {card.stimulus ? (
+            <span className="mt-0.5 shrink-0 rounded-full border border-[var(--line)] bg-[var(--bg-elev)] px-2 py-0.5 text-xs font-bold leading-none">
+              {card.stimulus}
+            </span>
+          ) : null}
+        </div>
+      ) : (
+        <Link href={card.href} className="block min-w-0">
+          <div className="text-xs font-bold text-[var(--accent)]">{card.badge}</div>
+          <div className="mt-1 line-clamp-2 break-words text-lg font-black leading-snug">{title}</div>
+        </Link>
+      )}
       {card.score ? <p className="mt-3 text-4xl font-black tabular-nums text-[var(--text)]">{card.score}</p> : null}
       {card.rankKo ? <p className="mt-1 text-sm font-bold tabular-nums">{card.rankKo}</p> : null}
       {visible.length > 0 ? (

@@ -1,6 +1,6 @@
 import { getSqlite } from "../db/client";
 import { getWodTemplate } from "../wod/templates";
-import type { MetconPattern, RecentMetcon } from "./types";
+import { isMetconStimulus, type MetconPattern, type RecentMetcon } from "./types";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -44,7 +44,7 @@ export function recentMetconPatterns(userId: number, nowMs = Date.now()): Recent
     )
     .all(userId, since) as { signature: string; at: number; planJson: string; dayKey: string }[];
 
-  const stamped: { at: number; pattern: MetconPattern }[] = [];
+  const stamped: { at: number; pattern: MetconPattern; stimulus?: RecentMetcon["stimulus"] }[] = [];
   for (const row of wodRows) {
     const template = getWodTemplate(row.slug);
     if (!template) continue;
@@ -52,13 +52,20 @@ export function recentMetconPatterns(userId: number, nowMs = Date.now()): Recent
   }
   for (const row of planRows) {
     try {
-      const week = JSON.parse(row.planJson) as { days?: { day: string; piece?: { pattern?: MetconPattern } | null }[] };
-      const pattern = week.days?.find((day) => day.day === row.dayKey)?.piece?.pattern;
-      if (pattern) stamped.push({ at: row.at, pattern });
+      const week = JSON.parse(row.planJson) as {
+        days?: { day: string; piece?: { pattern?: MetconPattern; stimulus?: unknown } | null }[];
+      };
+      const piece = week.days?.find((day) => day.day === row.dayKey)?.piece;
+      if (!piece?.pattern) continue;
+      stamped.push({
+        at: row.at,
+        pattern: piece.pattern,
+        ...(isMetconStimulus(piece.stimulus) ? { stimulus: piece.stimulus } : {}),
+      });
     } catch {
       continue;
     }
   }
   stamped.sort((a, b) => b.at - a.at);
-  return stamped.slice(0, 7).map((row) => ({ pattern: row.pattern }));
+  return stamped.slice(0, 7).map((row) => ({ pattern: row.pattern, ...(row.stimulus ? { stimulus: row.stimulus } : {}) }));
 }
