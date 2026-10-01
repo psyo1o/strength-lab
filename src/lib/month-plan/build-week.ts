@@ -80,31 +80,48 @@ export function tuesdayLift(week: WeekIndex): "ohp" | "bench" {
   return week % 2 === 1 ? "ohp" : "bench";
 }
 
-function forbidFor(day: DayKey): MetconRequest["forbid"] {
-  if (day === "mon") return ["squat"];
-  if (day === "tue") return ["snatch", "clean", "deadlift"];
-  if (day === "wed") return ["snatch"];
-  if (day === "fri") return ["squat", "swing", "clean"];
-  return [];
+export type MetconSlot = {
+  day: DayKey;
+  longPiece: boolean;
+  allowHeavy: boolean;
+  forbid: MetconRequest["forbid"];
+  /** Week 4 Thursday keeps the same benchmark and ignores the incoming pattern ban. */
+  clearPatternAvoid: boolean;
+};
+
+/** Weekday roles the server owns. The model does not choose these. */
+export function weekMetconSlots(weekIndex: WeekIndex): MetconSlot[] {
+  return [
+    { day: "mon", longPiece: false, allowHeavy: true, forbid: ["squat"], clearPatternAvoid: false },
+    { day: "tue", longPiece: false, allowHeavy: false, forbid: ["snatch", "clean", "deadlift"], clearPatternAvoid: false },
+    {
+      day: "wed",
+      longPiece: weekIndex === 2 || weekIndex === 4,
+      allowHeavy: true,
+      forbid: ["snatch"],
+      clearPatternAvoid: false,
+    },
+    { day: "thu", longPiece: false, allowHeavy: true, forbid: [], clearPatternAvoid: weekIndex === 4 },
+    { day: "fri", longPiece: false, allowHeavy: true, forbid: ["squat", "swing", "clean"], clearPatternAvoid: false },
+    { day: "sat", longPiece: false, allowHeavy: false, forbid: [], clearPatternAvoid: false },
+  ];
 }
 
 function requestFor(
   input: WeekBuildInput,
-  day: DayKey,
-  longPiece: boolean,
+  slot: MetconSlot,
   avoid: MetconPattern[],
   avoidStimuli: MetconStimulus[],
-  allowHeavy: boolean,
 ): MetconRequest {
   return {
     weekIndex: input.weekIndex,
-    day,
+    day: slot.day,
     sex: input.sex,
-    avoidPatterns: avoid,
+    avoidPatterns: slot.clearPatternAvoid ? [] : avoid,
     avoidStimuli,
-    allowHeavy,
-    longPiece,
-    forbid: forbidFor(day),
+    allowHeavy: slot.allowHeavy,
+    longPiece: slot.longPiece,
+    forbid: slot.forbid,
   };
 }
 
@@ -165,23 +182,22 @@ function restDay(scheduledDays: DayKey[]): PlannedDay {
 
 function liftDay(
   input: WeekBuildInput,
-  day: DayKey,
+  slot: MetconSlot,
   lift: MainLift,
   focus: string,
   adapter: MetconAdapter,
   avoid: MetconPattern[],
   avoidStimuli: MetconStimulus[],
-  allowHeavy: boolean,
   airWarmup: boolean,
 ): PlannedDay {
   const rx = prescribeMainLift(lift, input.weekIndex, input.maxes);
-  const piece = adapter.fill(requestFor(input, day, false, avoid, avoidStimuli, allowHeavy));
+  const piece = adapter.fill(requestFor(input, slot, avoid, avoidStimuli));
   return finish({
-    day,
-    labelKo: DAY_LABEL[day],
+    day: slot.day,
+    labelKo: DAY_LABEL[slot.day],
     optional: false,
     rest: false,
-    longPiece: false,
+    longPiece: slot.longPiece,
     scheduled: true,
     piece,
     lift: rx,
@@ -189,13 +205,15 @@ function liftDay(
       warmup(focus, airWarmup),
       mainBlock(strengthBody(rx), 42, rx),
       metconBlock(piece),
-      ...supportBlocks(day),
+      ...supportBlocks(slot.day),
     ],
   });
 }
 
 export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesMetconAdapter): PlannedWeek {
   const training = new Set(input.trainingDays ?? DEFAULT_TRAINING_DAYS);
+  const slots = new Map(weekMetconSlots(input.weekIndex).map((slot) => [slot.day, slot]));
+  const slot = (day: DayKey) => slots.get(day)!;
   const avoid: MetconPattern[] = [];
   const recent = input.recentMetcons[0]?.pattern;
   if (recent) avoid.push(recent);
@@ -209,29 +227,28 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
   };
   const stimulusAvoid = (): MetconStimulus[] => (previousStimulus ? [previousStimulus] : []);
 
-  const mon = liftDay(input, "mon", "squat", "스쿼트", adapter, [...avoid], stimulusAvoid(), true, true);
+  const mon = liftDay(input, slot("mon"), "squat", "스쿼트", adapter, [...avoid], stimulusAvoid(), true);
   days.push({ ...mon, scheduled: training.has("mon") });
   pushAvoid(mon.piece);
 
   const press = tuesdayLift(input.weekIndex);
   const tue = liftDay(
     input,
-    "tue",
+    slot("tue"),
     press,
     press === "ohp" ? "프레스" : "벤치",
     adapter,
     [...avoid],
     stimulusAvoid(),
     false,
-    false,
   );
   days.push({ ...tue, scheduled: training.has("tue") });
   pushAvoid(tue.piece);
 
-  const longPiece = input.weekIndex === 2 || input.weekIndex === 4;
-  const wedPiece = adapter.fill(requestFor(input, "wed", longPiece, [...avoid], stimulusAvoid(), true));
+  const wedSlot = slot("wed");
+  const wedPiece = adapter.fill(requestFor(input, wedSlot, [...avoid], stimulusAvoid()));
   const wedBlocks: SessionBlock[] = [warmup("쉬운 페이스", false), mainBlock(wedPiece.bodyKo, wedPiece.minutes)];
-  if (!longPiece) {
+  if (!wedSlot.longPiece) {
     wedBlocks.push(skill("쉬운 스킵 30초 × 4.", 8), assistance("밴드 풀아파트 10회 × 2.", 8), extra("오늘은 여기까지."));
   }
   days.push(
@@ -240,7 +257,7 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
       labelKo: DAY_LABEL.wed,
       optional: false,
       rest: false,
-      longPiece,
+      longPiece: wedSlot.longPiece,
       scheduled: training.has("wed"),
       piece: wedPiece,
       lift: null,
@@ -249,8 +266,9 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
   );
   pushAvoid(wedPiece);
 
+  const thuSlot = slot("thu");
   if (input.weekIndex === 4) {
-    const benchmark = adapter.fill(requestFor(input, "thu", false, [], stimulusAvoid(), true));
+    const benchmark = adapter.fill(requestFor(input, thuSlot, [...avoid], stimulusAvoid()));
     days.push(
       finish({
         day: "thu",
@@ -272,7 +290,7 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
     pushAvoid(benchmark);
   } else {
     const olympic = input.weekIndex % 2 === 1 ? "clean" : "snatch";
-    const piece = adapter.fill(requestFor(input, "thu", false, [...avoid], stimulusAvoid(), true));
+    const piece = adapter.fill(requestFor(input, thuSlot, [...avoid], stimulusAvoid()));
     days.push(
       finish({
         day: "thu",
@@ -294,11 +312,12 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
     pushAvoid(piece);
   }
 
-  const fri = liftDay(input, "fri", "deadlift", "데드", adapter, [...avoid], stimulusAvoid(), true, false);
+  const fri = liftDay(input, slot("fri"), "deadlift", "데드", adapter, [...avoid], stimulusAvoid(), false);
   days.push({ ...fri, scheduled: training.has("fri") });
   pushAvoid(fri.piece);
 
-  const satPiece = adapter.fill(requestFor(input, "sat", false, [...avoid], stimulusAvoid(), false));
+  const satSlot = slot("sat");
+  const satPiece = adapter.fill(requestFor(input, satSlot, [...avoid], stimulusAvoid()));
   days.push(
     finish({
       day: "sat",

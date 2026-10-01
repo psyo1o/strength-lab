@@ -17,8 +17,9 @@ export function serverModelKey(env: NodeJS.ProcessEnv = process.env): string | n
 }
 
 /**
- * Later slice: replace the body with a server-side model call.
- * This slice never opens a network connection. No key means the rules filler.
+ * Per-day fallback. A week is chosen once in week-model, which asks for a
+ * candidate id and keeps this filler when the key is missing or the call fails.
+ * This function does not open a connection.
  */
 export function fillMetconFromModel(req: MetconRequest, key: string): MetconPiece {
   if (!key) return fillMetconFromRules(req);
