@@ -1,8 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const GEAR_DISCLOSURE =
-  "추천 링크이며, 구매 시 운영자에게 수수료가 발생할 수 있습니다.";
+export const GEAR_DISCLOSURE = "구매하면 수수료가 생길 수 있어요.";
 
 export type GearItem = {
   id: string;

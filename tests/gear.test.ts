@@ -48,7 +48,8 @@ describe("gear affiliates", () => {
     expect(visibleGearCategories(catalog)).toEqual([]);
     const bundled = fs.readFileSync(path.join(process.cwd(), "data", "gear-affiliates.json"), "utf8");
     expect(bundled).toMatch(/"coupangPartnerId": "AF4475360"/);
-    expect(bundled).toMatch(/추천 링크이며, 구매 시 운영자에게 수수료가 발생할 수 있습니다/);
+    expect(bundled).toMatch(/구매하면 수수료가 생길 수 있어요/);
+    expect(GEAR_DISCLOSURE).toBe("구매하면 수수료가 생길 수 있어요.");
     expect(bundled).not.toMatch(/CrossFit/i);
     expect(bundled).not.toMatch(/\bTJ\b/);
     expect(bundled).not.toMatch(/완치|힐링|치료제|재활치료/);
@@ -193,8 +194,16 @@ describe("gear affiliates", () => {
 describe("gear page and nav", () => {
   it("renders disclosure, only linked products, and a logged-in 장비 tab", () => {
     const page = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/gear/page.tsx"), "utf8");
-    expect(page).toMatch(/disclosureKo/);
+    const disclosureAt = page.indexOf("GEAR_DISCLOSURE");
+    const productsAt = page.indexOf("categories.map");
+    expect(disclosureAt).toBeGreaterThan(-1);
+    expect(productsAt).toBeGreaterThan(disclosureAt);
     expect(page).toMatch(/visibleGearCategories/);
+    expect(page).toMatch(/<p className="mt-2 text-sm text-\[var\(--muted\)\]">\{GEAR_DISCLOSURE\}<\/p>/);
+    expect(page).not.toMatch(/<p[^>]*\bcard\b/);
+    expect(page).not.toMatch(/<details/);
+    expect(page).not.toMatch(/btn-primary/);
+    expect(page).toMatch(/className="card tap flex min-h-14 /);
     expect(page).toMatch(/target="_blank"/);
     expect(page).toMatch(/rel="noopener noreferrer sponsored nofollow"/);
     expect(page).not.toMatch(/링크 미설정/);
