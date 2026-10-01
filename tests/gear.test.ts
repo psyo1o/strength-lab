@@ -8,6 +8,7 @@ import {
   listGearItems,
   loadGearCatalog,
   resetGearCache,
+  visibleGearCategories,
 } from "../src/lib/gear/affiliates";
 
 describe("gear affiliates", () => {
@@ -26,21 +27,25 @@ describe("gear affiliates", () => {
     delete process.env.GEAR_JSON_PATH;
     const catalog = loadGearCatalog();
     expect(catalog.disclosureKo).toBe(GEAR_DISCLOSURE);
-    expect(catalog.categories.map((c) => c.nameKo)).toEqual([
-      "손/그립",
-      "무릎·손목 보호",
-      "로프(DU)",
-      "벨트",
-      "슈즈(선택)",
-      "기타 소모품",
-    ]);
+    expect(catalog.categories.map((c) => c.nameKo)).toEqual(["운동 장비"]);
     const items = listGearItems(catalog);
+    expect(items.map((item) => item.nameKo)).toEqual([
+      "바벨",
+      "원판",
+      "줄넘기",
+      "월볼",
+      "케틀벨",
+      "로잉 머신",
+      "스키 에르그",
+      "팬바이크",
+    ]);
     expect(items.length).toBeGreaterThanOrEqual(6);
     expect(items.length).toBeLessThanOrEqual(10);
     expect(items.every((item) => item.nameKo && item.whyKo)).toBe(true);
     expect(items.every((item) => !item.configured)).toBe(true);
+    expect(visibleGearCategories(catalog)).toEqual([]);
     const bundled = fs.readFileSync(path.join(process.cwd(), "data", "gear-affiliates.json"), "utf8");
-    expect(bundled).toMatch(/이 페이지의 일부 링크는 파트너스\(제휴\) 링크이며, 구매 시 수수료를 받을 수 있습니다/);
+    expect(bundled).toMatch(/추천 링크이며, 구매 시 운영자에게 수수료가 발생할 수 있습니다/);
     expect(bundled).not.toMatch(/CrossFit/i);
     expect(bundled).not.toMatch(/\bTJ\b/);
     expect(bundled).not.toMatch(/완치|힐링|치료제|재활치료/);
@@ -89,14 +94,70 @@ describe("gear affiliates", () => {
     expect(catalog.categories[0].items[0].configured).toBe(true);
     expect(catalog.categories[0].items[0].affiliateUrl).toContain("coupang.com");
   });
+
+  it("hides a product when its URL is missing, blank, or not a real link", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "strength-lab-gear-hide-"));
+    const file = path.join(dir, "gear-affiliates.json");
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        disclosureKo: GEAR_DISCLOSURE,
+        categories: [
+          {
+            id: "workout",
+            nameKo: "운동 장비",
+            items: [
+              {
+                id: "barbell",
+                nameKo: "바벨",
+                whyKo: "바벨 운동.",
+                affiliateUrl: "https://www.coupang.com/np/search?q=barbell",
+                merchant: "쿠팡",
+              },
+              { id: "plates", nameKo: "원판", whyKo: "원판.", affiliateUrl: "" },
+              { id: "jump-rope", nameKo: "줄넘기", whyKo: "줄넘기." },
+              { id: "wall-ball", nameKo: "월볼", whyKo: "월볼.", affiliateUrl: "   " },
+              { id: "kettlebell", nameKo: "케틀벨", whyKo: "케틀벨.", affiliateUrl: "https://example.com/kb" },
+              { id: "rower", nameKo: "로잉 머신", whyKo: "로잉.", affiliateUrl: "javascript:alert(1)" },
+            ],
+          },
+          {
+            id: "empty",
+            nameKo: "없는 링크",
+            items: [{ id: "ski", nameKo: "스키 에르그", whyKo: "스키.", affiliateUrl: "" }],
+          },
+        ],
+      }),
+    );
+    process.env.GEAR_JSON_PATH = file;
+    resetGearCache();
+    const catalog = loadGearCatalog();
+    expect(listGearItems(catalog).map((item) => item.id)).toEqual([
+      "barbell",
+      "plates",
+      "jump-rope",
+      "wall-ball",
+      "kettlebell",
+      "rower",
+      "ski",
+    ]);
+    const visible = visibleGearCategories(catalog);
+    expect(visible).toHaveLength(1);
+    expect(visible[0].id).toBe("workout");
+    expect(visible[0].items.map((item) => item.id)).toEqual(["barbell"]);
+    expect(visible[0].items[0].affiliateUrl).toBe("https://www.coupang.com/np/search?q=barbell");
+  });
 });
 
 describe("gear page and nav", () => {
-  it("renders disclosure, 미설정 slots, and a logged-in 장비 tab", () => {
+  it("renders disclosure, only linked products, and a logged-in 장비 tab", () => {
     const page = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/gear/page.tsx"), "utf8");
     expect(page).toMatch(/disclosureKo/);
-    expect(page).toMatch(/링크 미설정/);
+    expect(page).toMatch(/visibleGearCategories/);
+    expect(page).toMatch(/target="_blank"/);
     expect(page).toMatch(/rel="noopener noreferrer sponsored nofollow"/);
+    expect(page).not.toMatch(/링크 미설정/);
+    expect(page).not.toMatch(/내 장비/);
     expect(page).not.toMatch(/CrossFit/i);
     const nav = fs.readFileSync(path.join(process.cwd(), "src/components/Nav.tsx"), "utf8");
     expect(nav).toMatch(/href: "\/gear"/);

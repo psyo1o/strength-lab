@@ -1,109 +1,70 @@
 {
-  "disclosureKo": "이 페이지의 일부 링크는 파트너스(제휴) 링크이며, 구매 시 수수료를 받을 수 있습니다.",
-  "noteKo": "컨디셔닝·바벨 세션에서 자주 쓰는 소모품입니다. 링크가 없으면 「링크 미설정」입니다. 의료용이 아닙니다.",
+  "disclosureKo": "추천 링크이며, 구매 시 운영자에게 수수료가 발생할 수 있습니다.",
   "categories": [
     {
-      "id": "grip",
-      "nameKo": "손/그립",
+      "id": "workout",
+      "nameKo": "운동 장비",
       "items": [
         {
-          "id": "hand-grips",
-          "nameKo": "핸드 그립",
-          "whyKo": "풀업·토바에서 손바닥이 까지기 쉬운 날을 위한 소모품.",
+          "id": "barbell",
+          "nameKo": "바벨",
+          "whyKo": "스쿼트·데드리프트·프레스와 바벨 WOD에 씁니다.",
           "imageUrl": "",
           "affiliateUrl": "",
           "merchant": "쿠팡"
         },
         {
-          "id": "chalk",
-          "nameKo": "초크 / 마그네슘",
-          "whyKo": "바가 미끄러울 때 손 마찰을 돕기 위한 소모품.",
-          "imageUrl": "",
-          "affiliateUrl": "",
-          "merchant": "쿠팡"
-        }
-      ]
-    },
-    {
-      "id": "support",
-      "nameKo": "무릎·손목 보호",
-      "items": [
-        {
-          "id": "knee-sleeves",
-          "nameKo": "니슬리브",
-          "whyKo": "스쿼트·박스점프처럼 무릎이 반복될 때 압박용. 의료용이 아닙니다.",
+          "id": "plates",
+          "nameKo": "원판",
+          "whyKo": "바벨 무게를 맞출 때 쓰는 원판입니다.",
           "imageUrl": "",
           "affiliateUrl": "",
           "merchant": "쿠팡"
         },
         {
-          "id": "wrist-wraps",
-          "nameKo": "손목 랩",
-          "whyKo": "프레스·스러스터에서 손목이 꺾일 때 고정용.",
-          "imageUrl": "",
-          "affiliateUrl": "",
-          "merchant": "쿠팡"
-        }
-      ]
-    },
-    {
-      "id": "rope",
-      "nameKo": "로프(DU)",
-      "items": [
-        {
-          "id": "speed-rope",
-          "nameKo": "스피드 로프",
-          "whyKo": "더블언더 연습용 줄넘기. 길이는 키에 맞춰 자르세요.",
-          "imageUrl": "",
-          "affiliateUrl": "https://example.com/gear-slot",
-          "merchant": "쿠팡"
-        }
-      ]
-    },
-    {
-      "id": "belt",
-      "nameKo": "벨트",
-      "items": [
-        {
-          "id": "lifting-belt",
-          "nameKo": "리프팅 벨트",
-          "whyKo": "무거운 스쿼트·데드리프트에서 복압을 모을 때 쓰는 벨트.",
-          "imageUrl": "",
-          "affiliateUrl": "",
-          "merchant": "쿠팡"
-        }
-      ]
-    },
-    {
-      "id": "shoes",
-      "nameKo": "슈즈(선택)",
-      "items": [
-        {
-          "id": "lifting-shoes",
-          "nameKo": "리프팅 슈즈",
-          "whyKo": "굽이 있는 리프팅화. 맨발·일반화 대신 쓰는 선택 장비.",
-          "imageUrl": "",
-          "affiliateUrl": "",
-          "merchant": "쿠팡"
-        }
-      ]
-    },
-    {
-      "id": "consumables",
-      "nameKo": "기타 소모품",
-      "items": [
-        {
-          "id": "finger-tape",
-          "nameKo": "손가락 테이프",
-          "whyKo": "토바·링에서 물집·까짐을 줄이려는 소모품.",
+          "id": "jump-rope",
+          "nameKo": "줄넘기",
+          "whyKo": "더블언더와 싱글언더 연습에 씁니다.",
           "imageUrl": "",
           "affiliateUrl": "",
           "merchant": "쿠팡"
         },
         {
-          "id": "thumb-tape",
-          "nameKo": "엄지 테이프",
-          "whyKo": "바벨을 감아쥘 때 엄지가 쓸리는 날을 위한 소모품.",
+          "id": "wall-ball",
+          "nameKo": "월볼",
+          "whyKo": "월볼 반복에 쓰는 메디신 볼입니다.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        },
+        {
+          "id": "kettlebell",
+          "nameKo": "케틀벨",
+          "whyKo": "케틀벨 스윙에 씁니다.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        },
+        {
+          "id": "rower",
+          "nameKo": "로잉 머신",
+          "whyKo": "로잉 구간이 있는 벤치마크와 컨디셔닝에 씁니다.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        },
+        {
+          "id": "ski",
+          "nameKo": "스키 에르그",
+          "whyKo": "스키 구간이 있는 컨디셔닝에 씁니다.",
+          "imageUrl": "",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        },
+        {
+          "id": "bike",
+          "nameKo": "팬바이크",
+          "whyKo": "워밍업과 칼로리 바이크 구간에 씁니다.",
           "imageUrl": "",
           "affiliateUrl": "",
           "merchant": "쿠팡"

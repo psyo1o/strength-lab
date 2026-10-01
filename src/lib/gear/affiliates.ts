@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const GEAR_DISCLOSURE =
-  "이 페이지의 일부 링크는 파트너스(제휴) 링크이며, 구매 시 수수료를 받을 수 있습니다.";
+  "추천 링크이며, 구매 시 운영자에게 수수료가 발생할 수 있습니다.";
 
 export type GearItem = {
   id: string;
@@ -136,4 +136,14 @@ export function loadGearCatalog(): GearCatalog {
 
 export function listGearItems(catalog: GearCatalog = loadGearCatalog()): GearItem[] {
   return catalog.categories.flatMap((cat) => cat.items);
+}
+
+/** Rows the gear page may render. Missing, blank, or non-URL links stay off the page. */
+export function visibleGearCategories(catalog: GearCatalog): GearCategory[] {
+  return catalog.categories
+    .map((cat) => ({
+      ...cat,
+      items: cat.items.filter((item) => item.configured && item.affiliateUrl.trim().length > 0),
+    }))
+    .filter((cat) => cat.items.length > 0);
 }
