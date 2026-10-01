@@ -23,6 +23,8 @@ export type GearCategory = {
 export type GearCatalog = {
   disclosureKo: string;
   noteKo: string;
+  /** Coupang Partners account id. Not a link and never substituted for affiliateUrl. */
+  coupangPartnerId: string;
   sourcePath: string;
   categories: GearCategory[];
 };
@@ -109,6 +111,7 @@ function parseCatalog(raw: unknown, sourcePath: string): GearCatalog {
   return {
     disclosureKo: text(data.disclosureKo) || GEAR_DISCLOSURE,
     noteKo: text(data.noteKo),
+    coupangPartnerId: text(data.coupangPartnerId),
     sourcePath,
     categories,
   };

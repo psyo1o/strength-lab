@@ -23,10 +23,11 @@ describe("gear affiliates", () => {
     else process.env.DATABASE_PATH = prevDb;
   });
 
-  it("ships 6–10 placeholder slots with a clear disclosure and no live partner IDs", () => {
+  it("ships 6–10 placeholder slots with a partner id and no product URLs", () => {
     delete process.env.GEAR_JSON_PATH;
     const catalog = loadGearCatalog();
     expect(catalog.disclosureKo).toBe(GEAR_DISCLOSURE);
+    expect(catalog.coupangPartnerId).toBe("AF4475360");
     expect(catalog.categories.map((c) => c.nameKo)).toEqual(["운동 장비"]);
     const items = listGearItems(catalog);
     expect(items.map((item) => item.nameKo)).toEqual([
@@ -43,8 +44,10 @@ describe("gear affiliates", () => {
     expect(items.length).toBeLessThanOrEqual(10);
     expect(items.every((item) => item.nameKo && item.whyKo)).toBe(true);
     expect(items.every((item) => !item.configured)).toBe(true);
+    expect(items.every((item) => !item.affiliateUrl.includes("AF4475360"))).toBe(true);
     expect(visibleGearCategories(catalog)).toEqual([]);
     const bundled = fs.readFileSync(path.join(process.cwd(), "data", "gear-affiliates.json"), "utf8");
+    expect(bundled).toMatch(/"coupangPartnerId": "AF4475360"/);
     expect(bundled).toMatch(/추천 링크이며, 구매 시 운영자에게 수수료가 발생할 수 있습니다/);
     expect(bundled).not.toMatch(/CrossFit/i);
     expect(bundled).not.toMatch(/\bTJ\b/);
@@ -59,6 +62,7 @@ describe("gear affiliates", () => {
     expect(isConfiguredAffiliateUrl("https://example.com/gear-slot")).toBe(false);
     expect(isConfiguredAffiliateUrl("https://shop.example.net/x")).toBe(false);
     expect(isConfiguredAffiliateUrl("javascript:alert(1)")).toBe(false);
+    expect(isConfiguredAffiliateUrl("AF4475360")).toBe(false);
     expect(isConfiguredAffiliateUrl("https://www.coupang.com/np/search?q=belt")).toBe(true);
   });
 
@@ -147,6 +151,43 @@ describe("gear affiliates", () => {
     expect(visible[0].items.map((item) => item.id)).toEqual(["barbell"]);
     expect(visible[0].items[0].affiliateUrl).toBe("https://www.coupang.com/np/search?q=barbell");
   });
+
+  it("keeps products hidden when only the Coupang partner id is set", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "strength-lab-gear-partner-"));
+    const file = path.join(dir, "gear-affiliates.json");
+    const productUrl = "https://www.coupang.com/np/search?q=barbell";
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        coupangPartnerId: "AF4475360",
+        categories: [
+          {
+            id: "workout",
+            nameKo: "운동 장비",
+            items: [
+              { id: "plates", nameKo: "원판", whyKo: "원판.", affiliateUrl: "" },
+              { id: "rope", nameKo: "줄넘기", whyKo: "줄넘기.", affiliateUrl: "AF4475360" },
+              {
+                id: "barbell",
+                nameKo: "바벨",
+                whyKo: "바벨 운동.",
+                affiliateUrl: productUrl,
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    process.env.GEAR_JSON_PATH = file;
+    resetGearCache();
+    const catalog = loadGearCatalog();
+    expect(catalog.coupangPartnerId).toBe("AF4475360");
+    const visible = visibleGearCategories(catalog);
+    expect(visible).toHaveLength(1);
+    expect(visible[0].items.map((item) => item.id)).toEqual(["barbell"]);
+    expect(visible[0].items[0].affiliateUrl).toBe(productUrl);
+    expect(visible[0].items[0].affiliateUrl).not.toContain("AF4475360");
+  });
 });
 
 describe("gear page and nav", () => {
@@ -158,6 +199,8 @@ describe("gear page and nav", () => {
     expect(page).toMatch(/rel="noopener noreferrer sponsored nofollow"/);
     expect(page).not.toMatch(/링크 미설정/);
     expect(page).not.toMatch(/내 장비/);
+    expect(page).not.toMatch(/AF4475360/);
+    expect(page).not.toMatch(/coupangPartnerId/);
     expect(page).not.toMatch(/CrossFit/i);
     const nav = fs.readFileSync(path.join(process.cwd(), "src/components/Nav.tsx"), "utf8");
     expect(nav).toMatch(/href: "\/gear"/);
