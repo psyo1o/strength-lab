@@ -56,12 +56,12 @@ This is `docker compose -f docker-compose.nas.yml pull && up -d --remove-orphans
 
 ## 장비 제휴 링크 (NAS)
 
-로그인 후 하단 「장비」(`/gear`). JSON만 고치면 되고 앱 코드·이미지 재빌드는 필요 없습니다. **가짜 쿠팡 파트너 ID를 만들지 마세요.** 파트너스 대시보드에서 복사한 실제 URL만 넣습니다.
+로그인 후 하단 「장비」(`/gear`). JSON만 고치면 되고 앱 코드·이미지 재빌드는 필요 없습니다. **가짜 쿠팡 파트너 ID를 만들지 마세요.** `coupangPartnerId`는 계정 식별자일 뿐이고, 그 값으로 상품 링크를 만들지 마세요. 파트너스 대시보드에서 복사한 전체 URL만 각 상품의 `affiliateUrl`에 넣습니다.
 
 1. 컨테이너가 한 번 뜨면 `$DATA_DIR/gear-affiliates.json` 이 생깁니다 (`DATA_DIR` 기본 `/volume1/docker/strength-lab/data`). 이미 있으면 **덮어쓰지 않습니다**.
-2. 각 아이템의 `affiliateUrl`에 쿠팡 파트너스(또는 다른 몰) 링크를 붙입니다. `merchant`는 화면에 보일 이름(`쿠팡` 등).
+2. `coupangPartnerId`는 붙여 넣은 쿠팡 링크를 어느 계정에 묶을지 적는 칸입니다. 상품이 보이게 하려면 각 아이템의 `affiliateUrl`에 전체 파트너스 URL이 있어야 합니다. `merchant`는 화면에 보일 이름(`쿠팡` 등).
 3. `imageUrl`은 나중에. 비우면 이미지 없음.
-4. 빈 문자열 또는 `https://example.com/...` 는 화면에 **링크 미설정**.
+4. `affiliateUrl`이 비었거나 없거나 `https://example.com/...` 이면 그 상품은 화면에 나오지 않습니다. 죽은 링크를 만들지 않습니다.
 5. 저장 후 `/gear` 를 새로고침하면 반영됩니다(mtime 재읽기). 재시작은 선택.
 6. 경로를 강제하려면 `.env`에 `GEAR_JSON_PATH=/data/gear-affiliates.json`.
 
