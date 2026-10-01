@@ -48,6 +48,11 @@ export function trainingMaxKg(oneRmKg: number): number {
   return oneRmKg * 0.9;
 }
 
+/** Percent, reps, and AMRAP flag for the three main sets. No weights. */
+export function wendlerScheme(week: WendlerWeek): { percentOfTm: number; reps: number; amrap: boolean }[] {
+  return WEEK_SCHEME[week].map((row) => ({ ...row }));
+}
+
 /** Seed `progression.afterEachCycle` — applied to TM after each completed 4-week cycle. */
 export const WENDLER_AFTER_EACH_CYCLE = { upperKg: 2.5, lowerKg: 5 } as const;
 

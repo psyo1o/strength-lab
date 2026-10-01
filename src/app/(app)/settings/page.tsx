@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { UnitToggle } from "@/components/UnitToggle";
 import { LogoutButton } from "@/components/LogoutButton";
+import { SexField } from "@/components/SexField";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,7 @@ export default async function SettingsPage() {
       <h1 className="text-2xl font-black">설정</h1>
       <p className="break-all text-sm text-[var(--muted)]">{user.email}</p>
       <div className="mt-6 space-y-4">
+        <SexField sex={user.sex} />
         <div className="card flex min-w-0 flex-wrap items-center justify-between gap-3 p-4">
           <div className="min-w-0">
             <div className="font-bold">단위</div>
@@ -21,6 +23,9 @@ export default async function SettingsPage() {
           </div>
           <UnitToggle unit={user.unit} />
         </div>
+        <Link href="/plan" className="card tap block p-4 font-bold">
+          월간 계획
+        </Link>
         <Link href="/maxes" className="card tap block p-4 font-bold">
           1RM 수정
         </Link>

@@ -1,0 +1,71 @@
+import { getSqlite } from "../db/client";
+import { getWodTemplate } from "../wod/templates";
+import { isMetconStimulus, type MetconPattern, type RecentMetcon } from "./types";
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+const SQUAT = new Set(["air_squat", "thruster", "wall_ball", "lunge", "front_squat", "squat", "ohs", "pistol"]);
+const PRESS = new Set(["push_up", "bench", "hspu", "push_press", "shoulder_press", "dip", "ring_dip", "sdhp"]);
+const HINGE = new Set(["deadlift", "kb_swing", "swing", "rdl", "clean", "hang_power_clean"]);
+const OLY = new Set(["snatch", "clean", "clean_jerk", "power_snatch", "power_clean"]);
+const ENGINE = new Set(["run", "row", "bike", "ski", "fan_bike", "double_under"]);
+
+export function patternFromKeys(keys: string[]): MetconPattern {
+  const tags = new Set<MetconPattern>();
+  for (const key of keys) {
+    if (SQUAT.has(key)) tags.add("squat");
+    else if (OLY.has(key)) tags.add("olympic");
+    else if (HINGE.has(key)) tags.add("hinge");
+    else if (PRESS.has(key)) tags.add("press");
+    else if (ENGINE.has(key)) tags.add("engine");
+    else tags.add("gymnastic");
+  }
+  if (tags.size === 1) return [...tags][0]!;
+  if (tags.has("engine") && tags.size > 1) return "engine";
+  return tags.values().next().value ?? "gymnastic";
+}
+
+export function recentMetconPatterns(userId: number, nowMs = Date.now()): RecentMetcon[] {
+  const since = nowMs - WEEK_MS;
+  const wodRows = getSqlite()
+    .prepare(
+      `SELECT template_slug AS slug, completed_at AS at
+       FROM wod_results WHERE user_id = ? AND completed_at >= ?
+       ORDER BY completed_at DESC LIMIT 7`,
+    )
+    .all(userId, since) as { slug: string; at: number }[];
+  const planRows = getSqlite()
+    .prepare(
+      `SELECT s.signature AS signature, s.completed_at AS at, p.plan_json AS planJson, s.day_key AS dayKey
+       FROM month_plan_scores s
+       JOIN month_plans p ON p.id = s.plan_id
+       WHERE s.user_id = ? AND s.completed_at >= ?
+       ORDER BY s.completed_at DESC LIMIT 7`,
+    )
+    .all(userId, since) as { signature: string; at: number; planJson: string; dayKey: string }[];
+
+  const stamped: { at: number; pattern: MetconPattern; stimulus?: RecentMetcon["stimulus"] }[] = [];
+  for (const row of wodRows) {
+    const template = getWodTemplate(row.slug);
+    if (!template) continue;
+    stamped.push({ at: row.at, pattern: patternFromKeys(template.movements.map((m) => m.exerciseKey)) });
+  }
+  for (const row of planRows) {
+    try {
+      const week = JSON.parse(row.planJson) as {
+        days?: { day: string; piece?: { pattern?: MetconPattern; stimulus?: unknown } | null }[];
+      };
+      const piece = week.days?.find((day) => day.day === row.dayKey)?.piece;
+      if (!piece?.pattern) continue;
+      stamped.push({
+        at: row.at,
+        pattern: piece.pattern,
+        ...(isMetconStimulus(piece.stimulus) ? { stimulus: piece.stimulus } : {}),
+      });
+    } catch {
+      continue;
+    }
+  }
+  stamped.sort((a, b) => b.at - a.at);
+  return stamped.slice(0, 7).map((row) => ({ pattern: row.pattern, ...(row.stimulus ? { stimulus: row.stimulus } : {}) }));
+}

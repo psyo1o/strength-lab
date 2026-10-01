@@ -9,6 +9,7 @@ export const users = sqliteTable("users", {
     .default("kg"),
   currentProgram: text("current_program"),
   lastSession: text("last_session"),
+  sex: text("sex"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
@@ -150,6 +151,38 @@ export const wodResults = sqliteTable("wod_results", {
   scaleNotes: text("scale_notes").notNull().default(""),
   substitutions: text("substitutions").notNull().default(""),
   equipmentJson: text("equipment_json").notNull().default(""),
+});
+
+export const monthPlans = sqliteTable("month_plans", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  weekIndex: integer("week_index").notNull(),
+  weekStart: text("week_start").notNull(),
+  sex: text("sex"),
+  planJson: text("plan_json").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const monthPlanScores = sqliteTable("month_plan_scores", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  planId: integer("plan_id")
+    .notNull()
+    .references(() => monthPlans.id, { onDelete: "cascade" }),
+  dayKey: text("day_key").notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp_ms" }).notNull(),
+  timeSec: integer("time_sec"),
+  rounds: integer("rounds"),
+  extraReps: integer("extra_reps"),
+  pieceKey: text("piece_key").notNull().default(""),
+  pieceNameKo: text("piece_name_ko").notNull().default(""),
+  named: integer("named", { mode: "boolean" }).notNull().default(false),
+  signature: text("signature").notNull().default(""),
+  notesKo: text("notes_ko").notNull().default(""),
 });
 
 export const userEquipment = sqliteTable("user_equipment", {

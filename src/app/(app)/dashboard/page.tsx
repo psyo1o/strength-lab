@@ -7,6 +7,7 @@ import { Nav } from "@/components/Nav";
 import { formatLabel } from "@/lib/wod/types";
 import { getWodTemplate, todayWodSlug } from "@/lib/wod/templates";
 import { listWodResults, wodCardCopy, wodTrainingDayKeys } from "@/lib/wod/queries";
+import { todayPlanDay } from "@/lib/month-plan/store";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,7 @@ export default async function DashboardPage() {
       ? recentCardCopy(latest)
       : null;
   const todayWod = getWodTemplate(todayWodSlug());
+  const todayPlan = todayPlanDay(user.id);
 
   return (
     <main className="px-4 pt-6 pb-fixed-stack">
@@ -37,7 +39,16 @@ export default async function DashboardPage() {
         안녕 · {current?.name_ko ?? "프로그램 고르기"}
       </p>
 
-      {todayWod ? (
+      {todayPlan ? (
+        <Link href={todayPlan.href} className="card tap mt-5 block p-5">
+          <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
+          <div className="mt-1 break-words text-2xl font-black leading-tight">
+            {todayPlan.weekIndex}주 · {todayPlan.day.labelKo}
+          </div>
+          <p className="mt-1 break-words text-sm text-[var(--muted)]">{todayPlan.summary}</p>
+          <p className="mt-3 text-base font-black text-[var(--accent)]">시작하기 →</p>
+        </Link>
+      ) : todayWod ? (
         <Link href={`/wod/${todayWod.slug}`} className="card tap mt-5 block p-5">
           <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
           <div className="mt-1 break-words text-2xl font-black leading-tight">
@@ -47,6 +58,11 @@ export default async function DashboardPage() {
           <p className="mt-3 text-base font-black text-[var(--accent)]">시작하기 →</p>
         </Link>
       ) : null}
+
+      <Link href="/plan" className="card tap mt-3 block p-5">
+        <div className="text-sm font-bold text-[var(--accent)]">월간 계획</div>
+        <p className="mt-1 text-sm text-[var(--muted)]">주를 만들면 바로 그 주의 WOD가 됩니다.</p>
+      </Link>
 
       <Link href="/history" className="card tap mt-3 block p-5">
         <div className="text-sm font-bold text-[var(--accent)]">최근</div>
