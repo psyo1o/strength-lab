@@ -205,7 +205,7 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
   const pushAvoid = (piece: MetconPiece | null) => {
     avoid.length = 0;
     if (piece) avoid.push(piece.pattern);
-    previousStimulus = piece?.stimulus;
+    previousStimulus = piece?.stimulus ?? undefined;
   };
   const stimulusAvoid = (): MetconStimulus[] => (previousStimulus ? [previousStimulus] : []);
 

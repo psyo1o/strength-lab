@@ -203,7 +203,7 @@ describe("month plan rules", () => {
     else process.env.MONTH_PLAN_MODEL_KEY = previous;
   });
 
-  it("assigns one stimulus per training day and keeps the long Wednesday piece 숨차는", () => {
+  it("chips only 고중량, 고반복, or 기술, and leaves engine pieces unlabeled", () => {
     const allowed = new Set<MetconStimulus>(METCON_STIMULI);
     for (const weekIndex of [1, 2, 3, 4] as const) {
       for (const recentMetcons of [[], [{ pattern: "engine" as const }]]) {
@@ -216,18 +216,22 @@ describe("month plan rules", () => {
           }),
         );
         const training = week.days.filter((day) => !day.rest);
-        expect(training.map((day) => day.piece?.stimulus)).toHaveLength(6);
+        expect(training).toHaveLength(6);
+        expect(JSON.stringify(week)).not.toContain("숨차는");
         for (const day of training) {
-          expect(allowed.has(day.piece!.stimulus)).toBe(true);
+          const stimulus = day.piece!.stimulus;
+          expect(stimulus == null || allowed.has(stimulus)).toBe(true);
         }
         for (let index = 1; index < training.length; index += 1) {
-          expect(training[index]!.piece!.stimulus).not.toBe(training[index - 1]!.piece!.stimulus);
+          const previous = training[index - 1]!.piece!.stimulus;
+          const current = training[index]!.piece!.stimulus;
+          if (previous && current) expect(current).not.toBe(previous);
         }
         expect(dayByKey(week, "tue")!.piece!.stimulus).not.toBe("고중량");
         expect(dayByKey(week, "sat")!.piece!.stimulus).not.toBe("고중량");
         const wed = dayByKey(week, "wed")!;
+        expect(wed.piece!.stimulus).toBeNull();
         if (weekIndex === 2 || weekIndex === 4) {
-          expect(wed.piece!.stimulus).toBe("숨차는");
           expect(wed.piece!.minutes).toBeGreaterThanOrEqual(30);
           expect(wed.piece!.minutes).toBeLessThanOrEqual(40);
         }
@@ -236,6 +240,8 @@ describe("month plan rules", () => {
     const heavy = dayByKey(buildWeek(input({ weekIndex: 1, sex: null, maxes: {} })), "thu")!.piece!;
     expect(heavy.stimulus).toBe("고중량");
     expect(heavy.bodyKo).not.toMatch(/\d+(\.\d+)?\s*kg/i);
+    const engine = dayByKey(buildWeek(input({ weekIndex: 1, maxes: {} })), "mon")!.piece!;
+    expect(engine.stimulus).toBeNull();
   });
 });
 
@@ -396,7 +402,9 @@ describe("generated week is the plan, and history keeps scores", () => {
 
     const secondMetcon = cards.find((card) => card.key === `plan:${second.id}:mon:metcon`);
     expect(secondMetcon?.badge).toBe("메트콘");
-    expect(secondMetcon?.stimulus).toBe("숨차는");
+    expect(secondMetcon?.stimulus).toBeNull();
+    expect(cards.some((card) => card.stimulus === ("숨차는" as never))).toBe(false);
+    expect(cards.find((card) => card.badge === "메트콘" && card.name === "맨몸 서킷")?.stimulus).toBe("고반복");
     expect(secondMetcon?.compares.some((row) => row.labelKo === "같은 구성" && row.score === "8R + 2")).toBe(true);
     expect(secondMetcon?.rankKo).toBeNull();
     expect(cards.find((card) => card.score === "8R + 2")?.rankKo).toBeNull();
@@ -509,7 +517,9 @@ describe("history day screen", () => {
     expect(chip).not.toContain("<button");
     const lift = screen.slice(screen.indexOf("function LiftCard"), screen.indexOf("function MetconCard"));
     expect(lift).not.toContain("stimulus");
-    expect(lift).not.toContain("숨차는");
+    expect(screen).not.toContain("숨차는");
+    expect(fs.readFileSync(path.join(process.cwd(), "src/lib/month-plan/pieces.ts"), "utf8")).not.toContain("숨차는");
+    expect(fs.readFileSync(path.join(process.cwd(), "src/lib/month-plan/types.ts"), "utf8")).not.toContain("숨차는");
     expect(screen).toContain("더 보기");
     expect(screen).not.toMatch(/<Link[^>]*>\s*더 보기/);
     expect(screen).not.toMatch(/truncate/);

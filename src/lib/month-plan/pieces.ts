@@ -22,7 +22,7 @@ type Catalog = {
   format: PieceFormat;
   minutes: number;
   pattern: MetconPattern;
-  stimulus: MetconStimulus;
+  stimulus: MetconStimulus | null;
   days: DayKey[];
   weeks?: WeekIndex[];
   long: boolean;
@@ -109,7 +109,7 @@ const CATALOG: Catalog[] = [
     format: "amrap",
     minutes: 14,
     pattern: "engine",
-    stimulus: "숨차는",
+    stimulus: null,
     days: ["mon"],
     long: false,
     movements: () => [move("run", "400m", "런"), move("burpee", "8", "버피"), move("push_up", "10", "푸시업")],
@@ -162,7 +162,7 @@ const CATALOG: Catalog[] = [
     format: "intervals",
     minutes: 20,
     pattern: "engine",
-    stimulus: "숨차는",
+    stimulus: null,
     days: ["wed"],
     weeks: [1, 3],
     long: false,
@@ -180,7 +180,7 @@ const CATALOG: Catalog[] = [
     format: "for_time",
     minutes: 35,
     pattern: "engine",
-    stimulus: "숨차는",
+    stimulus: null,
     days: ["wed"],
     weeks: [2, 4],
     long: true,
@@ -225,7 +225,7 @@ const CATALOG: Catalog[] = [
     format: "for_time",
     minutes: 20,
     pattern: "engine",
-    stimulus: "고반복",
+    stimulus: null,
     days: ["thu"],
     weeks: [4],
     long: false,
@@ -243,7 +243,7 @@ const CATALOG: Catalog[] = [
     format: "amrap",
     minutes: 8,
     pattern: "engine",
-    stimulus: "숨차는",
+    stimulus: null,
     days: ["fri"],
     long: false,
     movements: () => [move("run", "800m", "런"), move("push_up", "12", "푸시업"), move("knee_raise", "10", "니레이즈")],
@@ -280,7 +280,7 @@ const CATALOG: Catalog[] = [
     format: "for_time",
     minutes: 20,
     pattern: "engine",
-    stimulus: "숨차는",
+    stimulus: null,
     days: ["sat"],
     long: false,
     noteKo: "선택입니다. 안 해도 되고, 못 해도 월요일로 옮기지 않습니다.",
@@ -306,10 +306,10 @@ export function stimulusForPiece(piece: { id?: string; stimulus?: unknown } | nu
 function allowed(piece: Catalog, req: MetconRequest, honorPattern: boolean, honorStimulus: boolean): boolean {
   if (!piece.days.includes(req.day) || piece.long !== req.longPiece) return false;
   if (piece.weeks && !piece.weeks.includes(req.weekIndex)) return false;
-  if (piece.long && piece.stimulus !== "숨차는") return false;
+  if (piece.long && piece.stimulus != null) return false;
   if (req.allowHeavy === false && piece.stimulus === "고중량") return false;
   if (honorPattern && req.avoidPatterns.includes(piece.pattern)) return false;
-  if (honorStimulus && (req.avoidStimuli ?? []).includes(piece.stimulus)) return false;
+  if (honorStimulus && piece.stimulus && (req.avoidStimuli ?? []).includes(piece.stimulus)) return false;
   const keys = piece.movements(req.sex).map((m) => m.key);
   for (const forbid of req.forbid) {
     const banned = FORBID_KEYS[forbid];
