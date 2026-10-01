@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const weekIndex = Number(body.weekIndex);
   const sex = "sex" in body ? asAthleteSex(body.sex) : readUserSex(user.id);
-  const created = generatePlanForUser(user.id, {
+  const created = await generatePlanForUser(user.id, {
     weekIndex,
     sex,
     trainingDays: trainingDays(body.trainingDays),

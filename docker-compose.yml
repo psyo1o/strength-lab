@@ -14,6 +14,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       APP_URL: ${APP_URL:-http://soopark.myds.me:7001}
+      MONTH_PLAN_MODEL_KEY: ${MONTH_PLAN_MODEL_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}

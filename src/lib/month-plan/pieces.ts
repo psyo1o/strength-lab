@@ -318,15 +318,8 @@ function allowed(piece: Catalog, req: MetconRequest, honorPattern: boolean, hono
   return true;
 }
 
-export function fillMetconFromRules(req: MetconRequest): MetconPiece {
-  const picked =
-    CATALOG.find((piece) => allowed(piece, req, true, true)) ??
-    CATALOG.find((piece) => allowed(piece, req, false, true)) ??
-    CATALOG.find((piece) => allowed(piece, req, false, false));
-  if (!picked) {
-    throw new Error(`metcon missing for ${req.day} week ${req.weekIndex}`);
-  }
-  const movements = picked.movements(req.sex);
+function materialize(picked: Catalog, sex: AthleteSex): MetconPiece {
+  const movements = picked.movements(sex);
   const signature = pieceSignature(picked.format, movements);
   return {
     id: picked.id,
@@ -346,5 +339,21 @@ export function fillMetconFromRules(req: MetconRequest): MetconPiece {
       long: picked.long,
     }),
   };
+}
+
+/** Pieces that already satisfy the day's role, bans, length, and sex-scoped loads. */
+export function listStructuralMetcons(req: MetconRequest): MetconPiece[] {
+  return CATALOG.filter((piece) => allowed(piece, req, false, false)).map((piece) => materialize(piece, req.sex));
+}
+
+export function fillMetconFromRules(req: MetconRequest): MetconPiece {
+  const picked =
+    CATALOG.find((piece) => allowed(piece, req, true, true)) ??
+    CATALOG.find((piece) => allowed(piece, req, false, true)) ??
+    CATALOG.find((piece) => allowed(piece, req, false, false));
+  if (!picked) {
+    throw new Error(`metcon missing for ${req.day} week ${req.weekIndex}`);
+  }
+  return materialize(picked, req.sex);
 }
 

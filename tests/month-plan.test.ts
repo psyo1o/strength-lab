@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerUser } from "../src/lib/auth";
 import { wendlerMainSets } from "../src/lib/calc/wendler";
 import { getSqlite, resetDbConnection } from "../src/lib/db/client";
@@ -189,6 +189,7 @@ describe("month plan rules", () => {
     expect(defaultMetconAdapter().id).toBe("rules");
     process.env.MONTH_PLAN_MODEL_KEY = "server-only";
     expect(defaultMetconAdapter().id).toBe("model");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
     const filled = defaultMetconAdapter().fill({
       weekIndex: 1,
       day: "mon",
@@ -199,6 +200,8 @@ describe("month plan rules", () => {
     });
     expect(filled.bodyKo).toMatch(/400m/);
     expect(filled.signature).not.toBe("");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
     if (previous == null) delete process.env.MONTH_PLAN_MODEL_KEY;
     else process.env.MONTH_PLAN_MODEL_KEY = previous;
   });
@@ -258,7 +261,7 @@ describe("generated week is the plan, and history keeps scores", () => {
     resetDbConnection();
   });
 
-  it("publishes the week immediately and keeps loads, times, and earlier scores", () => {
+  it("publishes the week immediately and keeps loads, times, and earlier scores", async () => {
     const created = registerUser("plan@example.com", "password123");
     if ("error" in created) throw new Error(created.error);
     const userId = created.user.id;
@@ -278,7 +281,7 @@ describe("generated week is the plan, and history keeps scores", () => {
       getSqlite().prepare("SELECT COUNT(*) AS c FROM set_logs WHERE user_id = ?").get(userId) as { c: number }
     ).c;
 
-    const first = generatePlanForUser(userId, { weekIndex: 1, sex: "m", nowMs: NOW });
+    const first = await generatePlanForUser(userId, { weekIndex: 1, sex: "m", nowMs: NOW });
     if ("error" in first) throw new Error(first.error);
     expect(currentWeekPlan(userId, NOW)?.id).toBe(first.id);
     const today = todayPlanDay(userId, NOW);
@@ -287,7 +290,7 @@ describe("generated week is the plan, and history keeps scores", () => {
     expect(JSON.stringify(first.week)).not.toMatch(/"status"\s*:\s*"draft"/);
     expect(dayByKey(first.week, "mon")!.lift!.sets.map((setRow) => setRow.weightKg)).toEqual([117.5, 135, 152.5]);
 
-    const second = generatePlanForUser(userId, { weekIndex: 1, sex: "m", nowMs: NOW + 2_000 });
+    const second = await generatePlanForUser(userId, { weekIndex: 1, sex: "m", nowMs: NOW + 2_000 });
     if ("error" in second) throw new Error(second.error);
     expect(currentWeekPlan(userId, NOW + 2_000)?.id).toBe(second.id);
     expect(listPlans(userId)).toHaveLength(2);
@@ -313,7 +316,7 @@ describe("generated week is the plan, and history keeps scores", () => {
     expect(metconCompare?.reasonKo).toMatch(/같은 동작 · 같은 형식/);
     expect(metconCompare?.summaryKo).toMatch(/8R \+ 2/);
 
-    const third = generatePlanForUser(userId, { weekIndex: 1, sex: "m", nowMs: NOW + 6_000 });
+    const third = await generatePlanForUser(userId, { weekIndex: 1, sex: "m", nowMs: NOW + 6_000 });
     if ("error" in third) throw new Error(third.error);
     const thirdMonday = third.week.days.find((day) => day.day === "mon")!;
     expect(thirdMonday.piece?.signature).not.toBe(secondMonday.piece?.signature);
@@ -329,7 +332,7 @@ describe("generated week is the plan, and history keeps scores", () => {
     );
     expect(changed.days.find((day) => day.day === "mon")?.piece?.signature).not.toBe(secondMonday.piece?.signature);
 
-    const benchmark = generatePlanForUser(userId, { weekIndex: 4, sex: "m", nowMs: NOW + 3_000 });
+    const benchmark = await generatePlanForUser(userId, { weekIndex: 4, sex: "m", nowMs: NOW + 3_000 });
     if ("error" in benchmark) throw new Error(benchmark.error);
     const benchScore = addPlanScore(userId, {
       planId: benchmark.id,
@@ -338,7 +341,7 @@ describe("generated week is the plan, and history keeps scores", () => {
       completedAt: NOW + 4_000,
     });
     if ("error" in benchScore) throw new Error(benchScore.error);
-    const benchmarkAgain = generatePlanForUser(userId, { weekIndex: 4, sex: "m", nowMs: NOW + 5_000 });
+    const benchmarkAgain = await generatePlanForUser(userId, { weekIndex: 4, sex: "m", nowMs: NOW + 5_000 });
     if ("error" in benchmarkAgain) throw new Error(benchmarkAgain.error);
     const thu = benchmarkAgain.week.days.find((day) => day.day === "thu")!;
     const named = comparesForDay(loadHistoryContext(userId), benchmarkAgain, thu).find((row) => row.reason === "named");

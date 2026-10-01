@@ -1,10 +1,11 @@
 import { readUserSex, writeUserSex, type AthleteSex } from "../auth";
 import { getSqlite } from "../db/client";
 import { getUserMaxes } from "../maxes";
-import { buildWeek, daySummary } from "./build-week";
+import { daySummary } from "./build-week";
 import { kstParts, kstWeekStart } from "./calendar";
-import { defaultMetconAdapter } from "./adapter";
-import { recentMetconPatterns } from "./recent";
+import { serverModelKey } from "./adapter";
+import { recentMetconPatterns, recentMetconSignatures } from "./recent";
+import { resolvePlannedWeek } from "./week-model";
 import {
   DAY_ORDER,
   isDayKey,
@@ -130,15 +131,16 @@ export function todayPlanDay(userId: number, nowMs = Date.now()): TodayPlan | nu
   };
 }
 
-export function generatePlanForUser(
+export async function generatePlanForUser(
   userId: number,
   input: { weekIndex: number; sex: AthleteSex; trainingDays?: DayKey[]; nowMs?: number },
-): StoredPlan | { error: string } {
+): Promise<StoredPlan | { error: string }> {
   if (!isWeekIndex(input.weekIndex)) return { error: "주차는 1부터 4입니다." };
   const nowMs = input.nowMs ?? Date.now();
   const sex = input.sex;
   writeUserSex(userId, sex);
-  const week = buildWeek(
+  const key = serverModelKey();
+  const week = await resolvePlannedWeek(
     {
       weekIndex: input.weekIndex,
       maxes: getUserMaxes(userId),
@@ -146,7 +148,10 @@ export function generatePlanForUser(
       recentMetcons: recentMetconPatterns(userId, nowMs),
       trainingDays: input.trainingDays,
     },
-    defaultMetconAdapter(),
+    {
+      key,
+      blockedSignatures: key ? recentMetconSignatures(userId, nowMs) : [],
+    },
   );
   const info = getSqlite()
     .prepare(

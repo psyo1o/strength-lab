@@ -3,6 +3,7 @@ import { getWodTemplate } from "../wod/templates";
 import { isMetconStimulus, type MetconPattern, type RecentMetcon } from "./types";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 const SQUAT = new Set(["air_squat", "thruster", "wall_ball", "lunge", "front_squat", "squat", "ohs", "pistol"]);
 const PRESS = new Set(["push_up", "bench", "hspu", "push_press", "shoulder_press", "dip", "ring_dip", "sdhp"]);
@@ -68,4 +69,17 @@ export function recentMetconPatterns(userId: number, nowMs = Date.now()): Recent
   }
   stamped.sort((a, b) => b.at - a.at);
   return stamped.slice(0, 7).map((row) => ({ pattern: row.pattern, ...(row.stimulus ? { stimulus: row.stimulus } : {}) }));
+}
+
+/** Exact metcon signatures scored in the last 30 days. The model may not repeat one when another candidate exists. */
+export function recentMetconSignatures(userId: number, nowMs = Date.now()): string[] {
+  const since = nowMs - MONTH_MS;
+  const rows = getSqlite()
+    .prepare(
+      `SELECT signature FROM month_plan_scores
+       WHERE user_id = ? AND completed_at >= ? AND signature != ''
+       ORDER BY completed_at DESC`,
+    )
+    .all(userId, since) as { signature: string }[];
+  return rows.map((row) => row.signature);
 }
