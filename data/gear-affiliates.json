@@ -1,72 +1,40 @@
 {
-  "disclosureKo": "구매하면 수수료가 생길 수 있어요.",
+  "disclosureKo": "이 화면은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.",
   "coupangPartnerId": "AF4475360",
   "categories": [
     {
-      "id": "workout",
-      "nameKo": "운동 장비",
+      "id": "reference",
+      "nameKo": "참고",
       "items": [
         {
-          "id": "barbell",
-          "nameKo": "바벨",
-          "whyKo": "스쿼트·데드리프트·프레스와 바벨 WOD에 씁니다.",
-          "imageUrl": "",
+          "id": "lifting-straps",
+          "nameKo": "리프팅 스트랩",
+          "whyKo": "바를 잡을 때 손에 감는 스트랩입니다.",
+          "imageUrl": "/gear/lifting-straps.jpg",
           "affiliateUrl": "",
           "merchant": "쿠팡"
         },
         {
-          "id": "plates",
-          "nameKo": "원판",
-          "whyKo": "바벨 무게를 맞출 때 쓰는 원판입니다.",
-          "imageUrl": "",
+          "id": "knee-pads",
+          "nameKo": "무릎 패드",
+          "whyKo": "무릎 앞에 대는 하드 패드입니다.",
+          "imageUrl": "/gear/knee-pads.jpg",
           "affiliateUrl": "",
           "merchant": "쿠팡"
         },
         {
-          "id": "jump-rope",
-          "nameKo": "줄넘기",
-          "whyKo": "더블언더와 싱글언더 연습에 씁니다.",
-          "imageUrl": "",
+          "id": "wrist-brace",
+          "nameKo": "손목 보호대",
+          "whyKo": "손목을 고정하는 보호대입니다.",
+          "imageUrl": "/gear/wrist-brace.jpg",
           "affiliateUrl": "",
           "merchant": "쿠팡"
         },
         {
-          "id": "wall-ball",
-          "nameKo": "월볼",
-          "whyKo": "월볼 반복에 쓰는 메디신 볼입니다.",
-          "imageUrl": "",
-          "affiliateUrl": "",
-          "merchant": "쿠팡"
-        },
-        {
-          "id": "kettlebell",
-          "nameKo": "케틀벨",
-          "whyKo": "케틀벨 스윙에 씁니다.",
-          "imageUrl": "",
-          "affiliateUrl": "",
-          "merchant": "쿠팡"
-        },
-        {
-          "id": "rower",
-          "nameKo": "로잉 머신",
-          "whyKo": "로잉 구간이 있는 벤치마크와 컨디셔닝에 씁니다.",
-          "imageUrl": "",
-          "affiliateUrl": "",
-          "merchant": "쿠팡"
-        },
-        {
-          "id": "ski",
-          "nameKo": "스키 에르그",
-          "whyKo": "스키 구간이 있는 컨디셔닝에 씁니다.",
-          "imageUrl": "",
-          "affiliateUrl": "",
-          "merchant": "쿠팡"
-        },
-        {
-          "id": "bike",
-          "nameKo": "팬바이크",
-          "whyKo": "워밍업과 칼로리 바이크 구간에 씁니다.",
-          "imageUrl": "",
+          "id": "pedal-toe-strap",
+          "nameKo": "페달 토스트랩",
+          "whyKo": "바이크 페달에 발을 고정하는 가죽 스트랩입니다.",
+          "imageUrl": "/gear/pedal-toe-strap.jpg",
           "affiliateUrl": "",
           "merchant": "쿠팡"
         }

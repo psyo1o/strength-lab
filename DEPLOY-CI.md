@@ -56,16 +56,16 @@ This is `docker compose -f docker-compose.nas.yml pull && up -d --remove-orphans
 
 ## 장비 제휴 링크 (NAS)
 
-로그인 후 하단 「장비」(`/gear`). JSON만 고치면 되고 앱 코드·이미지 재빌드는 필요 없습니다. **가짜 쿠팡 파트너 ID를 만들지 마세요.** `coupangPartnerId`는 계정 식별자일 뿐이고, 그 값으로 상품 링크를 만들지 마세요. 파트너스 대시보드에서 복사한 전체 URL만 각 상품의 `affiliateUrl`에 넣습니다.
+로그인 후 하단 「장비」(`/gear`). 탭 제목 바로 아래에 고지 문장이 있고, 그 아래 카드가 있습니다. **가짜 쿠팡 파트너 ID를 만들지 마세요.** `coupangPartnerId`는 계정 식별자일 뿐이고, 그 값으로 상품 링크를 만들지 마세요. 검색 URL도 링크로 쓰지 마세요.
 
 1. 컨테이너가 한 번 뜨면 `$DATA_DIR/gear-affiliates.json` 이 생깁니다 (`DATA_DIR` 기본 `/volume1/docker/strength-lab/data`). 이미 있으면 **덮어쓰지 않습니다**.
-2. `coupangPartnerId`는 붙여 넣은 쿠팡 링크를 어느 계정에 묶을지 적는 칸입니다. 상품이 보이게 하려면 각 아이템의 `affiliateUrl`에 전체 파트너스 URL이 있어야 합니다. `merchant`는 화면에 보일 이름(`쿠팡` 등).
-3. `imageUrl`은 나중에. 비우면 이미지 없음.
-4. `affiliateUrl`이 비었거나 없거나 `https://example.com/...` 이면 그 상품은 화면에 나오지 않습니다. 죽은 링크를 만들지 않습니다.
-5. 저장 후 `/gear` 를 새로고침하면 반영됩니다(mtime 재읽기). 재시작은 선택.
+2. 화면에서 나가는 링크는 이름과 사진이 확인된 상품 하나뿐입니다. 버튼 문구는 「쿠팡에서 보기」입니다.
+3. 제목이 「운동 장비」뿐인 항목은 카드로 나오지 않습니다.
+4. 그립, 무릎·손목 보호, 바이크 소모품 참고 카드는 사진과 이름, 한 줄 용도와 함께 보입니다. 링크도 버튼도 없습니다.
+5. 참고 카드와 확인된 상품 카드는 이미지에 들어 있는 목록을 따릅니다. NAS 파일이 그 카드를 지우거나 다른 상품 링크를 추가하지 않습니다.
 6. 경로를 강제하려면 `.env`에 `GEAR_JSON_PATH=/data/gear-affiliates.json`.
 
-이미지 안의 `data/gear-affiliates.json` 은 슬롯 기본값입니다. NAS 파일이 있으면 그게 이깁니다.
+이미지 안의 `data/gear-affiliates.json` 이 참고 카드 목록입니다.
 
 비밀번호 재설정 `.env` (NAS `docker-compose.nas.yml`이 읽음). **반드시** 공개 호스트를 넣으세요. HTTPS 종료가 없으면 `http://` 입니다.
 
