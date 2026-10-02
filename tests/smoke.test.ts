@@ -368,8 +368,16 @@ describe("mobile UX P0", () => {
     expect(chips).toMatch(/팁·영상/);
     expect(chips).toMatch(/min-h-14/);
     const home = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/dashboard/page.tsx"), "utf8");
+    const todayCard = fs.readFileSync(path.join(process.cwd(), "src/components/TodaySessionCard.tsx"), "utf8");
+    const todayView = fs.readFileSync(path.join(process.cwd(), "src/lib/month-plan/today-view.ts"), "utf8");
     expect(home).toMatch(/오늘 운동/);
-    expect(home).toMatch(/오늘 WOD/);
+    expect(home).toMatch(/TodaySessionCard/);
+    expect(home).toMatch(/RotatingBenchmarkCard/);
+    expect(home).not.toMatch(/오늘 WOD/);
+    expect(todayCard).toMatch(/오늘 WOD/);
+    expect(todayCard).toMatch(/WEEK_PLAN_MISSING_KO/);
+    expect(todayView).toMatch(/이번 주 계획이 아직 만들어지지 않았습니다/);
+    expect(todayView).toMatch(/오늘의 세션이 아닙니다/);
     expect(home).toMatch(/벤치마크 보드/);
     expect(home).toMatch(/>최근</);
     expect(home).toMatch(/>PR</);

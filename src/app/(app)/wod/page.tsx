@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserMaxes } from "@/lib/maxes";
 import { Nav } from "@/components/Nav";
+import { RotatingBenchmarkCard, TodaySessionCard } from "@/components/TodaySessionCard";
 import { WodEstimateLine } from "@/components/WodEstimateCard";
 import { RX_DISCLAIMER, familyLabel, formatLabel, type WodFamily } from "@/lib/wod/types";
 import { estimateWod } from "@/lib/wod/estimate";
@@ -71,25 +72,15 @@ export default async function WodIndexPage() {
       <p className="mt-1 text-sm text-[var(--muted)]">공개된 컨디셔닝 패턴입니다. 유료 박스 프로그램이 아니에요.</p>
       <p className="mt-1 text-xs font-bold text-[var(--muted)]">{RX_DISCLAIMER}</p>
 
-      {todayPlan ? (
-        <Link href={todayPlan.href} className="card tap mt-5 block min-w-0 p-5">
-          <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
-          <div className="mt-1 break-words text-2xl font-black leading-tight">
-            {todayPlan.weekIndex}주 · {todayPlan.day.labelKo}
-          </div>
-          <p className="mt-1 break-words text-sm text-[var(--muted)]">{todayPlan.summary}</p>
-        </Link>
-      ) : null}
+      <TodaySessionCard today={todayPlan} />
 
       {today ? (
-        <Link href={`/wod/${today.slug}`} className="card tap mt-5 block min-w-0 p-5">
-          <div className="text-sm font-bold text-[var(--accent)]">{todayPlan ? "순환 벤치마크" : "오늘 WOD"}</div>
-          <div className="mt-1 break-words text-2xl font-black leading-tight">
-            {today.nameKo} · {formatLabel(today.format)}
-          </div>
-          <p className="mt-1 break-words text-sm text-[var(--muted)]">{today.prescriptionKo}</p>
-          {todayEstimate ? <WodEstimateLine estimate={todayEstimate} /> : null}
-        </Link>
+        <RotatingBenchmarkCard
+          href={`/wod/${today.slug}`}
+          title={`${today.nameKo} · ${formatLabel(today.format)}`}
+          detail={today.prescriptionKo}
+          extra={todayEstimate ? <WodEstimateLine estimate={todayEstimate} /> : null}
+        />
       ) : null}
 
       {familySections.map((section) => (
