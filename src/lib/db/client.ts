@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { FIRST_ADMIN_EMAIL } from "../first-admin";
 import * as schema from "./schema";
 import { seedIfEmpty } from "./seed";
 
@@ -10,6 +11,13 @@ let db: BetterSQLite3Database<typeof schema> | null = null;
 
 export function databasePath(): string {
   return process.env.DATABASE_PATH || path.join(process.cwd(), "data", "app.db");
+}
+
+/** Grants the first admin only when nobody is an admin. Does not delete rows. */
+function promoteFirstAdminIfNone(raw: Database.Database) {
+  const count = raw.prepare("SELECT COUNT(*) AS c FROM users WHERE is_admin = 1").get() as { c: number };
+  if (count.c > 0) return;
+  raw.prepare("UPDATE users SET is_admin = 1 WHERE lower(email) = ?").run(FIRST_ADMIN_EMAIL);
 }
 
 function applySchema(raw: Database.Database) {
@@ -96,6 +104,8 @@ function applySchema(raw: Database.Database) {
   if (!names.has("current_program")) raw.exec("ALTER TABLE users ADD COLUMN current_program TEXT");
   if (!names.has("last_session")) raw.exec("ALTER TABLE users ADD COLUMN last_session TEXT");
   if (!names.has("sex")) raw.exec("ALTER TABLE users ADD COLUMN sex TEXT");
+  if (!names.has("is_admin")) raw.exec("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0");
+  promoteFirstAdminIfNone(raw);
   const maxCols = raw.prepare("PRAGMA table_info(user_maxes)").all() as { name: string }[];
   if (!maxCols.some((c) => c.name === "start_kg")) {
     raw.exec("ALTER TABLE user_maxes ADD COLUMN start_kg REAL");

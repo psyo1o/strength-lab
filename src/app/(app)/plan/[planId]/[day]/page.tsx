@@ -4,7 +4,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { PlanScoreForm } from "@/components/PlanScoreForm";
 import { comparesForDay, loadHistoryContext } from "@/lib/month-plan/history";
+import { MetconEditor } from "@/components/MetconEditor";
 import { formatSetLine } from "@/lib/month-plan/loads";
+import { conditioningEditable } from "@/lib/month-plan/metcon-edit";
+import { catalogMovements } from "@/lib/month-plan/pieces";
 import { getPlan, scoresForDay } from "@/lib/month-plan/store";
 import { isDayKey } from "@/lib/month-plan/types";
 import { scoreLabel } from "@/lib/month-plan/compare";
@@ -82,6 +85,15 @@ export default async function PlanDayPage({ params }: { params: Promise<{ planId
             ))}
           </ul>
         </section>
+      ) : null}
+
+      {user.isAdmin && day.piece && conditioningEditable(plan.weekIndex, day) ? (
+        <MetconEditor
+          planId={plan.id}
+          day={day.day}
+          choices={catalogMovements(plan.sex)}
+          selected={day.piece.movements}
+        />
       ) : null}
 
       {day.piece ? <PlanScoreForm planId={plan.id} day={day.day} format={day.piece.format} /> : null}

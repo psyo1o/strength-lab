@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { getSqlite } from "./db/client";
+import { FIRST_ADMIN_EMAIL } from "./first-admin";
 
 const SESSION_COOKIE = "sl_session";
 const SESSION_DAYS = 30;
@@ -14,7 +15,32 @@ export type SessionUser = {
   currentProgram: string | null;
   lastSession: string | null;
   sex: AthleteSex;
+  isAdmin: boolean;
 };
+
+type UserRow = {
+  id: number;
+  email: string;
+  unit: "kg" | "lb";
+  current_program: string | null;
+  last_session: string | null;
+  sex: string | null;
+  is_admin: number;
+};
+
+function sessionFromRow(row: UserRow): SessionUser {
+  return {
+    id: row.id,
+    email: row.email,
+    unit: row.unit,
+    currentProgram: row.current_program,
+    lastSession: row.last_session,
+    sex: asAthleteSex(row.sex),
+    isAdmin: row.is_admin === 1,
+  };
+}
+
+const USER_FIELDS = "u.id, u.email, u.unit, u.current_program, u.last_session, u.sex, u.is_admin";
 
 export function asAthleteSex(value: unknown): AthleteSex {
   return value === "m" || value === "f" ? value : null;
@@ -62,34 +88,17 @@ export function userFromSession(sessionId: string | undefined | null): SessionUs
   if (!sessionId) return null;
   const row = getSqlite()
     .prepare(
-      `SELECT u.id, u.email, u.unit, u.current_program, u.last_session, u.sex, s.expires_at
+      `SELECT ${USER_FIELDS}, s.expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.id = ?`,
     )
-    .get(sessionId) as
-    | {
-        id: number;
-        email: string;
-        unit: "kg" | "lb";
-        current_program: string | null;
-        last_session: string | null;
-        sex: string | null;
-        expires_at: number;
-      }
-    | undefined;
+    .get(sessionId) as (UserRow & { expires_at: number }) | undefined;
   if (!row) return null;
   if (row.expires_at < Date.now()) {
     destroySession(sessionId);
     return null;
   }
-  return {
-    id: row.id,
-    email: row.email,
-    unit: row.unit,
-    currentProgram: row.current_program,
-    lastSession: row.last_session,
-    sex: asAthleteSex(row.sex),
-  };
+  return sessionFromRow(row);
 }
 
 export async function getCurrentUser(): Promise<SessionUser | null> {
@@ -143,45 +152,39 @@ export function registerUser(
   const info = getSqlite()
     .prepare("INSERT INTO users (email, password_hash, unit, created_at) VALUES (?, ?, 'kg', ?)")
     .run(normalized, hashPassword(password), Date.now());
+  const userId = Number(info.lastInsertRowid);
+  const isAdmin = grantFirstAdminIfNone(normalized, userId);
   const user: SessionUser = {
-    id: Number(info.lastInsertRowid),
+    id: userId,
     email: normalized,
     unit: "kg",
     currentProgram: null,
     lastSession: null,
     sex: null,
+    isAdmin,
   };
   return { user };
+}
+
+function grantFirstAdminIfNone(email: string, userId: number): boolean {
+  if (email !== FIRST_ADMIN_EMAIL) return false;
+  const count = getSqlite().prepare("SELECT COUNT(*) AS c FROM users WHERE is_admin = 1").get() as { c: number };
+  if (count.c > 0) return false;
+  getSqlite().prepare("UPDATE users SET is_admin = 1 WHERE id = ?").run(userId);
+  return true;
 }
 
 export function loginUser(email: string, password: string): { user: SessionUser } | { error: string } {
   const normalized = email.trim().toLowerCase();
   const row = getSqlite()
-    .prepare("SELECT id, email, password_hash, unit, current_program, last_session, sex FROM users WHERE email = ?")
-    .get(normalized) as
-    | {
-        id: number;
-        email: string;
-        password_hash: string;
-        unit: "kg" | "lb";
-        current_program: string | null;
-        last_session: string | null;
-        sex: string | null;
-      }
-    | undefined;
+    .prepare(
+      `SELECT id, email, password_hash, unit, current_program, last_session, sex, is_admin FROM users WHERE email = ?`,
+    )
+    .get(normalized) as (UserRow & { password_hash: string }) | undefined;
   if (!row || !verifyPassword(password, row.password_hash)) {
     return { error: "이메일 또는 비밀번호를 확인해 주세요" };
   }
-  return {
-    user: {
-      id: row.id,
-      email: row.email,
-      unit: row.unit,
-      currentProgram: row.current_program,
-      lastSession: row.last_session,
-      sex: asAthleteSex(row.sex),
-    },
-  };
+  return { user: sessionFromRow(row) };
 }
 
 export function updateUserUnit(userId: number, unit: "kg" | "lb") {

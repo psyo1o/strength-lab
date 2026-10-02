@@ -10,6 +10,7 @@ export const users = sqliteTable("users", {
   currentProgram: text("current_program"),
   lastSession: text("last_session"),
   sex: text("sex"),
+  isAdmin: integer("is_admin").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
