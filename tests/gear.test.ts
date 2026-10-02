@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { GearShelf } from "../src/components/GearShelf";
 import {
   CONFIRMED_PARTNER,
+  CONFIRMED_PARTNERS,
   GEAR_DISCLOSURE,
   ONLY_PARTNER_HREF,
   gearPageModel,
@@ -17,6 +18,13 @@ import {
   resetGearCache,
   type GearPageModel,
 } from "../src/lib/gear/affiliates";
+
+const PARTNER_HREFS = CONFIRMED_PARTNERS.map((card) => card.href);
+const REJECTED_HREFS = [
+  "https://link.coupang.com/a/hv64e818km",
+  "https://link.coupang.com/a/hv63XFIVOu",
+  "https://link.coupang.com/a/hv7vliIRVI",
+];
 
 function shelfHtml(model: GearPageModel = gearPageModel()): string {
   return renderToStaticMarkup(React.createElement(GearShelf, { model }));
@@ -69,6 +77,18 @@ describe("gear affiliates", () => {
     expect(isOutboundPartnerHref(ONLY_PARTNER_HREF)).toBe(true);
     expect(isConfiguredAffiliateUrl(ONLY_PARTNER_HREF)).toBe(true);
     expect(ONLY_PARTNER_HREF).not.toContain("AF4475360");
+    for (const href of PARTNER_HREFS) {
+      expect(isOutboundPartnerHref(href)).toBe(true);
+      expect(isConfiguredAffiliateUrl(href)).toBe(true);
+      expect(href).not.toContain("AF4475360");
+      expect(href).not.toContain("coupang.com/np/search");
+    }
+    for (const href of REJECTED_HREFS) {
+      expect(isOutboundPartnerHref(href)).toBe(false);
+      expect(isConfiguredAffiliateUrl(href)).toBe(false);
+    }
+    expect(new Set(PARTNER_HREFS).size).toBe(PARTNER_HREFS.length);
+    expect(PARTNER_HREFS.filter((href) => href === ONLY_PARTNER_HREF)).toEqual([ONLY_PARTNER_HREF]);
   });
 
   it("reads NAS overlay JSON without keeping search or invented partner links", () => {
@@ -138,30 +158,54 @@ describe("gear affiliates", () => {
     resetGearCache();
     const model = gearPageModel();
     expect(model.disclosure).toBe(GEAR_DISCLOSURE);
-    expect(model.partner).toEqual(CONFIRMED_PARTNER);
-    expect(model.references.map((item) => item.nameKo)).toEqual([
-      "리프팅 스트랩",
-      "무릎 패드",
-      "손목 보호대",
-      "페달 토스트랩",
-    ]);
+    expect(model.partners).toEqual(CONFIRMED_PARTNERS);
+    expect(model.partners[0]).toEqual(CONFIRMED_PARTNER);
+    expect(model.references.map((item) => item.nameKo)).toEqual(["페달 토스트랩"]);
     expect(model.references.some((item) => item.nameKo === "운동 장비")).toBe(false);
+    expect(model.references.some((item) => item.nameKo === "무릎 패드")).toBe(false);
+    expect(model.references.some((item) => item.nameKo === "손목 보호대")).toBe(false);
+    expect(model.references.some((item) => item.nameKo === "리프팅 스트랩")).toBe(false);
     const html = shelfHtml(model);
     expect(html).not.toContain("운동 장비");
     const anchors = [...html.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1]);
-    expect(anchors).toEqual([ONLY_PARTNER_HREF]);
-    expect(html).toContain(`href="${ONLY_PARTNER_HREF}"`);
+    expect(anchors).toEqual(PARTNER_HREFS);
+    for (const card of CONFIRMED_PARTNERS) {
+      expect(html).toContain(`href="${card.href}"`);
+      expect(html).toContain(card.imageUrl);
+    }
     expect(html).not.toContain("coupang.com/np/search");
+    for (const href of REJECTED_HREFS) expect(html).not.toContain(href);
   });
 });
 
 describe("gear page and nav", () => {
-  it("renders the disclosure, one partner link, and unlinked reference cards", () => {
+  it("renders the disclosure, confirmed partner links, and unlinked reference cards", () => {
     const model = gearPageModel();
-    expect(model.partner?.nameKo).toBe("KRATOS 접착식 훅 그립 테이프");
-    expect(model.partner?.whyKo).toBe("바벨 풀 때 손에 감는 훅 그립 테이프입니다.");
-    expect(model.partner?.href).toBe(ONLY_PARTNER_HREF);
-    expect(model.partner?.imageUrl).toBe(CONFIRMED_PARTNER.imageUrl);
+    expect(model.partners.map((card) => card.href)).toEqual(PARTNER_HREFS);
+    expect(model.partners[0]?.nameKo).toBe("KRATOS 접착식 훅 그립 테이프");
+    expect(model.partners[0]?.whyKo).toBe("바벨 풀 때 손에 감는 훅 그립 테이프입니다.");
+    expect(model.partners[0]?.href).toBe(ONLY_PARTNER_HREF);
+    expect(model.partners[0]?.imageUrl).toBe(CONFIRMED_PARTNER.imageUrl);
+    expect(model.partners.map((card) => card.nameKo)).toEqual([
+      "KRATOS 접착식 훅 그립 테이프",
+      "제로투히어로 네오프렌 무릎보호대 5mm 세트",
+      "잠스트 리스트 랩 손목보호대, 1개, 블랙",
+      "헬스 파워 리프팅 레버 역도 벨트, 레드블랙",
+      "윈어블 복싱 RPM 더블언더 줄넘기",
+      "엑스포디움 스티키 그립 마그네핏 손바닥보호대",
+      "ComMa 가죽 리프팅그립 스트랩",
+      "머슬가드 액상 탄마 초크 50ml",
+      "제로투히어로 리프터 클래식 역도화",
+      "짐프로 복근운동 AB매트",
+      "바디스톤 월볼",
+      "인피니티 풀업밴드",
+      "트로비스 라크로스볼 땅콩 마사지볼",
+      "제로투히어로 네오프렌 무릎보호대 7mm",
+    ]);
+    const wallBall = model.partners.find((card) => card.nameKo === "바디스톤 월볼");
+    expect(wallBall?.whyKo).toBe("벽에 던져 스쿼트와 던지기를 같이 하는 공입니다.");
+    expect(wallBall?.whyKo).not.toMatch(/20\s*(lb|kg)|파운드|킬로/i);
+    expect(model.disclosure).toBe("이 화면은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.");
     const photos = model.references.map((item) => item.imageUrl);
     expect(new Set(photos).size).toBe(photos.length);
     for (const item of model.references) {
@@ -177,7 +221,7 @@ describe("gear page and nav", () => {
     expect(disclosureAt).toBeGreaterThan(-1);
     expect(partnerAt).toBeGreaterThan(disclosureAt);
     expect(referenceAt).toBeGreaterThan(partnerAt);
-    expect(html.match(/<a /g)).toHaveLength(1);
+    expect(html.match(/<a /g)).toHaveLength(PARTNER_HREFS.length);
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer sponsored nofollow"');
     expect(html).toContain("쿠팡에서 보기");
@@ -186,6 +230,15 @@ describe("gear page and nav", () => {
     expect(html).not.toContain("AF4475360");
     expect(html).not.toMatch(/CrossFit/i);
     expect(html).not.toMatch(/<button/);
+    expect(html).not.toContain("쿠폰");
+    for (const href of REJECTED_HREFS) expect(html).not.toContain(href);
+    expect(html).not.toMatch(/20\s*(lb|kg)/i);
+    expect(html).not.toContain("20파운드");
+    expect(html).not.toContain("20킬로");
+    expect(html).not.toContain("무게는 적지 마세요");
+    expect(html.match(/hvCaduhQ8O/g)).toHaveLength(1);
+    const anchors = [...html.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1]);
+    expect(anchors).toEqual(PARTNER_HREFS);
 
     const referenceChunks = html.split('data-gear="reference"').slice(1);
     expect(referenceChunks).toHaveLength(model.references.length);
@@ -198,9 +251,15 @@ describe("gear page and nav", () => {
       expect(card).toContain("아직 링크가 없어요");
       expect(card).toContain("<img");
     }
-    const partnerCard = html.slice(partnerAt, referenceAt);
-    expect(partnerCard).not.toContain("아직 링크가 없어요");
-    expect(partnerCard).toContain("쿠팡에서 보기");
+    const partnerChunks = html.split('data-gear="partner"').slice(1);
+    expect(partnerChunks).toHaveLength(model.partners.length);
+    for (const chunk of partnerChunks) {
+      const card = chunk.slice(0, chunk.indexOf("</li>"));
+      expect(card).not.toContain("아직 링크가 없어요");
+      expect(card).toContain("쿠팡에서 보기");
+      expect(card).toContain("<img");
+      expect(card.match(/<a /g)).toHaveLength(1);
+    }
 
     const page = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/gear/page.tsx"), "utf8");
     const titleAt = page.indexOf("<h1");
