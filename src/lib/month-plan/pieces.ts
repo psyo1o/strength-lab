@@ -54,12 +54,6 @@ function wallBall(sex: AthleteSex, reps: string): Move {
   return move("wall_ball", reps, "월볼");
 }
 
-function kb(sex: AthleteSex): Move | null {
-  if (sex === "m") return move("kb_swing", "24kgx20", "케틀벨 스윙");
-  if (sex === "f") return move("kb_swing", "16kgx20", "케틀벨 스윙");
-  return null;
-}
-
 function displayMove(m: Move): string {
   if (m.key === "run") {
     const [base, ...rest] = m.amount.split(" ");
@@ -272,24 +266,6 @@ const CATALOG: Catalog[] = [
     long: false,
     noteKo: "선택입니다. 안 해도 되고, 못 해도 월요일로 옮기지 않습니다.",
     movements: () => [move("push_up", "15", "푸시업"), move("sit_up", "20", "싯업"), move("ring_row", "10", "링 로우")],
-  },
-  {
-    id: "sat-easy",
-    nameKo: "쉬운 토요일",
-    named: false,
-    format: "for_time",
-    minutes: 20,
-    pattern: "engine",
-    stimulus: null,
-    days: ["sat"],
-    long: false,
-    noteKo: "선택입니다. 안 해도 되고, 못 해도 월요일로 옮기지 않습니다.",
-    movements: (sex) => {
-      const swing = kb(sex);
-      return swing
-        ? [move("run", "1600m", "런"), swing]
-        : [move("run", "1600m", "런"), move("fan_bike", "12cal", "팬바이크")];
-    },
   },
 ];
 

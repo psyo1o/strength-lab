@@ -71,15 +71,26 @@ export function recentMetconPatterns(userId: number, nowMs = Date.now()): Recent
   return stamped.slice(0, 7).map((row) => ({ pattern: row.pattern, ...(row.stimulus ? { stimulus: row.stimulus } : {}) }));
 }
 
-/** Exact metcon signatures scored in the last 30 days. The model may not repeat one when another candidate exists. */
-export function recentMetconSignatures(userId: number, nowMs = Date.now()): string[] {
+export type RecentMetconBan = {
+  signatures: string[];
+  names: string[];
+};
+
+/** Names and signatures scored in the last 30 days. Either one blocks a repeat when another candidate exists. */
+export function recentMetconBans(userId: number, nowMs = Date.now()): RecentMetconBan {
   const since = nowMs - MONTH_MS;
   const rows = getSqlite()
     .prepare(
-      `SELECT signature FROM month_plan_scores
-       WHERE user_id = ? AND completed_at >= ? AND signature != ''
+      `SELECT signature, piece_name_ko AS nameKo FROM month_plan_scores
+       WHERE user_id = ? AND completed_at >= ?
        ORDER BY completed_at DESC`,
     )
-    .all(userId, since) as { signature: string }[];
-  return rows.map((row) => row.signature);
+    .all(userId, since) as { signature: string; nameKo: string }[];
+  const signatures: string[] = [];
+  const names: string[] = [];
+  for (const row of rows) {
+    if (row.signature.trim()) signatures.push(row.signature);
+    if (row.nameKo.trim()) names.push(row.nameKo);
+  }
+  return { signatures, names };
 }

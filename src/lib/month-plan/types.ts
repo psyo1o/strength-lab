@@ -112,6 +112,10 @@ export type WeekBuildInput = {
   sex: AthleteSex;
   recentMetcons: RecentMetcon[];
   trainingDays?: DayKey[];
+  /** Metcon signatures scored in the last 30 days. */
+  blockedSignatures?: readonly string[];
+  /** Metcon names scored in the last 30 days. */
+  blockedNames?: readonly string[];
 };
 
 export type MetconRequest = {

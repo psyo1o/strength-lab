@@ -1,6 +1,8 @@
 import type { MetconAdapter } from "./adapter";
 import { rulesMetconAdapter } from "./adapter";
+import { applyMetconBans, noteChosenPiece, openingBan, type BanCursor } from "./bans";
 import { prescribeMainLift, strengthBody } from "./loads";
+import { listStructuralMetcons } from "./pieces";
 import { applyTimeCut } from "./time-cut";
 import {
   BODY_BUDGET_MIN,
@@ -9,10 +11,8 @@ import {
   DEFAULT_TRAINING_DAYS,
   type DayKey,
   type MainLift,
-  type MetconPattern,
   type MetconPiece,
   type MetconRequest,
-  type MetconStimulus,
   type PlannedDay,
   type PlannedWeek,
   type SessionBlock,
@@ -103,26 +103,32 @@ export function weekMetconSlots(weekIndex: WeekIndex): MetconSlot[] {
     },
     { day: "thu", longPiece: false, allowHeavy: true, forbid: [], clearPatternAvoid: weekIndex === 4 },
     { day: "fri", longPiece: false, allowHeavy: true, forbid: ["squat", "swing", "clean"], clearPatternAvoid: false },
-    { day: "sat", longPiece: false, allowHeavy: false, forbid: [], clearPatternAvoid: false },
+    { day: "sat", longPiece: false, allowHeavy: false, forbid: ["squat"], clearPatternAvoid: false },
   ];
 }
 
-function requestFor(
-  input: WeekBuildInput,
-  slot: MetconSlot,
-  avoid: MetconPattern[],
-  avoidStimuli: MetconStimulus[],
-): MetconRequest {
+/** Structural request only. Pattern, chip, and duplicate bans live in applyMetconBans. */
+export function slotMetconRequest(input: WeekBuildInput, slot: MetconSlot): MetconRequest {
   return {
     weekIndex: input.weekIndex,
     day: slot.day,
     sex: input.sex,
-    avoidPatterns: slot.clearPatternAvoid ? [] : avoid,
-    avoidStimuli,
+    avoidPatterns: [],
+    avoidStimuli: [],
     allowHeavy: slot.allowHeavy,
     longPiece: slot.longPiece,
     forbid: slot.forbid,
   };
+}
+
+function takePiece(input: WeekBuildInput, slot: MetconSlot, adapter: MetconAdapter, cursor: BanCursor): MetconPiece {
+  const request = slotMetconRequest(input, slot);
+  if (adapter.id === "model") return adapter.fill(request);
+  const pool = listStructuralMetcons(request);
+  const [piece] = applyMetconBans(pool, cursor, slot);
+  if (!piece) throw new Error(`metcon missing for ${slot.day} week ${input.weekIndex}`);
+  noteChosenPiece(cursor, piece);
+  return piece;
 }
 
 function olympicLine(kind: "clean" | "snatch", reduced: boolean): string {
@@ -185,13 +191,10 @@ function liftDay(
   slot: MetconSlot,
   lift: MainLift,
   focus: string,
-  adapter: MetconAdapter,
-  avoid: MetconPattern[],
-  avoidStimuli: MetconStimulus[],
+  piece: MetconPiece,
   airWarmup: boolean,
 ): PlannedDay {
   const rx = prescribeMainLift(lift, input.weekIndex, input.maxes);
-  const piece = adapter.fill(requestFor(input, slot, avoid, avoidStimuli));
   return finish({
     day: slot.day,
     labelKo: DAY_LABEL[slot.day],
@@ -214,39 +217,20 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
   const training = new Set(input.trainingDays ?? DEFAULT_TRAINING_DAYS);
   const slots = new Map(weekMetconSlots(input.weekIndex).map((slot) => [slot.day, slot]));
   const slot = (day: DayKey) => slots.get(day)!;
-  const avoid: MetconPattern[] = [];
-  const recent = input.recentMetcons[0]?.pattern;
-  if (recent) avoid.push(recent);
+  const cursor = openingBan(input);
+  const take = (day: DayKey) => takePiece(input, slot(day), adapter, cursor);
 
   const days: PlannedDay[] = [];
-  let previousStimulus = input.recentMetcons[0]?.stimulus;
-  const pushAvoid = (piece: MetconPiece | null) => {
-    avoid.length = 0;
-    if (piece) avoid.push(piece.pattern);
-    previousStimulus = piece?.stimulus ?? undefined;
-  };
-  const stimulusAvoid = (): MetconStimulus[] => (previousStimulus ? [previousStimulus] : []);
 
-  const mon = liftDay(input, slot("mon"), "squat", "스쿼트", adapter, [...avoid], stimulusAvoid(), true);
+  const mon = liftDay(input, slot("mon"), "squat", "스쿼트", take("mon"), true);
   days.push({ ...mon, scheduled: training.has("mon") });
-  pushAvoid(mon.piece);
 
   const press = tuesdayLift(input.weekIndex);
-  const tue = liftDay(
-    input,
-    slot("tue"),
-    press,
-    press === "ohp" ? "프레스" : "벤치",
-    adapter,
-    [...avoid],
-    stimulusAvoid(),
-    false,
-  );
+  const tue = liftDay(input, slot("tue"), press, press === "ohp" ? "프레스" : "벤치", take("tue"), false);
   days.push({ ...tue, scheduled: training.has("tue") });
-  pushAvoid(tue.piece);
 
   const wedSlot = slot("wed");
-  const wedPiece = adapter.fill(requestFor(input, wedSlot, [...avoid], stimulusAvoid()));
+  const wedPiece = take("wed");
   const wedBlocks: SessionBlock[] = [warmup("쉬운 페이스", false), mainBlock(wedPiece.bodyKo, wedPiece.minutes)];
   if (!wedSlot.longPiece) {
     wedBlocks.push(skill("쉬운 스킵 30초 × 4.", 8), assistance("밴드 풀아파트 10회 × 2.", 8), extra("오늘은 여기까지."));
@@ -264,11 +248,9 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
       blocks: wedBlocks,
     }),
   );
-  pushAvoid(wedPiece);
 
-  const thuSlot = slot("thu");
   if (input.weekIndex === 4) {
-    const benchmark = adapter.fill(requestFor(input, thuSlot, [...avoid], stimulusAvoid()));
+    const benchmark = take("thu");
     days.push(
       finish({
         day: "thu",
@@ -287,10 +269,9 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
         ],
       }),
     );
-    pushAvoid(benchmark);
   } else {
     const olympic = input.weekIndex % 2 === 1 ? "clean" : "snatch";
-    const piece = adapter.fill(requestFor(input, thuSlot, [...avoid], stimulusAvoid()));
+    const piece = take("thu");
     days.push(
       finish({
         day: "thu",
@@ -309,15 +290,12 @@ export function buildWeek(input: WeekBuildInput, adapter: MetconAdapter = rulesM
         ],
       }),
     );
-    pushAvoid(piece);
   }
 
-  const fri = liftDay(input, slot("fri"), "deadlift", "데드", adapter, [...avoid], stimulusAvoid(), false);
+  const fri = liftDay(input, slot("fri"), "deadlift", "데드", take("fri"), false);
   days.push({ ...fri, scheduled: training.has("fri") });
-  pushAvoid(fri.piece);
 
-  const satSlot = slot("sat");
-  const satPiece = adapter.fill(requestFor(input, satSlot, [...avoid], stimulusAvoid()));
+  const satPiece = take("sat");
   days.push(
     finish({
       day: "sat",

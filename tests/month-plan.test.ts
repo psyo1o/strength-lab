@@ -44,6 +44,8 @@ function input(partial: Partial<WeekBuildInput> & Pick<WeekBuildInput, "weekInde
     trainingDays: partial.trainingDays,
     weekIndex: partial.weekIndex,
     maxes: partial.maxes,
+    blockedSignatures: partial.blockedSignatures,
+    blockedNames: partial.blockedNames,
   };
 }
 
@@ -159,12 +161,20 @@ describe("month plan rules", () => {
     expect(dayByKey(female, "thu")!.piece!.bodyKo).toMatch(/6kg/);
     expect(dayByKey(male, "tue")!.piece!.bodyKo).toMatch(/60cm/);
     expect(dayByKey(female, "tue")!.piece!.bodyKo).toMatch(/50cm/);
-    expect(dayByKey(male, "sat")!.piece!.bodyKo).toMatch(/24kg/);
-    expect(dayByKey(female, "sat")!.piece!.bodyKo).toMatch(/16kg/);
+    expect(dayByKey(male, "sat")!.piece!.id).toBe("sat-reps");
+    expect(dayByKey(male, "sat")!.piece!.minutes).toBe(12);
+    expect(dayByKey(female, "sat")!.piece!.bodyKo).toBe(dayByKey(male, "sat")!.piece!.bodyKo);
+    expect(dayByKey(male, "sat")!.piece!.bodyKo).not.toMatch(/스쿼트|스러스터|월볼/);
 
     const plain = buildWeek(input({ weekIndex: 1, maxes: {}, recentMetcons: [] }));
     const avoided = buildWeek(input({ weekIndex: 1, maxes: {}, recentMetcons: [{ pattern: "engine" }] }));
     expect(dayByKey(plain, "mon")!.piece!.signature).not.toBe(dayByKey(avoided, "mon")!.piece!.signature);
+    const latestOnly = buildWeek(input({ weekIndex: 1, maxes: {}, recentMetcons: [{ pattern: "squat" }] }));
+    const olderEngine = buildWeek(
+      input({ weekIndex: 1, maxes: {}, recentMetcons: [{ pattern: "squat" }, { pattern: "engine" }] }),
+    );
+    expect(dayByKey(latestOnly, "mon")!.piece!.id).toBe("mon-engine");
+    expect(dayByKey(olderEngine, "mon")!.piece!.id).toBe("mon-gym");
 
     expect(pieceSignature("amrap", [
       { key: "run", amount: "400m" },
