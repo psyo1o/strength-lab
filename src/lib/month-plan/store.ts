@@ -102,6 +102,14 @@ export function getPlan(userId: number, planId: number): StoredPlan | null {
   return row ? toPlan(row) : null;
 }
 
+/** Replaces the stored week JSON for that user. Other rows stay. */
+export function replacePlanWeek(userId: number, planId: number, week: PlannedWeek): boolean {
+  const info = getSqlite()
+    .prepare("UPDATE month_plans SET plan_json = ? WHERE user_id = ? AND id = ?")
+    .run(JSON.stringify(week), userId, planId);
+  return info.changes === 1;
+}
+
 /** Latest plan whose calendar week contains now. Generating it made it the week's WODs. */
 export function currentWeekPlan(userId: number, nowMs = Date.now()): StoredPlan | null {
   const start = kstWeekStart(nowMs);

@@ -4,10 +4,13 @@ import { getProgram, listPrograms } from "@/lib/programs/queries";
 import { formatWeight } from "@/lib/calc/round";
 import { dashboardProgress, recentCardCopy } from "@/lib/progress";
 import { Nav } from "@/components/Nav";
+import { RotatingBenchmarkCard, TodaySessionCard } from "@/components/TodaySessionCard";
 import { formatLabel } from "@/lib/wod/types";
 import { getWodTemplate, todayWodSlug } from "@/lib/wod/templates";
 import { listWodResults, wodCardCopy, wodTrainingDayKeys } from "@/lib/wod/queries";
 import { todayPlanDay } from "@/lib/month-plan/store";
+import { todayWorkoutHref } from "@/lib/month-plan/today-view";
+import { PROGRAM_ENTRY_KO } from "@/lib/screen-copy";
 
 export const runtime = "nodejs";
 
@@ -18,7 +21,6 @@ export default async function DashboardPage() {
   const current = user.currentProgram
     ? getProgram(user.currentProgram)
     : programs.find((p) => p.completeness === "full");
-  const todayHref = user.lastSession || (current ? `/programs/${current.slug}` : "/programs");
   const progress = dashboardProgress(user.id, wodTrainingDayKeys(user.id));
   const latest = progress.recent[0];
   const wodLatest = listWodResults(user.id, undefined, 1)[0];
@@ -32,31 +34,27 @@ export default async function DashboardPage() {
       : null;
   const todayWod = getWodTemplate(todayWodSlug());
   const todayPlan = todayPlanDay(user.id);
+  const todayHref = todayWorkoutHref(todayPlan);
+  const programHref = current ? `/programs/${current.slug}` : "/programs";
 
   return (
     <main className="px-4 pt-6 pb-fixed-stack">
       <p className="line-clamp-2 text-base font-black leading-snug" title={`안녕 · ${current?.name_ko ?? "프로그램 고르기"}`}>
         안녕 · {current?.name_ko ?? "프로그램 고르기"}
       </p>
+      <p className="mt-1 text-sm">
+        <Link href={programHref} className="font-bold text-[var(--accent)]">
+          {PROGRAM_ENTRY_KO}
+        </Link>
+      </p>
 
-      {todayPlan ? (
-        <Link href={todayPlan.href} className="card tap mt-5 block p-5">
-          <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
-          <div className="mt-1 break-words text-2xl font-black leading-tight">
-            {todayPlan.weekIndex}주 · {todayPlan.day.labelKo}
-          </div>
-          <p className="mt-1 break-words text-sm text-[var(--muted)]">{todayPlan.summary}</p>
-          <p className="mt-3 text-base font-black text-[var(--accent)]">시작하기 →</p>
-        </Link>
-      ) : todayWod ? (
-        <Link href={`/wod/${todayWod.slug}`} className="card tap mt-5 block p-5">
-          <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
-          <div className="mt-1 break-words text-2xl font-black leading-tight">
-            {todayWod.nameKo} · {formatLabel(todayWod.format)}
-          </div>
-          <p className="mt-1 break-words text-sm text-[var(--muted)]">{todayWod.prescriptionKo}</p>
-          <p className="mt-3 text-base font-black text-[var(--accent)]">시작하기 →</p>
-        </Link>
+      <TodaySessionCard today={todayPlan} />
+      {todayWod ? (
+        <RotatingBenchmarkCard
+          href={`/wod/${todayWod.slug}`}
+          title={`${todayWod.nameKo} · ${formatLabel(todayWod.format)}`}
+          detail={todayWod.prescriptionKo}
+        />
       ) : null}
 
       <Link href="/plan" className="card tap mt-3 block p-5">
@@ -74,7 +72,7 @@ export default async function DashboardPage() {
             </p>
           </>
         ) : (
-          <p className="mt-1 text-sm text-[var(--muted)]">아직 기록이 없습니다</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">아직 기록된 운동이 없어요</p>
         )}
       </Link>
 

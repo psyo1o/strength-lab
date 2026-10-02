@@ -362,7 +362,8 @@ export const EXERCISES: SeedExerciseDef[] = [
     nameEn: "Pause Squat",
     group: "assistance",
     isMax: false,
-    tipsKo: "하단에서 1–3초 완전히 정지한 뒤 반동 없이 밀어 올린다.",
+    tipsKo:
+      "발 너비와 바 위치는 평소 스쿼트와 같게 두면 됩니다. 하단에서 셀 수 있게 무게는 평소보다 낮춰 주세요. 엉덩이가 가장 낮은 곳에서 1–3초 완전히 멈춘 뒤, 반동 없이 바닥을 밀어 올라오면 됩니다. 멈추는 동안 가슴은 들고 무릎은 발끝 방향입니다. 멈추지 않고 튕기거나, 정지 중에 허리가 말리는 경우가 많습니다. 그러면 시간을 1초로 줄이거나 박스 스쿼트로 바꿔 주세요.",
     tipsEn: "Pause 1–3s at the bottom, then stand without bounce.",
   },
   {
@@ -389,7 +390,8 @@ export const EXERCISES: SeedExerciseDef[] = [
     nameEn: "Spoto Press",
     group: "assistance",
     isMax: false,
-    tipsKo: "바가 가슴에 닿기 1–3cm 앞에서 정지한 뒤 밀어 올린다.",
+    tipsKo:
+      "벤치에 견갑을 모으고 발은 바닥을 밀어 두면 됩니다. 바는 평소 벤치와 같은 궤도로 내리되, 가슴에 닿기 직전을 목표로 해 주세요. 가슴 위 1–3cm에서 1초 멈춘 뒤, 견갑이 풀리지 않은 채로 밀어 올리면 됩니다. 팔꿈치는 몸통에서 약 45–70도면 됩니다. 바에 튕기거나 정지 없이 터치하는 경우가 많습니다. 멈추는 위치가 흐려지면 무게를 낮추거나 플로어 프레스로 바꿔 주세요. 스팟 없이 실패 세트는 하지 않는 편이 안전합니다.",
     tipsEn: "Pause 1–3cm off the chest, then press.",
   },
   {

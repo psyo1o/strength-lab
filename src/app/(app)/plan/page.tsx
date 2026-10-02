@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { MonthPlanForm } from "@/components/MonthPlanForm";
 import { Nav } from "@/components/Nav";
 import { PlanDayList } from "@/components/PlanDayList";
+import { TodaySessionCard } from "@/components/TodaySessionCard";
 import { currentWeekPlan, orderedDays, todayPlanDay } from "@/lib/month-plan/store";
 
 export const runtime = "nodejs";
@@ -19,17 +20,7 @@ export default async function PlanPage() {
       <p className="mt-1 text-sm text-[var(--muted)]">
         스쿼트, 프레스, 벤치, 데드는 저장한 1RM의 90%로 5/3/1 본세트를 만듭니다. 1RM이 없으면 무게를 적지 않습니다.
       </p>
-      {today ? (
-        <Link href={today.href} className="card tap mt-5 block p-5">
-          <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
-          <div className="mt-1 text-2xl font-black">
-            {today.weekIndex}주 · {today.day.labelKo}
-          </div>
-          <p className="mt-1 break-words text-sm text-[var(--muted)]">{today.summary}</p>
-        </Link>
-      ) : (
-        <p className="mt-5 text-sm text-[var(--muted)]">이번 주 WOD가 아직 없습니다.</p>
-      )}
+      <TodaySessionCard today={today} />
       {plan ? (
         <section className="mt-6">
           <h2 className="text-sm font-bold text-[var(--accent)]">

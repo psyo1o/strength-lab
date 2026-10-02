@@ -107,7 +107,7 @@ export function buildMaxesGroups(opts?: {
     { title: "파워리프팅", keys: take(MAX_GROUP_PL) },
     { title: "역도", keys: take(MAX_GROUP_OLYMPIC) },
     { title: "컨디셔닝", keys: take([...MAX_GROUP_WOD]) },
-    { title: "프로그램 추가 1RM", keys: take(leftovers) },
+    { title: "이 프로그램에 추가로 필요한 최대 중량", keys: take(leftovers) },
   ].filter((g) => g.keys.length > 0);
 }
 

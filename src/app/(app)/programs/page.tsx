@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getProgram, listPrograms } from "@/lib/programs/queries";
 import { programBadge, programSubtitle } from "@/lib/programs/completeness-ux";
+import { visibleProgramCopy } from "@/lib/screen-copy";
 import { Nav } from "@/components/Nav";
 
 export const runtime = "nodejs";
@@ -23,7 +24,9 @@ export default async function ProgramsPage() {
             <div className="break-words text-xs font-bold text-[var(--ok)]">{programBadge(pinned.slug, pinned.completeness)}</div>
             {pinnedSub ? <div className="break-words text-[11px] font-bold text-[var(--muted)]">{pinnedSub}</div> : null}
             <div className="break-words text-2xl font-black">{pinned.name_ko}</div>
-            <p className="mt-1 break-words text-sm text-[var(--muted)]">{pinned.description_ko}</p>
+            <p className="mt-1 break-words text-sm text-[var(--muted)]">
+              {visibleProgramCopy(pinned.slug, pinned.description_ko)}
+            </p>
           </Link>
         </section>
       ) : null}
@@ -37,7 +40,7 @@ export default async function ProgramsPage() {
             </div>
             {sub ? <div className="break-words text-[11px] font-bold text-[var(--muted)]">{sub}</div> : null}
             <div className="break-words text-xl font-black">{p.name_ko}</div>
-            <p className="mt-1 break-words text-sm text-[var(--muted)]">{p.description_ko}</p>
+            <p className="mt-1 break-words text-sm text-[var(--muted)]">{visibleProgramCopy(p.slug, p.description_ko)}</p>
           </Link>
           );
         })}

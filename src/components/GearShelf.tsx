@@ -33,7 +33,7 @@ export function GearShelf({ model }: { model: GearPageModel }) {
             <img src={item.imageUrl} alt={item.nameKo} className="h-40 w-full max-w-full rounded-xl object-cover" />
             <div className="mt-3 break-words text-lg font-black">{item.nameKo}</div>
             <p className="mt-1 break-words text-sm leading-relaxed text-[var(--muted)]">{item.whyKo}</p>
-            <span className="gear-pending">준비 중</span>
+            <span className="gear-pending">아직 링크가 없어요</span>
           </li>
         ))}
       </ul>

@@ -168,7 +168,7 @@ export function MaxesForm({
       <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 border-t border-[var(--line)] bg-[#0f1117]/95 py-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] backdrop-blur">
         <div className="mx-auto max-w-lg">
           <button className="btn-primary tap w-full px-3 text-lg" disabled={pending || hasError}>
-            {pending ? "저장 중…" : "1RM / 시작 중량 저장"}
+            {pending ? "저장 중…" : "최대 중량과 시작 중량 저장"}
           </button>
         </div>
       </div>

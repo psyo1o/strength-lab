@@ -322,6 +322,28 @@ export function listStructuralMetcons(req: MetconRequest): MetconPiece[] {
   return CATALOG.filter((piece) => allowed(piece, req, false, false)).map((piece) => materialize(piece, req.sex));
 }
 
+/** Movements already defined in the app, including sex-scoped loads. Amounts are not editable. */
+export function catalogMovements(sex: AthleteSex): PieceMovement[] {
+  const seen = new Set<string>();
+  const out: PieceMovement[] = [];
+  for (const row of CATALOG) {
+    for (const movement of row.movements(sex)) {
+      const id = `${movement.key}:${movement.amount.replace(/\s+/g, "")}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push(movement);
+    }
+  }
+  return out;
+}
+
+export function findCatalogMovement(sex: AthleteSex, key: string, amount: string): PieceMovement | null {
+  const wantKey = key.trim().toLowerCase();
+  const wantAmount = amount.trim().replace(/\s+/g, "");
+  if (!wantKey || !wantAmount) return null;
+  return catalogMovements(sex).find((movement) => movement.key === wantKey && movement.amount.replace(/\s+/g, "") === wantAmount) ?? null;
+}
+
 export function fillMetconFromRules(req: MetconRequest): MetconPiece {
   const picked =
     CATALOG.find((piece) => allowed(piece, req, true, true)) ??

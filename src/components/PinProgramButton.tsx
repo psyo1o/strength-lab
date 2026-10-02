@@ -20,7 +20,7 @@ export function PinProgramButton({ slug, pinned }: { slug: string; pinned: boole
 
   return (
     <button type="button" onClick={pin} disabled={pending || pinned} className="btn-ghost tap mt-3 w-full font-bold">
-      {pinned ? "현재 프로그램" : "이 프로그램으로"}
+      {pinned ? "현재 프로그램" : "이 프로그램으로 시작"}
     </button>
   );
 }

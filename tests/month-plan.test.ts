@@ -515,7 +515,7 @@ describe("history day screen", () => {
     const screen = fs.readFileSync(path.join(process.cwd(), "src/components/HistoryScreen.tsx"), "utf8");
     const page = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/history/page.tsx"), "utf8");
     const historySrc = fs.readFileSync(path.join(process.cwd(), "src/lib/month-plan/history.ts"), "utf8");
-    expect(screen).toContain("이 날 기록 없음");
+    expect(screen).toContain("이 날에는 저장된 운동이 없어요.");
     expect(screen).toContain("visibleCompareRows");
     const metcon = screen.slice(screen.indexOf("function MetconCard"));
     expect(metcon.indexOf("{card.stimulus}")).toBeLessThan(metcon.indexOf("{card.score}"));

@@ -25,7 +25,7 @@ export function programBadge(
   coverage?: string | null,
 ): string {
   const cov = coverageOf(slug, coverage);
-  if (slug === "jim-wendler-531" || completeness === "full") return "완전 작동";
+  if (slug === "jim-wendler-531" || completeness === "full") return "바로 할 수 있음";
   if (cov === "excel-w1-6-only") return "템플릿 · 불완전";
   if (SAMPLE_CYCLE_SLUGS.has(slug) || cov === "seeded_sample_not_full_cycle") return "진행 가능";
   if (completeness === "working") return "진행 가능";
@@ -44,5 +44,5 @@ export function programBanner(
   coverage?: string | null,
 ): string | null {
   if (programBadge(slug, completeness, coverage) !== "템플릿 · 불완전") return null;
-  return "템플릿 · 불완전. 일부 주에 세션이 없습니다. 시드된 주/일만 진행할 수 있습니다. 완전 작동 기준은 Wendler 5/3/1입니다.";
+  return "템플릿 · 불완전. 일부 주에 세션이 없습니다. 시드된 주/일만 진행할 수 있습니다. 바로 할 수 있음 기준은 Jim Wendler 5/3/1입니다.";
 }

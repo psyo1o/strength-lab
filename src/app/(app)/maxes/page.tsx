@@ -11,8 +11,8 @@ import { canonicalOneRmFields } from "@/lib/tips";
 import { displayWeight } from "@/lib/calc/round";
 import { getSqlite } from "@/lib/db/client";
 import { Nav } from "@/components/Nav";
-import { UnitToggle } from "@/components/UnitToggle";
 import { MaxesForm } from "@/components/MaxesForm";
+import { MAXES_STORAGE_KO } from "@/lib/screen-copy";
 
 export const runtime = "nodejs";
 
@@ -41,11 +41,11 @@ export default async function MaxesPage() {
       return {
         key,
         nameKo: labelForMaxField(key, byKey[key]?.name_ko),
-        value: stored ? displayWeight(stored, user.unit) : "",
+        value: stored ? displayWeight(stored, "kg") : "",
         showStart: startSet.has(key),
-        startValue: starts[key] ? displayWeight(starts[key], user.unit) : "",
+        startValue: starts[key] ? displayWeight(starts[key], "kg") : "",
         skipBarCheck,
-        unitLabel: user.unit,
+        unitLabel: "kg",
       };
     });
 
@@ -54,7 +54,7 @@ export default async function MaxesPage() {
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-black">1RM</h1>
-          <p className="text-sm text-[var(--muted)]">저장은 항상 kg. 화면만 {user.unit}.</p>
+          <p className="text-sm text-[var(--muted)]">{MAXES_STORAGE_KO}</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
             초보 프로그램(SS/StrongLifts/Madcow)용 첫 운동 무게예요. 1RM을 모르면 여기만 넣어도 됩니다. 모르면 비워도 OK.
           </p>
@@ -62,12 +62,9 @@ export default async function MaxesPage() {
             월볼·박스·케틀벨 무게는 WOD 처방에 있어요. 1RM이 아닙니다.
           </p>
         </div>
-        <div className="shrink-0">
-          <UnitToggle unit={user.unit} />
-        </div>
       </div>
       <MaxesForm
-        unit={user.unit}
+        unit="kg"
         groups={specs.map((g) => ({ title: g.title, fields: toFields(g.keys) }))}
       />
       <Nav current="/maxes" />

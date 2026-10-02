@@ -222,7 +222,7 @@ describe("WOD results", () => {
     expect(cond).not.toContain("wall_ball");
     expect(cond).not.toContain("kb_swing");
     expect(cond).not.toContain("box_height_cm");
-    const leftover = groups.find((g) => g.title === "프로그램 추가 1RM")?.keys ?? [];
+    const leftover = groups.find((g) => g.title === "이 프로그램에 추가로 필요한 최대 중량")?.keys ?? [];
     expect(leftover).not.toContain("kb_swing");
     const seed = fs.readFileSync(path.join(process.cwd(), "src/lib/db/seed.ts"), "utf8");
     expect(seed).not.toMatch(/DELETE FROM set_logs\b/);

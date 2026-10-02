@@ -86,7 +86,7 @@ describe("maxes fields", () => {
     expect(keys.filter((k) => k === "power_clean")).toHaveLength(1);
     expect(groups.find((g) => g.title === "파워리프팅")?.keys).not.toContain("power_clean");
     expect(groups.find((g) => g.title === "역도")?.keys).toContain("power_clean");
-    expect(groups.find((g) => g.title === "프로그램 추가 1RM")?.keys).toEqual(["rehab_target"]);
+    expect(groups.find((g) => g.title === "이 프로그램에 추가로 필요한 최대 중량")?.keys).toEqual(["rehab_target"]);
     expect(groups.find((g) => g.title === "컨디셔닝")?.keys).toEqual(
       expect.arrayContaining(["thruster", "bodyweight"]),
     );
@@ -145,11 +145,11 @@ describe("accessory tips", () => {
 });
 
 describe("completeness badges", () => {
-  it("marks Wendler full and does not call rehab 완전 작동", () => {
-    expect(programBadge("jim-wendler-531", "full")).toBe("완전 작동");
+  it("marks Wendler ready and does not call rehab 바로 할 수 있음", () => {
+    expect(programBadge("jim-wendler-531", "full")).toBe("바로 할 수 있음");
     expect(programBanner("jim-wendler-531", "full")).toBeNull();
     expect(programBadge("rehab", "working")).toBe("진행 가능");
-    expect(programBadge("rehab", "working")).not.toBe("완전 작동");
+    expect(programBadge("rehab", "working")).not.toBe("바로 할 수 있음");
     expect(programBadge("bob-takano", "working")).toBe("진행 가능");
     expect(programBadge("bob-takano", "template")).toBe("진행 가능");
     expect(programBadge("catalyst", "template", "seeded_sample_not_full_cycle")).toBe("진행 가능");
