@@ -100,6 +100,78 @@ export const CONFIRMED_PARTNERS: readonly PartnerLinkCard[] = [
       "https://thumbnail7.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/110224658514384-deebec35-a4ae-4765-8cdb-71fcbc9e978c.jpg",
     href: "https://link.coupang.com/a/hv636AnV37",
   },
+  {
+    id: "expodium-sticky-grip",
+    nameKo: "엑스포디움 스티키 그립 마그네핏 손바닥보호대",
+    whyKo: "풀업할 때 손바닥을 감싸 주는 그립입니다.",
+    imageUrl:
+      "https://t3c.coupangcdn.com/thumbnails/remote/212x212ex/image/vendor_inventory/d87b/87389830023858e5860601b4f2b29abba85ea64ed552ea4af836555e0ae4.jpg",
+    href: "https://link.coupang.com/a/hv7zXg1dFA",
+  },
+  {
+    id: "comma-leather-strap",
+    nameKo: "ComMa 가죽 리프팅그립 스트랩",
+    whyKo: "데드리프트처럼 악력이 먼저 떨어질 때 바를 고정하는 가죽 스트랩입니다.",
+    imageUrl:
+      "https://thumbnail13.coupangcdn.com/thumbnails/remote/212x212ex/image/vendor_inventory/a8b1/cc2152c64790337fe4ec4d8f2829ca6550bd333ea37ab36e08b2a73609f9.jpg",
+    href: "https://link.coupang.com/a/hv7oMJ1Pcy",
+  },
+  {
+    id: "muscle-guard-liquid-chalk",
+    nameKo: "머슬가드 액상 탄마 초크 50ml",
+    whyKo: "바를 잡기 전에 손에 발라 미끄러짐을 줄이는 액상 초크입니다.",
+    imageUrl:
+      "https://t5c.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/1314924535929358-744b330d-309a-40d3-b46b-d8cdbd35cdb1.jpg",
+    href: "https://link.coupang.com/a/hv7AMsvX3Y",
+  },
+  {
+    id: "zero-to-hero-lifting-shoes",
+    nameKo: "제로투히어로 리프터 클래식 역도화",
+    whyKo: "스쿼트와 저크에서 발목을 세워 주는 역도화입니다.",
+    imageUrl:
+      "https://thumbnail10.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/2023/03/16/14/6/51b283b4-985c-4ca5-83ad-00260c76defc.jpg",
+    href: "https://link.coupang.com/a/hv7yMS2OgC",
+  },
+  {
+    id: "gympro-ab-mat",
+    nameKo: "짐프로 복근운동 AB매트",
+    whyKo: "싯업할 때 허리 아래를 받치는 매트입니다.",
+    imageUrl:
+      "https://t4a.coupangcdn.com/thumbnails/remote/212x212ex/image/vendor_inventory/09cc/630664faf6bb507e185df6d23920cb4789834a54218bf3ff449bc07f4893.jpg",
+    href: "https://link.coupang.com/a/hv7sHre5v2",
+  },
+  {
+    id: "body-stone-wall-ball",
+    nameKo: "바디스톤 월볼",
+    whyKo: "벽에 던져 스쿼트와 던지기를 같이 하는 공입니다.",
+    imageUrl:
+      "https://thumbnail13.coupangcdn.com/thumbnails/remote/212x212ex/image/vendor_inventory/image_audit/stage/manual/f32d25e76d37b168abd6d17f73a5c40335bebaafec0238e672072fc7fd7b_1762144067407.jpg",
+    href: "https://link.coupang.com/a/hv7xwiiFhs",
+  },
+  {
+    id: "infinity-pullup-band",
+    nameKo: "인피니티 풀업밴드",
+    whyKo: "턱걸이 횟수가 부족할 때 체중을 덜어 주는 밴드입니다.",
+    imageUrl:
+      "https://thumbnail6.coupangcdn.com/thumbnails/remote/212x212ex/image/vendor_inventory/985d/c3adf0097a459fab966a44f824ee36fa4636848042eae68c88b3fa369525.png",
+    href: "https://link.coupang.com/a/hv7xRR2jG8",
+  },
+  {
+    id: "trovis-peanut-massage-ball",
+    nameKo: "트로비스 라크로스볼 땅콩 마사지볼",
+    whyKo: "운동 전후에 뭉친 부위를 눌러 푸는 공입니다.",
+    imageUrl:
+      "https://thumbnail12.coupangcdn.com/thumbnails/remote/212x212ex/image/vendor_inventory/a1c9/d820afe8852719cd49358636c4b57ba4da01ec77838491a9d97ff07cfe3c.jpg",
+    href: "https://link.coupang.com/a/hv7y7CZyQS",
+  },
+  {
+    id: "zero-to-hero-knee-sleeve-7mm",
+    nameKo: "제로투히어로 네오프렌 무릎보호대 7mm",
+    whyKo: "5mm보다 두꺼운 무릎 슬리브입니다.",
+    imageUrl:
+      "https://thumbnail4.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/4725324948853996-4c974b68-d151-4d33-bde4-ca03510326df.jpg",
+    href: "https://link.coupang.com/a/hv7yawkT4S",
+  },
 ];
 
 /** KRATOS card. Kept as the first confirmed partner. */
@@ -109,7 +181,7 @@ const ALLOWED_PARTNER_HREFS = new Set(CONFIRMED_PARTNERS.map((card) => card.href
 const ALLOWED_PARTNER_IMAGES = new Set(CONFIRMED_PARTNERS.map((card) => card.imageUrl));
 
 /** Generic reference slots covered by a confirmed partner card. */
-const SUPERSEDED_REFERENCE_IDS = new Set(["knee-pads", "wrist-brace"]);
+const SUPERSEDED_REFERENCE_IDS = new Set(["knee-pads", "wrist-brace", "lifting-straps"]);
 
 type Cache = { mtimeMs: number; path: string; catalog: GearCatalog };
 
