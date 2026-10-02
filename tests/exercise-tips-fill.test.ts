@@ -31,7 +31,18 @@ describe("filled exercise tips", () => {
       expect(tip?.alternative).toBeTruthy();
       expect(tip?.sheet).toBe(`${tip?.cue} ${tip?.mistake} ${tip?.alternative}`);
     }
-    expect(tipFor("run")?.mistake).toContain("뻗어");
+    expect(tipFor("run")?.mistake).toContain("발을 멀리 뻗어");
+    expect(tipFor("run")?.mistake).not.toContain("뽀어");
+    expect(tipFor("double_under")?.cue).toContain("손잡이가 겨드랑이 근처면 적당합니다");
+    expect(tipFor("double_under")?.cue).not.toContain("겪드랑이");
+    expect(tipFor("double_under")?.sheet).toBe(
+      `${tipFor("double_under")?.cue} ${tipFor("double_under")?.mistake} ${tipFor("double_under")?.alternative}`,
+    );
+    expect(tipFor("double_under")?.youtubeUrl).toBe("https://www.youtube.com/watch?v=-tF3hUsPZAI");
+    const spotoTip = tipFor("spoto_press");
+    expect(spotoTip?.mistake.endsWith("바꿔 주세요.")).toBe(true);
+    expect(spotoTip?.mistake).not.toContain("주져");
+    expect(spotoTip?.sheet).toBe(`${spotoTip?.cue} ${spotoTip?.mistake} ${spotoTip?.alternative}`);
     expect(tipFor("run")?.alternative).toContain("전문가에게 보여 주세요");
     expect(tipFor("row")?.name).toBe("로잉");
     expect(tipFor("row")?.cue).toContain("댐퍼");
@@ -43,7 +54,7 @@ describe("filled exercise tips", () => {
   });
 
   it("does not use trademark, sales, or broken spellings in the new bodies", () => {
-    const ids = ["run", "push_up", "sit_up", "ring_row", "handstand", "fan_bike", "ski", "row", "lunge", "knee_raise", "burpee", "thruster", "pull_up", "kb_swing", "toes_to_bar", "wall_ball"];
+    const ids = ["run", "push_up", "sit_up", "ring_row", "handstand", "fan_bike", "ski", "row", "lunge", "knee_raise", "burpee", "thruster", "pull_up", "kb_swing", "toes_to_bar", "wall_ball", "double_under", "spoto_press"];
     const body = ids.map((id) => {
       const tip = tipFor(id);
       return `${tip?.cue} ${tip?.mistake} ${tip?.alternative}`;
