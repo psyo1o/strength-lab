@@ -200,6 +200,30 @@ function applySchema(raw: Database.Database) {
     CREATE INDEX IF NOT EXISTS month_plan_scores_user_at ON month_plan_scores (user_id, completed_at);
     CREATE INDEX IF NOT EXISTS month_plan_scores_user_sig ON month_plan_scores (user_id, signature, completed_at);
     CREATE INDEX IF NOT EXISTS month_plan_scores_user_piece ON month_plan_scores (user_id, piece_key, completed_at);
+    CREATE TABLE IF NOT EXISTS class_weeks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      week_index INTEGER NOT NULL,
+      week_start TEXT NOT NULL UNIQUE,
+      sex TEXT,
+      plan_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS class_day_scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      class_week_id INTEGER NOT NULL REFERENCES class_weeks(id) ON DELETE CASCADE,
+      day_key TEXT NOT NULL,
+      completed_at INTEGER NOT NULL,
+      time_sec INTEGER,
+      rounds INTEGER,
+      extra_reps INTEGER,
+      piece_key TEXT NOT NULL DEFAULT '',
+      piece_name_ko TEXT NOT NULL DEFAULT '',
+      named INTEGER NOT NULL DEFAULT 0,
+      signature TEXT NOT NULL DEFAULT '',
+      notes_ko TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS class_day_scores_user ON class_day_scores (user_id, class_week_id, day_key);
   `);
 }
 

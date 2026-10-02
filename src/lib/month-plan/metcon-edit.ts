@@ -1,7 +1,7 @@
-import { findCatalogMovement, renderPiece } from "./pieces";
+import { catalogMovements, renderPiece } from "./pieces";
 import { pieceSignature } from "./signature";
 import type { AthleteSex } from "../auth";
-import type { DayKey, PlannedDay, PlannedWeek, SessionBlock } from "./types";
+import type { DayKey, PieceMovement, PlannedDay, PlannedWeek, SessionBlock } from "./types";
 
 export const METCON_EDIT_DENIED_KO = "이 날은 컨디셔닝을 바꾸지 않아요.";
 export const BENCHMARK_LOCKED_KO = "목요일 벤치마크는 바꾸지 않아요.";
@@ -23,6 +23,33 @@ export function conditioningEditable(weekIndex: PlannedWeek["weekIndex"], day: P
   if (day.blocks.some((block) => block.role === "metcon")) return true;
   const main = day.blocks.find((block) => block.role === "main");
   return Boolean(main && !main.strength && !day.lift);
+}
+
+function sameRepShape(template: string, want: string, key: string): boolean {
+  const from = template.replace(/\s+/g, "");
+  const next = want.replace(/\s+/g, "");
+  if (from.replace(/\d+/g, "#") !== next.replace(/\d+/g, "#")) return false;
+  if (key === "wall_ball" || key === "kb_swing") {
+    if (from.match(/(\d+(?:\.\d+)?)kg/)?.[1] !== next.match(/(\d+(?:\.\d+)?)kg/)?.[1]) return false;
+  }
+  if (key === "box_jump") {
+    if (from.match(/(\d+)cm/)?.[1] !== next.match(/(\d+)cm/)?.[1]) return false;
+  }
+  return true;
+}
+
+/** Catalog movement, or the same movement with only the rep count changed. Sex loads stay. */
+export function resolveEditedMovement(sex: AthleteSex, key: string, amount: string): PieceMovement | null {
+  const wantKey = key.trim().toLowerCase();
+  const wantAmount = amount.trim().replace(/\s+/g, "");
+  if (!wantKey || !wantAmount) return null;
+  const matches = catalogMovements(sex).filter((movement) => movement.key === wantKey);
+  if (matches.length === 0) return null;
+  const exact = matches.find((movement) => movement.amount.replace(/\s+/g, "") === wantAmount);
+  if (exact) return { ...exact };
+  const shaped = matches.find((movement) => sameRepShape(movement.amount, wantAmount, wantKey));
+  if (!shaped) return null;
+  return { key: shaped.key, nameKo: shaped.nameKo, amount: wantAmount };
 }
 
 function politeBody(body: string): string {
@@ -51,7 +78,7 @@ export function swapConditioningMovements(
   const resolved = [];
   const seen = new Set<string>();
   for (const pick of picks) {
-    const movement = findCatalogMovement(sex, pick.key, pick.amount);
+    const movement = resolveEditedMovement(sex, pick.key, pick.amount);
     if (!movement) return { error: MOVEMENT_UNKNOWN_KO };
     const id = `${movement.key}:${movement.amount}`;
     if (seen.has(id)) continue;

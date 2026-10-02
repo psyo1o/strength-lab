@@ -186,6 +186,35 @@ export const monthPlanScores = sqliteTable("month_plan_scores", {
   notesKo: text("notes_ko").notNull().default(""),
 });
 
+export const classWeeks = sqliteTable("class_weeks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  weekIndex: integer("week_index").notNull(),
+  weekStart: text("week_start").notNull().unique(),
+  sex: text("sex"),
+  planJson: text("plan_json").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const classDayScores = sqliteTable("class_day_scores", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  classWeekId: integer("class_week_id")
+    .notNull()
+    .references(() => classWeeks.id, { onDelete: "cascade" }),
+  dayKey: text("day_key").notNull(),
+  completedAt: integer("completed_at", { mode: "timestamp_ms" }).notNull(),
+  timeSec: integer("time_sec"),
+  rounds: integer("rounds"),
+  extraReps: integer("extra_reps"),
+  pieceKey: text("piece_key").notNull().default(""),
+  pieceNameKo: text("piece_name_ko").notNull().default(""),
+  named: integer("named", { mode: "boolean" }).notNull().default(false),
+  signature: text("signature").notNull().default(""),
+  notesKo: text("notes_ko").notNull().default(""),
+});
+
 export const userEquipment = sqliteTable("user_equipment", {
   userId: integer("user_id")
     .primaryKey()
