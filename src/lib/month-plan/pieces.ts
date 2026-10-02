@@ -54,7 +54,7 @@ function wallBall(sex: AthleteSex, reps: string): Move {
   return move("wall_ball", reps, "월볼");
 }
 
-function displayMove(m: Move): string {
+export function formatMovementLine(m: Move): string {
   if (m.key === "run") {
     const [base, ...rest] = m.amount.split(" ");
     const label = runDistanceLabel(base ?? m.amount) ?? m.amount;
@@ -70,6 +70,7 @@ function displayMove(m: Move): string {
     return `${m.nameKo} ${pretty}`;
   }
   if (m.amount.includes("x")) return `${m.nameKo} ${m.amount.replace(/x/g, " × ")}`;
+  if (/[^\d\s]$/.test(m.amount)) return `${m.nameKo} ${m.amount}`;
   return `${m.nameKo} ${m.amount}회`;
 }
 
@@ -90,7 +91,7 @@ export function renderPiece(input: {
           : input.format === "intervals"
             ? `${input.minutes}분 인터벌 · 라운드 사이 1분`
             : `${input.minutes}분`;
-  const lines = [head, ...input.movements.map(displayMove)];
+  const lines = [head, ...input.movements.map(formatMovementLine)];
   if (input.noteKo) lines.push(input.noteKo);
   return lines.join("\n");
 }
@@ -322,7 +323,7 @@ export function listStructuralMetcons(req: MetconRequest): MetconPiece[] {
   return CATALOG.filter((piece) => allowed(piece, req, false, false)).map((piece) => materialize(piece, req.sex));
 }
 
-/** Movements already defined in the app, including sex-scoped loads. Amounts are not editable. */
+/** Movements already defined in the app, including sex-scoped loads. */
 export function catalogMovements(sex: AthleteSex): PieceMovement[] {
   const seen = new Set<string>();
   const out: PieceMovement[] = [];
@@ -335,6 +336,18 @@ export function catalogMovements(sex: AthleteSex): PieceMovement[] {
     }
   }
   return out;
+}
+
+/** One row per movement key, for the admin picker. */
+export function catalogMovementChoices(sex: AthleteSex): PieceMovement[] {
+  const seen = new Set<string>();
+  const out: PieceMovement[] = [];
+  for (const movement of catalogMovements(sex)) {
+    if (seen.has(movement.key)) continue;
+    seen.add(movement.key);
+    out.push(movement);
+  }
+  return out.sort((a, b) => a.nameKo.localeCompare(b.nameKo, "ko"));
 }
 
 export function findCatalogMovement(sex: AthleteSex, key: string, amount: string): PieceMovement | null {

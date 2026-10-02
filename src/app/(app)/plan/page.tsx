@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { MonthPlanForm } from "@/components/MonthPlanForm";
 import { Nav } from "@/components/Nav";
 import { PlanDayList } from "@/components/PlanDayList";
 import { TodaySessionCard } from "@/components/TodaySessionCard";
-import { currentWeekPlan, orderedDays, todayPlanDay } from "@/lib/month-plan/store";
+import { sharedToday, sharedWeekForUser } from "@/lib/month-plan/class-week";
+import { orderedDays } from "@/lib/month-plan/store";
 
 export const runtime = "nodejs";
 
 export default async function PlanPage() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const plan = currentWeekPlan(user.id);
-  const today = todayPlanDay(user.id);
+  const plan = await sharedWeekForUser(user.id);
+  const today = await sharedToday(user.id);
 
   return (
     <main className="min-w-0 px-4 pt-6 pb-8">
@@ -26,10 +26,9 @@ export default async function PlanPage() {
           <h2 className="text-sm font-bold text-[var(--accent)]">
             {plan.weekIndex}주 · {plan.weekStart} 주
           </h2>
-          <PlanDayList planId={plan.id} days={orderedDays(plan)} />
+          <PlanDayList planId={plan.id} weekStart={plan.weekStart} days={orderedDays(plan)} />
         </section>
       ) : null}
-      <MonthPlanForm sex={user.sex} />
       <p className="mt-6 text-center text-sm">
         <Link href="/history" className="font-bold text-[var(--accent)]">
           지난 기록 보기

@@ -2,12 +2,20 @@ import Link from "next/link";
 import { daySummary } from "@/lib/month-plan/build-week";
 import type { PlannedDay } from "@/lib/month-plan/types";
 
-export function PlanDayList({ planId, days }: { planId: number; days: PlannedDay[] }) {
+export function PlanDayList({
+  planId,
+  days,
+  weekStart,
+}: {
+  planId: number;
+  days: PlannedDay[];
+  weekStart?: string;
+}) {
   return (
     <ul className="mt-4 space-y-2">
       {days.map((day) => (
         <li key={day.day}>
-          <Link href={`/plan/${planId}/${day.day}`} className="card tap block min-w-0 p-4">
+          <Link href={weekStart ? `/plan/w/${weekStart}/${day.day}` : `/plan/${planId}/${day.day}`} className="card tap block min-w-0 p-4">
             <div className="flex min-w-0 items-baseline justify-between gap-3">
               <div className="min-w-0 break-words text-lg font-black">
                 {day.labelKo}

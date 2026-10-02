@@ -8,7 +8,7 @@ import { RotatingBenchmarkCard, TodaySessionCard } from "@/components/TodaySessi
 import { formatLabel } from "@/lib/wod/types";
 import { getWodTemplate, todayWodSlug } from "@/lib/wod/templates";
 import { listWodResults, wodCardCopy, wodTrainingDayKeys } from "@/lib/wod/queries";
-import { todayPlanDay } from "@/lib/month-plan/store";
+import { sharedToday } from "@/lib/month-plan/class-week";
 import { todayWorkoutHref } from "@/lib/month-plan/today-view";
 import { PROGRAM_ENTRY_KO } from "@/lib/screen-copy";
 
@@ -33,7 +33,7 @@ export default async function DashboardPage() {
       ? recentCardCopy(latest)
       : null;
   const todayWod = getWodTemplate(todayWodSlug());
-  const todayPlan = todayPlanDay(user.id);
+  const todayPlan = await sharedToday(user.id);
   const todayHref = todayWorkoutHref(todayPlan);
   const programHref = current ? `/programs/${current.slug}` : "/programs";
 
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
 
       <Link href="/plan" className="card tap mt-3 block p-5">
         <div className="text-sm font-bold text-[var(--accent)]">월간 계획</div>
-        <p className="mt-1 text-sm text-[var(--muted)]">주를 만들면 바로 그 주의 WOD가 됩니다.</p>
+        <p className="mt-1 text-sm text-[var(--muted)]">같은 날에는 모두 같은 운동입니다.</p>
       </Link>
 
       <Link href="/history" className="card tap mt-3 block p-5">

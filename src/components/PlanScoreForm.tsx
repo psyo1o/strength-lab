@@ -6,10 +6,12 @@ import type { PieceFormat } from "@/lib/month-plan/types";
 
 export function PlanScoreForm({
   planId,
+  weekStart,
   day,
   format,
 }: {
   planId: number;
+  weekStart?: string;
   day: string;
   format: PieceFormat;
 }) {
@@ -28,7 +30,7 @@ export function PlanScoreForm({
     const res = await fetch("/api/month-plan/scores", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planId, day, clock, rounds, extraReps, notesKo }),
+      body: JSON.stringify({ planId, weekStart, day, clock, rounds, extraReps, notesKo }),
     });
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     setPending(false);
