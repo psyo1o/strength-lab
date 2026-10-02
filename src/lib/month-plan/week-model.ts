@@ -1,7 +1,8 @@
 import { rulesMetconAdapter, type MetconAdapter } from "./adapter";
-import { buildWeek, weekMetconSlots, type MetconSlot } from "./build-week";
+import { applyMetconBans, noteChosenPiece, openingBan } from "./bans";
+import { buildWeek, slotMetconRequest, weekMetconSlots } from "./build-week";
 import { listStructuralMetcons } from "./pieces";
-import type { DayKey, MetconPattern, MetconPiece, MetconRequest, MetconStimulus, PlannedWeek, WeekBuildInput } from "./types";
+import type { DayKey, MetconPattern, MetconPiece, MetconStimulus, PlannedWeek, WeekBuildInput } from "./types";
 
 /** Small current model that returns JSON. The key stays in the Authorization header. */
 export const MONTH_PLAN_OPENAI_MODEL = "gpt-5.4-nano";
@@ -26,79 +27,74 @@ type CandidateView = {
   movements: Array<{ key: string; amount: string; order: number }>;
 };
 
-function structuralRequest(input: WeekBuildInput, slot: MetconSlot): MetconRequest {
+export type MonthPlanFallbackReason = "timeout" | "http_error" | "bad_json" | "unknown_id" | "rule_break";
+
+/** A reason code only. The API key is never included. */
+export function monthPlanFallbackMessage(reason: MonthPlanFallbackReason, status?: number): string {
+  const body = status == null ? { fallback: reason } : { fallback: reason, status };
+  return `month-plan ${JSON.stringify(body)}`;
+}
+
+function logFallback(reason: MonthPlanFallbackReason, status?: number): void {
+  console.warn(monthPlanFallbackMessage(reason, status));
+}
+
+function withBans(
+  input: WeekBuildInput,
+  blockedSignatures: readonly string[] = [],
+  blockedNames: readonly string[] = [],
+): WeekBuildInput {
   return {
-    weekIndex: input.weekIndex,
-    day: slot.day,
-    sex: input.sex,
-    avoidPatterns: [],
-    avoidStimuli: [],
-    allowHeavy: slot.allowHeavy,
-    longPiece: slot.longPiece,
-    forbid: slot.forbid,
+    ...input,
+    blockedSignatures: [...(input.blockedSignatures ?? []), ...blockedSignatures],
+    blockedNames: [...(input.blockedNames ?? []), ...blockedNames],
   };
 }
 
-function stimulusClash(piece: MetconPiece, previous: MetconStimulus | null): boolean {
-  return Boolean(piece.stimulus && previous && piece.stimulus === previous);
-}
-
-/**
- * Candidates that still obey the chip, pattern, and signature bans.
- * A ban is skipped only when every server candidate would break it.
- */
-export function eligibleCandidates(
-  pool: readonly MetconPiece[],
-  slot: MetconSlot,
-  previousPattern: MetconPattern | null,
-  previousStimulus: MetconStimulus | null,
-  blockedSignatures: ReadonlySet<string>,
-): MetconPiece[] {
-  let rows = [...pool];
-  const stimulusFree = rows.filter((piece) => !stimulusClash(piece, previousStimulus));
-  if (stimulusFree.length > 0) rows = stimulusFree;
-  if (!slot.clearPatternAvoid && previousPattern) {
-    const patternFree = rows.filter((piece) => piece.pattern !== previousPattern);
-    if (patternFree.length > 0) rows = patternFree;
-  }
-  const signatureFree = rows.filter((piece) => !blockedSignatures.has(piece.signature));
-  if (signatureFree.length > 0) rows = signatureFree;
-  return rows;
-}
+export type CandidateJudgement =
+  | { pieces: Map<DayKey, MetconPiece> }
+  | { reason: "unknown_id" | "rule_break" };
 
 /** Accept a candidate id per day, or reject the whole week. */
+export function judgeCandidateIds(
+  input: WeekBuildInput,
+  picks: readonly CandidatePick[],
+  blockedSignatures: readonly string[] = [],
+  blockedNames: readonly string[] = [],
+): CandidateJudgement {
+  const planned = withBans(input, blockedSignatures, blockedNames);
+  const slots = weekMetconSlots(planned.weekIndex);
+  const byDay = new Map<string, string>();
+  for (const pick of picks) {
+    if (!TRAINING_DAYS.includes(pick.day as DayKey)) return { reason: "rule_break" };
+    if (byDay.has(pick.day)) return { reason: "rule_break" };
+    if (typeof pick.candidate_id !== "string" || pick.candidate_id.trim() === "") return { reason: "rule_break" };
+    byDay.set(pick.day, pick.candidate_id.trim());
+  }
+  if (slots.some((slot) => !byDay.has(slot.day))) return { reason: "rule_break" };
+
+  const cursor = openingBan(planned);
+  const chosen = new Map<DayKey, MetconPiece>();
+  for (const slot of slots) {
+    const pool = listStructuralMetcons(slotMetconRequest(planned, slot));
+    const piece = pool.find((row) => row.id === byDay.get(slot.day));
+    if (!piece) return { reason: "unknown_id" };
+    const legal = applyMetconBans(pool, cursor, slot);
+    if (!legal.some((row) => row.id === piece.id)) return { reason: "rule_break" };
+    chosen.set(slot.day, piece);
+    noteChosenPiece(cursor, piece);
+  }
+  return { pieces: chosen };
+}
+
 export function acceptCandidateIds(
   input: WeekBuildInput,
   picks: readonly CandidatePick[],
   blockedSignatures: readonly string[] = [],
+  blockedNames: readonly string[] = [],
 ): Map<DayKey, MetconPiece> | null {
-  const slots = weekMetconSlots(input.weekIndex);
-  const byDay = new Map<string, string>();
-  for (const pick of picks) {
-    if (!TRAINING_DAYS.includes(pick.day as DayKey)) return null;
-    if (byDay.has(pick.day)) return null;
-    if (typeof pick.candidate_id !== "string" || pick.candidate_id.trim() === "") return null;
-    byDay.set(pick.day, pick.candidate_id.trim());
-  }
-  if (slots.some((slot) => !byDay.has(slot.day))) return null;
-
-  const blocked = new Set(blockedSignatures.filter((signature) => signature.trim() !== ""));
-  let previousPattern: MetconPattern | null = input.recentMetcons[0]?.pattern ?? null;
-  let previousStimulus: MetconStimulus | null = input.recentMetcons[0]?.stimulus ?? null;
-  const chosen = new Map<DayKey, MetconPiece>();
-
-  for (const slot of slots) {
-    const pool = listStructuralMetcons(structuralRequest(input, slot));
-    const piece = pool.find((row) => row.id === byDay.get(slot.day));
-    if (!piece) return null;
-    const legal = eligibleCandidates(pool, slot, previousPattern, previousStimulus, blocked);
-    if (!legal.some((row) => row.id === piece.id)) return null;
-    chosen.set(slot.day, piece);
-    if (piece.signature) blocked.add(piece.signature);
-    previousPattern = piece.pattern;
-    previousStimulus = piece.stimulus;
-  }
-  return chosen;
+  const judged = judgeCandidateIds(input, picks, blockedSignatures, blockedNames);
+  return "pieces" in judged ? judged.pieces : null;
 }
 
 function candidateView(piece: MetconPiece): CandidateView {
@@ -116,8 +112,7 @@ function candidateView(piece: MetconPiece): CandidateView {
   };
 }
 
-function promptPayload(input: WeekBuildInput, blockedSignatures: readonly string[]) {
-  const previous = input.recentMetcons[0];
+function promptPayload(input: WeekBuildInput) {
   return {
     task: "Pick one candidate_id per day from that day's candidates. Return JSON only.",
     shape: { picks: [{ day: "mon", candidate_id: "server-id" }] },
@@ -127,18 +122,18 @@ function promptPayload(input: WeekBuildInput, blockedSignatures: readonly string
       "Do not change loads, weekday roles, or which day is the long piece or the benchmark.",
       "The same stimulus chip cannot sit on consecutive training days.",
       "The day after squat or deadlift is not 고중량.",
-      "Do not repeat the previous training day's pattern when another candidate exists.",
-      "Do not repeat a blocked signature when another candidate exists.",
-      "Week 4 Thursday uses the benchmark candidate only.",
+      "Do not repeat a pattern or chip from recent_metcons when another candidate exists. recent_metcons is the whole recent list.",
+      "Do not repeat a blocked signature or blocked name when another candidate exists.",
+      "Week 4 Thursday uses the benchmark candidate only. Its id may repeat inside 30 days.",
     ],
-    previous_pattern: previous?.pattern ?? null,
-    previous_stimulus: previous?.stimulus ?? null,
-    blocked_signatures: blockedSignatures,
+    recent_metcons: input.recentMetcons,
+    blocked_signatures: input.blockedSignatures ?? [],
+    blocked_names: input.blockedNames ?? [],
     days: weekMetconSlots(input.weekIndex).map((slot) => ({
       day: slot.day,
       long_piece: slot.longPiece,
       allow_heavy: slot.allowHeavy,
-      candidates: listStructuralMetcons(structuralRequest(input, slot)).map(candidateView),
+      candidates: listStructuralMetcons(slotMetconRequest(input, slot)).map(candidateView),
     })),
   };
 }
@@ -192,21 +187,33 @@ function picksAdapter(picks: Map<DayKey, MetconPiece>): MetconAdapter {
   };
 }
 
+function isTimeout(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("name" in error)) return false;
+  const name = (error as { name?: unknown }).name;
+  return name === "AbortError" || name === "TimeoutError";
+}
+
 export async function resolvePlannedWeek(
   input: WeekBuildInput,
   options: {
     key: string | null;
     blockedSignatures?: readonly string[];
+    blockedNames?: readonly string[];
     fetchImpl?: FetchLike;
     timeoutMs?: number;
   },
 ): Promise<PlannedWeek> {
+  const planned = withBans(input, options.blockedSignatures ?? [], options.blockedNames ?? []);
+  const rulesWeek = () => buildWeek(planned, rulesMetconAdapter);
   const key = options.key?.trim() ?? "";
-  if (!key) return buildWeek(input, rulesMetconAdapter);
+  if (!key) return rulesWeek();
 
-  const blockedSignatures = options.blockedSignatures ?? [];
   const fetchImpl = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? MONTH_PLAN_MODEL_TIMEOUT_MS;
+  const fallback = (reason: MonthPlanFallbackReason, status?: number) => {
+    logFallback(reason, status);
+    return rulesWeek();
+  };
   try {
     const response = await fetchImpl(MONTH_PLAN_OPENAI_URL, {
       method: "POST",
@@ -225,20 +232,26 @@ export async function resolvePlannedWeek(
             content:
               "You choose one server-built metcon candidate per training day. Reply with JSON only: {\"picks\":[{\"day\":\"mon\",\"candidate_id\":\"id\"}]}. The only value you may choose is a candidate_id from that day's list.",
           },
-          { role: "user", content: JSON.stringify(promptPayload(input, blockedSignatures)) },
+          { role: "user", content: JSON.stringify(promptPayload(planned)) },
         ],
         response_format: { type: "json_object" },
         reasoning_effort: "none",
         max_completion_tokens: 800,
       }),
     });
-    if (!response.ok) return buildWeek(input, rulesMetconAdapter);
-    const picks = parseCandidatePicks(await response.json());
-    if (!picks) return buildWeek(input, rulesMetconAdapter);
-    const chosen = acceptCandidateIds(input, picks, blockedSignatures);
-    if (!chosen) return buildWeek(input, rulesMetconAdapter);
-    return buildWeek(input, picksAdapter(chosen));
-  } catch {
-    return buildWeek(input, rulesMetconAdapter);
+    if (!response.ok) return fallback("http_error", response.status);
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      return fallback("bad_json");
+    }
+    const picks = parseCandidatePicks(payload);
+    if (!picks) return fallback("bad_json");
+    const judged = judgeCandidateIds(planned, picks);
+    if ("reason" in judged) return fallback(judged.reason);
+    return buildWeek(planned, picksAdapter(judged.pieces));
+  } catch (error) {
+    return fallback(isTimeout(error) ? "timeout" : "http_error");
   }
 }

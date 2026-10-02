@@ -3,11 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerUser } from "../src/lib/auth";
-import { resetDbConnection } from "../src/lib/db/client";
+import { getSqlite, resetDbConnection } from "../src/lib/db/client";
 import { saveUserMaxes } from "../src/lib/maxes";
+import { applyMetconBans, openingBan, WEEK4_BENCHMARK_ID } from "../src/lib/month-plan/bans";
 import { buildWeek, dayByKey, weekMetconSlots } from "../src/lib/month-plan/build-week";
 import { listStructuralMetcons } from "../src/lib/month-plan/pieces";
-import { generatePlanForUser } from "../src/lib/month-plan/store";
+import { addPlanScore, generatePlanForUser } from "../src/lib/month-plan/store";
 import {
   acceptCandidateIds,
   MONTH_PLAN_OPENAI_MODEL,
@@ -16,7 +17,7 @@ import {
   resolvePlannedWeek,
   type CandidatePick,
 } from "../src/lib/month-plan/week-model";
-import type { MetconRequest, WeekBuildInput } from "../src/lib/month-plan/types";
+import type { MetconPiece, MetconRequest, WeekBuildInput } from "../src/lib/month-plan/types";
 
 const KEY = "sk-test-not-a-real-key";
 
@@ -27,6 +28,8 @@ function input(partial: Partial<WeekBuildInput> & Pick<WeekBuildInput, "weekInde
     trainingDays: partial.trainingDays,
     weekIndex: partial.weekIndex,
     maxes: partial.maxes,
+    blockedSignatures: partial.blockedSignatures,
+    blockedNames: partial.blockedNames,
   };
 }
 
@@ -83,6 +86,28 @@ describe("generating a week stays on the server", () => {
     expect(dayByKey(first.week, "mon")!.piece!.id).toBe("mon-engine");
     expect(dayByKey(first.week, "mon")!.lift!.sets.map((set) => set.weightKg)).toEqual([117.5, 135, 152.5]);
 
+    const scored = addPlanScore(created.user.id, {
+      planId: first.id,
+      day: "mon",
+      rounds: 5,
+      extraReps: 0,
+      completedAt: NOW - 10 * 24 * 60 * 60 * 1000,
+    });
+    if ("error" in scored) throw new Error(scored.error);
+    const avoided = await generatePlanForUser(created.user.id, { weekIndex: 1, sex: "m", nowMs: NOW + 1_000 });
+    if ("error" in avoided) throw new Error(avoided.error);
+    expect(spy).not.toHaveBeenCalled();
+    expect(avoided.week.adapterId).toBe("rules");
+    expect(dayByKey(avoided.week, "mon")!.piece!.signature).not.toBe(dayByKey(first.week, "mon")!.piece!.signature);
+
+    getSqlite()
+      .prepare("UPDATE month_plan_scores SET signature = ? WHERE user_id = ?")
+      .run("amrap|not-the-piece:1", created.user.id);
+    const byName = await generatePlanForUser(created.user.id, { weekIndex: 1, sex: "m", nowMs: NOW + 2_000 });
+    if ("error" in byName) throw new Error(byName.error);
+    expect(spy).not.toHaveBeenCalled();
+    expect(dayByKey(byName.week, "mon")!.piece!.nameKo).not.toBe(dayByKey(first.week, "mon")!.piece!.nameKo);
+
     process.env.MONTH_PLAN_MODEL_KEY = KEY;
     spy.mockResolvedValue(new Response("not-json", { status: 200 }));
     const second = await generatePlanForUser(created.user.id, { weekIndex: 1, sex: "m", nowMs: NOW + 1_000 });
@@ -90,7 +115,8 @@ describe("generating a week stays on the server", () => {
     expect(spy).toHaveBeenCalledTimes(1);
     expect(String(spy.mock.calls[0]?.[0])).toBe(MONTH_PLAN_OPENAI_URL);
     expect(second.week.adapterId).toBe("rules");
-    expect(dayByKey(second.week, "mon")!.piece!.signature).toBe(dayByKey(first.week, "mon")!.piece!.signature);
+    expect(dayByKey(second.week, "mon")!.piece!.signature).toBe(dayByKey(avoided.week, "mon")!.piece!.signature);
+    expect(dayByKey(second.week, "mon")!.piece!.signature).not.toBe(dayByKey(first.week, "mon")!.piece!.signature);
     expect(dayByKey(second.week, "mon")!.lift!.sets.map((set) => set.weightKg)).toEqual([117.5, 135, 152.5]);
   });
 });
@@ -190,7 +216,88 @@ describe("weekly model picks a candidate id", () => {
     expect(await resolvePlannedWeek(built, { key: KEY, fetchImpl: timeout, timeoutMs: 20 })).toEqual(rules);
   });
 
-  it("keeps sex on wall ball, kettlebell, and box height, and blocks a repeated signature", () => {
+  it("shares the ban on the no-key path and the fallback path, and a 429 does not retry", async () => {
+    const monday = dayByKey(buildWeek(weekInput()), "mon")!.piece!;
+    const banned = input({
+      weekIndex: 1,
+      sex: "m",
+      maxes: { squat: 200, ohp: 100, bench: 140, deadlift: 220 },
+      blockedSignatures: [monday.signature],
+      recentMetcons: [{ pattern: "squat" }, { pattern: "engine" }],
+    });
+    const rules = buildWeek(banned);
+    expect(dayByKey(rules, "mon")!.piece!.signature).not.toBe(monday.signature);
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn();
+    const noKey = await resolvePlannedWeek(banned, { key: null, fetchImpl });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    expect(noKey).toEqual(rules);
+
+    const unknown = vi.fn(async () =>
+      envelope(ALT_WEEK.map((pick) => (pick.day === "mon" ? { day: "mon", candidate_id: "not-a-candidate" } : pick))),
+    );
+    expect(await resolvePlannedWeek(banned, { key: KEY, fetchImpl: unknown })).toEqual(rules);
+    expect(unknown).toHaveBeenCalledTimes(1);
+
+    const broken = vi.fn(async () =>
+      envelope(ALT_WEEK.map((pick) => (pick.day === "mon" ? { day: "mon", candidate_id: monday.id } : pick))),
+    );
+    const brokenWeek = await resolvePlannedWeek(banned, { key: KEY, fetchImpl: broken });
+    expect(broken).toHaveBeenCalledTimes(1);
+    expect(brokenWeek).toEqual(rules);
+    expect(brokenWeek.days.map((day) => day.piece?.id)).toEqual(rules.days.map((day) => day.piece?.id));
+
+    expect(
+      acceptCandidateIds(
+        input({ weekIndex: 1, maxes: {}, recentMetcons: [{ pattern: "squat" }, { pattern: "engine" }] }),
+        ALT_WEEK.map((pick) => (pick.day === "mon" ? { day: "mon", candidate_id: "mon-engine" } : pick)),
+      ),
+    ).toBeNull();
+
+    const limited = vi.fn(async () => new Response("rate", { status: 429 }));
+    expect(await resolvePlannedWeek(banned, { key: KEY, fetchImpl: limited })).toEqual(rules);
+    expect(limited).toHaveBeenCalledTimes(1);
+
+    const logged = warn.mock.calls.map((call) => call.map((part) => String(part)).join(" ")).join("\n");
+    expect(logged).toContain("unknown_id");
+    expect(logged).toContain("rule_break");
+    expect(logged).toContain("http_error");
+    expect(logged).toContain("429");
+    expect(logged).not.toContain(KEY);
+  });
+
+  it("repeats the week-4 benchmark even when another candidate is free of the 30-day ban", () => {
+    const built = input({ weekIndex: 4, sex: "m", maxes: { squat: 200 } });
+    const benchmark = dayByKey(buildWeek(built), "thu")!.piece!;
+    const other: MetconPiece = { ...benchmark, id: "thu-other", nameKo: "다른 조각", signature: "for_time|other:1" };
+    const slot = weekMetconSlots(4).find((row) => row.day === "thu")!;
+    const cursor = openingBan(
+      input({
+        weekIndex: 4,
+        maxes: {},
+        blockedSignatures: [benchmark.signature],
+        blockedNames: [benchmark.nameKo],
+      }),
+    );
+    expect(applyMetconBans([benchmark, other], cursor, slot).map((piece) => piece.id)).toEqual([
+      WEEK4_BENCHMARK_ID,
+      "thu-other",
+    ]);
+    const again = buildWeek(
+      input({
+        weekIndex: 4,
+        sex: "m",
+        maxes: { squat: 200 },
+        blockedSignatures: [benchmark.signature],
+        blockedNames: [benchmark.nameKo],
+      }),
+    );
+    expect(dayByKey(again, "thu")!.piece!.id).toBe(WEEK4_BENCHMARK_ID);
+  });
+
+  it("keeps sex on wall ball and box height, and blocks a repeated signature", () => {
     const benchmark = (sex: WeekBuildInput["sex"]): MetconRequest => ({
       weekIndex: 4,
       day: "thu",
@@ -232,9 +339,11 @@ describe("weekly model picks a candidate id", () => {
       avoidStimuli: [],
       allowHeavy: false,
       longPiece: false,
-      forbid: [],
+      forbid: ["squat"],
     });
-    expect(sat.find((piece) => piece.bodyKo.includes("케틀벨"))!.bodyKo).toMatch(/16kg/);
+    expect(sat.map((piece) => piece.id)).toEqual(["sat-reps"]);
+    expect(sat[0]!.minutes).toBe(12);
+    expect(sat[0]!.bodyKo).not.toMatch(/스쿼트|스러스터|월볼|케틀벨/);
 
     for (const weekIndex of [1, 2, 3, 4] as const) {
       for (const slot of weekMetconSlots(weekIndex)) {
@@ -257,6 +366,13 @@ describe("weekly model picks a candidate id", () => {
             expect(piece.stimulus).toBeNull();
           }
           if (!slot.allowHeavy) expect(piece.stimulus).not.toBe("고중량");
+          if (slot.day === "sat") {
+            expect(slot.forbid).toContain("squat");
+            expect(piece.minutes).toBeGreaterThanOrEqual(8);
+            expect(piece.minutes).toBeLessThanOrEqual(12);
+          }
+          if (slot.day === "fri") expect(piece.minutes).toBe(8);
+          if (slot.day === "thu" && weekIndex < 4) expect(piece.minutes).toBe(8);
         }
       }
     }

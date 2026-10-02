@@ -4,7 +4,7 @@ import { getUserMaxes } from "../maxes";
 import { daySummary } from "./build-week";
 import { kstParts, kstWeekStart } from "./calendar";
 import { serverModelKey } from "./adapter";
-import { recentMetconPatterns, recentMetconSignatures } from "./recent";
+import { recentMetconBans, recentMetconPatterns } from "./recent";
 import { resolvePlannedWeek } from "./week-model";
 import {
   DAY_ORDER,
@@ -140,6 +140,7 @@ export async function generatePlanForUser(
   const sex = input.sex;
   writeUserSex(userId, sex);
   const key = serverModelKey();
+  const bans = recentMetconBans(userId, nowMs);
   const week = await resolvePlannedWeek(
     {
       weekIndex: input.weekIndex,
@@ -147,11 +148,10 @@ export async function generatePlanForUser(
       sex,
       recentMetcons: recentMetconPatterns(userId, nowMs),
       trainingDays: input.trainingDays,
+      blockedSignatures: bans.signatures,
+      blockedNames: bans.names,
     },
-    {
-      key,
-      blockedSignatures: key ? recentMetconSignatures(userId, nowMs) : [],
-    },
+    { key },
   );
   const info = getSqlite()
     .prepare(
