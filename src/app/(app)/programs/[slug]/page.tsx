@@ -8,6 +8,7 @@ import { ProgramWeekList } from "@/components/ProgramWeekList";
 import { CompletenessBanner } from "@/components/CompletenessBanner";
 import { programBadge, programSubtitle } from "@/lib/programs/completeness-ux";
 import { helpOrDescription } from "@/lib/programs/copy-help";
+import { visibleProgramCopy, visibleWeekNote, visibleWeekTitle } from "@/lib/screen-copy";
 
 export const runtime = "nodejs";
 
@@ -28,7 +29,9 @@ export default async function ProgramPage({ params }: { params: Promise<{ slug: 
       <p className="mt-1 text-xs font-bold text-[var(--accent)]">{programBadge(program.slug, program.completeness)}</p>
       {subtitle ? <p className="text-[11px] font-bold text-[var(--muted)]">{subtitle}</p> : null}
       <CompletenessBanner slug={program.slug} completeness={program.completeness} />
-      <p className="mt-3 break-words text-sm text-[var(--muted)]">{helpOrDescription(program.slug, program.description_ko)}</p>
+      <p className="mt-3 break-words text-sm text-[var(--muted)]">
+        {visibleProgramCopy(program.slug, helpOrDescription(program.slug, program.description_ko))}
+      </p>
       <PinProgramButton slug={program.slug} pinned={user?.currentProgram === program.slug} />
       <ProgramWeekList
         slug={program.slug}

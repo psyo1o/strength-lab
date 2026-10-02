@@ -7,6 +7,7 @@ import { displayWeight } from "@/lib/calc/round";
 import type { ResolvedExercise } from "@/lib/programs/queries";
 import type { Tip } from "@/lib/tip-copy";
 import { TIP_SAFETY_FOOTER, tipHasVideo } from "@/lib/tip-copy";
+import { LAST_MAIN_SET_LINE_KO } from "@/lib/screen-copy";
 import { BottomSheet } from "./BottomSheet";
 import { RestTimer } from "./RestTimer";
 import { TipMedia } from "./TipMedia";
@@ -15,7 +16,7 @@ import { TipVideoButtons } from "./TipVideoButtons";
 const ROLE: Record<string, string> = {
   warmup: "워밍업",
   main: "본운동",
-  bbb: "BBB",
+  bbb: "보조",
   assistance: "보조",
   technique: "테크닉",
 };
@@ -150,6 +151,11 @@ export function WorkoutClient({
           × {current.set.reps}
           {current.set.amrap ? "+" : ""}
         </div>
+        {current.set.amrap && current.exercise.role === "main" ? (
+          <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
+            {LAST_MAIN_SET_LINE_KO}
+          </p>
+        ) : null}
         <div className="mt-3 text-sm text-[var(--muted)]">{current.set.loadLabel}</div>
       </button>
       {askAmrap ? (

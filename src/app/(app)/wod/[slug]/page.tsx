@@ -8,7 +8,8 @@ import { WodEstimateCard } from "@/components/WodEstimateCard";
 import { formatWodScore, listWodResults, wodPr } from "@/lib/wod/queries";
 import { estimateWod } from "@/lib/wod/estimate";
 import { getWodTemplate, toClientTemplate } from "@/lib/wod/templates";
-import { RX_DISCLAIMER, categoryLabel, familyLabel, formatLabel, wodTipKeys } from "@/lib/wod/types";
+import { workoutKindLabel } from "@/lib/screen-copy";
+import { RX_DISCLAIMER, formatLabel, wodTipKeys } from "@/lib/wod/types";
 import { namedWodComparison } from "@/lib/month-plan/history";
 
 export const runtime = "nodejs";
@@ -37,7 +38,7 @@ export default async function WodDetailPage({ params }: { params: Promise<{ slug
         ← 벤치마크
       </Link>
       <p className="mt-2 text-sm font-bold text-[var(--accent)]">
-        {familyLabel(template.family) || categoryLabel(template.category)} · {formatLabel(template.format)}
+        {workoutKindLabel(template.family, template.category)} · {formatLabel(template.format)}
       </p>
       <h1 className="mt-1 break-words text-3xl font-black">{template.nameKo}</h1>
       <p className="mt-2 break-words text-base leading-relaxed text-[var(--muted)]">{template.prescriptionKo}</p>

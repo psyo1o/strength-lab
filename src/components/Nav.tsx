@@ -3,7 +3,7 @@ import Link from "next/link";
 const items = [
   { href: "/dashboard", label: "오늘" },
   { href: "/maxes", label: "1RM" },
-  { href: "/wod", label: "WOD" },
+  { href: "/wod", label: "본 운동" },
   { href: "/programs", label: "프로그램" },
   { href: "/gear", label: "장비" },
   { href: "/settings", label: "설정" },

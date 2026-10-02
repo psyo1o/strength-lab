@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   ROTATING_BENCHMARK_LABEL_KO,
   ROTATING_BENCHMARK_NOTE_KO,
+  TODAY_MAIN_LABEL_KO,
   WEEK_PLAN_MISSING_KO,
   todaySessionModel,
 } from "@/lib/month-plan/today-view";
@@ -13,7 +14,7 @@ export function TodaySessionCard({ today }: { today: TodayPlan | null }) {
   if (model.kind === "missing") {
     return (
       <section className="card mt-5 min-w-0 p-5">
-        <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
+        <div className="text-sm font-bold text-[var(--accent)]">{TODAY_MAIN_LABEL_KO}</div>
         <p className="mt-2 break-words text-base font-black">{WEEK_PLAN_MISSING_KO}</p>
       </section>
     );
@@ -21,7 +22,7 @@ export function TodaySessionCard({ today }: { today: TodayPlan | null }) {
 
   return (
     <Link href={model.href} className="card tap mt-5 block min-w-0 p-5">
-      <div className="text-sm font-bold text-[var(--accent)]">오늘 WOD</div>
+      <div className="text-sm font-bold text-[var(--accent)]">{TODAY_MAIN_LABEL_KO}</div>
       <div className="mt-1 break-words text-2xl font-black leading-tight">
         {model.weekIndex}주 · {model.labelKo}
       </div>

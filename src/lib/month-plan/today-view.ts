@@ -1,9 +1,24 @@
+import { LAST_MAIN_SET_LINE_KO, TODAY_MAIN_LABEL_KO } from "../screen-copy";
 import { daySummary } from "./build-week";
 import type { PlannedDay, SessionBlock, WeekIndex } from "./types";
 
 export const WEEK_PLAN_MISSING_KO = "이번 주 계획이 아직 만들어지지 않았습니다.";
 export const ROTATING_BENCHMARK_LABEL_KO = "순환 벤치마크 · 추가";
 export const ROTATING_BENCHMARK_NOTE_KO = "오늘의 세션이 아닙니다.";
+export { TODAY_MAIN_LABEL_KO };
+
+/** Bottom button opens this day's session. A missing week goes to the plan screen, not a program essay. */
+export function todayWorkoutHref(today: { href: string } | null): string {
+  return today?.href ?? "/plan";
+}
+
+function displayBody(block: SessionBlock): string {
+  const body = block.bodyKo.replace(/(\d+)분 AMRAP/g, "$1분 동안 최대한 많이");
+  if (block.role === "main" && block.strength?.sets.some((set) => set.amrap)) {
+    return `${body}\n${LAST_MAIN_SET_LINE_KO}`;
+  }
+  return body;
+}
 
 export function blockDurationKo(block: SessionBlock): string {
   if (block.role === "warmup") return "8–12분";
@@ -31,7 +46,7 @@ export function todayBlockViews(day: PlannedDay): TodayBlockView[] {
         titleKo: block.titleKo,
         durationKo,
         headingKo: durationKo ? `${title} · ${durationKo}` : title,
-        bodyKo: block.bodyKo,
+        bodyKo: displayBody(block),
       };
     });
 }

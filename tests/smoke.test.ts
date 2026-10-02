@@ -362,7 +362,7 @@ describe("mobile UX P0", () => {
     expect(wodClient).not.toMatch(/from ["']@\/lib\/tips["']/);
     expect(wodClient).not.toMatch(/from ["']@\/lib\/wod\/templates["']/);
     expect(wodClient).toMatch(/TipVideoButtons/);
-    expect(wodClient).toMatch(/WOD 완료/);
+    expect(wodClient).toMatch(/본 운동 완료/);
     const chips = fs.readFileSync(path.join(process.cwd(), "src/components/TipVideoButtons.tsx"), "utf8");
     expect(chips).toMatch(/영상 보기/);
     expect(chips).toMatch(/팁·영상/);
@@ -374,7 +374,12 @@ describe("mobile UX P0", () => {
     expect(home).toMatch(/TodaySessionCard/);
     expect(home).toMatch(/RotatingBenchmarkCard/);
     expect(home).not.toMatch(/오늘 WOD/);
-    expect(todayCard).toMatch(/오늘 WOD/);
+    const copy = fs.readFileSync(path.join(process.cwd(), "src/lib/screen-copy.ts"), "utf8");
+    expect(home).toMatch(/PROGRAM_ENTRY_KO/);
+    expect(home).toMatch(/todayWorkoutHref/);
+    expect(copy).toMatch(/프로그램 보기/);
+    expect(copy).toMatch(/오늘의 본 운동/);
+    expect(todayCard).toMatch(/TODAY_MAIN_LABEL_KO/);
     expect(todayCard).toMatch(/WEEK_PLAN_MISSING_KO/);
     expect(todayView).toMatch(/이번 주 계획이 아직 만들어지지 않았습니다/);
     expect(todayView).toMatch(/오늘의 세션이 아닙니다/);
@@ -390,7 +395,7 @@ describe("mobile UX P0", () => {
     expect(fs.existsSync(path.join(process.cwd(), "src/app/(app)/history/page.tsx"))).toBe(true);
     const nav = fs.readFileSync(path.join(process.cwd(), "src/components/Nav.tsx"), "utf8");
     expect(nav).toMatch(/href: "\/wod"/);
-    expect(nav).toMatch(/label: "WOD"/);
+    expect(nav).toMatch(/label: "본 운동"/);
     expect(nav).toMatch(/href: "\/gear"/);
     expect(nav).toMatch(/label: "장비"/);
     expect(nav).toMatch(/grid-cols-6/);

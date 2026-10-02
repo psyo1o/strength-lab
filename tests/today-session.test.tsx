@@ -101,7 +101,7 @@ describe("Friday 2026-10-02 today screen", () => {
     expect(todaySessionModel(null)).toEqual({ kind: "missing" });
     const html = renderToStaticMarkup(<TodaySessionCard today={null} />);
     expect(html).toContain(WEEK_PLAN_MISSING_KO);
-    expect(html).toContain("오늘 WOD");
+    expect(html).toContain("오늘의 본 운동");
     expect(html).not.toContain("Fight Gone Bad");
     expect(html).not.toContain("웜업");
     expect(html).not.toContain("데드리프트");
@@ -117,5 +117,6 @@ describe("Friday 2026-10-02 today screen", () => {
     expect(extra).toContain("오늘의 세션이 아닙니다.");
     expect(extra).toContain("Fight Gone Bad");
     expect(extra).not.toContain("오늘 WOD");
+    expect(extra).not.toContain("오늘의 본 운동");
   });
 });

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { P1_META } from "@/lib/programs/p1-meta";
+import { visibleWeekNote, visibleWeekTitle } from "@/lib/screen-copy";
 
 type Week = { id: number; week_number: number; name_ko: string; notes_ko: string };
 type Day = { id: number; day_number: number; name_ko: string; notes_ko: string };
@@ -99,8 +100,10 @@ export function ProgramWeekList({
         const empty = days.length === 0;
         return (
           <section key={w.id}>
-            <h2 className="break-words font-black">{w.name_ko}</h2>
-            {w.notes_ko ? <p className="text-xs text-[var(--muted)]">{w.notes_ko}</p> : null}
+            <h2 className="break-words font-black">{visibleWeekTitle(slug, w.week_number, w.name_ko)}</h2>
+            {visibleWeekNote(slug, w.week_number, w.notes_ko) ? (
+              <p className="text-xs text-[var(--muted)]">{visibleWeekNote(slug, w.week_number, w.notes_ko)}</p>
+            ) : null}
             {empty ? (
               <p className="mt-2 rounded-xl border border-[var(--line)] bg-[#2a1d12] p-3 text-sm">
                 이 주는 아직 없습니다.

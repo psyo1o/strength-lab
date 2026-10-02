@@ -195,11 +195,11 @@ describe("gear page and nav", () => {
       expect(card).not.toContain("<button");
       expect(card).not.toContain("href=");
       expect(card).toContain("gear-pending");
-      expect(card).toContain("준비 중");
+      expect(card).toContain("아직 링크가 없어요");
       expect(card).toContain("<img");
     }
     const partnerCard = html.slice(partnerAt, referenceAt);
-    expect(partnerCard).not.toContain("준비 중");
+    expect(partnerCard).not.toContain("아직 링크가 없어요");
     expect(partnerCard).toContain("쿠팡에서 보기");
 
     const page = fs.readFileSync(path.join(process.cwd(), "src/app/(app)/gear/page.tsx"), "utf8");

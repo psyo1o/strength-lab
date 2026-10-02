@@ -73,7 +73,7 @@ export const WOD_SUBS: Record<string, string[]> = {
 };
 
 export function formatLabel(format: WodFormat): string {
-  if (format === "amrap") return "AMRAP";
+  if (format === "amrap") return "정해진 시간 동안 최대한 많이";
   if (format === "emom") return "EMOM";
   if (format === "chipper") return "Chipper";
   return "For Time";
@@ -91,9 +91,9 @@ export function categoryLabel(category: WodCategory): string {
 }
 
 export function tierLabel(tier: WodTier): string {
-  if (tier === "scaled") return "Scaled";
-  if (tier === "beginner") return "Beginner";
-  return "Rx";
+  if (tier === "scaled") return "가벼운 무게";
+  if (tier === "beginner") return "처음 하는 무게";
+  return "기본 무게";
 }
 
 export function scoreTypeFor(format: WodFormat): WodScoreType {

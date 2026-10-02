@@ -112,7 +112,7 @@ export function HistoryScreen({ initialDate, cards }: { initialDate: string; car
       </div>
 
       {dayCards.length === 0 ? (
-        <p className="mt-8 text-center text-base font-bold">이 날 기록 없음</p>
+        <p className="mt-8 text-center text-base font-bold">이 날에는 저장된 운동이 없어요.</p>
       ) : (
         <ul className="mt-4 space-y-3">
           {dayCards.map((card) => (

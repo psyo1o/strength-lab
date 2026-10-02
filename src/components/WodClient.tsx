@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { formatWeight } from "@/lib/calc/round";
 import type { Tip } from "@/lib/tip-copy";
 import { TIP_SAFETY_FOOTER, tipHasVideo } from "@/lib/tip-copy";
+import { workoutFormatLine } from "@/lib/screen-copy";
 import {
   formatClock,
-  formatLabel,
   parseClock,
   scoreTypeFor,
   tierLabel,
@@ -266,8 +266,7 @@ export function WodClient({
 
       <section className="card mt-4 min-w-0 p-4 text-center sm:p-5">
         <div className="break-words text-sm font-bold text-[var(--accent)]">
-          {formatLabel(template.format)}
-          {cap != null ? ` · 캡 ${formatClock(cap)}` : ""}
+          {workoutFormatLine(template.format, cap)}
           {template.format === "emom" && template.targetRounds
             ? ` · ${emomMinute}/${template.targetRounds}분`
             : ""}
@@ -388,7 +387,7 @@ export function WodClient({
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[#0f1117]/95 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-2 backdrop-blur">
         <button type="button" className="btn-primary tap mx-auto block w-full max-w-lg px-3 text-xl" disabled={pending || phase === "done"} onClick={() => void complete()}>
-          {pending ? "저장 중…" : "WOD 완료"}
+          {pending ? "저장 중…" : "본 운동 완료"}
         </button>
       </div>
 

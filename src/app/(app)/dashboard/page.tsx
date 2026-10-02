@@ -9,6 +9,8 @@ import { formatLabel } from "@/lib/wod/types";
 import { getWodTemplate, todayWodSlug } from "@/lib/wod/templates";
 import { listWodResults, wodCardCopy, wodTrainingDayKeys } from "@/lib/wod/queries";
 import { todayPlanDay } from "@/lib/month-plan/store";
+import { todayWorkoutHref } from "@/lib/month-plan/today-view";
+import { PROGRAM_ENTRY_KO } from "@/lib/screen-copy";
 
 export const runtime = "nodejs";
 
@@ -32,12 +34,18 @@ export default async function DashboardPage() {
       : null;
   const todayWod = getWodTemplate(todayWodSlug());
   const todayPlan = todayPlanDay(user.id);
-  const todayHref = todayPlan?.href || user.lastSession || (current ? `/programs/${current.slug}` : "/programs");
+  const todayHref = todayWorkoutHref(todayPlan);
+  const programHref = current ? `/programs/${current.slug}` : "/programs";
 
   return (
     <main className="px-4 pt-6 pb-fixed-stack">
       <p className="line-clamp-2 text-base font-black leading-snug" title={`안녕 · ${current?.name_ko ?? "프로그램 고르기"}`}>
         안녕 · {current?.name_ko ?? "프로그램 고르기"}
+      </p>
+      <p className="mt-1 text-sm">
+        <Link href={programHref} className="font-bold text-[var(--accent)]">
+          {PROGRAM_ENTRY_KO}
+        </Link>
       </p>
 
       <TodaySessionCard today={todayPlan} />
@@ -64,7 +72,7 @@ export default async function DashboardPage() {
             </p>
           </>
         ) : (
-          <p className="mt-1 text-sm text-[var(--muted)]">아직 기록이 없습니다</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">아직 기록된 운동이 없어요</p>
         )}
       </Link>
 
