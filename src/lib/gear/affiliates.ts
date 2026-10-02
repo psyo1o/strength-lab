@@ -4,10 +4,10 @@ import path from "node:path";
 export const GEAR_DISCLOSURE =
   "이 화면은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.";
 
-/** The only outbound partner href. Never built from coupangPartnerId. */
+/** KRATOS short link. Never built from coupangPartnerId. */
 export const ONLY_PARTNER_HREF = "https://link.coupang.com/a/hvCaduhQ8O";
 
-const CONFIRMED_PARTNER_IMAGE =
+const KRATOS_IMAGE =
   "https://thumbnail.coupangcdn.com/thumbnails/remote/492x492ex/image/retail/images/2024/07/17/15/4/6d758f0b-8b3a-466d-be69-3588f5ed9eb3.jpg";
 
 export type GearItem = {
@@ -52,21 +52,64 @@ export type ReferenceCard = {
 
 export type GearPageModel = {
   disclosure: string;
-  partner: PartnerLinkCard | null;
+  partners: PartnerLinkCard[];
   references: ReferenceCard[];
 };
 
 /**
- * Confirmed product for the single partner link.
- * The short link was opened and this name and photo were supplied for that product.
+ * Confirmed partner cards. Hardcoded so a NAS overlay at /data/gear-affiliates.json
+ * cannot hide them or swap their photos. Each href and image URL is exact.
  */
-export const CONFIRMED_PARTNER: PartnerLinkCard = {
-  id: "kratos-hook-grip-tape",
-  nameKo: "KRATOS 접착식 훅 그립 테이프",
-  whyKo: "바벨 풀 때 손에 감는 훅 그립 테이프입니다.",
-  imageUrl: CONFIRMED_PARTNER_IMAGE,
-  href: ONLY_PARTNER_HREF,
-};
+export const CONFIRMED_PARTNERS: readonly PartnerLinkCard[] = [
+  {
+    id: "kratos-hook-grip-tape",
+    nameKo: "KRATOS 접착식 훅 그립 테이프",
+    whyKo: "바벨 풀 때 손에 감는 훅 그립 테이프입니다.",
+    imageUrl: KRATOS_IMAGE,
+    href: ONLY_PARTNER_HREF,
+  },
+  {
+    id: "zero-to-hero-knee-sleeve",
+    nameKo: "제로투히어로 네오프렌 무릎보호대 5mm 세트",
+    whyKo: "스쿼트처럼 무릎에 부하가 큰 날에 무릎을 감싸 주는 5mm 슬리브입니다.",
+    imageUrl:
+      "https://t1a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/2024/05/16/14/0/402caa09-b49b-4957-bc99-f18c6aa2d621.jpg",
+    href: "https://link.coupang.com/a/hv61OWmYIC",
+  },
+  {
+    id: "zamst-wrist-wrap",
+    nameKo: "잠스트 리스트 랩 손목보호대, 1개, 블랙",
+    whyKo: "스내치나 클린처럼 바가 손목에 실릴 때 손목을 고정하는 랩입니다.",
+    imageUrl:
+      "https://t3a.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/100692866906998-475b92b5-edd5-483b-874e-63fc46c8eea8.jpg",
+    href: "https://link.coupang.com/a/hv63GB1HxI",
+  },
+  {
+    id: "lever-belt-red-black",
+    nameKo: "헬스 파워 리프팅 레버 역도 벨트, 레드블랙",
+    whyKo: "무거운 스쿼트와 데드리프트에서 허리를 받치는 레버 벨트입니다.",
+    imageUrl:
+      "https://thumbnail3.coupangcdn.com/thumbnails/remote/212x212ex/image/vendor_inventory/image_audit/prod/e0f7a153-f99d-4c14-a652-4e15a7953f80_fixing_v2.png",
+    href: "https://link.coupang.com/a/hv63PSZNxl",
+  },
+  {
+    id: "winable-double-under-rope",
+    nameKo: "윈어블 복싱 RPM 더블언더 줄넘기",
+    whyKo: "더블언더를 돌릴 때 쓰는 와이어 줄넘기입니다.",
+    imageUrl:
+      "https://thumbnail7.coupangcdn.com/thumbnails/remote/212x212ex/image/retail/images/110224658514384-deebec35-a4ae-4765-8cdb-71fcbc9e978c.jpg",
+    href: "https://link.coupang.com/a/hv636AnV37",
+  },
+];
+
+/** KRATOS card. Kept as the first confirmed partner. */
+export const CONFIRMED_PARTNER: PartnerLinkCard = CONFIRMED_PARTNERS[0];
+
+const ALLOWED_PARTNER_HREFS = new Set(CONFIRMED_PARTNERS.map((card) => card.href));
+const ALLOWED_PARTNER_IMAGES = new Set(CONFIRMED_PARTNERS.map((card) => card.imageUrl));
+
+/** Generic reference slots covered by a confirmed partner card. */
+const SUPERSEDED_REFERENCE_IDS = new Set(["knee-pads", "wrist-brace"]);
 
 type Cache = { mtimeMs: number; path: string; catalog: GearCatalog };
 
@@ -97,9 +140,9 @@ export function isUnnamedGearTitle(name: string): boolean {
   return value.length === 0 || value === "운동 장비";
 }
 
-/** True only for the one confirmed partner href. Partner ids and search URLs are not links. */
+/** True only for a confirmed partner short link. Partner ids and search URLs are not links. */
 export function isOutboundPartnerHref(raw: string): boolean {
-  return raw.trim() === ONLY_PARTNER_HREF;
+  return ALLOWED_PARTNER_HREFS.has(raw.trim());
 }
 
 export function isConfiguredAffiliateUrl(raw: string): boolean {
@@ -112,7 +155,7 @@ export function isAppGearImage(raw: string): boolean {
 
 export function isDisplayPhoto(raw: string): boolean {
   const url = raw.trim();
-  return isAppGearImage(url) || url === CONFIRMED_PARTNER_IMAGE;
+  return isAppGearImage(url) || ALLOWED_PARTNER_IMAGES.has(url);
 }
 
 function text(value: unknown): string {
@@ -120,7 +163,8 @@ function text(value: unknown): string {
 }
 
 function keptAffiliateUrl(raw: string): string {
-  return isOutboundPartnerHref(raw) ? ONLY_PARTNER_HREF : "";
+  const url = raw.trim();
+  return ALLOWED_PARTNER_HREFS.has(url) ? url : "";
 }
 
 function keptImage(raw: string): string {
@@ -199,18 +243,18 @@ export function listGearItems(catalog: GearCatalog = loadGearCatalog()): GearIte
   return catalog.categories.flatMap((cat) => cat.items);
 }
 
-export function confirmedPartnerCard(): PartnerLinkCard | null {
-  const card = CONFIRMED_PARTNER;
-  if (isUnnamedGearTitle(card.nameKo)) return null;
-  if (!card.whyKo.trim() || !isDisplayPhoto(card.imageUrl)) return null;
-  if (!isOutboundPartnerHref(card.href)) return null;
-  return {
+export function confirmedPartnerCards(): PartnerLinkCard[] {
+  return CONFIRMED_PARTNERS.filter((card) => {
+    if (isUnnamedGearTitle(card.nameKo)) return false;
+    if (!card.whyKo.trim() || !isDisplayPhoto(card.imageUrl)) return false;
+    return isOutboundPartnerHref(card.href);
+  }).map((card) => ({
     id: card.id,
     nameKo: card.nameKo,
     whyKo: card.whyKo,
     imageUrl: card.imageUrl,
-    href: ONLY_PARTNER_HREF,
-  };
+    href: card.href,
+  }));
 }
 
 /** Shipped reference slots. Empty URLs stay visible and are never links. Unnamed titles are omitted. */
@@ -220,7 +264,8 @@ export function referenceCards(catalog: GearCatalog): ReferenceCard[] {
     if (isUnnamedGearTitle(item.nameKo)) continue;
     if (!item.whyKo.trim()) continue;
     if (!isAppGearImage(item.imageUrl)) continue;
-    if (item.nameKo === CONFIRMED_PARTNER.nameKo) continue;
+    if (SUPERSEDED_REFERENCE_IDS.has(item.id)) continue;
+    if (CONFIRMED_PARTNERS.some((card) => card.nameKo === item.nameKo)) continue;
     cards.push({
       id: item.id,
       nameKo: item.nameKo,
@@ -232,14 +277,15 @@ export function referenceCards(catalog: GearCatalog): ReferenceCard[] {
 }
 
 /**
- * What the gear page shows. Reference cards come from the bundled catalog so a NAS
- * overlay titled only 운동 장비 cannot replace them or add a second outbound link.
+ * What the gear page shows. Partner cards are the hardcoded confirmed list, so a NAS
+ * overlay cannot hide them or drop their photos. Reference cards come from the bundled
+ * catalog so an overlay titled only 운동 장비 cannot replace them or add another link.
  */
 export function gearPageModel(): GearPageModel {
   const bundled = readCatalogFile(path.resolve(bundledGearJsonPath()));
   return {
     disclosure: GEAR_DISCLOSURE,
-    partner: confirmedPartnerCard(),
+    partners: confirmedPartnerCards(),
     references: referenceCards(bundled),
   };
 }
