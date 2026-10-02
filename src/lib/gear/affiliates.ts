@@ -181,7 +181,7 @@ const ALLOWED_PARTNER_HREFS = new Set(CONFIRMED_PARTNERS.map((card) => card.href
 const ALLOWED_PARTNER_IMAGES = new Set(CONFIRMED_PARTNERS.map((card) => card.imageUrl));
 
 /** Generic reference slots covered by a confirmed partner card. */
-const SUPERSEDED_REFERENCE_IDS = new Set(["knee-pads", "wrist-brace", "lifting-straps"]);
+const SUPERSEDED_REFERENCE_IDS = new Set(["knee-pads", "wrist-brace", "lifting-straps", "pedal-toe-strap"]);
 
 type Cache = { mtimeMs: number; path: string; catalog: GearCatalog };
 

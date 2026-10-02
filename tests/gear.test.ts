@@ -49,7 +49,8 @@ describe("gear affiliates", () => {
     expect(catalog.coupangPartnerId).toBe("AF4475360");
     expect(catalog.categories.map((c) => c.nameKo)).toEqual(["참고"]);
     const items = listGearItems(catalog);
-    expect(items.map((item) => item.nameKo)).toEqual(["리프팅 스트랩", "무릎 패드", "손목 보호대", "페달 토스트랩"]);
+    expect(items.map((item) => item.nameKo)).toEqual(["리프팅 스트랩", "무릎 패드", "손목 보호대"]);
+    expect(items.some((item) => item.nameKo === "페달 토스트랩")).toBe(false);
     expect(items.every((item) => item.whyKo && item.imageUrl.startsWith("/gear/"))).toBe(true);
     expect(items.every((item) => !item.configured)).toBe(true);
     expect(items.every((item) => !item.affiliateUrl.includes("AF4475360"))).toBe(true);
@@ -160,13 +161,14 @@ describe("gear affiliates", () => {
     expect(model.disclosure).toBe(GEAR_DISCLOSURE);
     expect(model.partners).toEqual(CONFIRMED_PARTNERS);
     expect(model.partners[0]).toEqual(CONFIRMED_PARTNER);
-    expect(model.references.map((item) => item.nameKo)).toEqual(["페달 토스트랩"]);
+    expect(model.references).toEqual([]);
     expect(model.references.some((item) => item.nameKo === "운동 장비")).toBe(false);
     expect(model.references.some((item) => item.nameKo === "무릎 패드")).toBe(false);
     expect(model.references.some((item) => item.nameKo === "손목 보호대")).toBe(false);
     expect(model.references.some((item) => item.nameKo === "리프팅 스트랩")).toBe(false);
     const html = shelfHtml(model);
     expect(html).not.toContain("운동 장비");
+    expect(html).not.toContain("페달 토스트랩");
     const anchors = [...html.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1]);
     expect(anchors).toEqual(PARTNER_HREFS);
     for (const card of CONFIRMED_PARTNERS) {
@@ -217,10 +219,11 @@ describe("gear page and nav", () => {
     const html = shelfHtml(model);
     const disclosureAt = html.indexOf(GEAR_DISCLOSURE);
     const partnerAt = html.indexOf('data-gear="partner"');
-    const referenceAt = html.indexOf('data-gear="reference"');
     expect(disclosureAt).toBeGreaterThan(-1);
     expect(partnerAt).toBeGreaterThan(disclosureAt);
-    expect(referenceAt).toBeGreaterThan(partnerAt);
+    expect(html).not.toContain('data-gear="reference"');
+    expect(html).not.toContain("페달 토스트랩");
+    expect(html).not.toContain("아직 링크가 없어요");
     expect(html.match(/<a /g)).toHaveLength(PARTNER_HREFS.length);
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer sponsored nofollow"');
