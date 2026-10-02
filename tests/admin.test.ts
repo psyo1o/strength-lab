@@ -274,11 +274,13 @@ describe("admin copy", () => {
       "src/components/MemberAdminList.tsx",
       "src/components/MetconEditor.tsx",
       "src/components/Nav.tsx",
+      "src/app/(app)/members/not-found.tsx",
     ]
       .map((file) => fs.readFileSync(path.join(process.cwd(), file), "utf8"))
       .join("\n");
     expect(text).toMatch(/회원/);
     expect(text).toMatch(/관리 권한/);
+    expect(text).toMatch(/이 화면은 관리자만 볼 수 있어요/);
     expect(text).toMatch(/컨디셔닝 바꾸기/);
     expect(text).not.toMatch(/CrossFit|크로스핏|구매|결제|코칭|비밀번호/);
     const nav = fs.readFileSync(path.join(process.cwd(), "src/components/Nav.tsx"), "utf8");
