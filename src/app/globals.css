@@ -129,3 +129,30 @@ input[type="number"] {
   font-size: 0.875rem;
   color: var(--muted);
 }
+
+.gear-disclosure {
+  margin-top: 0.75rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.9rem;
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.55;
+  padding: 0.75rem 0.9rem;
+}
+
+.gear-pending {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+}
