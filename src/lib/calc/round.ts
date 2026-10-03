@@ -24,13 +24,25 @@ export function displayWeight(kg: number, unit: WeightUnit): number {
   return roundLoad(kg, unit);
 }
 
+/** Nearest whole kilogram or whole pound. Stored kilograms stay unchanged. */
+export function memberLoad(kg: number, unit: WeightUnit): number {
+  if (!Number.isFinite(kg)) return 0;
+  if (unit === "lb") return Math.round(kg * LB_PER_KG);
+  return Math.round(kg);
+}
+
+/** Convert a number the member is looking at from one unit to the other. */
+export function convertDisplayedLoad(value: number, from: WeightUnit, to: WeightUnit): number {
+  if (!Number.isFinite(value)) return 0;
+  const kg = from === "lb" ? value * KG_PER_LB : value;
+  return memberLoad(kg, to);
+}
+
 export function inputToKg(value: number, unit: WeightUnit): number {
   if (unit === "lb") return value * KG_PER_LB;
   return value;
 }
 
 export function formatWeight(kg: number, unit: WeightUnit): string {
-  const n = displayWeight(kg, unit);
-  const text = Number.isInteger(n) ? String(n) : n.toFixed(1);
-  return `${text}${unit}`;
+  return `${memberLoad(kg, unit)}${unit}`;
 }

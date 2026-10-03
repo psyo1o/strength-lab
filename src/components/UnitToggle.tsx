@@ -1,21 +1,35 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState } from "react";
 
 export function UnitToggle({ unit }: { unit: "kg" | "lb" }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const [pending, setPending] = useState(false);
+  const [override, setOverride] = useState<"kg" | "lb" | null>(null);
+  if (override != null && unit === override) setOverride(null);
+  const shown = override ?? unit;
 
   async function setUnit(next: "kg" | "lb") {
-    start(async () => {
-      await fetch("/api/settings", {
+    if (next === shown || pending) return;
+    setOverride(next);
+    setPending(true);
+    try {
+      const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ unit: next }),
       });
+      if (!res.ok) {
+        setOverride(null);
+        return;
+      }
       router.refresh();
-    });
+    } catch {
+      setOverride(null);
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -28,10 +42,11 @@ export function UnitToggle({ unit }: { unit: "kg" | "lb" }) {
         <button
           key={u}
           type="button"
+          aria-pressed={shown === u}
           disabled={pending}
-          onClick={() => setUnit(u)}
+          onClick={() => void setUnit(u)}
           className={`tap inline-flex h-14 w-14 min-h-14 min-w-14 shrink-0 items-center justify-center px-0 text-sm font-extrabold ${
-            unit === u ? "bg-[var(--accent)] text-[#1a1204]" : "bg-[var(--bg-elev)] text-[var(--muted)]"
+            shown === u ? "bg-[var(--accent)] text-[#1a1204]" : "bg-[var(--bg-elev)] text-[var(--muted)]"
           }`}
         >
           {u}

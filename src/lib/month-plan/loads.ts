@@ -1,5 +1,6 @@
+import { formatWeight, type WeightUnit } from "../calc/round";
 import { trainingMaxKg, wendlerMainSets, wendlerScheme, type WendlerWeek } from "../calc/wendler";
-import type { MainLift, StrengthPrescription, StrengthSet } from "./types";
+import type { MainLift, PlannedWeek, StrengthPrescription, StrengthSet } from "./types";
 
 const LIFT_NAME: Record<MainLift, string> = {
   squat: "스쿼트",
@@ -29,24 +30,34 @@ export function readStoredOneRm(maxes: Record<string, number> | null | undefined
   return null;
 }
 
-function formatKg(kg: number): string {
-  return Number.isInteger(kg) ? `${kg}kg` : `${kg}kg`;
-}
-
-export function formatSetLine(set: StrengthSet): string {
+export function formatSetLine(set: StrengthSet, unit: WeightUnit = "kg"): string {
   const reps = set.amrap ? `${set.reps}회 이상` : `${set.reps}회`;
   if (set.weightKg == null) return `${set.setIndex}. ${reps} · ${set.percentOfTm}%`;
-  return `${set.setIndex}. ${reps} · ${set.percentOfTm}% · ${formatKg(set.weightKg)}`;
+  return `${set.setIndex}. ${reps} · ${set.percentOfTm}% · ${formatWeight(set.weightKg, unit)}`;
 }
 
-export function strengthBody(rx: StrengthPrescription): string {
-  const lines = [rx.nameKo, ...rx.sets.map(formatSetLine)];
+export function strengthBody(rx: StrengthPrescription, unit: WeightUnit = "kg"): string {
+  const lines = [rx.nameKo, ...rx.sets.map((set) => formatSetLine(set, unit))];
   if (rx.missingOneRm) {
     lines.splice(1, 0, rx.noteKo);
   } else if (rx.trainingMaxKg != null && rx.oneRmKg != null) {
-    lines.splice(1, 0, `트레이닝 맥스 ${formatKg(rx.trainingMaxKg)} (1RM ${formatKg(rx.oneRmKg)}의 90%)`);
+    lines.splice(1, 0, `트레이닝 맥스 ${formatWeight(rx.trainingMaxKg, unit)} (1RM ${formatWeight(rx.oneRmKg, unit)}의 90%)`);
   }
   return lines.join("\n");
+}
+
+/** Rewrite stored strength text into the member's unit. Does not invent a missing load. */
+export function presentStoredLoads(week: PlannedWeek, unit: WeightUnit): PlannedWeek {
+  const next = structuredClone(week);
+  for (const day of next.days) {
+    if (!day.lift) continue;
+    for (const block of day.blocks) {
+      if (!block.strength) continue;
+      block.strength = day.lift;
+      block.bodyKo = strengthBody(day.lift, unit);
+    }
+  }
+  return next;
 }
 
 export function topSetKg(rx: StrengthPrescription | null | undefined): number | null {

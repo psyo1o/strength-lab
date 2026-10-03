@@ -180,8 +180,14 @@ export const CONFIRMED_PARTNER: PartnerLinkCard = CONFIRMED_PARTNERS[0];
 const ALLOWED_PARTNER_HREFS = new Set(CONFIRMED_PARTNERS.map((card) => card.href));
 const ALLOWED_PARTNER_IMAGES = new Set(CONFIRMED_PARTNERS.map((card) => card.imageUrl));
 
-/** Generic reference slots covered by a confirmed partner card. */
-const SUPERSEDED_REFERENCE_IDS = new Set(["knee-pads", "wrist-brace", "lifting-straps"]);
+/** Generic reference slots covered by a confirmed partner card, plus the removed pedal card. */
+const SUPERSEDED_REFERENCE_IDS = new Set(["knee-pads", "wrist-brace", "lifting-straps", "pedal-toe-strap"]);
+
+function isPedalToeStrap(item: { id: string; nameKo: string }): boolean {
+  const id = item.id.toLowerCase().replace(/[\s_]+/g, "-");
+  const name = item.nameKo.replace(/\s+/g, "");
+  return id.includes("pedal") || id.includes("toe-strap") || id.includes("toestrap") || name.includes("페달") || name.includes("토스트랩");
+}
 
 type Cache = { mtimeMs: number; path: string; catalog: GearCatalog };
 
@@ -336,7 +342,7 @@ export function referenceCards(catalog: GearCatalog): ReferenceCard[] {
     if (isUnnamedGearTitle(item.nameKo)) continue;
     if (!item.whyKo.trim()) continue;
     if (!isAppGearImage(item.imageUrl)) continue;
-    if (SUPERSEDED_REFERENCE_IDS.has(item.id)) continue;
+    if (SUPERSEDED_REFERENCE_IDS.has(item.id) || isPedalToeStrap(item)) continue;
     if (CONFIRMED_PARTNERS.some((card) => card.nameKo === item.nameKo)) continue;
     cards.push({
       id: item.id,

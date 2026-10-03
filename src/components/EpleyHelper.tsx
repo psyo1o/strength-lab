@@ -2,16 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { epley1rm, percentChart } from "@/lib/calc/epley";
-import { incrementFor, roundTo } from "@/lib/calc/round";
+import { convertDisplayedLoad } from "@/lib/calc/round";
 
 export function EpleyHelper({ unit }: { unit: "kg" | "lb" }) {
-  const [weight, setWeight] = useState(unit === "kg" ? 100 : 225);
+  const [weight, setWeight] = useState(() => (unit === "kg" ? 100 : 225));
   const [reps, setReps] = useState(5);
-  const inc = incrementFor(unit);
-  const estimated = useMemo(() => roundTo(epley1rm(weight, reps), inc), [weight, reps, inc]);
+  const [seenUnit, setSeenUnit] = useState(unit);
+  if (seenUnit !== unit) {
+    setSeenUnit(unit);
+    setWeight((current) => convertDisplayedLoad(current, seenUnit, unit));
+  }
+  const estimated = Math.round(epley1rm(weight, reps));
   const rows = useMemo(
-    () => percentChart(estimated).map((r) => ({ ...r, weight: roundTo(r.weight, inc) })),
-    [estimated, inc],
+    () => percentChart(estimated).map((r) => ({ ...r, weight: Math.round(r.weight) })),
+    [estimated],
   );
 
   return (

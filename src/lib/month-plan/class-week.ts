@@ -1,4 +1,5 @@
-import type { AthleteSex } from "../auth";
+import { readUserUnit, type AthleteSex } from "../auth";
+import type { WeightUnit } from "../calc/round";
 import { getSqlite } from "../db/client";
 import { getUserMaxes } from "../maxes";
 import { serverModelKey } from "./adapter";
@@ -71,7 +72,11 @@ export function getClassPlanById(id: number): StoredPlan | null {
   return row ? toStored(row) : null;
 }
 
-export function presentClassWeek(week: PlannedWeek, maxes: Record<string, number>): PlannedWeek {
+export function presentClassWeek(
+  week: PlannedWeek,
+  maxes: Record<string, number>,
+  unit: WeightUnit = "kg",
+): PlannedWeek {
   const next = structuredClone(week);
   for (const day of next.days) {
     if (!day.lift) continue;
@@ -80,7 +85,7 @@ export function presentClassWeek(week: PlannedWeek, maxes: Record<string, number
     for (const block of day.blocks) {
       if (!block.strength) continue;
       block.strength = rx;
-      block.bodyKo = strengthBody(rx);
+      block.bodyKo = strengthBody(rx, unit);
     }
   }
   for (const day of next.days) {
@@ -134,7 +139,7 @@ export async function ensureClassWeek(nowMs = Date.now()): Promise<StoredPlan> {
 
 export async function sharedToday(userId: number, nowMs = Date.now()): Promise<TodayPlan> {
   const stored = await ensureClassWeek(nowMs);
-  const presented = presentClassWeek(stored.week, getUserMaxes(userId));
+  const presented = presentClassWeek(stored.week, getUserMaxes(userId), readUserUnit(userId));
   const dayKey = kstParts(nowMs).day;
   const day = presented.days.find((row) => row.day === dayKey) ?? presented.days[0]!;
   return {
@@ -149,7 +154,7 @@ export async function sharedToday(userId: number, nowMs = Date.now()): Promise<T
 
 export async function sharedWeekForUser(userId: number, nowMs = Date.now()): Promise<StoredPlan> {
   const stored = await ensureClassWeek(nowMs);
-  return { ...stored, week: presentClassWeek(stored.week, getUserMaxes(userId)) };
+  return { ...stored, week: presentClassWeek(stored.week, getUserMaxes(userId), readUserUnit(userId)) };
 }
 
 function pieceIdentity(day: PlannedDay): { pieceKey: string; signature: string; named: boolean; nameKo: string } | null {

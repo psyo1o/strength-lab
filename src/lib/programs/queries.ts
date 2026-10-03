@@ -2,8 +2,8 @@ import { getSqlite } from "../db/client";
 import { resolveSetKg } from "../calc/loads";
 import { START_WEIGHT_PROGRAMS, sessionIncrementKg, startRefPercent } from "../calc/linear";
 import { wendlerCycleTmAddKg } from "../calc/wendler";
-import { displayWeight, formatWeight, type WeightUnit } from "../calc/round";
-import { calculatePlates, formatPerSide } from "../calc/plates";
+import { formatWeight, memberLoad, type WeightUnit } from "../calc/round";
+import { calculatePlates, defaultBar, formatPerSide, memberPlateInventory } from "../calc/plates";
 import { getUserMaxes, getUserStarts, resolveOneRm, resolveStartKg } from "../maxes";
 
 export type ProgramRow = {
@@ -222,9 +222,13 @@ export function resolveWorkout(opts: {
           addKg,
           tmAddKg,
         });
+        const shown = weightKg != null ? memberLoad(weightKg, opts.unit) : null;
         const plates =
-          weightKg != null
-            ? formatPerSide(calculatePlates(displayWeight(weightKg, opts.unit), opts.unit).perSide, opts.unit)
+          shown != null
+            ? formatPerSide(
+                calculatePlates(shown, opts.unit, defaultBar(opts.unit), memberPlateInventory(opts.unit)).perSide,
+                opts.unit,
+              )
             : null;
         return {
           id: s.id,

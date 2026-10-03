@@ -371,7 +371,8 @@ describe("generated week is the plan, and history keeps scores", () => {
 
     const mondayLog = history.find((item) => item.key === `plan:${first.id}:mon`);
     expect(mondayLog?.scores.map((score) => score.label)).toContain("8R + 2");
-    expect(mondayLog?.line).toMatch(/117\.5kg/);
+    expect(mondayLog?.line).toMatch(/118kg/);
+    expect(mondayLog?.line).not.toMatch(/\d+\.\d+\s*kg/);
 
     const session = history.find((item) => item.kind === "session");
     expect(session?.line).toMatch(/100kg/);
@@ -408,7 +409,7 @@ describe("generated week is the plan, and history keeps scores", () => {
     expect(planCalendarDate(first.weekStart, "mon")).toBe("2026-09-28");
     const squatCard = cards.find((card) => card.key === `plan:${first.id}:mon:lift`);
     expect(squatCard?.date).toBe("2026-09-28");
-    expect(squatCard?.sets).toEqual(["1×5 · 117.5kg", "1×5 · 135kg", "1×5+ · 152.5kg"]);
+    expect(squatCard?.sets).toEqual(["1×5 · 118kg", "1×5 · 135kg", "1×5+ · 153kg"]);
     expect(squatCard?.compares).toEqual([]);
     expect(squatCard?.rankKo).toBeNull();
     expect(squatCard?.stimulus).toBeNull();
@@ -507,7 +508,7 @@ describe("history day screen", () => {
         "kg",
       ),
     ).toEqual(["5×5 · 100kg"]);
-    expect(formatSetGroups([{ reps: 5, amrap: true, weightKg: 152.5 }], "kg")).toEqual(["1×5+ · 152.5kg"]);
+    expect(formatSetGroups([{ reps: 5, amrap: true, weightKg: 152.5 }], "kg")).toEqual(["1×5+ · 153kg"]);
     const missing = formatSetGroups(dayByKey(buildWeek(input({ weekIndex: 1, maxes: { squat: 200 } })), "fri")!.lift!.sets, "kg");
     expect(missing.join("\n")).not.toMatch(/kg|lb/);
     expect(missing).toEqual(["2×5", "1×5+"]);

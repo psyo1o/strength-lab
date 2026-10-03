@@ -16,12 +16,12 @@ export default async function ClassDayPage({ params }: { params: Promise<{ weekS
   const { weekStart, day: dayKey } = await params;
   if (!isClassWeekStart(weekStart) || !isDayKey(dayKey)) notFound();
   const stored = await ensureClassWeekForStart(weekStart);
-  const presentedWeek = presentClassWeek(stored.week, getUserMaxes(user.id));
+  const presentedWeek = presentClassWeek(stored.week, getUserMaxes(user.id), user.unit);
   const day = presentedWeek.days.find((row) => row.day === dayKey);
   if (!day) notFound();
   const presented = { ...stored, week: presentedWeek };
   const ctx = loadHistoryContext(user.id);
-  const compares = comparesForDay(ctx, presented, day);
+  const compares = comparesForDay(ctx, presented, day, user.unit);
   const scores = scoresForDay(listClassDayScores(user.id, stored.id), stored.id, day.day);
 
   return (
@@ -35,6 +35,7 @@ export default async function ClassDayPage({ params }: { params: Promise<{ weekS
       compares={compares}
       scores={scores}
       choices={catalogMovementChoices(stored.sex)}
+      unit={user.unit}
     />
   );
 }

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { PlanDayView } from "@/components/PlanDayView";
 import { comparesForDay, loadHistoryContext } from "@/lib/month-plan/history";
 import { catalogMovementChoices } from "@/lib/month-plan/pieces";
+import { presentStoredLoads } from "@/lib/month-plan/loads";
 import { getPlan, scoresForDay } from "@/lib/month-plan/store";
 import { isDayKey } from "@/lib/month-plan/types";
 
@@ -15,10 +16,11 @@ export default async function PlanDayPage({ params }: { params: Promise<{ planId
   if (!isDayKey(dayKey)) notFound();
   const plan = getPlan(user.id, Number(planId));
   if (!plan) notFound();
-  const day = plan.week.days.find((row) => row.day === dayKey);
+  const shown = presentStoredLoads(plan.week, user.unit);
+  const day = shown.days.find((row) => row.day === dayKey);
   if (!day) notFound();
   const ctx = loadHistoryContext(user.id);
-  const compares = comparesForDay(ctx, plan, day);
+  const compares = comparesForDay(ctx, plan, day, user.unit);
   const scores = scoresForDay(ctx.scores, plan.id, day.day);
 
   return (
@@ -31,6 +33,7 @@ export default async function PlanDayPage({ params }: { params: Promise<{ planId
       compares={compares}
       scores={scores}
       choices={catalogMovementChoices(plan.sex)}
+      unit={user.unit}
     />
   );
 }

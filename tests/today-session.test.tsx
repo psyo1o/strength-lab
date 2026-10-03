@@ -78,6 +78,13 @@ describe("Friday 2026-10-02 today screen", () => {
       expect(html).not.toContain("Fight Gone Bad");
       expect(html).not.toContain(WEEK_PLAN_MISSING_KO);
     }
+
+    const fractional = renderToStaticMarkup(<TodaySessionCard today={fridayPlan(1)} />);
+    expect(fractional).toContain("118kg");
+    expect(fractional).toContain("153kg");
+    expect(fractional).not.toContain("117.5");
+    expect(fractional).not.toContain("152.5");
+    expect(fractional).not.toMatch(/\d+\.\d+\s*kg/);
   });
 
   it("keeps week-4 Thursday as the monthly benchmark and Friday as the deadlift session", () => {

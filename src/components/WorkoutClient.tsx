@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { calculatePlates, defaultBar, formatPerSide } from "@/lib/calc/plates";
+import { calculatePlates, defaultBar, formatPerSide, memberPlateInventory } from "@/lib/calc/plates";
 import { juggernautWaveFromWeek } from "@/lib/calc/juggernaut";
-import { displayWeight } from "@/lib/calc/round";
+import { memberLoad } from "@/lib/calc/round";
 import type { ResolvedExercise } from "@/lib/programs/queries";
 import type { Tip } from "@/lib/tip-copy";
 import { TIP_SAFETY_FOOTER, tipHasVideo } from "@/lib/tip-copy";
@@ -122,10 +122,9 @@ export function WorkoutClient({
     if (next >= 0) setCursor(next);
   }
 
+  const shown = current.set.weightKg != null ? memberLoad(current.set.weightKg, unit) : null;
   const plates =
-    current.set.weightKg != null
-      ? calculatePlates(displayWeight(current.set.weightKg, unit), unit, bar)
-      : null;
+    shown != null ? calculatePlates(shown, unit, bar, memberPlateInventory(unit)) : null;
 
   return (
     <div className="min-w-0 pb-fixed-session">

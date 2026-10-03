@@ -191,6 +191,11 @@ export function updateUserUnit(userId: number, unit: "kg" | "lb") {
   getSqlite().prepare("UPDATE users SET unit = ? WHERE id = ?").run(unit, userId);
 }
 
+export function readUserUnit(userId: number): "kg" | "lb" {
+  const row = getSqlite().prepare("SELECT unit FROM users WHERE id = ?").get(userId) as { unit?: string } | undefined;
+  return row?.unit === "lb" ? "lb" : "kg";
+}
+
 export function readUserSex(userId: number): AthleteSex {
   const row = getSqlite().prepare("SELECT sex FROM users WHERE id = ?").get(userId) as
     | { sex: string | null }
