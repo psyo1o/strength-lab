@@ -1,0 +1,901 @@
+{
+  "version": "0.1.0",
+  "owner": "tips",
+  "lang": "ko",
+  "canonicalRef": "exercises.canonical.json",
+  "sheetPattern": "icon_to_short_sheet",
+  "fields": [
+    "cue",
+    "mistake",
+    "alternative",
+    "sheet",
+    "media",
+    "youtubeUrl",
+    "youtubeCredit",
+    "youtubeLinks"
+  ],
+  "disclaimer": "참고 영상일 뿐. 찌릿·저림은 전문가.",
+  "tips": {
+    "back_squat": {
+      "exerciseId": "back_squat",
+      "name": "스쿼트",
+      "cue": "발은 어깨~골반보다 조금 넓게, 발끝은 살짝 바깥. 내려갈 때 무릎은 발끝 방향으로, 엉덩이는 뒤로 앉듯이. 가슴은 들고 허리는 중립.",
+      "mistake": "허리가 둥글게 말리거나 무릎이 안쪽으로 무너짐.",
+      "alternative": "무게를 줄이거나 박스 스쿼트.",
+      "sheet": "발은 어깨~골반보다 조금 넓게, 발끝은 살짝 바깥. 내려갈 때 무릎은 발끝 방향으로, 엉덩이는 뒤로 앉듯이. 가슴은 들고 허리는 중립 — 허리가 둥글게 말리면 무게를 줄이거나 박스 스쿼트로. 무릎·허리가 찌릿하면 멈추고 전문가 봐.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=nhoikoUEI8U",
+        "youtubeCredit": "Starting Strength",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "bench_press": {
+      "exerciseId": "bench_press",
+      "name": "벤치프레스",
+      "cue": "견갑을 모아서 벤치에 고정하고, 발은 땅을 밀어 전신을 단단하게. 바는 가슴 중간~아래쪽에 수직으로, 팔꿈치는 몸통에서 약 45~70도.",
+      "mistake": "어깨가 뜨고 팔꿈치가 과도하게 벌어짐.",
+      "alternative": "그립을 좁히거나 덤벨·플로어 프레스. 스팟 없이 실패 세트는 하지 마.",
+      "sheet": "견갑을 모아서 벤치에 고정하고, 발은 땅을 밀어 전신을 단단하게. 바는 가슴 중간~아래쪽에 수직으로, 팔꿈치는 몸통에서 약 45~70도. 어깨 앞이 찌릿하면 그립을 좁히거나 덤벨·플로어 프레스로. 스팟 없이 실패 세트는 하지 마.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=rxD321l2svE",
+        "youtubeCredit": "Starting Strength"
+      }
+    },
+    "deadlift": {
+      "exerciseId": "deadlift",
+      "name": "데드리프트",
+      "cue": "바는 정강이에 붙이고, 엉덩이는 너무 낮추지 말고 다리로 바닥을 밀며 시작해. 허리가 말리기 전에 멈춰.",
+      "mistake": "바가 앞으로 나가거나 허리가 먼저 말림.",
+      "alternative": "무게를 내리고 트랩바나 스티프레그/RDL로.",
+      "sheet": "바는 정강이에 붙이고, 엉덩이는 너무 낮추지 말고 다리로 바닥을 밀며 시작해. 허리가 말리기 전에 멈춰. 바가 앞으로 나가면 몸에 붙여. 허리가 아프면 무게를 내리고 트랩바나 RDL로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=p2OPUi4xGrM",
+        "youtubeCredit": "Starting Strength",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "ohp": {
+      "exerciseId": "ohp",
+      "name": "오버헤드프레스",
+      "cue": "코어 잠그고, 바는 얼굴 앞에서 살짝 뒤로 올라가 귀 위에 쌓이게. 허리를 과하게 젖히지 말고 엉덩이·복부로 받쳐.",
+      "mistake": "바가 앞으로 떨어지거나 허리가 과신전.",
+      "alternative": "랜드마인이나 덤벨 프레스.",
+      "sheet": "코어 잠그고, 바는 얼굴 앞에서 살짝 뒤로 올라가 귀 위에 쌓이게. 허리를 과하게 젖히지 말고 엉덩이·복부로 받쳐. 바가 앞으로 떨어지면 그립이 넓거나 상체가 뒤로 무너진 것. 어깨가 아프면 랜드마인이나 덤벨 프레스로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=8dacy5hjaE8",
+        "youtubeCredit": "Starting Strength"
+      }
+    },
+    "front_squat": {
+      "exerciseId": "front_squat",
+      "name": "프론트 스쿼트",
+      "cue": "바는 어깨 앞 선반에 얹고 팔꿈치는 높이. 팔로 들지 말고 몸통을 세워 받쳐.",
+      "mistake": "팔꿈치가 떨어져 바가 앞으로 굴러감.",
+      "alternative": "스트랩 프론트나 크로스 그립. 깊이보다 몸통이 안 무너지는 게 먼저.",
+      "sheet": "바는 어깨 앞 선반에 얹고 팔꿈치는 높이. 팔로 들지 말고 몸통을 세워 받쳐. 팔꿈치가 떨어지면 바가 앞으로 굴러가. 손목이 아프면 스트랩 프론트나 크로스 그립으로. 깊이보다 몸통이 안 무너지는 게 먼저.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=Cnc0qKLAgcU",
+        "youtubeCredit": "JTS"
+      }
+    },
+    "close_grip_bench": {
+      "exerciseId": "close_grip_bench",
+      "name": "클로즈 그립 벤치",
+      "cue": "그립은 어깨 안쪽, 팔꿈치는 몸통에 가깝게. 바가 가슴 아래쪽에 닿게 내리고 삼두로 밀어.",
+      "mistake": "팔꿈치가 벌어지거나 손목이 꺾임.",
+      "alternative": "덤벨 클로즈나 보드 프레스.",
+      "sheet": "그립은 어깨 안쪽, 팔꿈치는 몸통에 가깝게. 바가 가슴 아래쪽에 닿게 내리고 삼두로 밀어. 팔꿈치가 벌어지면 일반 벤치가 됨. 손목·팔꿈치가 아프면 덤벨 클로즈나 보드 프레스로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "incline_bench": {
+      "exerciseId": "incline_bench",
+      "name": "인클라인 벤치 프레스",
+      "cue": "벤치 각도는 30도 전후. 견갑 고정하고 바는 쇄골~윗가슴으로.",
+      "mistake": "각도가 너무 높아 어깨 프레스가 되거나 엉덩이가 뜸.",
+      "alternative": "각도를 낮추거나 덤벨 인클라인.",
+      "sheet": "벤치 각도는 30도 전후. 견갑 고정하고 바는 쇄골~윗가슴으로. 각도가 너무 높으면 어깨 프레스가 됨. 어깨 앞이 찌릿하면 각도를 낮추거나 덤벨 인클라인으로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "stiff_leg_deadlift": {
+      "exerciseId": "stiff_leg_deadlift",
+      "name": "스티프레그 데드리프트",
+      "cue": "무릎은 살짝만 굽히고 힙 힌지로 바를 허벅지에 붙여 내려. 허리가 말리기 전에 멈춰.",
+      "mistake": "무릎을 잠근 채 내려 허리가 먼저 감김.",
+      "alternative": "무게를 줄이거나 루마니안 범위만.",
+      "sheet": "무릎은 살짝만 굽히고 힙 힌지로 바를 허벅지에 붙여 내려. 허리가 말리기 전에 멈춰. 무릎을 잠그고 내리면 허리가 먼저 감김. 햄이 너무 당기거나 허리가 아프면 무게를 줄이거나 루마니안 범위만.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "barbell_row": {
+      "exerciseId": "barbell_row",
+      "name": "벤트오버 바벨로우",
+      "cue": "상체는 약 45도, 바는 배꼽~하복부로 당기고 견갑을 모음. 허리는 중립.",
+      "mistake": "몸통이 일어서서 치팅하거나 허리가 말림.",
+      "alternative": "펜들레이 로우나 체스트 서포트 로우.",
+      "sheet": "상체는 약 45도, 바는 배꼽~하복부로 당기고 견갑을 모음. 허리는 중립. 몸통이 일어서면 치팅. 허리가 말리면 펜들레이나 체스트 서포트 로우로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "chin_up": {
+      "exerciseId": "chin_up",
+      "name": "친업",
+      "cue": "손바닥은 나를 향하게, 가슴을 바 쪽으로. 어깨를 귀에서 내린 뒤 당겨.",
+      "mistake": "반동으로 올리다 어깨가 귀로 들림.",
+      "alternative": "밴드 친업이나 인버티드 로우.",
+      "sheet": "손바닥은 나를 향하게, 가슴을 바 쪽으로. 어깨를 귀에서 내린 뒤 당겨. 반동으로 올리면 어깨가 들림. 아직 힘들면 밴드 친업이나 인버티드 로우로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "pull_up": {
+      "exerciseId": "pull_up",
+      "name": "풀업",
+      "cue": "손바닥은 앞, 그립은 어깨보다 조금 넓게, 엄지는 바를 감싸면 됩니다. 시작할 때 팔은 펴고 어깨는 귀에서 내려 주세요. 견갑을 먼저 내린 뒤 팔꿈치로 몸을 당겨 턱이 바를 넘게 해 주세요. 내려올 때는 팔을 다 펴되 어깨가 앞으로 쑥 빠지지 않게 해 주세요.",
+      "mistake": "턱만 넘기려다 목을 앞으로 빼고 어깨가 움츠러드는 경우가 많습니다.",
+      "alternative": "개수가 안 나오면 밴드나 링 로우로 같은 당김을 연습해 주세요.",
+      "sheet": "손바닥은 앞, 그립은 어깨보다 조금 넓게, 엄지는 바를 감싸면 됩니다. 시작할 때 팔은 펴고 어깨는 귀에서 내려 주세요. 견갑을 먼저 내린 뒤 팔꿈치로 몸을 당겨 턱이 바를 넘게 해 주세요. 내려올 때는 팔을 다 펴되 어깨가 앞으로 쑥 빠지지 않게 해 주세요. 턱만 넘기려다 목을 앞으로 빼고 어깨가 움츠러드는 경우가 많습니다. 개수가 안 나오면 밴드나 링 로우로 같은 당김을 연습해 주세요.",
+      "youtubeLinks": [
+        {
+          "label": "키핑 풀업",
+          "youtubeUrl": "https://www.youtube.com/watch?v=r45xLlH7r_M",
+          "youtubeCredit": "CrossFit"
+        },
+        {
+          "label": "버터플라이 풀업",
+          "youtubeUrl": "https://www.youtube.com/watch?v=OenVG15QMj8",
+          "youtubeCredit": "CrossFit"
+        }
+      ],
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "thruster": {
+      "exerciseId": "thruster",
+      "name": "스러스터",
+      "cue": "바는 어깨 앞, 팔꿈치는 앞을 보게 프론트랙으로 두면 됩니다. 발은 어깨 너비, 그립은 어깨보다 조금 넓으면 됩니다. 스쿼트 깊이를 찍고, 일어나며 그 힘으로 바를 머리 위로 밀어 팔꿈치를 펴 주세요. 바는 몸 가까이, 받을 때는 다시 어깨 앞으로 조용히 내리면 됩니다.",
+      "mistake": "스쿼트가 얕거나 바가 앞으로 나가며 허리가 꺾이는 경우가 많습니다.",
+      "alternative": "팔꿈치가 내려가면 무게를 낮추거나 덤벨 스러스터로 바꿔 주세요.",
+      "sheet": "바는 어깨 앞, 팔꿈치는 앞을 보게 프론트랙으로 두면 됩니다. 발은 어깨 너비, 그립은 어깨보다 조금 넓으면 됩니다. 스쿼트 깊이를 찍고, 일어나며 그 힘으로 바를 머리 위로 밀어 팔꿈치를 펴 주세요. 바는 몸 가까이, 받을 때는 다시 어깨 앞으로 조용히 내리면 됩니다. 스쿼트가 얕거나 바가 앞으로 나가며 허리가 꺾이는 경우가 많습니다. 팔꿈치가 내려가면 무게를 낮추거나 덤벨 스러스터로 바꿔 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=L219ltL15zk",
+      "youtubeCredit": "CrossFit",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=L219ltL15zk",
+        "youtubeCredit": "CrossFit",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "kipping_pull_up": {
+      "exerciseId": "kipping_pull_up",
+      "name": "키핑 풀업",
+      "cue": "엄지가 바를 감싸게 잡고, 어깨를 먼저 내린 뒤 시작합니다. 스트릭트 풀업이 몇 개 되지 않으면 키핑보다 밴드나 링 로우가 먼저입니다. 어깨를 열고 닫는 작은 호부터 만들고, 엉덩이를 밀어 턱이 바를 넘게 해 주세요. 내려올 때는 몸을 다시 길게 펴 다음 호를 준비하면 됩니다.",
+      "mistake": "팔만 당기거나, 어깨가 움츠러든 채 크게 흔들다 바가 목에 닿는 경우가 많습니다.",
+      "alternative": "어깨나 팔꿈치가 찌릿하면 키핑은 멈추고 스트릭트나 밴드로 바꿔 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "sheet": "엄지가 바를 감싸게 잡고, 어깨를 먼저 내린 뒤 시작합니다. 스트릭트 풀업이 몇 개 되지 않으면 키핑보다 밴드나 링 로우가 먼저입니다. 어깨를 열고 닫는 작은 호부터 만들고, 엉덩이를 밀어 턱이 바를 넘게 해 주세요. 내려올 때는 몸을 다시 길게 펴 다음 호를 준비하면 됩니다. 팔만 당기거나, 어깨가 움츠러든 채 크게 흔들다 바가 목에 닿는 경우가 많습니다. 어깨나 팔꿈치가 찌릿하면 키핑은 멈추고 스트릭트나 밴드로 바꿔 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=r45xLlH7r_M",
+      "youtubeCredit": "CrossFit",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=r45xLlH7r_M",
+        "youtubeCredit": "CrossFit",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "butterfly_pull_up": {
+      "exerciseId": "butterfly_pull_up",
+      "name": "버터플라이 풀업",
+      "cue": "키핑이 흔들림 없이 된 뒤에만 시도하면 됩니다. 그립은 어깨보다 조금 넓고, 바 높이는 매달렸을 때 발이 바닥에 닿지 않을 정도면 됩니다. 몸은 바 주위를 작은 원으로 돌고, 턱이 바를 넘는 높이에서 받으면 됩니다. 가슴을 바에 부딪히지 않게, 어깨는 앞으로 빠지지 않게 해 주세요.",
+      "mistake": "원을 키우다 어깨가 앞으로 무너지거나, 내려오는 동작을 생략하는 경우가 많습니다.",
+      "alternative": "연속이 끊기면 키핑이나 밴드로 돌아가 주세요.",
+      "sheet": "키핑이 흔들림 없이 된 뒤에만 시도하면 됩니다. 그립은 어깨보다 조금 넓고, 바 높이는 매달렸을 때 발이 바닥에 닿지 않을 정도면 됩니다. 몸은 바 주위를 작은 원으로 돌고, 턱이 바를 넘는 높이에서 받으면 됩니다. 가슴을 바에 부딪히지 않게, 어깨는 앞으로 빠지지 않게 해 주세요. 원을 키우다 어깨가 앞으로 무너지거나, 내려오는 동작을 생략하는 경우가 많습니다. 연속이 끊기면 키핑이나 밴드로 돌아가 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=OenVG15QMj8",
+      "youtubeCredit": "CrossFit",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=OenVG15QMj8",
+        "youtubeCredit": "CrossFit",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "toes_to_bar": {
+      "exerciseId": "toes_to_bar",
+      "name": "토투바",
+      "cue": "바를 어깨 너비로 잡고, 매달린 상태에서 견갑을 내려 주세요. 발은 모아 두면 방향이 덜 흩어집니다. 어깨로 작은 호를 만든 뒤 골반을 말며 발을 바에 찍어 주세요. 내려올 때는 몸을 길게 펴고, 허리를 뒤로 꺾어 반동만 쓰지 않으면 됩니다.",
+      "mistake": "팔은 그대로 두고 허리만 접거나, 무릎이 펴진 채 발만 휘두르는 경우가 많습니다.",
+      "alternative": "발이 바에 닿지 않으면 니레이즈나 무릎을 굽힌 토투바로 바꿔 주세요. 허리가 찌릿하면 바닥에 누워 하는 V업으로 바꿔 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "sheet": "바를 어깨 너비로 잡고, 매달린 상태에서 견갑을 내려 주세요. 발은 모아 두면 방향이 덜 흩어집니다. 어깨로 작은 호를 만든 뒤 골반을 말며 발을 바에 찍어 주세요. 내려올 때는 몸을 길게 펴고, 허리를 뒤로 꺾어 반동만 쓰지 않으면 됩니다. 팔은 그대로 두고 허리만 접거나, 무릎이 펴진 채 발만 휘두르는 경우가 많습니다. 발이 바에 닿지 않으면 니레이즈나 무릎을 굽힌 토투바로 바꿔 주세요. 허리가 찌릿하면 바닥에 누워 하는 V업으로 바꿔 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=_03pCKOv4l4",
+      "youtubeCredit": "CrossFit",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=_03pCKOv4l4",
+        "youtubeCredit": "CrossFit",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "double_under": {
+      "exerciseId": "double_under",
+      "name": "더블언더",
+      "cue": "줄 손잡이는 가볍게, 팔꿈치는 옆구리에 붙여 두면 됩니다. 줄 길이는 한 발로 가운데를 밟았을 때 손잡이가 겨드랑이 근처면 적당합니다. 줄은 손목으로 돌리고, 점프는 낮고 짧게 해 주세요. 시선은 앞, 발은 모았다가 착지할 때 부드럽게 받으면 됩니다.",
+      "mistake": "팔이 벌어지거나 무릎을 가슴까지 끌어올리는 경우가 많습니다.",
+      "alternative": "줄이 발에 걸리면 싱글언더 두 바퀴로 리듬만 먼저 맞춰 주세요. 종아리가 당기면 점프 높이를 더 낮춰 주세요.",
+      "sheet": "줄 손잡이는 가볍게, 팔꿈치는 옆구리에 붙여 두면 됩니다. 줄 길이는 한 발로 가운데를 밟았을 때 손잡이가 겨드랑이 근처면 적당합니다. 줄은 손목으로 돌리고, 점프는 낮고 짧게 해 주세요. 시선은 앞, 발은 모았다가 착지할 때 부드럽게 받으면 됩니다. 팔이 벌어지거나 무릎을 가슴까지 끌어올리는 경우가 많습니다. 줄이 발에 걸리면 싱글언더 두 바퀴로 리듬만 먼저 맞춰 주세요. 종아리가 당기면 점프 높이를 더 낮춰 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=-tF3hUsPZAI",
+      "youtubeCredit": "CrossFit",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=-tF3hUsPZAI",
+        "youtubeCredit": "CrossFit",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "burpee": {
+      "exerciseId": "burpee",
+      "name": "버피",
+      "cue": "손은 어깨 아래, 발은 점프하기 편한 너비로 두면 됩니다. 바닥은 미끄럽지 않은 곳이 좋습니다. 손을 짚고 발을 뒤로 보낸 뒤, 가슴이 바닥에 닿으면 다시 발을 모아 일어나 손뼉까지 이어 주세요. 플랭크에서 배와 엉덩이는 처지지 않게 해 주세요.",
+      "mistake": "가슴을 생략하거나 허리가 꺼진 채 반복하는 경우가 많습니다.",
+      "alternative": "착지가 무거우면 스텝 버피나 박스에 손 짚고 하는 업다운으로 바꿔 주세요. 손목이 아프면 푸시업 바나 덤벨 위에 손을 올려 주세요.",
+      "sheet": "손은 어깨 아래, 발은 점프하기 편한 너비로 두면 됩니다. 바닥은 미끄럽지 않은 곳이 좋습니다. 손을 짚고 발을 뒤로 보낸 뒤, 가슴이 바닥에 닿으면 다시 발을 모아 일어나 손뼉까지 이어 주세요. 플랭크에서 배와 엉덩이는 처지지 않게 해 주세요. 가슴을 생략하거나 허리가 꺼진 채 반복하는 경우가 많습니다. 착지가 무거우면 스텝 버피나 박스에 손 짚고 하는 업다운으로 바꿔 주세요. 손목이 아프면 푸시업 바나 덤벨 위에 손을 올려 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=TU8QYVW0gDU",
+      "youtubeCredit": "CrossFit",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=TU8QYVW0gDU",
+        "youtubeCredit": "CrossFit",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "kb_swing": {
+      "exerciseId": "kb_swing",
+      "name": "케틀벨 스윙",
+      "cue": "발은 어깨보다 조금 넓게, 벨은 한 팔 길이 앞에 두면 됩니다. 등은 길게, 시선은 앞입니다. 높이는 어깨까지(러시안)로 두면 충분합니다. 엉덩이를 뒤로 보내 벨을 가랑이 뒤로 보냈다가, 엉덩이를 펴며 벨이 떠오르게 해 주세요. 팔은 줄을 따라갈 뿐, 어깨로 들어 올리지 않으면 됩니다.",
+      "mistake": "스쿼트처럼 앉거나 팔로 들어 올리고, 정점에서 허리가 젖혀지는 경우가 많습니다.",
+      "alternative": "허리가 말리면 무게를 낮추거나 힙 힌지 연습만 해 주세요. 머리 위까지 보내는 아메리칸 스윙은 어깨가 준비된 뒤에 하면 됩니다.",
+      "sheet": "발은 어깨보다 조금 넓게, 벨은 한 팔 길이 앞에 두면 됩니다. 등은 길게, 시선은 앞입니다. 높이는 어깨까지(러시안)로 두면 충분합니다. 엉덩이를 뒤로 보내 벨을 가랑이 뒤로 보냈다가, 엉덩이를 펴며 벨이 떠오르게 해 주세요. 팔은 줄을 따라갈 뿐, 어깨로 들어 올리지 않으면 됩니다. 스쿼트처럼 앉거나 팔로 들어 올리고, 정점에서 허리가 젖혀지는 경우가 많습니다. 허리가 말리면 무게를 낮추거나 힙 힌지 연습만 해 주세요. 머리 위까지 보내는 아메리칸 스윙은 어깨가 준비된 뒤에 하면 됩니다.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "wall_ball": {
+      "exerciseId": "wall_ball",
+      "name": "월볼",
+      "cue": "공은 가슴에 붙이고, 타깃은 팔을 뻗어 손이 닿는 높이보다 조금 위면 됩니다. 발은 어깨 너비, 벽과의 거리는 스쿼트에서 일어나며 공이 자연스럽게 올라갈 거리로 맞추면 됩니다. 엉덩이가 무릎 아래로 내려가는 스쿼트를 한 뒤, 일어남과 동시에 공을 타깃으로 밀어 주세요. 받을 때는 팔만 뻗지 말고 다시 스쿼트로 공을 가슴에 받으면 됩니다.",
+      "mistake": "얕은 스쿼트에서 팔로만 던지거나, 받을 때 허리가 둥글어지는 경우가 많습니다.",
+      "alternative": "타깃이나 무게를 낮추거나, 월볼 대신 고블릿 스쿼트로 바꿔 주세요.",
+      "sheet": "공은 가슴에 붙이고, 타깃은 팔을 뻗어 손이 닿는 높이보다 조금 위면 됩니다. 발은 어깨 너비, 벽과의 거리는 스쿼트에서 일어나며 공이 자연스럽게 올라갈 거리로 맞추면 됩니다. 엉덩이가 무릎 아래로 내려가는 스쿼트를 한 뒤, 일어남과 동시에 공을 타깃으로 밀어 주세요. 받을 때는 팔만 뻗지 말고 다시 스쿼트로 공을 가슴에 받으면 됩니다. 얕은 스쿼트에서 팔로만 던지거나, 받을 때 허리가 둥글어지는 경우가 많습니다. 타깃이나 무게를 낮추거나, 월볼 대신 고블릿 스쿼트로 바꿔 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=EqjGKsiIMCE",
+      "youtubeCredit": "CrossFit",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=EqjGKsiIMCE",
+        "youtubeCredit": "CrossFit",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "box_jump": {
+      "exerciseId": "box_jump",
+      "name": "박스점프",
+      "cue": "박스 높이는 두 발로 위에 안정하게 설 수 있는 높이로 맞추면 됩니다. 발은 어깨 너비, 박스는 흔들리지 않는 곳에 두어 주세요. 앉았다가 두 발로 박스 위에 부드럽게 올라서 주세요. 무릎은 발끝 방향, 완전히 선 뒤 내려올 때는 한 발씩 스텝으로 내려오면 됩니다.",
+      "mistake": "착지가 무겁거나 정강이로 박스를 긁으며 올라가는 경우가 많습니다. 내려올 때 뒤로 점프하면 발목과 무릎에 부담이 큽니다.",
+      "alternative": "높이를 낮추거나 스텝업으로 바꿔 주세요.",
+      "sheet": "박스 높이는 두 발로 위에 안정하게 설 수 있는 높이로 맞추면 됩니다. 발은 어깨 너비, 박스는 흔들리지 않는 곳에 두어 주세요. 앉았다가 두 발로 박스 위에 부드럽게 올라서 주세요. 무릎은 발끝 방향, 완전히 선 뒤 내려올 때는 한 발씩 스텝으로 내려오면 됩니다. 착지가 무겁거나 정강이로 박스를 긁으며 올라가는 경우가 많습니다. 내려올 때 뒤로 점프하면 발목과 무릎에 부담이 큽니다. 높이를 낮추거나 스텝업으로 바꿔 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=52r_Ul5k03g",
+      "youtubeCredit": "CrossFit",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=52r_Ul5k03g",
+        "youtubeCredit": "CrossFit",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "power_clean": {
+      "exerciseId": "power_clean",
+      "name": "파워클린",
+      "cue": "바를 몸에서 떼지 말고 끌어올리다, 힙을 폭발적으로 펴고 팔꿈치를 빠르게 돌려 어깨 앞에 받아.",
+      "mistake": "팔로 낚아채거나 받아 자세가 너무 낮아짐.",
+      "alternative": "무게를 줄이거나 풀 클린. 손목이 꺾이면 프론트랙부터.",
+      "sheet": "바를 몸에서 떼지 말고 끌어올리다, 힙을 폭발적으로 펴고 팔꿈치를 빠르게 돌려 어깨 앞에 받아. 팔로 낚아채지 마. 받아 자세가 너무 낮아지면 무게를 줄이거나 풀 클린으로. 손목이 꺾이면 프론트랙부터 풀어.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=YG8M_-11C2A",
+        "youtubeCredit": "Catalyst"
+      }
+    },
+    "abs": {
+      "exerciseId": "abs",
+      "name": "복근",
+      "cue": "바닥에서 허리 아래가 뜨지 않게 눕고, 무릎은 구부려 두면 됩니다. 목 뒤를 당기는 손은 없어도 됩니다. 골반을 살짝 말며 배가 수축하는 느낌으로 움직여 주세요. 숨은 힘줄 때 내쉬면 목이 편합니다.",
+      "mistake": "목으로 끌어당기거나 허리가 바닥에서 뜨는 경우가 많습니다.",
+      "alternative": "그러면 데드버그나 할로우 홀드로 바꿔 주세요.",
+      "sheet": "바닥에서 허리 아래가 뜨지 않게 눕고, 무릎은 구부려 두면 됩니다. 목 뒤를 당기는 손은 없어도 됩니다. 골반을 살짝 말며 배가 수축하는 느낌으로 움직여 주세요. 숨은 힘줄 때 내쉬면 목이 편합니다. 목으로 끌어당기거나 허리가 바닥에서 뜨는 경우가 많습니다. 그러면 데드버그나 할로우 홀드로 바꿔 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "free_accessory": {
+      "exerciseId": "free_accessory",
+      "name": "자유 보조",
+      "cue": "오늘 메인 리프트와 같은 패턴은 피하고, 약한 부위 하나만 고르면 됩니다. 무게는 마지막 두 번이 깨끗할 정도로 두면 됩니다. 반동 없이 올리고 내리는 속도를 같게 해 주세요. 관절이 편한 범위에서만 반복하면 됩니다.",
+      "mistake": "메인을 한 번 더 세게 해서 피로만 쌓이는 경우가 많습니다.",
+      "alternative": "아프면 그 세트는 건너뛰어도 됩니다.",
+      "sheet": "오늘 메인 리프트와 같은 패턴은 피하고, 약한 부위 하나만 고르면 됩니다. 무게는 마지막 두 번이 깨끗할 정도로 두면 됩니다. 반동 없이 올리고 내리는 속도를 같게 해 주세요. 관절이 편한 범위에서만 반복하면 됩니다. 메인을 한 번 더 세게 해서 피로만 쌓이는 경우가 많습니다. 아프면 그 세트는 건너뛰어도 됩니다.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "squat_clean": {
+      "exerciseId": "squat_clean",
+      "name": "스쿼트 클린",
+      "cue": "3중 신전 후 바로 팔꿈치를 돌리고, 발을 살짝 벌리며 프론트 스쿼트로 앉아 받아. 받아놓고 일어나는 게 절반이야.",
+      "mistake": "바가 몸에서 멀어지거나 받아 자세가 무너짐.",
+      "alternative": "훅 그립 확인하고 행 클린부터.",
+      "sheet": "3중 신전 후 바로 팔꿈치를 돌리고, 발을 살짝 벌리며 프론트 스쿼트로 앉아 받아. 받아놓고 일어나는 게 절반이야. 바가 몸에서 멀어지면 훅 그립 확인하고 바에 붙여. 자세가 무너지면 행 클린부터.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=oQIaWLrB318",
+        "youtubeCredit": "Catalyst"
+      }
+    },
+    "power_snatch": {
+      "exerciseId": "power_snatch",
+      "name": "파워 스네치",
+      "cue": "와이드 그립, 바는 몸에 붙인 채 수직으로. 힙이 열린 뒤에야 팔을 쓰고, 머리 위 락아웃에서 팔꿈치를 잠가.",
+      "mistake": "어깨가 일찍 열리거나 바가 몸에서 떨어져 앞으로 감.",
+      "alternative": "행 스네치나 머슬 스네치.",
+      "sheet": "와이드 그립, 바는 몸에 붙인 채 수직으로. 힙이 열린 뒤에야 팔을 쓰고, 머리 위 락아웃에서 팔꿈치를 잠가. 바가 앞으로 가면 어깨가 일찍 열렸거나 바가 떨어진 것. 오버헤드가 불안하면 행 스네치나 머슬 스네치로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=ydHHsju1-Nc",
+        "youtubeCredit": "Catalyst"
+      }
+    },
+    "squat_snatch": {
+      "exerciseId": "squat_snatch",
+      "name": "스쿼트 스네치",
+      "cue": "풀 후 바로 오버헤드 스쿼트로 앉아 받아. 받는 순간 바는 머리 뒤가 아니라 귀 위, 발 중앙 위에.",
+      "mistake": "팔이 굽거나 바가 머리 뒤로 넘어감.",
+      "alternative": "오버헤드 스쿼트와 드롭 스네치를 먼저.",
+      "sheet": "풀 후 바로 오버헤드 스쿼트로 앉아 받아. 받는 순간 바는 머리 뒤가 아니라 귀 위, 발 중앙 위에. 팔이 굽으면 무겁거나 타이밍이 늦은 것. 오버헤드 스쿼트랑 드롭 스네치를 먼저 안정시켜.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "youtubeUrl": "https://www.youtube.com/watch?v=1Lv1IyigIUY",
+        "youtubeCredit": "Catalyst",
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "split_jerk": {
+      "exerciseId": "split_jerk",
+      "name": "스플릿 저크",
+      "cue": "딥은 짧고 수직, 바를 위로 밀며 몸은 아래로 빠져 스플릿. 앞다리는 정강이 수직, 뒷발은 발끝으로.",
+      "mistake": "딥이 앞으로 무너져 바가 앞으로 나감.",
+      "alternative": "제자리 딥. 손목·어깨가 아프면 푸시 저크.",
+      "sheet": "딥은 짧고 수직, 바를 위로 밀며 몸은 아래로 빠져 스플릿. 앞다리는 정강이 수직, 뒷발은 발끝으로. 바가 앞으로 나가면 딥이 앞으로 무너진 것 — 제자리에서 딥. 손목·어깨가 아프면 푸시 저크로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=2GPA-cjUFnA",
+        "youtubeCredit": "Catalyst"
+      }
+    },
+    "pause_squat": {
+      "exerciseId": "pause_squat",
+      "name": "퍼즈 스쿼트",
+      "cue": "발 너비와 바 위치는 평소 스쿼트와 같게 두면 됩니다. 하단에서 셀 수 있게 무게는 평소보다 낮춰 주세요. 엉덩이가 가장 낮은 곳에서 1–3초 완전히 멈춘 뒤, 반동 없이 바닥을 밀어 올라오면 됩니다. 멈추는 동안 가슴은 들고 무릎은 발끝 방향입니다.",
+      "mistake": "멈추지 않고 튕기거나, 정지 중에 허리가 말리는 경우가 많습니다.",
+      "alternative": "그러면 시간을 1초로 줄이거나 박스 스쿼트로 바꿔 주세요.",
+      "sheet": "발 너비와 바 위치는 평소 스쿼트와 같게 두면 됩니다. 하단에서 셀 수 있게 무게는 평소보다 낮춰 주세요. 엉덩이가 가장 낮은 곳에서 1–3초 완전히 멈춘 뒤, 반동 없이 바닥을 밀어 올라오면 됩니다. 멈추는 동안 가슴은 들고 무릎은 발끝 방향입니다. 멈추지 않고 튕기거나, 정지 중에 허리가 말리는 경우가 많습니다. 그러면 시간을 1초로 줄이거나 박스 스쿼트로 바꿔 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "pin_squat": {
+      "exerciseId": "pin_squat",
+      "name": "핀 스쿼트",
+      "cue": "핀 높이는 허벅지가 바닥과 거의 나란한 지점부터 맞추면 됩니다. 안전핀이 흔들리지 않는지 먼저 확인해 주세요. 핀에 바가 닿아도 몸에서 힘을 풀지 말고, 그 자리에서 다시 밀어 올리면 됩니다. 가슴은 들고 발 전체로 바닥을 눌러 주세요.",
+      "mistake": "핀에 쿵 떨어뜨리거나, 핀이 너무 높아 반동만 쓰는 경우가 많습니다.",
+      "alternative": "무게를 줄이거나 퍼즈 스쿼트로 바꿔 주세요.",
+      "sheet": "핀 높이는 허벅지가 바닥과 거의 나란한 지점부터 맞추면 됩니다. 안전핀이 흔들리지 않는지 먼저 확인해 주세요. 핀에 바가 닿아도 몸에서 힘을 풀지 말고, 그 자리에서 다시 밀어 올리면 됩니다. 가슴은 들고 발 전체로 바닥을 눌러 주세요. 핀에 쿵 떨어뜨리거나, 핀이 너무 높아 반동만 쓰는 경우가 많습니다. 무게를 줄이거나 퍼즈 스쿼트로 바꿔 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "deficit_deadlift": {
+      "exerciseId": "deficit_deadlift",
+      "name": "데피짓 데드리프트",
+      "cue": "2.5–5cm 발판 위에서 시작한다. 정강이에 바를 붙이고 허리를 중립으로 더 깊게 세팅한 뒤 다리로 민다.",
+      "mistake": "발판이 너무 높거나 허리가 먼저 말림.",
+      "alternative": "일반 데드나 블록 풀.",
+      "sheet": "2.5–5cm 발판 위에서 시작한다. 정강이에 바를 붙이고 허리를 중립으로 더 깊게 세팅한 뒤 다리로 민다. 허리가 말리면 발판을 낮추거나 일반 데드로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "spoto_press": {
+      "exerciseId": "spoto_press",
+      "name": "스포토 프레스",
+      "cue": "벤치에 견갑을 모으고 발은 바닥을 밀어 두면 됩니다. 바는 평소 벤치와 같은 궤도로 내리되, 가슴에 닿기 직전을 목표로 해 주세요. 가슴 위 1–3cm에서 1초 멈춘 뒤, 견갑이 풀리지 않은 채로 밀어 올리면 됩니다. 팔꿈치는 몸통에서 약 45–70도면 됩니다.",
+      "mistake": "바에 튕기거나 정지 없이 터치하는 경우가 많습니다.",
+      "alternative": "멈추는 위치가 흐려지면 무게를 낮추거나 플로어 프레스로 바꿔 주세요. 스팟 없이 실패 세트는 하지 않는 편이 안전합니다.",
+      "sheet": "벤치에 견갑을 모으고 발은 바닥을 밀어 두면 됩니다. 바는 평소 벤치와 같은 궤도로 내리되, 가슴에 닿기 직전을 목표로 해 주세요. 가슴 위 1–3cm에서 1초 멈춘 뒤, 견갑이 풀리지 않은 채로 밀어 올리면 됩니다. 팔꿈치는 몸통에서 약 45–70도면 됩니다. 바에 튕기거나 정지 없이 터치하는 경우가 많습니다. 멈추는 위치가 흐려지면 무게를 낮추거나 플로어 프레스로 바꿔 주세요. 스팟 없이 실패 세트는 하지 않는 편이 안전합니다.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "floor_press": {
+      "exerciseId": "floor_press",
+      "name": "플로어 프레스",
+      "cue": "바닥에 누워 상완이 바닥에 닿을 때까지 내린 뒤, 반동 없이 밀어 올린다. 어깨를 벤치에 고정하듯.",
+      "mistake": "팔꿈치로 바닥을 치거나 엉덩이가 뜸.",
+      "alternative": "보드 프레스나 일반 벤치.",
+      "sheet": "상완이 바닥에 닿을 때까지 내린 뒤 반동 없이 밀어 올린다. 어깨를 고정하고 엉덩이가 뜨지 않게. 팔꿈치로 바닥을 치면 무게를 줄이거나 보드 프레스로.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "face_pull": {
+      "exerciseId": "face_pull",
+      "name": "페이스풀",
+      "cue": "케이블이나 밴드는 얼굴 높이, 로프는 엄지가 뒤를 보게 잡으면 됩니다. 한 발은 앞뒤로 두어 몸이 끌려가지 않게 해 주세요. 로프를 얼굴 쪽으로 당기며 손을 귀 옆까지 벌리고, 어깨를 살짝 바깥으로 돌려 주세요. 팔꿈치가 어깨보다 조금 높게 오면 됩니다.",
+      "mistake": "승모만 으쓱하거나 무게에 몸이 흔들리는 경우가 많습니다.",
+      "alternative": "그러면 무게를 낮추거나 밴드 풀어파트로 바꿔 주세요.",
+      "sheet": "케이블이나 밴드는 얼굴 높이, 로프는 엄지가 뒤를 보게 잡으면 됩니다. 한 발은 앞뒤로 두어 몸이 끌려가지 않게 해 주세요. 로프를 얼굴 쪽으로 당기며 손을 귀 옆까지 벌리고, 어깨를 살짝 바깥으로 돌려 주세요. 팔꿈치가 어깨보다 조금 높게 오면 됩니다. 승모만 으쓱하거나 무게에 몸이 흔들리는 경우가 많습니다. 그러면 무게를 낮추거나 밴드 풀어파트로 바꿔 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "clean_jerk": {
+      "exerciseId": "clean_jerk",
+      "name": "클린앤저크",
+      "cue": "클린은 3중 신전 후 팔꿈치를 돌려 프론트랙에 받고, 저크는 짧고 수직인 딥 뒤 스플릿으로 빠져 오버헤드를 잠가.",
+      "mistake": "바가 몸에서 멀어지거나 딥이 앞으로 무너짐.",
+      "alternative": "행 클린·제자리 딥부터. 손목·어깨가 아프면 푸시 저크.",
+      "sheet": "클린은 3중 신전 후 팔꿈치를 돌려 프론트랙에 받고, 저크는 짧고 수직인 딥 뒤 스플릿으로 빠져 오버헤드를 잠가. 바가 몸에서 멀어지면 훅 그립을 확인하고 바에 붙여. 딥이 앞으로 무너지면 제자리에서 딥. 손목·어깨가 아프면 푸시 저크로.",
+      "youtubeLinks": [
+        {
+          "label": "클린",
+          "youtubeUrl": "https://www.youtube.com/watch?v=oQIaWLrB318",
+          "youtubeCredit": "Catalyst"
+        },
+        {
+          "label": "저크",
+          "youtubeUrl": "https://www.youtube.com/watch?v=2GPA-cjUFnA",
+          "youtubeCredit": "Catalyst"
+        }
+      ],
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "run": {
+      "exerciseId": "run",
+      "name": "런",
+      "cue": "평소 걸음보다 조금 짧게, 시선은 앞을 보면 됩니다. 신발 끈은 단단히, 처음 몇 분은 숨이 차오르기 전에 자세부터 맞춰 주세요. 발은 몸 아래에서 부드럽게 닿게 하고, 팔은 옆구리를 스치듯 앞뒤로만 움직이면 됩니다. 속도가 올라가도 어깨는 귀에서 떨어뜨려 주세요.",
+      "mistake": "상체가 접히거나 발을 멀리 뻗어 뒤꿈치로 브레이크 하듯 닿는 경우가 많습니다.",
+      "alternative": "숨이 끊기면 거리를 줄이거나 걸어 주세요. 정강이나 무릎이 찌릿하면 멈추고 팬바이크나 로우로 바꿔 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "sheet": "평소 걸음보다 조금 짧게, 시선은 앞을 보면 됩니다. 신발 끈은 단단히, 처음 몇 분은 숨이 차오르기 전에 자세부터 맞춰 주세요. 발은 몸 아래에서 부드럽게 닿게 하고, 팔은 옆구리를 스치듯 앞뒤로만 움직이면 됩니다. 속도가 올라가도 어깨는 귀에서 떨어뜨려 주세요. 상체가 접히거나 발을 멀리 뻗어 뒤꿈치로 브레이크 하듯 닿는 경우가 많습니다. 숨이 끊기면 거리를 줄이거나 걸어 주세요. 정강이나 무릎이 찌릿하면 멈추고 팬바이크나 로우로 바꿔 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "push_up": {
+      "exerciseId": "push_up",
+      "name": "푸시업",
+      "cue": "손은 어깨 바로 아래, 손가락은 앞을 향하게 둡니다. 발끝부터 머리까지 한 줄이 되도록 배와 엉덩이에 힘을 주세요. 가슴이 손 사이 바닥 가까이 내려갔다가, 팔꿈치를 몸통에서 약 45도로 두고 밀어 올리면 됩니다. 어깨는 귀 쪽으로 올라가지 않게 해 주세요.",
+      "mistake": "엉덩이만 뜨거나 허리가 꺼지고, 팔꿈치가 옆으로 활짝 벌어지는 경우가 많습니다.",
+      "alternative": "바닥까지 어렵으면 무릎을 닿게 하거나 벤치에 손을 올려 주세요. 손목이 아프면 주먹을 쥐거나 푸시업 바를 써 주세요.",
+      "sheet": "손은 어깨 바로 아래, 손가락은 앞을 향하게 둡니다. 발끝부터 머리까지 한 줄이 되도록 배와 엉덩이에 힘을 주세요. 가슴이 손 사이 바닥 가까이 내려갔다가, 팔꿈치를 몸통에서 약 45도로 두고 밀어 올리면 됩니다. 어깨는 귀 쪽으로 올라가지 않게 해 주세요. 엉덩이만 뜨거나 허리가 꺼지고, 팔꿈치가 옆으로 활짝 벌어지는 경우가 많습니다. 바닥까지 어렵으면 무릎을 닿게 하거나 벤치에 손을 올려 주세요. 손목이 아프면 주먹을 쥐거나 푸시업 바를 써 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "sit_up": {
+      "exerciseId": "sit_up",
+      "name": "싯업",
+      "cue": "무릎은 구부리고, 발은 바닥에 둡니다. 손은 가슴 앞이나 관자놀이 옆에 가볍게 두면 되고, 목 뒤를 당기지 않아도 됩니다. 갈비뼈를 골반 쪽으로 말며 어깨가 바닥에서 떨어지게 해 주세요. 올라갈 때 허리가 바닥에서 통째로 들리기 전에 배가 먼저 수축하면 됩니다.",
+      "mistake": "목으로 끌어당기거나, 반동으로 튕겨 올라오는 경우가 많습니다.",
+      "alternative": "허리가 불편하면 싯업 대신 데드버그나 할로우 홀드로 바꿔 주세요.",
+      "sheet": "무릎은 구부리고, 발은 바닥에 둡니다. 손은 가슴 앞이나 관자놀이 옆에 가볍게 두면 되고, 목 뒤를 당기지 않아도 됩니다. 갈비뼈를 골반 쪽으로 말며 어깨가 바닥에서 떨어지게 해 주세요. 올라갈 때 허리가 바닥에서 통째로 들리기 전에 배가 먼저 수축하면 됩니다. 목으로 끌어당기거나, 반동으로 튕겨 올라오는 경우가 많습니다. 허리가 불편하면 싯업 대신 데드버그나 할로우 홀드로 바꿔 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "ring_row": {
+      "exerciseId": "ring_row",
+      "name": "링 로우",
+      "cue": "링은 골반 높이 근처, 몸은 발뒤꿈치부터 어깨까지 한 줄로 둡니다. 어려우면 발을 링 쪽으로 걸어가 몸을 더 세우면 됩니다. 견갑을 먼저 내리고 모은 뒤, 팔꿈치로 링을 갈비뼈 쪽으로 당겨 주세요. 내려올 때는 팔을 다 펴되 어깨가 앞으로 빠지지 않게 해 주세요.",
+      "mistake": "엉덩이만 들거나 목으로 링에 닿으려 하는 경우가 많습니다.",
+      "alternative": "어깨가 으쓱하면 발을 더 가까이 두고 횟수를 줄여 주세요.",
+      "sheet": "링은 골반 높이 근처, 몸은 발뒤꿈치부터 어깨까지 한 줄로 둡니다. 어려우면 발을 링 쪽으로 걸어가 몸을 더 세우면 됩니다. 견갑을 먼저 내리고 모은 뒤, 팔꿈치로 링을 갈비뼈 쪽으로 당겨 주세요. 내려올 때는 팔을 다 펴되 어깨가 앞으로 빠지지 않게 해 주세요. 엉덩이만 들거나 목으로 링에 닿으려 하는 경우가 많습니다. 어깨가 으쓱하면 발을 더 가까이 두고 횟수를 줄여 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "handstand": {
+      "exerciseId": "handstand",
+      "name": "핸드스탠드 홀드",
+      "cue": "벽에서 한 발 정도 떨어뜨리고, 손은 어깨 너비로 손가락을 벌려 바닥을 밀어 주세요. 배는 벽을 보는 쪽이 처음엔 더 안정적입니다. 갈비뼈를 넣고 엉덩이를 조여 몸이 바나나처럼 꺾이지 않게 해 주세요. 시선은 손등 사이, 내려올 때는 한 발씩 바닥으로 돌아오면 됩니다.",
+      "mistake": "허리가 과하게 젖혀지거나 어깨가 귀로 올라가는 경우가 많습니다.",
+      "alternative": "벽 없이 버티려다 쓰러지면 벽 홀드나 박스 파이크 홀드로 바꿔 주세요. 손목이 찌릿하면 중단해 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "sheet": "벽에서 한 발 정도 떨어뜨리고, 손은 어깨 너비로 손가락을 벌려 바닥을 밀어 주세요. 배는 벽을 보는 쪽이 처음엔 더 안정적입니다. 갈비뼈를 넣고 엉덩이를 조여 몸이 바나나처럼 꺾이지 않게 해 주세요. 시선은 손등 사이, 내려올 때는 한 발씩 바닥으로 돌아오면 됩니다. 허리가 과하게 젖혀지거나 어깨가 귀로 올라가는 경우가 많습니다. 벽 없이 버티려다 쓰러지면 벽 홀드나 박스 파이크 홀드로 바꿔 주세요. 손목이 찌릿하면 중단해 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "fan_bike": {
+      "exerciseId": "fan_bike",
+      "name": "팬바이크",
+      "cue": "안장 높이는 페달 아래에서 무릎이 살짝 구부러질 정도로 맞추면 됩니다. 발은 스트랩 안에 넣고, 손은 핸들을 가볍게 잡아 주세요. 페달은 고르게 돌리고, 상체는 조용히 두면 됩니다. 숨이 가빠져도 어깨를 으쓱하거나 안장에서 튀지 않게 해 주세요.",
+      "mistake": "댐퍼나 저항을 최대로 두고 짧은 구간만 힘껏 돌리다 자세가 무너지는 경우가 많습니다.",
+      "alternative": "무릎이 안으로 모이면 저항을 낮추고 페달 리듬을 맞춰 주세요.",
+      "sheet": "안장 높이는 페달 아래에서 무릎이 살짝 구부러질 정도로 맞추면 됩니다. 발은 스트랩 안에 넣고, 손은 핸들을 가볍게 잡아 주세요. 페달은 고르게 돌리고, 상체는 조용히 두면 됩니다. 숨이 가빠져도 어깨를 으쓱하거나 안장에서 튀지 않게 해 주세요. 댐퍼나 저항을 최대로 두고 짧은 구간만 힘껏 돌리다 자세가 무너지는 경우가 많습니다. 무릎이 안으로 모이면 저항을 낮추고 페달 리듬을 맞춰 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "ski": {
+      "exerciseId": "ski",
+      "name": "스키에르그",
+      "cue": "발은 골반 너비, 손잡이는 어깨 높이에서 잡으면 됩니다. 무릎은 살짝 구부리고 등은 길게 세워 주세요. 팔만 당기지 말고, 엉덩이를 뒤로 보내며 손잡이를 허벅지 옆까지 끌어내리면 됩니다. 돌아올 때는 팔이 먼저 올라가고 그다음 상체가 따라오면 됩니다.",
+      "mistake": "허리가 둥글게 말리거나 어깨만 으쓱하는 경우가 많습니다.",
+      "alternative": "댐퍼를 높여 한 번에 끌어당기려 하면 속도를 낮추고 횟수를 나눠 주세요.",
+      "sheet": "발은 골반 너비, 손잡이는 어깨 높이에서 잡으면 됩니다. 무릎은 살짝 구부리고 등은 길게 세워 주세요. 팔만 당기지 말고, 엉덩이를 뒤로 보내며 손잡이를 허벅지 옆까지 끌어내리면 됩니다. 돌아올 때는 팔이 먼저 올라가고 그다음 상체가 따라오면 됩니다. 허리가 둥글게 말리거나 어깨만 으쓱하는 경우가 많습니다. 댐퍼를 높여 한 번에 끌어당기려 하면 속도를 낮추고 횟수를 나눠 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "row": {
+      "exerciseId": "row",
+      "name": "로잉 머신",
+      "cue": "발판에 스트랩을 채우고, 핸들을 잡았을 때 정강이는 거의 수직이면 됩니다. 모니터 댐퍼는 중간 근처에서 시작하면 충분합니다. 바벨 로우와는 다른 동작입니다. 다리로 밀고, 상체가 살짝 젖혀진 뒤, 핸들을 명치 쪽으로 당기면 됩니다. 돌아올 때는 팔, 상체, 다리 순서로 풀어 주세요.",
+      "mistake": "허리가 먼저 열리거나 팔만 당기는 경우가 많습니다.",
+      "alternative": "등이 둥글면 댐퍼를 낮추고 한 번 당기는 길이를 짧게 가져가 주세요.",
+      "sheet": "발판에 스트랩을 채우고, 핸들을 잡았을 때 정강이는 거의 수직이면 됩니다. 모니터 댐퍼는 중간 근처에서 시작하면 충분합니다. 바벨 로우와는 다른 동작입니다. 다리로 밀고, 상체가 살짝 젖혀진 뒤, 핸들을 명치 쪽으로 당기면 됩니다. 돌아올 때는 팔, 상체, 다리 순서로 풀어 주세요. 허리가 먼저 열리거나 팔만 당기는 경우가 많습니다. 등이 둥글면 댐퍼를 낮추고 한 번 당기는 길이를 짧게 가져가 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "lunge": {
+      "exerciseId": "lunge",
+      "name": "런지",
+      "cue": "한 발은 앞, 한 발은 뒤로 골반 너비만큼 벌려 두면 됩니다. 앞발 전체로 바닥을 누르고, 상체는 세워 주세요. 앞 무릎은 발끝 방향으로, 뒤 무릎은 바닥을 향해 내려가면 됩니다. 양쪽 골반이 한쪽으로 빠지지 않게 같은 높이로 밀어 올려 주세요.",
+      "mistake": "앞 무릎이 안으로 접히거나 상체가 앞으로 쓰러지는 경우가 많습니다.",
+      "alternative": "균형이 어려우면 리버스 런지로 바꾸거나 한 손을 벽에 대 주세요. 무릎이 찌릿하면 스텝업으로 바꿔 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "sheet": "한 발은 앞, 한 발은 뒤로 골반 너비만큼 벌려 두면 됩니다. 앞발 전체로 바닥을 누르고, 상체는 세워 주세요. 앞 무릎은 발끝 방향으로, 뒤 무릎은 바닥을 향해 내려가면 됩니다. 양쪽 골반이 한쪽으로 빠지지 않게 같은 높이로 밀어 올려 주세요. 앞 무릎이 안으로 접히거나 상체가 앞으로 쓰러지는 경우가 많습니다. 균형이 어려우면 리버스 런지로 바꾸거나 한 손을 벽에 대 주세요. 무릎이 찌릿하면 스텝업으로 바꿔 주세요. 찌릿하거나 저리면 멈추고 전문가와 상의해 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "knee_raise": {
+      "exerciseId": "knee_raise",
+      "name": "니레이즈",
+      "cue": "바나 링에 매달려 어깨를 귀에서 내리고, 갈비뼈는 넣어 주세요. 다리는 모아 두면 됩니다. 무릎을 가슴 쪽으로 올리며 골반을 살짝 말아 주세요. 내려올 때는 다리를 던지지 말고 배의 힘으로 속도를 줄이면 됩니다.",
+      "mistake": "허리만 젖히고 다리를 휘두르는 경우가 많습니다.",
+      "alternative": "어깨가 아프면 바닥에서 누운 니턱으로 바꿔 주세요.",
+      "sheet": "바나 링에 매달려 어깨를 귀에서 내리고, 갈비뼈는 넣어 주세요. 다리는 모아 두면 됩니다. 무릎을 가슴 쪽으로 올리며 골반을 살짝 말아 주세요. 내려올 때는 다리를 던지지 말고 배의 힘으로 속도를 줄이면 됩니다. 허리만 젖히고 다리를 휘두르는 경우가 많습니다. 어깨가 아프면 바닥에서 누운 니턱으로 바꿔 주세요.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    }
+  },
+  "mediaFields": [
+    "imageUrl",
+    "videoUrl",
+    "youtubeUrl",
+    "youtubeCredit",
+    "credit",
+    "license",
+    "licenseUrl",
+    "sourcePage",
+    "alt",
+    "origin"
+  ],
+  "mediaPolicy": "Whitelist youtubeUrl only. Public watch link, open externally. No TJ. No download/rehost."
+}

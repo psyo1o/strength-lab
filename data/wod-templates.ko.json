@@ -1,0 +1,53 @@
+{
+  "version": "1.0.0",
+  "disclaimer": "참고 영상일 뿐. 찌릿·저림은 전문가.",
+  "sourceNoteKo": "일반적으로 알려진 공개 벤치마크·컨디셔닝 패턴입니다. 유료 박스 프로그램이 아닙니다.",
+  "templates": [
+    {
+      "slug": "kelly",
+      "nameKo": "Kelly",
+      "category": "benchmark",
+      "family": "girls",
+      "format": "for_time",
+      "targetRounds": 5,
+      "timeCapSec": 1800,
+      "prescriptionKo": "5라운드: 400m 런 · 박스점프 30 · 월볼 30.",
+      "equipmentKo": "박스 61/51cm (24/20in). 월볼 9/6kg, 타깃 3.05/2.74m (10/9ft).",
+      "boxHeightCm": 61,
+      "boxHeightCmF": 51,
+      "wallBallKg": 9,
+      "wallBallKgF": 6,
+      "wallBallTargetM": 3.05,
+      "wallBallTargetMF": 2.74,
+      "movements": [
+        { "exerciseKey": "run", "nameKo": "런", "scheme": "400m × 5" },
+        { "exerciseKey": "box_jump", "nameKo": "박스점프", "scheme": "30 × 5", "rxNote": "61/51 cm" },
+        { "exerciseKey": "wall_ball", "nameKo": "월볼", "scheme": "30 × 5", "rxKg": 9, "rxKgF": 6, "rxLb": 20, "rxLbF": 14, "rxNote": "20/14 lb · 10/9 ft" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "박스·월볼 타깃 그대로 5라운드." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "박스 낮춤·스텝업. 월볼 무게·타깃 낮춤. 런 200–300m." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "3라운드. 스텝업. 고블릿 스쿼트. 런 대신 행." }
+      ]
+    },
+    {
+      "slug": "emom-engine",
+      "nameKo": "엔진 EMOM",
+      "category": "conditioning",
+      "format": "emom",
+      "targetRounds": 12,
+      "timeCapSec": 720,
+      "prescriptionKo": "12분 EMOM: 스러스터 8 + 버피 6. 분마다 시작.",
+      "equipmentKo": "바벨 또는 덤벨.",
+      "movements": [
+        { "exerciseKey": "thruster", "nameKo": "스러스터", "scheme": "8 / 분", "rxKg": 30, "rxKgF": 20 },
+        { "exerciseKey": "burpee", "nameKo": "버피", "scheme": "6 / 분" }
+      ],
+      "scaling": [
+        { "tier": "rx", "titleKo": "Rx", "bodyKo": "분 안에 두 동작을 끝내고 나머진 휴식." },
+        { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "스러스터 무게 낮춤. 버피 4회. 또는 8분." },
+        { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨 스러스터 6 + 버피 4. 8분 EMOM." }
+      ]
+    }
+  ]
+}

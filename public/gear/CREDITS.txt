@@ -1,0 +1,25 @@
+Photos for the unlinked reference cards. The confirmed partner thumbnail is loaded from its product image URL and is not in this folder.
+
+lifting-straps.jpg
+  Subject: lifting straps
+  Source: https://commons.wikimedia.org/wiki/File:Lifting_Straps.png
+  Author: QuadlingualEditor
+  License: CC BY-SA 4.0
+
+knee-pads.jpg
+  Subject: knee pads
+  Source: https://commons.wikimedia.org/wiki/File:Two_knee_pads,_annex_(2878363424).jpg
+  Author: Anthony Easton
+  License: CC BY 2.0
+
+wrist-brace.jpg
+  Subject: wrist brace
+  Source: https://commons.wikimedia.org/wiki/File:Wrist_brace.jpg
+  Author: zyang
+  License: CC BY 3.0
+
+pedal-toe-strap.jpg
+  Subject: bicycle pedal with toe clip and leather toe strap
+  Source: https://commons.wikimedia.org/wiki/File:Bicycle_pedal,_quill_type,_early_1980s,_Campagnolo_SL_road.jpg
+  Author: LDHan
+  License: Public domain
