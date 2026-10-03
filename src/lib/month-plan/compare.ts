@@ -1,3 +1,4 @@
+import { memberLoad, type WeightUnit } from "../calc/round";
 import { formatClock } from "../wod/types";
 import type { PieceFormat } from "./types";
 
@@ -125,10 +126,18 @@ export function metconComparison(
   };
 }
 
-export function liftComparison(nameKo: string, currentKg: number, earlierKg: number): HistoryCompare {
-  const deltaKo = describeLoadDelta(currentKg, earlierKg);
-  const earlierLabel = `${earlierKg}kg`;
-  const currentLabel = `${currentKg}kg`;
+export function liftComparison(
+  nameKo: string,
+  currentKg: number,
+  earlierKg: number,
+  unit: WeightUnit = "kg",
+): HistoryCompare {
+  const current = memberLoad(currentKg, unit);
+  const earlier = memberLoad(earlierKg, unit);
+  const delta = current - earlier;
+  const earlierLabel = `${earlier}${unit}`;
+  const currentLabel = `${current}${unit}`;
+  const deltaKo = delta === 0 ? "이전과 같습니다" : delta > 0 ? `${delta}${unit} 무거움` : `${-delta}${unit} 가벼움`;
   return {
     reason: "same_lift",
     reasonKo: `같은 메인 리프트 · ${nameKo}`,

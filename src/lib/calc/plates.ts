@@ -39,15 +39,34 @@ export function roundToLoadable(target: number, bar: number, unit: WeightUnit): 
   return Number((bar + roundedPlates).toFixed(4));
 }
 
+/** Change plates that can make any whole kilogram or whole pound the member is shown. */
+export const MEMBER_KG_PLATES = [25, 20, 15, 10, 5, 2.5, 1, 0.5] as const;
+export const MEMBER_LB_PLATES = [45, 35, 25, 10, 5, 2.5, 1, 0.5] as const;
+
+export function memberPlateInventory(unit: WeightUnit): readonly number[] {
+  return unit === "lb" ? MEMBER_LB_PLATES : MEMBER_KG_PLATES;
+}
+
+function roundToInventory(target: number, bar: number, inventory: readonly number[]): number {
+  if (target <= bar) return bar;
+  const smallest = inventory[inventory.length - 1] ?? 0;
+  const step = smallest * 2;
+  if (step <= 0) return target;
+  const roundedPlates = roundTo(target - bar, step);
+  return Number((bar + roundedPlates).toFixed(4));
+}
+
 export function calculatePlates(
   target: number,
   unit: WeightUnit,
   bar = defaultBar(unit),
+  inventory?: readonly number[],
 ): PlateResult {
-  const loadable = roundToLoadable(target, bar, unit);
+  const plates = inventory ?? platesForUnit(unit);
+  const loadable = inventory ? roundToInventory(target, bar, plates) : roundToLoadable(target, bar, unit);
   let remaining = (loadable - bar) / 2;
   const perSide: PlatePair[] = [];
-  for (const plate of platesForUnit(unit)) {
+  for (const plate of plates) {
     const count = Math.floor((remaining + 1e-9) / plate);
     if (count > 0) {
       perSide.push({ weight: plate, count });

@@ -1,4 +1,5 @@
-import type { WeightUnit } from "../calc/round";
+import { readUserUnit } from "../auth";
+import { formatWeight, type WeightUnit } from "../calc/round";
 import { getSqlite } from "../db/client";
 import { formatKoDate, trainingDayKey } from "../progress";
 import { listWodResults, type WodResult } from "../wod/queries";
@@ -218,7 +219,12 @@ function planPool(ctx: HistoryContext): Comparable[] {
   return [...fromPlans, ...ctx.wods];
 }
 
-export function comparesForDay(ctx: HistoryContext, plan: StoredPlan, day: PlannedDay): HistoryCompare[] {
+export function comparesForDay(
+  ctx: HistoryContext,
+  plan: StoredPlan,
+  day: PlannedDay,
+  unit: WeightUnit = "kg",
+): HistoryCompare[] {
   const compares: HistoryCompare[] = [];
   const piece = day.piece;
   const dayScores = scoresForDay(ctx.scores, plan.id, day.day);
@@ -246,29 +252,29 @@ export function comparesForDay(ctx: HistoryContext, plan: StoredPlan, day: Plann
     });
     const earlierDay = earlierPlan?.week.days.find((row) => row.lift?.exerciseKey === day.lift?.exerciseKey);
     const earlierTop = topSetKg(earlierDay?.lift);
-    if (earlierTop != null) compares.push(liftComparison(day.lift.nameKo, top, earlierTop));
+    if (earlierTop != null) compares.push(liftComparison(day.lift.nameKo, top, earlierTop, unit));
   }
   return compares;
 }
 
-function prescriptionLine(day: PlannedDay): string {
+function prescriptionLine(day: PlannedDay, unit: WeightUnit): string {
   if (day.rest) return "휴식";
   if (day.lift?.missingOneRm) return "1RM 없음 · 무게 없음";
   if (day.lift) {
-    const weights = day.lift.sets.map((set) => (set.weightKg == null ? "—" : `${set.weightKg}kg`));
+    const weights = day.lift.sets.map((set) => (set.weightKg == null ? "—" : formatWeight(set.weightKg, unit)));
     return `${day.lift.nameKo} ${weights.join(" / ")}`;
   }
   return day.piece?.nameKo ?? daySummary(day);
 }
 
-function sessionCompare(sessions: SessionGroup[], session: SessionGroup): HistoryCompare | null {
+function sessionCompare(sessions: SessionGroup[], session: SessionGroup, unit: WeightUnit): HistoryCompare | null {
   const older = sessions.filter((row) => row.at < session.at).sort((a, b) => b.at - a.at);
   for (const lift of session.lifts) {
     if (lift.weightKg == null) continue;
     for (const prev of older) {
       const match = prev.lifts.find((row) => row.exerciseKey === lift.exerciseKey && row.weightKg != null);
       if (!match || match.weightKg == null) continue;
-      return liftComparison(lift.nameKo, lift.weightKg, match.weightKg);
+      return liftComparison(lift.nameKo, lift.weightKg, match.weightKg, unit);
     }
   }
   return null;
@@ -276,6 +282,7 @@ function sessionCompare(sessions: SessionGroup[], session: SessionGroup): Histor
 
 export function listTrainingHistory(userId: number): HistoryItem[] {
   const ctx = loadHistoryContext(userId);
+  const unit = readUserUnit(userId);
   const items: HistoryItem[] = [];
 
   for (const plan of ctx.plans) {
@@ -287,9 +294,9 @@ export function listTrainingHistory(userId: number): HistoryItem[] {
         at,
         href: planDayHref(plan.id, day.day),
         title: `${plan.weekIndex}주 ${day.labelKo}${day.optional ? " · 선택" : ""}`,
-        line: prescriptionLine(day),
+        line: prescriptionLine(day, unit),
         kind: "plan",
-        compares: comparesForDay(ctx, plan, day),
+        compares: comparesForDay(ctx, plan, day, unit),
         scores: logged.map((score) => ({
           id: `ps-${score.id}`,
           at: score.completedAt,
@@ -328,8 +335,8 @@ export function listTrainingHistory(userId: number): HistoryItem[] {
   for (const session of ctx.sessions) {
     const weights = session.lifts
       .filter((lift) => lift.weightKg != null && lift.weightKg > 0)
-      .map((lift) => `${lift.nameKo} ${lift.weightKg}kg`);
-    const compare = sessionCompare(ctx.sessions, session);
+      .map((lift) => `${lift.nameKo} ${formatWeight(lift.weightKg!, unit)}`);
+    const compare = sessionCompare(ctx.sessions, session, unit);
     items.push({
       key: session.key,
       at: session.at,

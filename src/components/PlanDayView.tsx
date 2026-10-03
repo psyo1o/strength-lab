@@ -19,6 +19,7 @@ export function PlanDayView({
   compares,
   scores,
   choices,
+  unit,
 }: {
   planId: number;
   weekIndex: WeekIndex;
@@ -29,6 +30,7 @@ export function PlanDayView({
   compares: HistoryCompare[];
   scores: PlanScore[];
   choices: PieceMovement[];
+  unit: "kg" | "lb";
 }) {
   return (
     <main className="min-w-0 px-4 pt-6 pb-8">
@@ -65,7 +67,7 @@ export function PlanDayView({
               <ul className="mt-3 space-y-1">
                 {block.strength.sets.map((set) => (
                   <li key={set.setIndex} className="font-black tabular-nums">
-                    {formatSetLine(set)}
+                    {formatSetLine(set, unit)}
                   </li>
                 ))}
               </ul>

@@ -15,6 +15,7 @@ import {
   isOutboundPartnerHref,
   listGearItems,
   loadGearCatalog,
+  referenceCards,
   resetGearCache,
   type GearPageModel,
 } from "../src/lib/gear/affiliates";
@@ -49,7 +50,8 @@ describe("gear affiliates", () => {
     expect(catalog.coupangPartnerId).toBe("AF4475360");
     expect(catalog.categories.map((c) => c.nameKo)).toEqual(["참고"]);
     const items = listGearItems(catalog);
-    expect(items.map((item) => item.nameKo)).toEqual(["리프팅 스트랩", "무릎 패드", "손목 보호대", "페달 토스트랩"]);
+    expect(items.map((item) => item.nameKo)).toEqual(["리프팅 스트랩", "무릎 패드", "손목 보호대"]);
+    expect(items.some((item) => /페달|토스트랩/.test(item.nameKo) || item.id === "pedal-toe-strap")).toBe(false);
     expect(items.every((item) => item.whyKo && item.imageUrl.startsWith("/gear/"))).toBe(true);
     expect(items.every((item) => !item.configured)).toBe(true);
     expect(items.every((item) => !item.affiliateUrl.includes("AF4475360"))).toBe(true);
@@ -160,13 +162,16 @@ describe("gear affiliates", () => {
     expect(model.disclosure).toBe(GEAR_DISCLOSURE);
     expect(model.partners).toEqual(CONFIRMED_PARTNERS);
     expect(model.partners[0]).toEqual(CONFIRMED_PARTNER);
-    expect(model.references.map((item) => item.nameKo)).toEqual(["페달 토스트랩"]);
+    expect(model.references).toEqual([]);
+    expect(model.references.some((item) => /페달|토스트랩/.test(item.nameKo))).toBe(false);
     expect(model.references.some((item) => item.nameKo === "운동 장비")).toBe(false);
     expect(model.references.some((item) => item.nameKo === "무릎 패드")).toBe(false);
     expect(model.references.some((item) => item.nameKo === "손목 보호대")).toBe(false);
     expect(model.references.some((item) => item.nameKo === "리프팅 스트랩")).toBe(false);
     const html = shelfHtml(model);
     expect(html).not.toContain("운동 장비");
+    expect(html).not.toContain("페달 토스트랩");
+    expect(html).not.toContain("토스트랩");
     const anchors = [...html.matchAll(/<a\b[^>]*href="([^"]*)"/g)].map((match) => match[1]);
     expect(anchors).toEqual(PARTNER_HREFS);
     for (const card of CONFIRMED_PARTNERS) {
@@ -175,6 +180,72 @@ describe("gear affiliates", () => {
     }
     expect(html).not.toContain("coupang.com/np/search");
     for (const href of REJECTED_HREFS) expect(html).not.toContain(href);
+  });
+
+  it("drops a pedal toe-strap card from the bundled page and from an overlay that replaces the catalog", () => {
+    const bundled = shelfHtml();
+    expect(bundled).not.toContain("페달");
+    expect(bundled).not.toContain("토스트랩");
+    expect(bundled).not.toContain("pedal-toe-strap");
+    expect(gearPageModel().partners).toHaveLength(14);
+    expect(gearPageModel().disclosure).toBe(GEAR_DISCLOSURE);
+    expect(bundled.match(/hvCaduhQ8O/g)).toHaveLength(1);
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "strength-lab-gear-pedal-"));
+    const file = path.join(dir, "gear-affiliates.json");
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        disclosureKo: "다른 고지",
+        coupangPartnerId: "AF4475360",
+        categories: [
+          {
+            id: "reference",
+            nameKo: "참고",
+            items: [
+              {
+                id: "pedal-toe-strap",
+                nameKo: "페달 토스트랩",
+                whyKo: "바이크 페달에 발을 고정하는 가죽 스트랩입니다.",
+                imageUrl: "/gear/pedal-toe-strap.jpg",
+                affiliateUrl: "",
+                merchant: "쿠팡",
+              },
+              {
+                id: "toe-strap-extra",
+                nameKo: "토 스트랩",
+                whyKo: "페달용 스트랩입니다.",
+                imageUrl: "/gear/pedal-toe-strap.jpg",
+                affiliateUrl: ONLY_PARTNER_HREF,
+                merchant: "쿠팡",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    process.env.GEAR_JSON_PATH = file;
+    resetGearCache();
+    const ignored = gearPageModel();
+    expect(ignored.disclosure).toBe(GEAR_DISCLOSURE);
+    expect(ignored.partners).toEqual(CONFIRMED_PARTNERS);
+    expect(ignored.references).toEqual([]);
+    const ignoredHtml = shelfHtml(ignored);
+    expect(ignoredHtml).not.toContain("페달");
+    expect(ignoredHtml).not.toContain("토스트랩");
+    expect(ignoredHtml.match(/hvCaduhQ8O/g)).toHaveLength(1);
+
+    const loaded = loadGearCatalog();
+    expect(loaded.sourcePath).toBe(file);
+    expect(referenceCards(loaded)).toEqual([]);
+    const fromOverlay = shelfHtml({
+      disclosure: GEAR_DISCLOSURE,
+      partners: ignored.partners,
+      references: referenceCards(loaded),
+    });
+    expect(fromOverlay).not.toContain("페달");
+    expect(fromOverlay).not.toContain("토스트랩");
+    expect(fromOverlay).not.toContain('data-gear="reference"');
   });
 });
 
@@ -217,10 +288,12 @@ describe("gear page and nav", () => {
     const html = shelfHtml(model);
     const disclosureAt = html.indexOf(GEAR_DISCLOSURE);
     const partnerAt = html.indexOf('data-gear="partner"');
-    const referenceAt = html.indexOf('data-gear="reference"');
     expect(disclosureAt).toBeGreaterThan(-1);
     expect(partnerAt).toBeGreaterThan(disclosureAt);
-    expect(referenceAt).toBeGreaterThan(partnerAt);
+    expect(html).not.toContain('data-gear="reference"');
+    expect(html).not.toContain("페달 토스트랩");
+    expect(html).not.toContain("토스트랩");
+    expect(html).not.toContain("아직 링크가 없어요");
     expect(html.match(/<a /g)).toHaveLength(PARTNER_HREFS.length);
     expect(html).toContain('target="_blank"');
     expect(html).toContain('rel="noopener noreferrer sponsored nofollow"');
@@ -241,7 +314,8 @@ describe("gear page and nav", () => {
     expect(anchors).toEqual(PARTNER_HREFS);
 
     const referenceChunks = html.split('data-gear="reference"').slice(1);
-    expect(referenceChunks).toHaveLength(model.references.length);
+    expect(model.references).toEqual([]);
+    expect(referenceChunks).toHaveLength(0);
     for (const chunk of referenceChunks) {
       const card = chunk.slice(0, chunk.indexOf("</li>"));
       expect(card).not.toContain("<a");

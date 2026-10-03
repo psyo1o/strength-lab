@@ -2,10 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { calculatePlates, defaultBar, formatPerSide } from "@/lib/calc/plates";
+import { convertDisplayedLoad } from "@/lib/calc/round";
 
 export function PlateCalc({ unit }: { unit: "kg" | "lb" }) {
-  const [target, setTarget] = useState(unit === "kg" ? 100 : 225);
-  const [bar, setBar] = useState(defaultBar(unit));
+  const [target, setTarget] = useState(() => (unit === "kg" ? 100 : 225));
+  const [bar, setBar] = useState(() => defaultBar(unit));
+  const [seenUnit, setSeenUnit] = useState(unit);
+  if (seenUnit !== unit) {
+    setSeenUnit(unit);
+    setTarget((current) => convertDisplayedLoad(current, seenUnit, unit));
+    setBar(defaultBar(unit));
+  }
 
   const result = useMemo(() => calculatePlates(target, unit, bar), [target, unit, bar]);
 

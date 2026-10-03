@@ -3,7 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { registerUser } from "../src/lib/auth";
+import { readUserUnit, registerUser, updateUserUnit } from "../src/lib/auth";
+import { calculatePlates, defaultBar, memberPlateInventory } from "../src/lib/calc/plates";
+import { memberLoad } from "../src/lib/calc/round";
+import { formatSetLine, prescribeMainLift, strengthBody } from "../src/lib/month-plan/loads";
 import { getSqlite, resetDbConnection } from "../src/lib/db/client";
 import { FIRST_ADMIN_EMAIL } from "../src/lib/first-admin";
 import { saveUserMaxes } from "../src/lib/maxes";
@@ -128,6 +131,79 @@ describe("shared class wod", () => {
     const empty = await sharedToday(none.user.id, FRIDAY);
     expect(empty.day.lift?.sets.map((set) => set.weightKg)).toEqual([null, null, null]);
     expect(empty.day.blocks.find((block) => block.role === "main")?.bodyKo).not.toMatch(/\d+(\.\d+)?kg/);
+  });
+
+  it("renders a fractional training load as a whole kilogram or whole pounds and keeps plates on that number", async () => {
+    const created = registerUser("loads@example.com", "password123");
+    if ("error" in created) throw new Error("register failed");
+    saveUserMaxes(created.user.id, [{ exerciseKey: "deadlift", value: 220, unit: "kg" }]);
+
+    const missing = prescribeMainLift("squat", 1, {});
+    expect(missing.sets.map((set) => set.weightKg)).toEqual([null, null, null]);
+    expect(strengthBody(missing, "kg")).not.toMatch(/\d+(\.\d+)?kg/);
+    expect(strengthBody(missing, "lb")).not.toMatch(/\d+(\.\d+)?lb/);
+    expect(formatSetLine({ setIndex: 1, percentOfTm: 65, reps: 5, amrap: false, weightKg: null }, "lb")).not.toMatch(/kg|lb/);
+
+    expect(formatSetLine({ setIndex: 1, percentOfTm: 65, reps: 5, amrap: false, weightKg: 72.5 }, "kg")).toBe(
+      "1. 5회 · 65% · 73kg",
+    );
+    const pounds = memberLoad(72.5, "lb");
+    expect(Number.isInteger(pounds)).toBe(true);
+    expect(formatSetLine({ setIndex: 1, percentOfTm: 65, reps: 5, amrap: false, weightKg: 72.5 }, "lb")).toBe(
+      `1. 5회 · 65% · ${pounds}lb`,
+    );
+    expect(String(pounds)).not.toMatch(/\./);
+
+    for (const unit of ["kg", "lb"] as const) {
+      const shown = memberLoad(72.5, unit);
+      const plates = calculatePlates(shown, unit, defaultBar(unit), memberPlateInventory(unit));
+      const perSide = plates.perSide.reduce((sum, plate) => sum + plate.weight * plate.count, 0);
+      expect(plates.loadable).toBe(shown);
+      expect(Number((plates.bar + perSide * 2).toFixed(4))).toBe(shown);
+    }
+
+    const week = buildWeek({
+      weekIndex: 1,
+      sex: "m",
+      maxes: { squat: 200, ohp: 80, bench: 100, deadlift: 180 },
+      recentMetcons: [],
+    });
+    const kgMain = presentClassWeek(week, { squat: 200 }, "kg").days.find((day) => day.day === "mon")!.blocks.find(
+      (block) => block.role === "main",
+    )!.bodyKo;
+    expect(kgMain).toContain("65%");
+    expect(kgMain).toContain("75%");
+    expect(kgMain).toContain("85%");
+    expect(kgMain).toContain("118kg");
+    expect(kgMain).toContain("153kg");
+    expect(kgMain).not.toMatch(/\d+\.\d+/);
+
+    const lbMain = presentClassWeek(week, { squat: 200 }, "lb").days.find((day) => day.day === "mon")!.blocks.find(
+      (block) => block.role === "main",
+    )!.bodyKo;
+    expect(lbMain).toContain("65%");
+    expect(lbMain).toContain("lb");
+    expect(lbMain).not.toContain("kg");
+    expect(lbMain).not.toMatch(/\d+\.\d+/);
+    expect(lbMain).not.toBe(kgMain);
+
+    expect(readUserUnit(created.user.id)).toBe("kg");
+    updateUserUnit(created.user.id, "lb");
+    expect(readUserUnit(created.user.id)).toBe("lb");
+    const asPounds = await sharedToday(created.user.id, FRIDAY);
+    const poundBody = asPounds.day.blocks.find((block) => block.role === "main")!.bodyKo;
+    expect(poundBody).toContain("lb");
+    expect(poundBody).not.toMatch(/\d+\.\d+/);
+    expect(poundBody).toContain("40%");
+
+    updateUserUnit(created.user.id, "kg");
+    const asKilos = await sharedToday(created.user.id, FRIDAY);
+    const kiloBody = asKilos.day.blocks.find((block) => block.role === "main")!.bodyKo;
+    expect(kiloBody).toContain("kg");
+    expect(kiloBody).not.toContain("lb");
+    expect(kiloBody).not.toMatch(/\d+\.\d+/);
+    expect(kiloBody).not.toBe(poundBody);
+    expect(asKilos.day.piece?.signature).toBe(asPounds.day.piece?.signature);
   });
 
   it("shows rest on Sunday and does not invent a workout", async () => {
