@@ -18,3 +18,21 @@ export function kstWeekStart(ms: number): string {
   const monday = Date.parse(`${date}T00:00:00.000Z`) - index * 24 * 60 * 60 * 1000;
   return new Date(monday).toISOString().slice(0, 10);
 }
+
+/**
+ * Monday of the class week this member should train.
+ * Sunday in Asia/Seoul already belongs to the week that starts the next Monday,
+ * so that week can be written before Monday morning.
+ */
+export function classWeekToTrain(ms: number): string {
+  const { date, day } = kstParts(ms);
+  if (day !== "sun") return kstWeekStart(ms);
+  const monday = Date.parse(`${date}T00:00:00.000Z`) + 24 * 60 * 60 * 1000;
+  return new Date(monday).toISOString().slice(0, 10);
+}
+
+/** Day inside that class week that Today opens. Sunday opens Monday, not a blank rest card. */
+export function classDayToOpen(ms: number): DayKey {
+  const day = kstParts(ms).day;
+  return day === "sun" ? "mon" : day;
+}

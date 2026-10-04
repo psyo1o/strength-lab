@@ -3,7 +3,7 @@ import type { WeightUnit } from "../calc/round";
 import { getSqlite } from "../db/client";
 import { getUserMaxes } from "../maxes";
 import { daySummary } from "./build-week";
-import { kstParts, kstWeekStart } from "./calendar";
+import { classDayToOpen, classWeekToTrain } from "./calendar";
 import { prescribeMainLift, strengthBody } from "./loads";
 import { applyStoredStrength } from "../programming/project";
 import { attachClassWeek, ensureProgrammingWeek } from "../programming/engine";
@@ -130,14 +130,17 @@ export async function ensureClassWeekForStart(weekStart: string, nowMs = Date.no
 }
 
 export async function ensureClassWeek(nowMs = Date.now()): Promise<StoredPlan> {
-  return ensureClassWeekForStart(kstWeekStart(nowMs), nowMs);
+  return ensureClassWeekForStart(classWeekToTrain(nowMs), nowMs);
 }
 
 export async function sharedToday(userId: number, nowMs = Date.now()): Promise<TodayPlan> {
   const stored = await ensureClassWeek(nowMs);
   const presented = presentClassWeek(stored.week, getUserMaxes(userId), readUserUnit(userId));
-  const dayKey = kstParts(nowMs).day;
-  const day = presented.days.find((row) => row.day === dayKey) ?? presented.days[0]!;
+  const dayKey = classDayToOpen(nowMs);
+  const day =
+    presented.days.find((row) => row.day === dayKey) ??
+    presented.days.find((row) => row.scheduled && !row.rest) ??
+    presented.days[0]!;
   return {
     planId: stored.id,
     weekIndex: stored.weekIndex,

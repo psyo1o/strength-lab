@@ -13,10 +13,10 @@ export function TodaySessionCard({ today }: { today: TodayPlan | null }) {
   const model = todaySessionModel(today);
   if (model.kind === "missing") {
     return (
-      <section className="card mt-5 min-w-0 p-5">
+      <Link href="/plan" className="card tap mt-5 block min-w-0 p-5">
         <div className="text-sm font-bold text-[var(--accent)]">{TODAY_MAIN_LABEL_KO}</div>
         <p className="mt-2 break-words text-base font-black">{WEEK_PLAN_MISSING_KO}</p>
-      </section>
+      </Link>
     );
   }
 

@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { getUserMaxes, getUserStarts, START_WEIGHT_KEYS } from "@/lib/maxes";
+import { presentStoredMax } from "@/lib/max-display";
 import {
   buildMaxesGroups,
   canonicalOneRmKeysFromSeed,
@@ -8,10 +9,10 @@ import {
   MAX_GROUP_WOD,
 } from "@/lib/maxes-fields";
 import { canonicalOneRmFields } from "@/lib/tips";
-import { displayWeight } from "@/lib/calc/round";
 import { getSqlite } from "@/lib/db/client";
 import { Nav } from "@/components/Nav";
 import { MaxesForm } from "@/components/MaxesForm";
+import { UnitToggle } from "@/components/UnitToggle";
 import { MAXES_STORAGE_KO } from "@/lib/screen-copy";
 
 export const runtime = "nodejs";
@@ -38,14 +39,16 @@ export default async function MaxesPage() {
     keys.map((key) => {
       const skipBarCheck = wodWeight.has(key);
       const stored = maxes[key];
+      const start = starts[key];
       return {
         key,
         nameKo: labelForMaxField(key, byKey[key]?.name_ko),
-        value: stored ? displayWeight(stored, "kg") : "",
+        value: presentStoredMax(stored, user.unit),
+        storedKg: stored ?? null,
         showStart: startSet.has(key),
-        startValue: starts[key] ? displayWeight(starts[key], "kg") : "",
+        startValue: presentStoredMax(start, user.unit),
+        storedStartKg: start ?? null,
         skipBarCheck,
-        unitLabel: "kg",
       };
     });
 
@@ -62,9 +65,13 @@ export default async function MaxesPage() {
             월볼·박스·케틀벨 무게는 WOD 처방에 있어요. 1RM이 아닙니다.
           </p>
         </div>
+        <div className="shrink-0">
+          <UnitToggle unit={user.unit} />
+        </div>
       </div>
       <MaxesForm
-        unit="kg"
+        key={user.unit}
+        unit={user.unit}
         groups={specs.map((g) => ({ title: g.title, fields: toFields(g.keys) }))}
       />
       <Nav current="/maxes" />

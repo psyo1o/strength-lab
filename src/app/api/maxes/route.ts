@@ -26,7 +26,7 @@ export async function PUT(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  const unit = (body.unit === "lb" ? "lb" : user.unit) as WeightUnit;
+  const unit: WeightUnit = body.unit === "lb" || body.unit === "kg" ? body.unit : user.unit;
   const entries = Array.isArray(body.entries) ? body.entries : [];
   saveUserMaxes(
     user.id,

@@ -2,17 +2,24 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { commitMaxKg } from "@/lib/max-display";
 
 type Field = {
   key: string;
   nameKo: string;
   value: number | string;
   startValue?: number | string;
+  storedKg?: number | null;
+  storedStartKg?: number | null;
   showStart?: boolean;
   skipBarCheck?: boolean;
   unitLabel?: string;
   step?: number;
 };
+
+/** Wide enough for a full 1RM (including 182.5 or a 4-digit pound load). Do not lock a narrow width. */
+const NUMBER_FIELD =
+  "tap box-border h-14 min-w-[8.5rem] flex-1 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-3xl font-black tabular-nums leading-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
 function fieldsToValues(groups: { fields: Field[] }[]): Record<string, string> {
   const init: Record<string, string> = {};
@@ -84,20 +91,21 @@ export function MaxesForm({
       setMsg("빨간 칸을 고친 뒤 저장하세요.");
       return;
     }
-    const keys = new Set<string>();
-    for (const g of groups) for (const f of g.fields) keys.add(f.key);
-    const entries = [...keys].map((exerciseKey) => ({
-      exerciseKey,
-      value: Number(values[exerciseKey] || 0),
-      startValue: values[`${exerciseKey}__start`] === "" || values[`${exerciseKey}__start`] == null
-        ? null
-        : Number(values[`${exerciseKey}__start`]),
-    }));
+    const fields = groups.flatMap((g) => g.fields);
+    const entries = fields.map((field) => {
+      const startShown = values[`${field.key}__start`];
+      const startKg = field.showStart ? commitMaxKg(startShown ?? "", field.storedStartKg, unit) : 0;
+      return {
+        exerciseKey: field.key,
+        value: commitMaxKg(values[field.key] ?? "", field.storedKg, unit),
+        startValue: field.showStart && startKg > 0 ? startKg : null,
+      };
+    });
     setPending(true);
     const res = await fetch("/api/maxes", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ unit, entries }),
+      body: JSON.stringify({ unit: "kg", entries }),
     });
     setPending(false);
     setMsg(res.ok ? "저장했습니다." : "저장 실패");
@@ -114,37 +122,39 @@ export function MaxesForm({
               <label key={f.key} className="card scroll-clear-stack block min-w-0 px-3 py-3">
                 <span className="block break-words text-lg font-bold">{f.nameKo}</span>
                 <span className="mt-2 flex min-w-0 flex-col gap-3">
-                  <span className="flex min-w-0 items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-3">
                     <span className="shrink-0 text-xs font-bold text-[var(--muted)]">1RM</span>
-                    <span className="flex min-w-0 items-center gap-2">
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
                       <input
                         name={f.key}
                         type="number"
                         inputMode="decimal"
                         min={0}
-                        step={f.step ?? (unit === "lb" ? 5 : 2.5)}
+                        step={f.step ?? 1}
                         value={values[f.key] ?? ""}
+                        title={values[f.key] ?? ""}
                         onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                        className="tap w-28 max-w-full min-w-0 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-3xl font-black"
+                        className={NUMBER_FIELD}
                       />
                       <span className="shrink-0 text-sm text-[var(--muted)]">{unit}</span>
                     </span>
                   </span>
                   {f.showStart ? (
-                    <span className="flex min-w-0 items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-3">
                       <span className="shrink-0 text-xs font-bold text-[var(--muted)]">시작 중량</span>
-                      <span className="flex min-w-0 items-center gap-2">
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
                         <input
                           name={`${f.key}__start`}
                           type="number"
                           inputMode="decimal"
                           min={0}
-                          step={unit === "lb" ? 5 : 2.5}
+                          step={1}
                           value={values[`${f.key}__start`] ?? ""}
+                          title={values[`${f.key}__start`] ?? ""}
                           onChange={(e) =>
                             setValues((prev) => ({ ...prev, [`${f.key}__start`]: e.target.value }))
                           }
-                          className="tap w-28 max-w-full min-w-0 rounded-lg border border-[var(--line)] bg-[var(--bg-elev)] px-3 text-right text-3xl font-black"
+                          className={NUMBER_FIELD}
                         />
                         <span className="shrink-0 text-sm text-[var(--muted)]">{unit}</span>
                       </span>

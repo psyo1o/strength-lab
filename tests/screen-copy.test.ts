@@ -81,7 +81,7 @@ describe("screen copy", () => {
     expect(views[1]?.bodyKo).toContain(LAST_MAIN_SET_LINE_KO);
     expect(views[2]?.bodyKo).toMatch(/8분 동안 최대한 많이/);
     expect(views[2]?.bodyKo).not.toMatch(/AMRAP/);
-    expect(MAXES_STORAGE_KO).toBe("무게는 킬로그램으로 저장해요. 화면에도 킬로그램만 보여요.");
+    expect(MAXES_STORAGE_KO).toBe("무게는 킬로그램으로 저장해요. 화면은 고른 단위로 보여요.");
     expect(EXTRA_MAXES_TITLE_KO).toBe("이 프로그램에 추가로 필요한 최대 중량");
     expect(SAVE_MAXES_KO).toBe("최대 중량과 시작 중량 저장");
     expect(GEAR_PENDING_KO).toBe("아직 링크가 없어요");
