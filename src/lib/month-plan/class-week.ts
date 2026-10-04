@@ -2,13 +2,13 @@ import { readUserUnit, type AthleteSex } from "../auth";
 import type { WeightUnit } from "../calc/round";
 import { getSqlite } from "../db/client";
 import { getUserMaxes } from "../maxes";
-import { serverModelKey } from "./adapter";
 import { daySummary } from "./build-week";
 import { kstParts, kstWeekStart } from "./calendar";
 import { prescribeMainLift, strengthBody } from "./loads";
+import { applyStoredStrength } from "../programming/project";
+import { attachClassWeek, ensureProgrammingWeek } from "../programming/engine";
 import { rewriteConditioningBody } from "./shared-line";
 import { isDayKey, isWeekIndex, type DayKey, type PlannedDay, type PlannedWeek, type WeekIndex } from "./types";
-import { resolvePlannedWeek } from "./week-model";
 import type { PlanScore, StoredPlan, TodayPlan } from "./store";
 
 export function classWeekIndex(weekStart: string): WeekIndex {
@@ -80,7 +80,9 @@ export function presentClassWeek(
   const next = structuredClone(week);
   for (const day of next.days) {
     if (!day.lift) continue;
-    const rx = prescribeMainLift(day.lift.exerciseKey, next.weekIndex, maxes);
+    const rx = day.lift.sets.length
+      ? applyStoredStrength(day.lift, maxes)
+      : prescribeMainLift(day.lift.exerciseKey, next.weekIndex, maxes);
     day.lift = rx;
     for (const block of day.blocks) {
       if (!block.strength) continue;
@@ -111,16 +113,9 @@ export function replaceClassWeek(weekStart: string, week: PlannedWeek): boolean 
 export async function ensureClassWeekForStart(weekStart: string, nowMs = Date.now()): Promise<StoredPlan> {
   const existing = getClassPlanByStart(weekStart);
   if (existing) return existing;
-  const weekIndex = classWeekIndex(weekStart);
-  const week = await resolvePlannedWeek(
-    {
-      weekIndex,
-      maxes: {},
-      sex: "m",
-      recentMetcons: [],
-    },
-    { key: serverModelKey() },
-  );
+  const programmed = await ensureProgrammingWeek(weekStart, { nowMs });
+  const weekIndex = programmed.weekIndex;
+  const week = programmed.display;
   getSqlite()
     .prepare(
       `INSERT INTO class_weeks (week_index, week_start, sex, plan_json, created_at)
@@ -130,6 +125,7 @@ export async function ensureClassWeekForStart(weekStart: string, nowMs = Date.no
     .run(weekIndex, weekStart, JSON.stringify(week), nowMs);
   const stored = getClassPlanByStart(weekStart);
   if (!stored) throw new Error("class week missing");
+  attachClassWeek(weekStart, stored.id);
   return stored;
 }
 

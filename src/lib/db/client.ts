@@ -224,6 +224,67 @@ function applySchema(raw: Database.Database) {
       notes_ko TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS class_day_scores_user ON class_day_scores (user_id, class_week_id, day_key);
+    CREATE TABLE IF NOT EXISTS programming_months (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      month_start TEXT NOT NULL UNIQUE,
+      scheme TEXT NOT NULL,
+      direction_json TEXT NOT NULL,
+      input_summary_json TEXT NOT NULL,
+      prior_evaluation_id INTEGER,
+      generation_source TEXT NOT NULL,
+      fallback_reason TEXT,
+      generated_at INTEGER NOT NULL,
+      engine_version TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS programming_weeks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      month_id INTEGER NOT NULL REFERENCES programming_months(id),
+      week_index INTEGER NOT NULL,
+      week_start TEXT NOT NULL UNIQUE,
+      class_week_id INTEGER REFERENCES class_weeks(id),
+      intent_json TEXT NOT NULL,
+      plan_json TEXT NOT NULL,
+      display_json TEXT NOT NULL,
+      input_summary_json TEXT NOT NULL,
+      generation_source TEXT NOT NULL,
+      fallback_reason TEXT,
+      generated_at INTEGER NOT NULL,
+      engine_version TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS programming_actuals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      week_id INTEGER NOT NULL UNIQUE REFERENCES programming_weeks(id) ON DELETE CASCADE,
+      actual_json TEXT NOT NULL,
+      recorded_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS programming_evaluations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      month_id INTEGER NOT NULL UNIQUE REFERENCES programming_months(id) ON DELETE CASCADE,
+      evaluation_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS wod_structures (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      week_id INTEGER NOT NULL REFERENCES programming_weeks(id) ON DELETE CASCADE,
+      day_key TEXT NOT NULL,
+      format TEXT NOT NULL,
+      time_domain TEXT NOT NULL,
+      stimulus TEXT,
+      movement_patterns TEXT NOT NULL,
+      movements TEXT NOT NULL,
+      equipment TEXT NOT NULL,
+      rep_structure TEXT NOT NULL,
+      work_rest_structure TEXT NOT NULL,
+      duration_min INTEGER NOT NULL,
+      volume TEXT NOT NULL,
+      intensity TEXT NOT NULL,
+      benchmark INTEGER NOT NULL DEFAULT 0,
+      long_conditioning INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(week_id, day_key)
+    );
+    CREATE INDEX IF NOT EXISTS programming_weeks_month ON programming_weeks (month_id, week_start);
   `);
 }
 
