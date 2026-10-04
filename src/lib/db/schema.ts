@@ -215,6 +215,80 @@ export const classDayScores = sqliteTable("class_day_scores", {
   notesKo: text("notes_ko").notNull().default(""),
 });
 
+export const programmingMonths = sqliteTable("programming_months", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  monthStart: text("month_start").notNull().unique(),
+  scheme: text("scheme").notNull(),
+  directionJson: text("direction_json").notNull(),
+  inputSummaryJson: text("input_summary_json").notNull(),
+  priorEvaluationId: integer("prior_evaluation_id"),
+  generationSource: text("generation_source").notNull(),
+  fallbackReason: text("fallback_reason"),
+  generatedAt: integer("generated_at").notNull(),
+  engineVersion: text("engine_version").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const programmingWeeks = sqliteTable("programming_weeks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  monthId: integer("month_id")
+    .notNull()
+    .references(() => programmingMonths.id),
+  weekIndex: integer("week_index").notNull(),
+  weekStart: text("week_start").notNull().unique(),
+  classWeekId: integer("class_week_id").references(() => classWeeks.id),
+  intentJson: text("intent_json").notNull(),
+  planJson: text("plan_json").notNull(),
+  displayJson: text("display_json").notNull(),
+  inputSummaryJson: text("input_summary_json").notNull(),
+  generationSource: text("generation_source").notNull(),
+  fallbackReason: text("fallback_reason"),
+  generatedAt: integer("generated_at").notNull(),
+  engineVersion: text("engine_version").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const programmingActuals = sqliteTable("programming_actuals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  weekId: integer("week_id")
+    .notNull()
+    .unique()
+    .references(() => programmingWeeks.id, { onDelete: "cascade" }),
+  actualJson: text("actual_json").notNull(),
+  recordedAt: integer("recorded_at").notNull(),
+});
+
+export const programmingEvaluations = sqliteTable("programming_evaluations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  monthId: integer("month_id")
+    .notNull()
+    .unique()
+    .references(() => programmingMonths.id, { onDelete: "cascade" }),
+  evaluationJson: text("evaluation_json").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const wodStructures = sqliteTable("wod_structures", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  weekId: integer("week_id")
+    .notNull()
+    .references(() => programmingWeeks.id, { onDelete: "cascade" }),
+  dayKey: text("day_key").notNull(),
+  format: text("format").notNull(),
+  timeDomain: text("time_domain").notNull(),
+  stimulus: text("stimulus"),
+  movementPatterns: text("movement_patterns").notNull(),
+  movements: text("movements").notNull(),
+  equipment: text("equipment").notNull(),
+  repStructure: text("rep_structure").notNull(),
+  workRestStructure: text("work_rest_structure").notNull(),
+  durationMin: integer("duration_min").notNull(),
+  volume: text("volume").notNull(),
+  intensity: text("intensity").notNull(),
+  benchmark: integer("benchmark").notNull().default(0),
+  longConditioning: integer("long_conditioning").notNull().default(0),
+});
+
 export const userEquipment = sqliteTable("user_equipment", {
   userId: integer("user_id")
     .primaryKey()

@@ -18,7 +18,7 @@ export default async function PlanPage() {
     <main className="min-w-0 px-4 pt-6 pb-8">
       <h1 className="text-2xl font-black">월간 계획</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        스쿼트, 프레스, 벤치, 데드는 저장한 1RM의 90%로 5/3/1 본세트를 만듭니다. 1RM이 없으면 무게를 적지 않습니다.
+        스쿼트, 프레스, 벤치, 데드 무게는 저장한 1RM으로만 계산합니다. 1RM이 없으면 무게를 적지 않습니다. 한 달의 방식은 그 달 블록에서 정합니다.
       </p>
       <TodaySessionCard today={today} />
       {plan ? (
