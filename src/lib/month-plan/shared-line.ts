@@ -10,6 +10,13 @@ const LOAD_PAIR: Record<string, { male: string; female: string }> = {
 
 const CALORIE_KEYS = new Set(["row", "fan_bike", "bike", "assault_bike", "echo_bike", "ski", "ski_erg"]);
 
+/** Sex load the app already uses. Wall ball 9/6, kettlebell 24/16, box 60/50. */
+export function definedSexLoad(key: string, sex: "m" | "f"): string | null {
+  const pair = LOAD_PAIR[key];
+  if (!pair) return null;
+  return sex === "m" ? pair.male : pair.female;
+}
+
 function loadRepTail(amount: string): string {
   const compact = amount.replace(/\s+/g, "");
   if (/^\d+(?:\.\d+)?(?:kg|cm)$/.test(compact)) return "";

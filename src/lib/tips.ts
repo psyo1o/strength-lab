@@ -49,7 +49,7 @@ export function loadCanonical(): CanonicalFile {
   return cachedCanon;
 }
 
-const TIP_ALIASES: Record<string, string> = {
+export const TIP_ALIASES: Record<string, string> = {
   squat: "back_squat",
   back_squat: "squat",
   bench: "bench_press",

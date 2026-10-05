@@ -1,4 +1,5 @@
-import { catalogMovements, renderPiece } from "./pieces";
+import { movementTemplatesFor } from "./movement-choices";
+import { renderPiece } from "./pieces";
 import { pieceSignature } from "./signature";
 import type { AthleteSex } from "../auth";
 import type { DayKey, PieceMovement, PlannedDay, PlannedWeek, SessionBlock } from "./types";
@@ -43,7 +44,7 @@ export function resolveEditedMovement(sex: AthleteSex, key: string, amount: stri
   const wantKey = key.trim().toLowerCase();
   const wantAmount = amount.trim().replace(/\s+/g, "");
   if (!wantKey || !wantAmount) return null;
-  const matches = catalogMovements(sex).filter((movement) => movement.key === wantKey);
+  const matches = movementTemplatesFor(sex, wantKey);
   if (matches.length === 0) return null;
   const exact = matches.find((movement) => movement.amount.replace(/\s+/g, "") === wantAmount);
   if (exact) return { ...exact };

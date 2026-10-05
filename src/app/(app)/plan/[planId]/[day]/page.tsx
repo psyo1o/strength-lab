@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { PlanDayView } from "@/components/PlanDayView";
 import { comparesForDay, loadHistoryContext } from "@/lib/month-plan/history";
-import { catalogMovementChoices } from "@/lib/month-plan/pieces";
+import { knownMovementChoices } from "@/lib/month-plan/movement-choices";
 import { presentStoredLoads } from "@/lib/month-plan/loads";
 import { getPlan, scoresForDay } from "@/lib/month-plan/store";
 import { isDayKey } from "@/lib/month-plan/types";
@@ -32,7 +32,7 @@ export default async function PlanDayPage({ params }: { params: Promise<{ planId
       isAdmin={user.isAdmin}
       compares={compares}
       scores={scores}
-      choices={catalogMovementChoices(plan.sex)}
+      choices={knownMovementChoices(plan.sex)}
       unit={user.unit}
     />
   );

@@ -235,6 +235,21 @@ const BENCHMARK: Recipe = {
   volume: "moderate",
 };
 
+/** Movements already named in the rules fallback, including ones the class pieces never schedule. */
+export function knownFallbackMovements(): Array<{ key: string; amount: string; nameKo: string }> {
+  const out: Array<{ key: string; amount: string; nameKo: string }> = [];
+  const seen = new Set<string>();
+  for (const recipe of [...Object.values(RECIPES), LONG_WEEK, BENCHMARK]) {
+    for (const movement of recipe.movements) {
+      const id = `${movement.key}:${movement.amount.replace(/\s+/g, "")}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({ key: movement.key, amount: movement.amount, nameKo: movement.name_ko });
+    }
+  }
+  return out;
+}
+
 function recipeToConditioning(recipe: Recipe, benchmark: boolean, longPiece: boolean): ConditioningDraft {
   return {
     benchmark,
