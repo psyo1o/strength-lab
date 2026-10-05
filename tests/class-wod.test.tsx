@@ -9,9 +9,10 @@ import { memberLoad } from "../src/lib/calc/round";
 import { formatSetLine, prescribeMainLift, strengthBody } from "../src/lib/month-plan/loads";
 import { getSqlite, resetDbConnection } from "../src/lib/db/client";
 import { FIRST_ADMIN_EMAIL } from "../src/lib/first-admin";
-import { saveUserMaxes } from "../src/lib/maxes";
+import { getUserMaxes, saveUserMaxes } from "../src/lib/maxes";
+import { listWodResults, saveWodResult } from "../src/lib/wod/queries";
 import { buildWeek, dayByKey } from "../src/lib/month-plan/build-week";
-import { kstParts, kstWeekStart } from "../src/lib/month-plan/calendar";
+import { classDayToOpen, classWeekToTrain, kstParts, kstWeekStart } from "../src/lib/month-plan/calendar";
 import {
   ensureClassWeek,
   getClassPlanByStart,
@@ -33,8 +34,9 @@ import {
 } from "../src/lib/month-plan/metcon-draft";
 import { resolveEditedMovement } from "../src/lib/month-plan/metcon-edit";
 import { formatSharedMovement } from "../src/lib/month-plan/shared-line";
-import { todaySessionModel } from "../src/lib/month-plan/today-view";
+import { todaySessionModel, WEEK_PLAN_MISSING_KO } from "../src/lib/month-plan/today-view";
 import { MetconEditor } from "../src/components/MetconEditor";
+import { TodaySessionCard } from "../src/components/TodaySessionCard";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: () => undefined, push: () => undefined }),
@@ -50,7 +52,11 @@ import { POST as metconPost } from "@/app/api/admin/metcon/route";
 
 /** Noon KST, Friday 2026-10-02. Week starts Monday 2026-09-28. */
 const FRIDAY = Date.parse("2026-10-02T03:00:00.000Z");
+/** Noon KST, Sunday 2026-10-04. Next class week starts Monday 2026-10-05. */
 const SUNDAY = Date.parse("2026-10-04T03:00:00.000Z");
+/** 02:31 KST Monday 2026-10-05, still Sunday on a UTC clock. */
+const MONDAY_EARLY = Date.parse("2026-10-04T17:31:00.000Z");
+const NEXT_WEEK = "2026-10-05";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-class-"));
@@ -206,17 +212,81 @@ describe("shared class wod", () => {
     expect(asKilos.day.piece?.signature).toBe(asPounds.day.piece?.signature);
   });
 
-  it("shows rest on Sunday and does not invent a workout", async () => {
-    const created = registerUser("rest@example.com", "password123");
+  it("prepares next week's class plan on Sunday in Seoul and Today opens Monday", async () => {
+    const created = registerUser("sunday@example.com", "password123");
     if ("error" in created) throw new Error("register failed");
+    saveUserMaxes(created.user.id, [{ exerciseKey: "squat", value: 180, unit: "kg" }]);
+    saveWodResult(created.user.id, { templateSlug: "fran", tier: "rx", timeSec: 240, notesKo: "keep-wod" });
+
+    const friday = await sharedToday(created.user.id, FRIDAY);
+    const fridayJson = JSON.stringify(getClassPlanByStart(friday.weekStart)?.week);
+    getSqlite()
+      .prepare(
+        `INSERT INTO class_day_scores (
+           user_id, class_week_id, day_key, completed_at, time_sec, rounds, extra_reps, notes_ko
+         ) VALUES (?, ?, 'fri', ?, 500, NULL, NULL, 'keep-score')`,
+      )
+      .run(created.user.id, friday.planId, FRIDAY);
+
+    expect(kstParts(SUNDAY)).toEqual({ date: "2026-10-04", day: "sun" });
+    expect(classWeekToTrain(SUNDAY)).toBe(NEXT_WEEK);
+    expect(classDayToOpen(SUNDAY)).toBe("mon");
+    expect(kstWeekStart(SUNDAY)).toBe("2026-09-28");
+
     const today = await sharedToday(created.user.id, SUNDAY);
-    expect(kstParts(SUNDAY).day).toBe("sun");
-    expect(today.day.rest).toBe(true);
-    expect(today.day.piece).toBeNull();
-    expect(today.day.lift).toBeNull();
-    expect(today.day.blocks.map((block) => block.bodyKo).join("\n")).toMatch(/쉽니다/);
-    expect(todaySessionModel(today).kind).toBe("note");
-    expect(today.weekStart).toBe(kstWeekStart(FRIDAY));
+    const again = await sharedToday(created.user.id, SUNDAY);
+    expect(today.weekStart).toBe(NEXT_WEEK);
+    expect(today.day.day).toBe("mon");
+    expect(today.day.rest).toBe(false);
+    expect(today.href).toBe(`/plan/w/${NEXT_WEEK}/mon`);
+    expect(again.planId).toBe(today.planId);
+    expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM class_weeks WHERE week_start = ?").get(NEXT_WEEK)).toEqual({
+      c: 1,
+    });
+    expect(JSON.stringify(getClassPlanByStart(friday.weekStart)?.week)).toBe(fridayJson);
+    const prepared = getClassPlanByStart(NEXT_WEEK);
+    expect(prepared?.week.days).toHaveLength(7);
+    expect(prepared?.week.days.find((day) => day.day === "sun")?.rest).toBe(true);
+    expect(getSqlite().prepare("SELECT generation_source, fallback_reason FROM programming_weeks WHERE week_start = ?").get(NEXT_WEEK)).toEqual({
+      generation_source: "fallback",
+      fallback_reason: "no_model",
+    });
+
+    const model = todaySessionModel(today);
+    expect(model.kind).not.toBe("missing");
+    if (model.kind !== "missing") expect(model.href).toBe(today.href);
+    const html = renderToStaticMarkup(<TodaySessionCard today={today} />);
+    expect(html).toContain(`href="${today.href}"`);
+    expect(html).not.toContain(WEEK_PLAN_MISSING_KO);
+
+    const early = await sharedToday(created.user.id, MONDAY_EARLY);
+    expect(kstParts(MONDAY_EARLY)).toEqual({ date: "2026-10-05", day: "mon" });
+    expect(early.planId).toBe(today.planId);
+    expect(early.weekStart).toBe(NEXT_WEEK);
+    expect(early.day.day).toBe("mon");
+    expect(early.href).toBe(`/plan/w/${NEXT_WEEK}/mon`);
+    expect(todaySessionModel(early).kind).toBe("blocks");
+
+    expect(getUserMaxes(created.user.id).squat).toBe(180);
+    expect(listWodResults(created.user.id, "fran")).toHaveLength(1);
+    expect(
+      getSqlite().prepare("SELECT notes_ko FROM class_day_scores WHERE user_id = ?").get(created.user.id),
+    ).toEqual({ notes_ko: "keep-score" });
+    expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM users").get()).toEqual({ c: 1 });
+  });
+
+  it("opens Monday of the new class week on early Monday even if Sunday never ran", async () => {
+    const created = registerUser("monday@example.com", "password123");
+    if ("error" in created) throw new Error("register failed");
+    expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM class_weeks").get()).toEqual({ c: 0 });
+    const today = await sharedToday(created.user.id, MONDAY_EARLY);
+    expect(today.weekStart).toBe(NEXT_WEEK);
+    expect(today.day.day).toBe("mon");
+    expect(today.href).toBe(`/plan/w/${NEXT_WEEK}/mon`);
+    expect(todaySessionModel(today).kind).toBe("blocks");
+    const html = renderToStaticMarkup(<TodaySessionCard today={today} />);
+    expect(html).toContain(`href="/plan/w/${NEXT_WEEK}/mon"`);
+    expect(html).not.toContain(WEEK_PLAN_MISSING_KO);
   });
 
   it("lets only an admin change the shared movements", async () => {
