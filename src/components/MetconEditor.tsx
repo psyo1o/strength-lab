@@ -88,12 +88,34 @@ export function MetconEditor({
   }
 
   const visibleChoices = choices.filter((choice) => choiceMatchesQuery(choice, query));
+  const recommendedChoices = visibleChoices.filter((choice) => choice.recommended);
+  const otherChoices = recommendedChoices.length > 0 ? visibleChoices.filter((choice) => !choice.recommended) : [];
+  const leadingChoices = recommendedChoices.length > 0 ? recommendedChoices : visibleChoices;
+
+  function renderChoice(choice: Move) {
+    return (
+      <li key={choice.key}>
+        <button
+          type="button"
+          className="tap w-full rounded-xl bg-[var(--bg-card)] px-3 text-left text-base font-bold"
+          data-editor="pick"
+          data-recommended={choice.recommended ? "true" : "false"}
+          onClick={() => {
+            setState((current) => pickMovement(current, choice));
+            setQuery("");
+          }}
+        >
+          {choice.nameKo}
+        </button>
+      </li>
+    );
+  }
 
   return (
     <section className="card mt-6 p-4" data-testid="metcon-editor">
       <h2 className="text-lg font-black">컨디셔닝 바꾸기</h2>
       <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-        동작과 횟수를 고친 뒤 모두에게 적용을 누르면 이 날이 바뀝니다. 그 전에는 혼자 보는 초안입니다. 웜업과 리프트는 그대로 둡니다.
+        동작과 횟수를 고친 뒤 모두에게 적용을 누르면 이 날이 바뀝니다. 이 와드에 맞는 동작을 먼저 보여주고, 나머지 동작도 이름으로 찾을 수 있어요. 웜업과 리프트는 그대로 둡니다.
       </p>
       <ul className="mt-3 space-y-3">
         {state.rows.map((row, index) => {
@@ -182,23 +204,20 @@ export function MetconEditor({
                   {visibleChoices.length === 0 ? (
                     <p className="mt-2 text-sm font-bold">이미 있는 동작만 고를 수 있어요.</p>
                   ) : (
-                    <ul className="mt-2 max-h-96 space-y-2 overflow-y-auto" data-editor="pick-list">
-                      {visibleChoices.map((choice) => (
-                        <li key={choice.key}>
-                          <button
-                            type="button"
-                            className="tap w-full rounded-xl bg-[var(--bg-card)] px-3 text-left text-base font-bold"
-                            data-editor="pick"
-                            onClick={() => {
-                              setState((current) => pickMovement(current, choice));
-                              setQuery("");
-                            }}
-                          >
-                            {choice.nameKo}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="mt-2 max-h-96 space-y-2 overflow-y-auto" data-editor="pick-list">
+                      {recommendedChoices.length > 0 ? (
+                        <p className="px-1 text-sm font-bold text-[var(--muted)]" data-editor="recommended-label">
+                          이 와드에 맞는 동작
+                        </p>
+                      ) : null}
+                      <ul className="space-y-2">{leadingChoices.map(renderChoice)}</ul>
+                      {otherChoices.length > 0 ? (
+                        <p className="px-1 pt-2 text-sm font-bold text-[var(--muted)]" data-editor="all-label">
+                          모든 동작
+                        </p>
+                      ) : null}
+                      {otherChoices.length > 0 ? <ul className="space-y-2">{otherChoices.map(renderChoice)}</ul> : null}
+                    </div>
                   )}
                 </div>
               ) : null}

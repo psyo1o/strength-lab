@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { PlanDayView } from "@/components/PlanDayView";
 import { comparesForDay, loadHistoryContext } from "@/lib/month-plan/history";
 import { knownMovementChoices } from "@/lib/month-plan/movement-choices";
+import { intentForEditor, rankMovementChoices } from "@/lib/month-plan/movement-rank";
 import { presentStoredLoads } from "@/lib/month-plan/loads";
 import { getPlan, scoresForDay } from "@/lib/month-plan/store";
 import { isDayKey } from "@/lib/month-plan/types";
@@ -32,7 +33,7 @@ export default async function PlanDayPage({ params }: { params: Promise<{ planId
       isAdmin={user.isAdmin}
       compares={compares}
       scores={scores}
-      choices={knownMovementChoices(plan.sex)}
+      choices={rankMovementChoices(knownMovementChoices(plan.sex), intentForEditor(day, null))}
       unit={user.unit}
     />
   );
