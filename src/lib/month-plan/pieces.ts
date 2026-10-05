@@ -323,6 +323,19 @@ export function listStructuralMetcons(req: MetconRequest): MetconPiece[] {
   return CATALOG.filter((piece) => allowed(piece, req, false, false)).map((piece) => materialize(piece, req.sex));
 }
 
+/** Keys already paired with this pattern in the class pieces. A null stimulus keeps every piece of that pattern. */
+export function catalogKeysFor(pattern: MetconPattern, stimulus: MetconStimulus | null = null): string[] {
+  const keys = new Set<string>();
+  for (const row of CATALOG) {
+    if (row.pattern !== pattern) continue;
+    if (stimulus && row.stimulus && row.stimulus !== stimulus) continue;
+    for (const sex of ["m", "f", null] as const) {
+      for (const movement of row.movements(sex)) keys.add(movement.key);
+    }
+  }
+  return [...keys];
+}
+
 /** Movements already defined in the app, including sex-scoped loads. */
 export function catalogMovements(sex: AthleteSex): PieceMovement[] {
   const seen = new Set<string>();

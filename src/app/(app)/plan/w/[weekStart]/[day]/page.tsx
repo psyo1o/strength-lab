@@ -5,8 +5,19 @@ import { ensureClassWeekForStart, isClassWeekStart, listClassDayScores, presentC
 import { comparesForDay, loadHistoryContext } from "@/lib/month-plan/history";
 import { getUserMaxes } from "@/lib/maxes";
 import { knownMovementChoices } from "@/lib/month-plan/movement-choices";
+import { intentForEditor, rankMovementChoices } from "@/lib/month-plan/movement-rank";
 import { scoresForDay } from "@/lib/month-plan/store";
-import { isDayKey } from "@/lib/month-plan/types";
+import { isDayKey, type DayKey } from "@/lib/month-plan/types";
+import { getProgrammingWeek } from "@/lib/programming/store";
+import type { ConditioningDraft } from "@/lib/programming/types";
+
+function conditioningFor(weekStart: string, day: DayKey): ConditioningDraft | null {
+  try {
+    return getProgrammingWeek(weekStart)?.draft.sessions.find((session) => session.day === day)?.conditioning ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export const runtime = "nodejs";
 
@@ -34,7 +45,7 @@ export default async function ClassDayPage({ params }: { params: Promise<{ weekS
       isAdmin={user.isAdmin}
       compares={compares}
       scores={scores}
-      choices={knownMovementChoices(stored.sex)}
+      choices={rankMovementChoices(knownMovementChoices(stored.sex), intentForEditor(day, conditioningFor(stored.weekStart, day.day)))}
       unit={user.unit}
     />
   );

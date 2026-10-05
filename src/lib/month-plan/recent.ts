@@ -1,26 +1,14 @@
 import { getSqlite } from "../db/client";
 import { getWodTemplate } from "../wod/templates";
+import { patternOfKey } from "./pattern-keys";
 import { isMetconStimulus, type MetconPattern, type RecentMetcon } from "./types";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
-const SQUAT = new Set(["air_squat", "thruster", "wall_ball", "lunge", "front_squat", "squat", "ohs", "pistol"]);
-const PRESS = new Set(["push_up", "bench", "hspu", "push_press", "shoulder_press", "dip", "ring_dip", "sdhp"]);
-const HINGE = new Set(["deadlift", "kb_swing", "swing", "rdl", "clean", "hang_power_clean"]);
-const OLY = new Set(["snatch", "clean", "clean_jerk", "power_snatch", "power_clean"]);
-const ENGINE = new Set(["run", "row", "bike", "ski", "fan_bike", "double_under"]);
-
 export function patternFromKeys(keys: string[]): MetconPattern {
   const tags = new Set<MetconPattern>();
-  for (const key of keys) {
-    if (SQUAT.has(key)) tags.add("squat");
-    else if (OLY.has(key)) tags.add("olympic");
-    else if (HINGE.has(key)) tags.add("hinge");
-    else if (PRESS.has(key)) tags.add("press");
-    else if (ENGINE.has(key)) tags.add("engine");
-    else tags.add("gymnastic");
-  }
+  for (const key of keys) tags.add(patternOfKey(key));
   if (tags.size === 1) return [...tags][0]!;
   if (tags.has("engine") && tags.size > 1) return "engine";
   return tags.values().next().value ?? "gymnastic";
