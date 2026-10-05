@@ -5,7 +5,10 @@ import { buildWeek } from "../src/lib/month-plan/build-week";
 import { choiceMatchesQuery } from "../src/lib/month-plan/metcon-draft";
 import { resolveEditedMovement, swapConditioningMovements } from "../src/lib/month-plan/metcon-edit";
 import { knownMovementChoices } from "../src/lib/month-plan/movement-choices";
+import { intentForEditor, intentFromDay, rankMovementChoices } from "../src/lib/month-plan/movement-rank";
 import { catalogMovementChoices } from "../src/lib/month-plan/pieces";
+import type { ConditioningDraft } from "../src/lib/programming/types";
+import type { PlannedDay } from "../src/lib/month-plan/types";
 
 const REQUIRED = [
   "air_squat",
@@ -102,6 +105,99 @@ describe("admin movement choices", () => {
     expect(source).toContain("동작 이름");
     expect(source).toContain("choiceMatchesQuery");
     expect(source).toContain("data-editor=\"pick-list\"");
+    expect(source).toContain("이 와드에 맞는 동작");
+    expect(source).toContain("모든 동작");
     expect(knownMovementChoices("m").length).toBeGreaterThan(catalogMovementChoices("m").length);
+  });
+});
+
+describe("movement recommendations", () => {
+  const choices = knownMovementChoices("m");
+
+  function recommendedKeys(day: PlannedDay) {
+    return rankMovementChoices(choices, intentForEditor(day, null))
+      .filter((choice) => choice.recommended)
+      .map((choice) => choice.key);
+  }
+
+  it("ranks same-pattern and companion movements ahead of the full list", () => {
+    const week = buildWeek({ weekIndex: 1, sex: "m", maxes: {}, recentMetcons: [] });
+    const engine = week.days.find((day) => day.piece?.pattern === "engine");
+    expect(engine?.piece).toBeTruthy();
+    const ranked = rankMovementChoices(choices, intentForEditor(engine, null));
+    const recommended = ranked.filter((choice) => choice.recommended).map((choice) => choice.key);
+    const rest = ranked.filter((choice) => !choice.recommended).map((choice) => choice.key);
+    expect(recommended.length).toBeGreaterThanOrEqual(8);
+    expect(recommended.length).toBeLessThan(30);
+    expect(recommended).toEqual(expect.arrayContaining(["run", "row", "ski", "burpee", "fan_bike"]));
+    expect(recommended).not.toContain("deadlift");
+    expect(rest).toContain("deadlift");
+    expect(ranked).toHaveLength(choices.length);
+    for (const choice of ranked) {
+      expect(choice.amount).toBe(choices.find((row) => row.key === choice.key)?.amount);
+    }
+    expect(ranked.findIndex((choice) => choice.key === "run")).toBeLessThan(ranked.findIndex((choice) => choice.key === "deadlift"));
+
+    const heavy = {
+      ...engine!,
+      piece: {
+        ...engine!.piece!,
+        pattern: "squat" as const,
+        stimulus: "고중량" as const,
+        movements: [
+          { key: "thruster", nameKo: "스러스터", amount: "6" },
+          { key: "lunge", nameKo: "런지", amount: "8" },
+        ],
+      },
+    };
+    const heavyKeys = recommendedKeys(heavy);
+    expect(heavyKeys).toEqual(expect.arrayContaining(["thruster", "front_squat", "wall_ball", "deadlift"]));
+    expect(heavyKeys).not.toContain("snatch");
+    expect(heavyKeys.length).toBeGreaterThanOrEqual(8);
+    expect(heavyKeys.length).toBeLessThan(30);
+
+    const gymnastic = week.days.find((day) => day.piece?.pattern === "gymnastic" && day.piece.stimulus === "고반복");
+    const gymKeys = recommendedKeys(gymnastic!);
+    expect(gymKeys).toEqual(expect.arrayContaining(["pull_up", "burpee", "box_jump", "ring_row"]));
+    for (const key of ["curl", "barbell_row", "tricep_ext", "face_pull", "free_accessory", "rehab_target"]) {
+      expect(gymKeys).not.toContain(key);
+    }
+    expect(gymKeys.length).toBeGreaterThanOrEqual(8);
+    expect(gymKeys.length).toBeLessThan(30);
+  });
+
+  it("keeps the full list when the day has no pattern to match", () => {
+    const week = buildWeek({ weekIndex: 1, sex: "m", maxes: {}, recentMetcons: [] });
+    const friday = week.days.find((day) => day.day === "fri")!;
+    const blank = {
+      ...friday,
+      piece: friday.piece ? { ...friday.piece, pattern: "nope" as never, movements: [], stimulus: null } : null,
+    };
+    expect(intentFromDay(blank)).toBeNull();
+    const ranked = rankMovementChoices(choices, intentForEditor(blank, null));
+    expect(ranked.every((choice) => !choice.recommended)).toBe(true);
+    expect(ranked.map((choice) => choice.key)).toEqual(choices.map((choice) => choice.key));
+
+    const draft = {
+      benchmark: false,
+      format: "amrap",
+      time_domain: "short",
+      stimulus: "technical",
+      movement_patterns: ["gymnastic"],
+      movements: [],
+      equipment: ["bodyweight"],
+      rep_structure: "8분 amrap",
+      work_rest_structure: "쉬지 않고 반복",
+      duration_min: 8,
+      volume: "low",
+      intensity: "light",
+      long_conditioning: false,
+    } satisfies ConditioningDraft;
+    const fromDraft = rankMovementChoices(choices, intentForEditor(blank, draft));
+    const keys = fromDraft.filter((choice) => choice.recommended).map((choice) => choice.key);
+    expect(keys).toContain("pull_up");
+    expect(keys).toContain("handstand");
+    expect(keys.length).toBeGreaterThanOrEqual(8);
+    expect(fromDraft).toHaveLength(choices.length);
   });
 });

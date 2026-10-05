@@ -56,9 +56,10 @@ export type PieceMovement = {
   nameKo: string;
 };
 
-/** Admin picker row. Aliases stay searchable and are not stored on the class week. */
+/** Admin picker row. Aliases and the recommendation flag are not stored on the class week. */
 export type MovementChoice = PieceMovement & {
   aliases?: string[];
+  recommended?: boolean;
 };
 
 /** Identity is format + the set of movements. Order does not matter. */
