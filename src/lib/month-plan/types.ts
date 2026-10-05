@@ -56,6 +56,11 @@ export type PieceMovement = {
   nameKo: string;
 };
 
+/** Admin picker row. Aliases stay searchable and are not stored on the class week. */
+export type MovementChoice = PieceMovement & {
+  aliases?: string[];
+};
+
 /** Identity is format + the set of movements. Order does not matter. */
 export type MetconPiece = {
   id: string;

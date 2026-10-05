@@ -8,6 +8,7 @@ import {
   addRow,
   askDelete,
   backspaceRep,
+  choiceMatchesQuery,
   closeOpen,
   confirmDelete,
   draftFrom,
@@ -21,8 +22,9 @@ import {
   typeDigit,
   type DraftState,
 } from "@/lib/month-plan/metcon-draft";
+import type { MovementChoice } from "@/lib/month-plan/types";
 
-type Move = { key: string; amount: string; nameKo: string };
+type Move = MovementChoice;
 
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "지움", "0", "확인"] as const;
 
@@ -85,8 +87,7 @@ export function MetconEditor({
     router.refresh();
   }
 
-  const filtering = query.trim();
-  const visibleChoices = choices.filter((choice) => (filtering ? choice.nameKo.includes(filtering) : true));
+  const visibleChoices = choices.filter((choice) => choiceMatchesQuery(choice, query));
 
   return (
     <section className="card mt-6 p-4" data-testid="metcon-editor">
@@ -181,7 +182,7 @@ export function MetconEditor({
                   {visibleChoices.length === 0 ? (
                     <p className="mt-2 text-sm font-bold">이미 있는 동작만 고를 수 있어요.</p>
                   ) : (
-                    <ul className="mt-2 max-h-64 space-y-2 overflow-y-auto">
+                    <ul className="mt-2 max-h-96 space-y-2 overflow-y-auto" data-editor="pick-list">
                       {visibleChoices.map((choice) => (
                         <li key={choice.key}>
                           <button

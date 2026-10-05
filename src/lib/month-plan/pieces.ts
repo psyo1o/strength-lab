@@ -338,7 +338,7 @@ export function catalogMovements(sex: AthleteSex): PieceMovement[] {
   return out;
 }
 
-/** One row per movement key, for the admin picker. */
+/** One row per class-piece movement. The admin picker uses knownMovementChoices. */
 export function catalogMovementChoices(sex: AthleteSex): PieceMovement[] {
   const seen = new Set<string>();
   const out: PieceMovement[] = [];

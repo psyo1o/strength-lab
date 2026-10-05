@@ -153,6 +153,16 @@ export function draftMovements(rows: DraftRow[]): { key: string; amount: string 
   return movements;
 }
 
+export function choiceMatchesQuery(choice: { nameKo: string; aliases?: readonly string[] }, query: string): boolean {
+  const needle = query.trim();
+  if (!needle) return true;
+  const folded = needle.replace(/\s+/g, "");
+  return [choice.nameKo, ...(choice.aliases ?? [])].some((name) => {
+    if (!name) return false;
+    return name.includes(needle) || name.replace(/\s+/g, "").includes(folded);
+  });
+}
+
 export function rowAmount(row: DraftRow): string {
   if (!row.template) return "";
   return amountWithRep(row.template, row.key, row.reps || editableRep(row.template, row.key));

@@ -4,7 +4,7 @@ import { PlanDayView } from "@/components/PlanDayView";
 import { ensureClassWeekForStart, isClassWeekStart, listClassDayScores, presentClassWeek } from "@/lib/month-plan/class-week";
 import { comparesForDay, loadHistoryContext } from "@/lib/month-plan/history";
 import { getUserMaxes } from "@/lib/maxes";
-import { catalogMovementChoices } from "@/lib/month-plan/pieces";
+import { knownMovementChoices } from "@/lib/month-plan/movement-choices";
 import { scoresForDay } from "@/lib/month-plan/store";
 import { isDayKey } from "@/lib/month-plan/types";
 
@@ -34,7 +34,7 @@ export default async function ClassDayPage({ params }: { params: Promise<{ weekS
       isAdmin={user.isAdmin}
       compares={compares}
       scores={scores}
-      choices={catalogMovementChoices(stored.sex)}
+      choices={knownMovementChoices(stored.sex)}
       unit={user.unit}
     />
   );

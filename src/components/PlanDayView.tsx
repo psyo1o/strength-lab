@@ -5,7 +5,7 @@ import { MetconEditor } from "@/components/MetconEditor";
 import { formatSetLine } from "@/lib/month-plan/loads";
 import { conditioningEditable } from "@/lib/month-plan/metcon-edit";
 import type { PlanScore } from "@/lib/month-plan/store";
-import type { PieceMovement, PlannedDay, WeekIndex } from "@/lib/month-plan/types";
+import type { MovementChoice, PlannedDay, WeekIndex } from "@/lib/month-plan/types";
 import { scoreLabel, type HistoryCompare } from "@/lib/month-plan/compare";
 import { formatKoDate, trainingDayKey } from "@/lib/progress";
 
@@ -29,7 +29,7 @@ export function PlanDayView({
   isAdmin: boolean;
   compares: HistoryCompare[];
   scores: PlanScore[];
-  choices: PieceMovement[];
+  choices: MovementChoice[];
   unit: "kg" | "lb";
 }) {
   return (
