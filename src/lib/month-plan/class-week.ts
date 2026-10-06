@@ -6,7 +6,8 @@ import { daySummary } from "./build-week";
 import { classDayToOpen, classWeekToTrain } from "./calendar";
 import { prescribeMainLift, strengthBody } from "./loads";
 import { applyStoredStrength } from "../programming/project";
-import { attachClassWeek, ensureProgrammingWeek } from "../programming/engine";
+import { ensureProgrammingWeek } from "../programming/engine";
+import { syncClassWeek } from "../programming/sync";
 import { rewriteConditioningBody } from "./shared-line";
 import { isDayKey, isWeekIndex, type DayKey, type PlannedDay, type PlannedWeek, type WeekIndex } from "./types";
 import type { PlanScore, StoredPlan, TodayPlan } from "./store";
@@ -111,26 +112,20 @@ export function replaceClassWeek(weekStart: string, week: PlannedWeek): boolean 
 }
 
 /**
- * The screen reads class_weeks. programming_weeks is the engine row.
- * class_weeks is written here only when that week_start is still missing,
- * as a one-time copy of the engine display. An existing class week is not replaced.
+ * The screen reads class_weeks. The canonical plan is the active programming_weeks row.
+ * class_weeks is the display copy, including admin edits. Generation syncs future,
+ * unscored, unedited days into this row. Opening the screen does not regenerate.
  */
 export async function ensureClassWeekForStart(weekStart: string, nowMs = Date.now()): Promise<StoredPlan> {
   const existing = getClassPlanByStart(weekStart);
   if (existing) return existing;
   const programmed = await ensureProgrammingWeek(weekStart, { nowMs });
-  const weekIndex = programmed.weekIndex;
-  const week = programmed.display;
-  getSqlite()
-    .prepare(
-      `INSERT INTO class_weeks (week_index, week_start, sex, plan_json, created_at)
-       VALUES (?, ?, 'm', ?, ?)
-       ON CONFLICT(week_start) DO NOTHING`,
-    )
-    .run(weekIndex, weekStart, JSON.stringify(week), nowMs);
-  const stored = getClassPlanByStart(weekStart);
+  let stored = getClassPlanByStart(weekStart);
+  if (!stored) {
+    syncClassWeek(programmed, nowMs);
+    stored = getClassPlanByStart(weekStart);
+  }
   if (!stored) throw new Error("class week missing");
-  attachClassWeek(weekStart, stored.id);
   return stored;
 }
 
@@ -185,6 +180,8 @@ type ScoreRow = {
   named: number;
   signature: string;
   notes_ko: string | null;
+  scaling?: string | null;
+  fatigue?: number | null;
 };
 
 function toScore(row: ScoreRow): PlanScore | null {
@@ -203,6 +200,8 @@ function toScore(row: ScoreRow): PlanScore | null {
     named: row.named === 1,
     signature: row.signature,
     notesKo: row.notes_ko ?? "",
+    scaling: row.scaling === "scaled" || row.scaling === "beginner" || row.scaling === "rx" ? row.scaling : "",
+    fatigue: row.fatigue === 1 || row.fatigue === 2 || row.fatigue === 3 ? row.fatigue : null,
   };
 }
 
@@ -210,7 +209,7 @@ export function listClassDayScores(userId: number, classWeekId: number): PlanSco
   const rows = getSqlite()
     .prepare(
       `SELECT id, user_id, class_week_id, day_key, completed_at, time_sec, rounds, extra_reps,
-              piece_key, piece_name_ko, named, signature, notes_ko
+              piece_key, piece_name_ko, named, signature, notes_ko, scaling, fatigue
        FROM class_day_scores
        WHERE user_id = ? AND class_week_id = ?
        ORDER BY completed_at DESC, id DESC`,
@@ -229,6 +228,8 @@ export function addClassDayScore(
     extraReps?: number | null;
     notesKo?: string;
     completedAt?: number;
+    scaling?: string;
+    fatigue?: number | null;
   },
 ): PlanScore | { error: string } {
   if (!isDayKey(input.day)) return { error: "요일을 확인해 주세요." };
@@ -244,12 +245,14 @@ export function addClassDayScore(
   const extraReps = timed ? null : input.extraReps ?? 0;
   if (timed && (timeSec == null || timeSec <= 0)) return { error: "시간을 입력하세요." };
   if (!timed && (rounds ?? 0) <= 0 && (extraReps ?? 0) <= 0) return { error: "라운드나 횟수를 입력하세요." };
+  const scaling = input.scaling === "scaled" || input.scaling === "beginner" || input.scaling === "rx" ? input.scaling : "";
+  const fatigue = input.fatigue === 1 || input.fatigue === 2 || input.fatigue === 3 ? input.fatigue : null;
   const info = getSqlite()
     .prepare(
       `INSERT INTO class_day_scores (
          user_id, class_week_id, day_key, completed_at, time_sec, rounds, extra_reps,
-         piece_key, piece_name_ko, named, signature, notes_ko
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         piece_key, piece_name_ko, named, signature, notes_ko, scaling, fatigue
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       userId,
@@ -264,11 +267,13 @@ export function addClassDayScore(
       identity.named ? 1 : 0,
       identity.signature,
       input.notesKo ?? "",
+      scaling,
+      fatigue,
     );
   const row = getSqlite()
     .prepare(
       `SELECT id, user_id, class_week_id, day_key, completed_at, time_sec, rounds, extra_reps,
-              piece_key, piece_name_ko, named, signature, notes_ko
+              piece_key, piece_name_ko, named, signature, notes_ko, scaling, fatigue
        FROM class_day_scores WHERE id = ? AND user_id = ?`,
     )
     .get(Number(info.lastInsertRowid), userId) as ScoreRow | undefined;

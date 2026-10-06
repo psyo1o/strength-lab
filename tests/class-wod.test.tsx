@@ -52,6 +52,8 @@ import { POST as metconPost } from "@/app/api/admin/metcon/route";
 
 /** Noon KST, Friday 2026-10-02. Week starts Monday 2026-09-28. */
 const FRIDAY = Date.parse("2026-10-02T03:00:00.000Z");
+/** Noon KST, Saturday 2026-10-03. Same week. That day carries the deadlift in the week-4 fallback. */
+const SATURDAY = Date.parse("2026-10-03T03:00:00.000Z");
 /** Noon KST, Sunday 2026-10-04. Next class week starts Monday 2026-10-05. */
 const SUNDAY = Date.parse("2026-10-04T03:00:00.000Z");
 /** 02:31 KST Monday 2026-10-05, still Sunday on a UTC clock. */
@@ -93,15 +95,15 @@ describe("shared class wod", () => {
     expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM class_weeks").get()).toEqual({ c: 0 });
     expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM month_plans").get()).toEqual({ c: 0 });
 
-    const a = await sharedToday(first.user.id, FRIDAY);
-    const b = await sharedToday(second.user.id, FRIDAY);
+    const a = await sharedToday(first.user.id, SATURDAY);
+    const b = await sharedToday(second.user.id, SATURDAY);
 
     expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM class_weeks").get()).toEqual({ c: 1 });
     expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM month_plans").get()).toEqual({ c: 0 });
     expect(a.planId).toBe(b.planId);
     expect(a.weekStart).toBe("2026-09-28");
-    expect(kstWeekStart(FRIDAY)).toBe("2026-09-28");
-    expect(a.day.day).toBe("fri");
+    expect(kstWeekStart(SATURDAY)).toBe("2026-09-28");
+    expect(a.day.day).toBe("sat");
     expect(a.day.piece?.movements.map((movement) => `${movement.key}:${movement.amount}`)).toEqual(
       b.day.piece?.movements.map((movement) => `${movement.key}:${movement.amount}`),
     );
@@ -110,7 +112,7 @@ describe("shared class wod", () => {
     expect(a.day.lift?.exerciseKey).toBe("deadlift");
     expect(JSON.stringify(getClassPlanByStart(a.weekStart)?.week)).not.toMatch(/"weightKg":\s*\d/);
 
-    const again = await ensureClassWeek(FRIDAY);
+    const again = await ensureClassWeek(SATURDAY);
     expect(again.id).toBe(a.planId);
     expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM class_weeks").get()).toEqual({ c: 1 });
   });
@@ -122,8 +124,8 @@ describe("shared class wod", () => {
     saveUserMaxes(heavy.user.id, [{ exerciseKey: "deadlift", value: 220, unit: "kg" }]);
     saveUserMaxes(light.user.id, [{ exerciseKey: "deadlift", value: 110, unit: "kg" }]);
 
-    const a = await sharedToday(heavy.user.id, FRIDAY);
-    const b = await sharedToday(light.user.id, FRIDAY);
+    const a = await sharedToday(heavy.user.id, SATURDAY);
+    const b = await sharedToday(light.user.id, SATURDAY);
     expect(a.day.lift?.sets.map((set) => set.weightKg)).not.toEqual(b.day.lift?.sets.map((set) => set.weightKg));
     expect(a.day.lift?.sets.every((set) => set.weightKg != null)).toBe(true);
     expect(a.day.piece?.signature).toBe(b.day.piece?.signature);
@@ -134,7 +136,7 @@ describe("shared class wod", () => {
 
     const none = registerUser("none@example.com", "password123");
     if ("error" in none) throw new Error("register failed");
-    const empty = await sharedToday(none.user.id, FRIDAY);
+    const empty = await sharedToday(none.user.id, SATURDAY);
     expect(empty.day.lift?.sets.map((set) => set.weightKg)).toEqual([null, null, null]);
     expect(empty.day.blocks.find((block) => block.role === "main")?.bodyKo).not.toMatch(/\d+(\.\d+)?kg/);
   });
@@ -196,14 +198,14 @@ describe("shared class wod", () => {
     expect(readUserUnit(created.user.id)).toBe("kg");
     updateUserUnit(created.user.id, "lb");
     expect(readUserUnit(created.user.id)).toBe("lb");
-    const asPounds = await sharedToday(created.user.id, FRIDAY);
+    const asPounds = await sharedToday(created.user.id, SATURDAY);
     const poundBody = asPounds.day.blocks.find((block) => block.role === "main")!.bodyKo;
     expect(poundBody).toContain("lb");
     expect(poundBody).not.toMatch(/\d+\.\d+/);
     expect(poundBody).toContain("40%");
 
     updateUserUnit(created.user.id, "kg");
-    const asKilos = await sharedToday(created.user.id, FRIDAY);
+    const asKilos = await sharedToday(created.user.id, SATURDAY);
     const kiloBody = asKilos.day.blocks.find((block) => block.role === "main")!.bodyKo;
     expect(kiloBody).toContain("kg");
     expect(kiloBody).not.toContain("lb");
@@ -293,39 +295,39 @@ describe("shared class wod", () => {
     const admin = registerUser(FIRST_ADMIN_EMAIL, "password123");
     const member = registerUser("member@example.com", "password123");
     if ("error" in admin || "error" in member) throw new Error("register failed");
-    const before = await sharedToday(member.user.id, FRIDAY);
+    const before = await sharedToday(member.user.id, SATURDAY);
     const weekStart = before.weekStart;
     const original = before.day.piece?.movements.map((movement) => movement.key);
 
     vi.mocked(getCurrentUser).mockResolvedValue(member.user);
     const denied = await postMetcon({
       weekStart,
-      day: "fri",
+      day: "sat",
       movements: [
         { key: "sit_up", amount: "15" },
         { key: "ring_row", amount: "8" },
       ],
     });
     expect(denied.status).toBe(403);
-    expect((await sharedToday(admin.user.id, FRIDAY)).day.piece?.movements.map((movement) => movement.key)).toEqual(original);
+    expect((await sharedToday(admin.user.id, SATURDAY)).day.piece?.movements.map((movement) => movement.key)).toEqual(original);
 
     vi.mocked(getCurrentUser).mockResolvedValue(admin.user);
     const saved = await postMetcon({
       weekStart,
-      day: "fri",
+      day: "sat",
       movements: [
         { key: "sit_up", amount: "20" },
         { key: "ring_row", amount: "8" },
       ],
     });
     expect(saved.status).toBe(200);
-    const seen = await sharedToday(member.user.id, FRIDAY);
+    const seen = await sharedToday(member.user.id, SATURDAY);
     expect(seen.day.piece?.movements.map((movement) => movement.key)).toEqual(["sit_up", "ring_row"]);
     expect(seen.day.piece?.movements.map((movement) => movement.amount)).toEqual(["20", "8"]);
     expect(seen.day.blocks.map((block) => block.role).slice(0, 3)).toEqual(["warmup", "main", "metcon"]);
     expect(seen.day.lift?.exerciseKey).toBe("deadlift");
     expect(seen.day.blocks.find((block) => block.role === "metcon")?.bodyKo).toMatch(/싯업 20회/);
-    expect(JSON.stringify(getClassPlanByStart(weekStart)?.week.days.find((day) => day.day === "fri")?.lift)).not.toMatch(
+    expect(JSON.stringify(getClassPlanByStart(weekStart)?.week.days.find((day) => day.day === "sat")?.lift)).not.toMatch(
       /"weightKg":\s*\d/,
     );
     expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM month_plans").get()).toEqual({ c: 0 });

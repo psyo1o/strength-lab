@@ -1,4 +1,6 @@
 import { getSqlite } from "../db/client";
+import { completeEvaluation } from "./evaluate";
+import { completeMonthDirection } from "./month-direction";
 import { addDays } from "./types";
 import { toStructure } from "./rules";
 import type { MonthEvaluation, WeekActual } from "./summary";
@@ -158,7 +160,7 @@ function toMonth(row: MonthSql): MonthRow {
   return {
     id: row.id,
     monthStart: row.month_start,
-    direction: JSON.parse(row.direction_json) as MonthDirection,
+    direction: completeMonthDirection(JSON.parse(row.direction_json) as MonthDirection),
     inputSummaryJson: row.input_summary_json,
     priorEvaluationId: row.prior_evaluation_id,
     generationSource: asSource(row.generation_source),
@@ -642,7 +644,7 @@ export function getMonthlyEvaluation(monthId: number): (MonthEvaluation & { id: 
     .prepare("SELECT id, evaluation_json FROM programming_evaluations WHERE month_id = ?")
     .get(monthId) as { id: number; evaluation_json: string } | undefined;
   if (!row) return null;
-  return { id: row.id, ...(JSON.parse(row.evaluation_json) as MonthEvaluation) };
+  return { id: row.id, ...completeEvaluation(JSON.parse(row.evaluation_json) as MonthEvaluation) };
 }
 
 /** Active month's evaluation first, otherwise an evaluation kept on an older attempt. */
@@ -658,5 +660,19 @@ export function getMonthlyEvaluationForStart(monthStart: string): (MonthEvaluati
     )
     .get(monthStart) as { id: number; evaluation_json: string } | undefined;
   if (!row) return null;
-  return { id: row.id, ...(JSON.parse(row.evaluation_json) as MonthEvaluation) };
+  return { id: row.id, ...completeEvaluation(JSON.parse(row.evaluation_json) as MonthEvaluation) };
+}
+
+export function saveMonthlyProposal(
+  monthId: number,
+  proposal: { reason: string; monthly_goal?: string },
+  createdAt: number,
+): number {
+  const info = getSqlite()
+    .prepare(
+      `INSERT INTO programming_month_proposals (month_id, proposal_json, status, created_at)
+       VALUES (?, ?, 'proposed', ?)`,
+    )
+    .run(monthId, JSON.stringify({ reason: proposal.reason, monthly_goal: proposal.monthly_goal ?? null }), createdAt);
+  return Number(info.lastInsertRowid);
 }

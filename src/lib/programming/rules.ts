@@ -1,4 +1,5 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
+import { completeMonthDirection } from "./month-direction";
 import { setsMatchScheme, strengthIsHeavy } from "./schemes";
 import {
   EQUIPMENT,
@@ -205,6 +206,9 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
     if (row.strength != null && !strength) return null;
     const conditioning = row.conditioning == null ? null : parseConditioning(row.conditioning);
     if (row.conditioning != null && !conditioning) return null;
+    const equipment = Array.isArray(row.equipment)
+      ? parseStringList(row.equipment, EQUIPMENT) ?? []
+      : [];
     sessions.push({
       day: day as DayKey,
       rest,
@@ -213,6 +217,18 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
       warmup_ko: warmupKo,
       strength,
       conditioning,
+      strength_purpose: asString(row.strength_purpose),
+      strength_volume: row.strength_volume === "low" || row.strength_volume === "moderate" || row.strength_volume === "high" ? row.strength_volume : null,
+      strength_intensity: row.strength_intensity === "light" || row.strength_intensity === "moderate" || row.strength_intensity === "heavy" ? row.strength_intensity : null,
+      metcon_purpose: asString(row.metcon_purpose),
+      metcon_format: row.metcon_format === "amrap" || row.metcon_format === "for_time" || row.metcon_format === "emom" || row.metcon_format === "intervals" ? row.metcon_format : null,
+      time_domain: row.time_domain === "short" || row.time_domain === "medium" || row.time_domain === "long" ? row.time_domain : null,
+      stimulus: row.stimulus === null ? null : typeof row.stimulus === "string" && (STIMULI as readonly string[]).includes(row.stimulus) ? (row.stimulus as Stimulus) : null,
+      movement_combination: asString(row.movement_combination),
+      equipment,
+      volume: row.volume === "low" || row.volume === "moderate" || row.volume === "high" ? row.volume : null,
+      intensity: row.intensity === "light" || row.intensity === "moderate" || row.intensity === "heavy" ? row.intensity : null,
+      expected_duration: asInt(row.expected_duration),
     });
   }
   return { intent: { why_ko: why, focus, scheme_note: note }, sessions };
@@ -247,7 +263,10 @@ export function parseMonthDirection(value: unknown): MonthDirection | null {
     if (typeof item !== "string" || !item.trim()) return null;
     constraints.push(item.trim());
   }
-  return {
+  const targets = Array.isArray(body.evaluation_targets)
+    ? body.evaluation_targets.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : undefined;
+  return completeMonthDirection({
     scheme: body.scheme,
     focus_ko: focus,
     why_ko: why,
@@ -255,7 +274,20 @@ export function parseMonthDirection(value: unknown): MonthDirection | null {
     long_conditioning_weeks: longs,
     benchmark_week: benchmark,
     constraints,
-  };
+    monthly_goal: typeof body.monthly_goal === "string" ? body.monthly_goal : undefined,
+    primary_block: typeof body.primary_block === "string" ? body.primary_block : undefined,
+    secondary_goal: typeof body.secondary_goal === "string" ? body.secondary_goal : undefined,
+    strength_direction: typeof body.strength_direction === "string" ? body.strength_direction : undefined,
+    conditioning_direction: typeof body.conditioning_direction === "string" ? body.conditioning_direction : undefined,
+    skill_direction: typeof body.skill_direction === "string" ? body.skill_direction : undefined,
+    volume_direction: typeof body.volume_direction === "string" ? body.volume_direction : undefined,
+    intensity_direction: typeof body.intensity_direction === "string" ? body.intensity_direction : undefined,
+    benchmark_direction: typeof body.benchmark_direction === "string" ? body.benchmark_direction : undefined,
+    variation_direction: typeof body.variation_direction === "string" ? body.variation_direction : undefined,
+    fatigue_direction: typeof body.fatigue_direction === "string" ? body.fatigue_direction : undefined,
+    weekly_direction: typeof body.weekly_direction === "string" ? body.weekly_direction : undefined,
+    evaluation_targets: targets,
+  });
 }
 
 export function monthSchemaErrors(direction: MonthDirection, raw: unknown): string[] {
@@ -290,12 +322,45 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if (session.rest) {
       if (session.strength || session.conditioning) errors.push(`${session.day} rest still has work`);
       if (session.warmup_min !== 0) errors.push(`${session.day} rest has a warmup`);
+      if (session.strength_purpose || session.metcon_purpose || session.expected_duration != null) {
+        errors.push(`${session.day} rest still describes work`);
+      }
       continue;
+    }
+    if (!session.metcon_purpose || !session.metcon_format || !session.time_domain || !session.movement_combination) {
+      errors.push(`${session.day} is missing session fields`);
+    }
+    if (session.expected_duration == null || session.volume == null || session.intensity == null) {
+      errors.push(`${session.day} is missing duration or load bands`);
+    }
+    if (session.equipment.length === 0) errors.push(`${session.day} lists no equipment`);
+    if (session.strength) {
+      if (!session.strength_purpose || !session.strength_volume || !session.strength_intensity) {
+        errors.push(`${session.day} strength fields are incomplete`);
+      }
+    } else if (session.strength_purpose || session.strength_volume || session.strength_intensity) {
+      errors.push(`${session.day} describes strength without a lift`);
     }
     if (session.warmup_min < 8 || session.warmup_min > 12) errors.push(`${session.day} warmup is not 8–12`);
     if (!session.warmup_ko) errors.push(`${session.day} warmup text is empty`);
     if (!session.strength && !session.conditioning) errors.push(`${session.day} has no work`);
     if (!session.conditioning) continue;
+    if (session.metcon_format && session.metcon_format !== session.conditioning.format) {
+      errors.push(`${session.day} metcon format does not match`);
+    }
+    if (session.time_domain && session.time_domain !== session.conditioning.time_domain) {
+      errors.push(`${session.day} time domain does not match`);
+    }
+    if (session.volume && session.volume !== session.conditioning.volume) errors.push(`${session.day} volume does not match`);
+    if (session.intensity && session.intensity !== session.conditioning.intensity) {
+      errors.push(`${session.day} intensity does not match`);
+    }
+    if (session.expected_duration != null && session.expected_duration !== session.conditioning.duration_min) {
+      errors.push(`${session.day} expected duration does not match`);
+    }
+    if ((session.stimulus ?? null) !== (session.conditioning.stimulus ?? null)) {
+      errors.push(`${session.day} stimulus does not match`);
+    }
     if (!timeDomainFits(session.conditioning)) errors.push(`${session.day} time domain does not match duration`);
     if (session.conditioning.long_conditioning !== (session.conditioning.time_domain === "long")) {
       errors.push(`${session.day} long flag does not match duration`);

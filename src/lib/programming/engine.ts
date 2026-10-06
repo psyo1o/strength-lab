@@ -1,16 +1,16 @@
 import type { PlannedWeek } from "../month-plan/types";
+import { recomputeWeeklyActual } from "./actual";
+import { evaluationFromActuals } from "./evaluate";
 import {
   assertFallbackLegal,
-  draftForScheme,
-  extractDraft,
+  buildFallbackWeek,
   fallbackIntent,
   fallbackMonth,
-  rulesDisplayWeek,
 } from "./fallback";
+import { completeMonthDirection } from "./month-direction";
 import { authorMonth, authorWeek, type AuthorTrace, type FetchLike } from "./model";
 import { projectWeek } from "./project";
 import { sessionLoad } from "./rules";
-import { schemeAfter } from "./schemes";
 import {
   getMonthlyEvaluationForStart,
   getProgrammingMonth,
@@ -20,6 +20,7 @@ import {
   insertProgrammingMonth,
   insertProgrammingWeek,
   linkProgrammingWeek,
+  saveMonthlyProposal,
   listProgrammingMonths,
   listProgrammingWeeksBefore,
   listProgrammingWeeksForMonth,
@@ -32,6 +33,7 @@ import {
   type MonthRow,
   type WeekRow,
 } from "./store";
+import { syncClassWeek } from "./sync";
 import {
   buildProgrammingSummary,
   type MonthEvaluation,
@@ -89,6 +91,15 @@ function sessionsBefore(weekStart: string): SummarySession[] {
         heavy_deadlift: load.heavyDeadlift,
         heavy_press: load.heavyPress,
         heavy_snatch_or_clean: load.heavySnatch || load.heavyClean,
+        volume: conditioning?.volume ?? null,
+        intensity: conditioning?.intensity ?? null,
+        benchmark: Boolean(conditioning?.benchmark),
+        movement_keys: conditioning?.movements.map((movement) => movement.key) ?? [],
+        lower_body: Boolean(
+          conditioning?.movement_patterns.some((pattern) => pattern === "squat" || pattern === "hinge") ||
+            session.strength?.lift === "squat" ||
+            session.strength?.lift === "deadlift",
+        ),
       });
     }
   }
@@ -108,13 +119,26 @@ function progressionFor(monthStart: string): ProgrammingSummary["progression"] {
           summary_ko: evaluation.summary_ko,
           what_to_change: evaluation.what_to_change,
           next_scheme: evaluation.next_scheme,
+          monthly_goal: evaluation.monthly_goal,
+          planned_vs_actual: evaluation.planned_vs_actual,
+          strength_progress: evaluation.strength_progress,
+          benchmark_progress: evaluation.benchmark_progress,
+          volume: evaluation.volume,
+          intensity: evaluation.intensity,
+          attendance: evaluation.attendance,
+          modifications: evaluation.modifications,
+          fatigue: evaluation.fatigue,
+          variation_summary: evaluation.variation_summary,
+          block_result: evaluation.block_result,
+          next_month_recommendation: evaluation.next_month_recommendation,
         }
       : null,
   };
 }
 
-function summaryFor(weekStart: string): ProgrammingSummary {
+function summaryFor(weekStart: string, nowMs: number, recompute = true): ProgrammingSummary {
   const previous = previousProgrammingWeek(weekStart);
+  if (previous && recompute) recomputeWeeklyActual(previous.weekStart, nowMs);
   const actual = previous ? getWeeklyActualForStart(previous.weekStart) : null;
   return buildProgrammingSummary({
     weekStart,
@@ -124,6 +148,7 @@ function summaryFor(weekStart: string): ProgrammingSummary {
       ? {
           week_start: previous.weekStart,
           generation_source: previous.generationSource,
+          programming_intent: previous.intent,
           fallback_reason: previous.fallbackReason,
           generated_at: previous.generatedAt,
           engine_version: previous.engineVersion,
@@ -133,7 +158,11 @@ function summaryFor(weekStart: string): ProgrammingSummary {
   });
 }
 
-function monthSummary(monthStart: string): ProgrammingSummary {
+function monthSummary(monthStart: string, nowMs: number, recompute = true): ProgrammingSummary {
+  const previous = previousProgrammingMonth(monthStart);
+  if (previous && recompute) {
+    for (const week of listProgrammingWeeksForMonth(previous.id)) recomputeWeeklyActual(week.weekStart, nowMs);
+  }
   return buildProgrammingSummary({
     weekStart: monthStart,
     sessions: sessionsBefore(monthStart),
@@ -177,7 +206,7 @@ async function writeProgrammingMonth(
   mode: "create" | "regenerate",
 ): Promise<MonthRow> {
   const nowMs = options.nowMs ?? Date.now();
-  const summary = monthSummary(monthStart);
+  const summary = monthSummary(monthStart, nowMs);
   const previous = previousProgrammingMonth(monthStart);
   const evaluation = previous ? getMonthlyEvaluationForStart(previous.monthStart) : null;
   const authored = await authorMonth({
@@ -186,11 +215,13 @@ async function writeProgrammingMonth(
     fetchImpl: options.fetchImpl,
     timeoutMs: options.timeoutMs,
   });
-  const direction = authored.ok
-    ? authored.direction
-    : fallbackMonth(
-        evaluation ? { summary_ko: evaluation.summary_ko, next_scheme: evaluation.next_scheme } : null,
-      );
+  const direction = completeMonthDirection(
+    authored.ok
+      ? authored.direction
+      : fallbackMonth(
+          evaluation ? { summary_ko: evaluation.summary_ko, next_scheme: evaluation.next_scheme } : null,
+        ),
+  );
   return insertProgrammingMonth({
     monthStart,
     direction,
@@ -201,15 +232,20 @@ async function writeProgrammingMonth(
   });
 }
 
-function fallbackWeek(month: MonthDirection, weekIndex: WeekIndex, reason: string): { draft: WeekDraft; display: PlannedWeek } {
-  const intent = fallbackIntent(month, weekIndex, reason);
-  if (month.scheme === "531") {
-    const display = rulesDisplayWeek(weekIndex);
-    const draft = extractDraft(display, intent);
-    assertFallbackLegal(draft, month, weekIndex);
-    return { draft, display };
-  }
-  const draft = draftForScheme(month, weekIndex, intent);
+function fallbackWeek(
+  month: MonthDirection,
+  weekIndex: WeekIndex,
+  reason: string,
+  recent: ReturnType<typeof listRecentStructures>,
+  previousActual: WeekActual | null,
+): { draft: WeekDraft; display: PlannedWeek } {
+  const draft = buildFallbackWeek({
+    month,
+    weekIndex,
+    intent: fallbackIntent(month, weekIndex, reason),
+    recent,
+    previousActual,
+  });
   assertFallbackLegal(draft, month, weekIndex);
   return { draft, display: projectWeek(draft, weekIndex, "rules") };
 }
@@ -231,21 +267,23 @@ async function writeProgrammingWeek(
 ): Promise<WeekRow> {
   const nowMs = options.nowMs ?? Date.now();
   const month = await ensureProgrammingMonth(monthStartOf(weekStart), options);
+  const monthGoal = month.direction.monthly_goal;
   const weekIndex = weekIndexFromStart(weekStart);
-  const summary = summaryFor(weekStart);
+  const summary = summaryFor(weekStart, nowMs);
+  const recent = listRecentStructures(weekStart);
   const authored = await authorWeek({
     summary,
     month: month.direction,
     weekIndex,
-    recent: listRecentStructures(weekStart),
+    recent,
     key: options.key,
     fetchImpl: options.fetchImpl,
     timeoutMs: options.timeoutMs,
   });
   const built = authored.ok
     ? { draft: authored.draft, display: projectWeek(authored.draft, weekIndex, "model") }
-    : fallbackWeek(month.direction, weekIndex, authored.reason);
-  return insertProgrammingWeek({
+    : fallbackWeek(month.direction, weekIndex, authored.reason, recent, summary.previous_week?.actual ?? null);
+  const saved = insertProgrammingWeek({
     monthId: month.id,
     weekIndex,
     weekStart,
@@ -255,6 +293,12 @@ async function writeProgrammingWeek(
     mode,
     ...generationWrite(WEEKLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason),
   });
+  syncClassWeek(saved, nowMs);
+  const after = getProgrammingMonth(month.monthStart);
+  if (after && after.direction.monthly_goal !== monthGoal) {
+    throw new Error("weekly generation must not overwrite the monthly goal");
+  }
+  return saved;
 }
 
 export function recordWeeklyActual(
@@ -277,20 +321,37 @@ export function evaluateProgrammingMonth(
   const existing = getMonthlyEvaluationForStart(monthStart);
   if (existing) return existing;
   const weeks = listProgrammingWeeksForMonth(month.id);
-  let completed = 0;
+  const actuals = [];
   for (const week of weeks) {
-    const actual = getWeeklyActual(week.id);
-    if (!actual) continue;
-    completed += actual.days.filter((day) => day.completed).length;
+    const actual = recomputeWeeklyActual(week.weekStart, nowMs);
+    if (actual) actuals.push(actual);
   }
-  const evaluation: MonthEvaluation = {
-    summary_ko: `${month.direction.scheme} 블록을 ${weeks.length}주 진행했고, 마친 수업은 ${completed}일입니다.`,
-    what_worked: "클래스 한 판을 유지했습니다.",
-    what_to_change: "다음 달은 이 평가를 읽고 블록을 정합니다.",
-    next_scheme: schemeAfter(month.direction.scheme),
-  };
+  const evaluation = evaluationFromActuals({ month: month.direction, weekCount: weeks.length, actuals });
   const id = saveMonthlyEvaluation(month.id, evaluation, nowMs);
   return { id, ...evaluation };
+}
+
+/** Stores a requested month change. Weekly generation never applies it. */
+export function proposeMonthlyPlanChange(
+  monthStart: string,
+  proposal: { reason: string; monthly_goal?: string },
+  nowMs = Date.now(),
+): { id: number } | { error: string } {
+  const month = getProgrammingMonth(monthStart);
+  if (!month) return { error: "달을 찾지 못했습니다." };
+  const before = month.direction.monthly_goal;
+  const id = saveMonthlyProposal(month.id, proposal, nowMs);
+  const after = getProgrammingMonth(monthStart);
+  if (!after || after.direction.monthly_goal !== before) return { error: "월 목표가 바뀌었습니다." };
+  return { id };
+}
+
+export function readOnlyWeekSummary(weekStart: string): ProgrammingSummary {
+  return summaryFor(weekStart, Date.now(), false);
+}
+
+export function readOnlyMonthSummary(monthStart: string): ProgrammingSummary {
+  return monthSummary(monthStart, Date.now(), false);
 }
 
 export function attachClassWeek(weekStart: string, classWeekId: number): void {

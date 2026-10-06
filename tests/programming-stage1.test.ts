@@ -113,7 +113,11 @@ describe("stage 1 generation guard", () => {
     expect(again.id).not.toBe(raced[0].id);
     expect(after.find((row) => row.id === raced[0].id)?.status).toBe("superseded");
     expect(after.filter((row) => row.status === "active")).toHaveLength(1);
-    expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM class_weeks").get()).toEqual({ c: 0 });
+    expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM class_weeks").get()).toEqual({ c: 2 });
+    expect(getSqlite().prepare("SELECT week_start FROM class_weeks ORDER BY week_start").all()).toEqual([
+      { week_start: WEEK },
+      { week_start: "2026-10-12" },
+    ]);
   });
 
   it("saves tracking fields for a model week and for a fallback week", async () => {

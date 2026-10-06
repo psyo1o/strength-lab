@@ -40,6 +40,8 @@ export type PlanScore = {
   named: boolean;
   signature: string;
   notesKo: string;
+  scaling?: string;
+  fatigue?: number | null;
 };
 
 export type TodayPlan = {
