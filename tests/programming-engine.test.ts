@@ -16,6 +16,7 @@ import {
   recordWeeklyActual,
 } from "../src/lib/programming/engine";
 import { draftForScheme, extractDraft, fallbackIntent, fallbackMonth, rulesDisplayWeek } from "../src/lib/programming/fallback";
+import { refreshSessionFields } from "../src/lib/programming/session-fields";
 import { personalWodForMember } from "../src/lib/programming/personalization";
 import { constitutionViolations, judgeWeek, structurallySimilar, toStructure } from "../src/lib/programming/rules";
 import { getProgrammingMonth, getProgrammingWeek } from "../src/lib/programming/store";
@@ -82,7 +83,9 @@ describe("long-term programming engine", () => {
     expect(week.intent.why_ko.length).toBeGreaterThan(10);
     expect(week.draft.sessions).toHaveLength(7);
     expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM wod_structures").get()).toEqual({ c: 6 });
-    expect(dayByKey(week.display, "mon")?.lift?.exerciseKey).toBe("squat");
+    const lifts = week.draft.sessions.filter((session) => session.strength).map((session) => `${session.day}:${session.strength?.lift}`);
+    expect(lifts).not.toEqual(["mon:squat", "tue:ohp", "thu:bench", "fri:deadlift"]);
+    expect(week.draft.sessions.some((session) => session.strength?.sets.some((set) => set.percent_of_tm === 85))).toBe(true);
     expect(JSON.stringify(week.display)).not.toMatch(/"weightKg":\s*\d/);
 
     const shared = await ensureClassWeek(NOW);
@@ -180,6 +183,7 @@ describe("long-term programming engine", () => {
       benchmark: false,
       long_conditioning: false,
     };
+    copied.sessions = refreshSessionFields(copied.sessions);
     expect(judgeWeek(copied, month, 1, [monday]).ok).toBe(false);
     if (judgeWeek(copied, month, 1, [monday]).ok) return;
     expect(judgeWeek(copied, month, 1, [monday])).toMatchObject({ reason: "too_similar" });
@@ -254,9 +258,9 @@ describe("long-term programming engine", () => {
     expect(JSON.stringify(sent.summary)).toContain("volume");
     const again = getProgrammingMonth("2026-10-01");
     expect(again?.priorEvaluationId).toBe(evaluation.id);
-    expect(dayByKey((await ensureProgrammingWeek("2026-10-05", { nowMs: NOW + 6, key: null })).display, "mon")?.lift?.exerciseKey).toBe(
-      "ohp",
-    );
+    const volumeWeek = await ensureProgrammingWeek("2026-10-05", { nowMs: NOW + 6, key: null });
+    expect(volumeWeek.draft.sessions.some((session) => session.strength?.sets.every((set) => set.percent_of_tm === 70))).toBe(true);
+    expect(volumeWeek.draft.sessions.some((session) => session.strength?.sets.some((set) => set.percent_of_tm >= 85))).toBe(false);
   });
 
   it("keeps stored users, 1RMs, WOD scores, and class scores", async () => {
@@ -305,9 +309,7 @@ describe("fallback obeys the constitution for every scheme", () => {
       for (const weekIndex of [1, 2, 3, 4] as const) {
         const draft = draftForScheme(block, weekIndex, fallbackIntent(block, weekIndex, "no_model"));
         expect(constitutionViolations(draft, block, weekIndex)).toEqual([]);
-        expect(draft.sessions.find((session) => session.day === "mon")?.strength?.lift).not.toBe(
-          scheme === "intensity" ? "ohp" : "squat",
-        );
+        expect(draft.sessions.some((session) => session.metcon_purpose && session.expected_duration)).toBe(true);
       }
     }
   });

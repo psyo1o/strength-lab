@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
@@ -213,38 +214,102 @@ export const classDayScores = sqliteTable("class_day_scores", {
   named: integer("named", { mode: "boolean" }).notNull().default(false),
   signature: text("signature").notNull().default(""),
   notesKo: text("notes_ko").notNull().default(""),
+  scaling: text("scaling").notNull().default(""),
+  fatigue: integer("fatigue"),
 });
 
-export const programmingMonths = sqliteTable("programming_months", {
+export const programmingMonths = sqliteTable(
+  "programming_months",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    monthStart: text("month_start").notNull(),
+    scheme: text("scheme").notNull(),
+    directionJson: text("direction_json").notNull(),
+    inputSummaryJson: text("input_summary_json").notNull(),
+    priorEvaluationId: integer("prior_evaluation_id"),
+    generationSource: text("generation_source").notNull(),
+    fallbackReason: text("fallback_reason"),
+    generatedAt: integer("generated_at").notNull(),
+    engineVersion: text("engine_version").notNull(),
+    createdAt: integer("created_at").notNull(),
+    status: text("status").notNull().default("active"),
+    generationVersion: integer("generation_version").notNull().default(1),
+    generationAttempt: integer("generation_attempt").notNull().default(1),
+    modelName: text("model_name"),
+    promptVersion: text("prompt_version").notNull(),
+    rulesVersion: text("rules_version").notNull(),
+    generationTimestamp: integer("generation_timestamp").notNull(),
+    inputSummaryVersion: text("input_summary_version").notNull(),
+  },
+  (t) => [uniqueIndex("programming_months_one_active").on(t.monthStart).where(sql`status = 'active'`)],
+);
+
+export const programmingWeeks = sqliteTable(
+  "programming_weeks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    monthId: integer("month_id")
+      .notNull()
+      .references(() => programmingMonths.id),
+    weekIndex: integer("week_index").notNull(),
+    weekStart: text("week_start").notNull(),
+    classWeekId: integer("class_week_id").references(() => classWeeks.id),
+    intentJson: text("intent_json").notNull(),
+    planJson: text("plan_json").notNull(),
+    displayJson: text("display_json").notNull(),
+    inputSummaryJson: text("input_summary_json").notNull(),
+    generationSource: text("generation_source").notNull(),
+    fallbackReason: text("fallback_reason"),
+    generatedAt: integer("generated_at").notNull(),
+    engineVersion: text("engine_version").notNull(),
+    createdAt: integer("created_at").notNull(),
+    status: text("status").notNull().default("active"),
+    generationVersion: integer("generation_version").notNull().default(1),
+    generationAttempt: integer("generation_attempt").notNull().default(1),
+    modelName: text("model_name"),
+    promptVersion: text("prompt_version").notNull(),
+    rulesVersion: text("rules_version").notNull(),
+    generationTimestamp: integer("generation_timestamp").notNull(),
+    inputSummaryVersion: text("input_summary_version").notNull(),
+  },
+  (t) => [
+    uniqueIndex("programming_weeks_one_active_start").on(t.weekStart).where(sql`status = 'active'`),
+    uniqueIndex("programming_weeks_one_active_slot").on(t.monthId, t.weekIndex).where(sql`status = 'active'`),
+  ],
+);
+
+export const programmingSyncs = sqliteTable("programming_syncs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  monthStart: text("month_start").notNull().unique(),
-  scheme: text("scheme").notNull(),
-  directionJson: text("direction_json").notNull(),
-  inputSummaryJson: text("input_summary_json").notNull(),
-  priorEvaluationId: integer("prior_evaluation_id"),
-  generationSource: text("generation_source").notNull(),
-  fallbackReason: text("fallback_reason"),
-  generatedAt: integer("generated_at").notNull(),
-  engineVersion: text("engine_version").notNull(),
-  createdAt: integer("created_at").notNull(),
+  programmingWeekId: integer("programming_week_id")
+    .notNull()
+    .references(() => programmingWeeks.id, { onDelete: "cascade" }),
+  classWeekId: integer("class_week_id")
+    .notNull()
+    .references(() => classWeeks.id),
+  syncedAt: integer("synced_at").notNull(),
+  replacedDays: text("replaced_days").notNull(),
+  keptJson: text("kept_json").notNull(),
 });
 
-export const programmingWeeks = sqliteTable("programming_weeks", {
+export const programmingMonthProposals = sqliteTable("programming_month_proposals", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   monthId: integer("month_id")
     .notNull()
     .references(() => programmingMonths.id),
-  weekIndex: integer("week_index").notNull(),
-  weekStart: text("week_start").notNull().unique(),
-  classWeekId: integer("class_week_id").references(() => classWeeks.id),
-  intentJson: text("intent_json").notNull(),
-  planJson: text("plan_json").notNull(),
-  displayJson: text("display_json").notNull(),
-  inputSummaryJson: text("input_summary_json").notNull(),
-  generationSource: text("generation_source").notNull(),
-  fallbackReason: text("fallback_reason"),
-  generatedAt: integer("generated_at").notNull(),
-  engineVersion: text("engine_version").notNull(),
+  proposalJson: text("proposal_json").notNull(),
+  status: text("status").notNull().default("proposed"),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const programmingGenerationLogs = sqliteTable("programming_generation_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  scope: text("scope").notNull(),
+  scopeKey: text("scope_key").notNull(),
+  planId: integer("plan_id"),
+  generationAttempt: integer("generation_attempt").notNull(),
+  promptVersion: text("prompt_version").notNull(),
+  modelName: text("model_name"),
+  rawJson: text("raw_json").notNull(),
   createdAt: integer("created_at").notNull(),
 });
 

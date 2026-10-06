@@ -90,6 +90,19 @@ export type SessionDraft = {
   warmup_ko: string;
   strength: StrengthDraft | null;
   conditioning: ConditioningDraft | null;
+  /** Why this strength piece is here. Null on a rest day. */
+  strength_purpose: string | null;
+  strength_volume: VolumeBand | null;
+  strength_intensity: IntensityBand | null;
+  metcon_purpose: string | null;
+  metcon_format: WodFormat | null;
+  time_domain: TimeDomain | null;
+  stimulus: Stimulus | null;
+  movement_combination: string | null;
+  equipment: Equipment[];
+  volume: VolumeBand | null;
+  intensity: IntensityBand | null;
+  expected_duration: number | null;
 };
 
 export type ProgrammingIntent = {
@@ -111,6 +124,20 @@ export type MonthDirection = {
   long_conditioning_weeks: WeekIndex[];
   benchmark_week: WeekIndex;
   constraints: string[];
+  /** Class direction for the month. Weekly generation reads these and does not write them. */
+  monthly_goal: string;
+  primary_block: string;
+  secondary_goal: string;
+  strength_direction: string;
+  conditioning_direction: string;
+  skill_direction: string;
+  volume_direction: string;
+  intensity_direction: string;
+  benchmark_direction: string;
+  variation_direction: string;
+  fatigue_direction: string;
+  weekly_direction: string;
+  evaluation_targets: string[];
 };
 
 export type GenerationSource = "model" | "fallback";
@@ -126,19 +153,54 @@ export type FallbackReason =
 
 export const ENGINE_VERSION = "programming-1";
 
-export const SIMILARITY_AXES = [
+/** Rule set stamped on each generation. programming-2 is the fallback that does not use a weekday lift map. */
+export const RULES_VERSION = "programming-2";
+
+export const MONTHLY_PROMPT_VERSION = "monthly-program-v2";
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v3";
+export const INPUT_SUMMARY_VERSION = "summary-v2";
+
+export type PlanStatus = "active" | "superseded" | "failed";
+
+/**
+ * Similarity lives here only.
+ * SIMILARITY_THRESHOLD is `threshold` (4). A feature counts when its weight is above 0.
+ * rep_structure, work_rest_structure, duration, and intensity stay at 0 until they should count.
+ * Movement names are not features. Benchmarks are exempt in the checker, not in this map.
+ */
+export const SIMILARITY_FEATURES = [
   "format",
   "time_domain",
   "stimulus",
-  "movement_patterns",
+  "movement_pattern",
   "equipment",
   "volume",
+  "rep_structure",
+  "work_rest_structure",
+  "duration",
+  "intensity",
 ] as const;
 
-export type SimilarityAxis = (typeof SIMILARITY_AXES)[number];
+export type SimilarityFeature = (typeof SIMILARITY_FEATURES)[number];
 
-/** Four or more of the six axes. Movement names are not an axis. */
-export const SIMILARITY_MATCHES = 4;
+export const SIMILARITY_CONFIG: {
+  threshold: number;
+  features: Record<SimilarityFeature, number>;
+} = {
+  threshold: 4,
+  features: {
+    format: 1,
+    time_domain: 1,
+    stimulus: 1,
+    movement_pattern: 1,
+    equipment: 1,
+    volume: 1,
+    rep_structure: 0,
+    work_rest_structure: 0,
+    duration: 0,
+    intensity: 0,
+  },
+};
 
 export type StoredStructure = {
   day: DayKey;
