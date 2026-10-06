@@ -112,7 +112,7 @@ function workText(
   }
   if (format === "emom") {
     return {
-      rep: `${minutes}분 EMOM. 1분마다 동작을 바꿉니다: ${names}.`,
+      rep: `${minutes}분 EMOM. 1분마다 동작을 바꿉니다: ${names}. 캡 ${minutes}분.`,
       rest: `한 동작은 1분 안에 끝납니다. 캡 ${minutes}분.`,
     };
   }
@@ -501,33 +501,51 @@ function applyFormat(conditioning: ConditioningDraft, format: WodFormat): Condit
   };
 }
 
+/** Two labels cannot alternate when the same stimulus sits an odd number of days apart. */
+function relaxProtectedPairs(training: FallbackCore[]): void {
+  const locked = training
+    .map((core, index) => ({ core, index }))
+    .filter((row) => !flexibleCore(row.core) && row.core.conditioning?.stimulus);
+  for (let left = 0; left < locked.length; left += 1) {
+    for (let right = left + 1; right < locked.length; right += 1) {
+      const earlier = locked[left]!;
+      const later = locked[right]!;
+      const gap = later.index - earlier.index;
+      const leftStimulus = earlier.core.conditioning?.stimulus;
+      const rightStimulus = later.core.conditioning?.stimulus;
+      if (gap % 2 === 0 || !leftStimulus || leftStimulus !== rightStimulus || !later.core.conditioning) continue;
+      const target = later.core.conditioning.benchmark ? later.core : earlier.core;
+      if (!target.conditioning?.stimulus) continue;
+      target.conditioning = retuneStimulus(target.conditioning, target.conditioning.stimulus);
+    }
+  }
+}
+
 function separateStimuli(cores: FallbackCore[]): void {
   const training = cores.filter((core) => !core.rest && core.conditioning);
-  for (let pass = 0; pass < 4; pass += 1) {
-    let changed = false;
-    for (let index = 1; index < training.length; index += 1) {
-      const previous = training[index - 1]!;
-      const current = training[index]!;
-      if (!previous.conditioning || !current.conditioning) continue;
-      const left = previous.conditioning.stimulus;
-      const right = current.conditioning.stimulus;
-      if (!left || !right || left !== right) continue;
-      const target = flexibleCore(current)
-        ? current
-        : flexibleCore(previous)
-          ? previous
-          : current.conditioning.long_conditioning
-            ? previous
-            : current;
-      const neighbor = target === current ? previous : current;
-      if (!target.conditioning || !neighbor.conditioning?.stimulus) continue;
-      const tuned = retuneStimulus(target.conditioning, neighbor.conditioning.stimulus);
-      if (tuned.stimulus !== target.conditioning.stimulus) {
-        target.conditioning = tuned;
-        changed = true;
-      }
+  relaxProtectedPairs(training);
+  for (let index = 1; index < training.length; index += 1) {
+    const previous = training[index - 1]!;
+    const current = training[index]!;
+    if (!previous.conditioning?.stimulus || !current.conditioning?.stimulus) continue;
+    if (previous.conditioning.stimulus !== current.conditioning.stimulus) continue;
+    if (flexibleCore(current)) {
+      current.conditioning = retuneStimulus(current.conditioning, previous.conditioning.stimulus);
+      continue;
     }
-    if (!changed) break;
+    if (flexibleCore(previous)) {
+      previous.conditioning = retuneStimulus(previous.conditioning, current.conditioning.stimulus);
+      for (let back = index - 1; back >= 1; back -= 1) {
+        const day = training[back]!;
+        const before = training[back - 1]!;
+        if (!day.conditioning?.stimulus || !before.conditioning?.stimulus) break;
+        if (day.conditioning.stimulus !== before.conditioning.stimulus) break;
+        if (!flexibleCore(before)) break;
+        before.conditioning = retuneStimulus(before.conditioning, day.conditioning.stimulus);
+      }
+      continue;
+    }
+    current.conditioning = retuneStimulus(current.conditioning, previous.conditioning.stimulus);
   }
 }
 
