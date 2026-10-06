@@ -1,6 +1,7 @@
 import { buildWeek } from "../month-plan/build-week";
 import type { DayKey, MainLift, MetconStimulus, PlannedWeek, WeekIndex } from "../month-plan/types";
 import { DAY_ORDER } from "../month-plan/types";
+import { completeMonthDirection } from "./month-direction";
 import { constitutionViolations } from "./rules";
 import { schemeSets } from "./schemes";
 import {
@@ -323,7 +324,7 @@ export function fallbackIntent(month: MonthDirection, weekIndex: WeekIndex, reas
 
 export function fallbackMonth(prior: { summary_ko: string; next_scheme: MonthDirection["scheme"] } | null): MonthDirection {
   const scheme = prior?.next_scheme ?? "531";
-  return {
+  return completeMonthDirection({
     scheme,
     focus_ko: prior ? "지난 달 평가가 고른 한 달" : "저장한 1RM으로 5/3/1 블록을 엽니다",
     why_ko: prior?.summary_ko || "이전 월 평가가 없어 5/3/1 블록을 한 달 동안 유지합니다.",
@@ -336,7 +337,7 @@ export function fallbackMonth(prior: { summary_ko: string; next_scheme: MonthDir
     long_conditioning_weeks: [2, 4],
     benchmark_week: 4,
     constraints: ["하루 WOD는 이 방향에 없습니다.", "회원마다 다른 WOD는 만들지 않습니다."],
-  };
+  });
 }
 
 export function assertFallbackLegal(draft: WeekDraft, month: MonthDirection, weekIndex: WeekIndex): void {

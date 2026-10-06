@@ -18,6 +18,8 @@ export async function POST(req: Request) {
     rounds: body.rounds == null || body.rounds === "" ? null : Number(body.rounds),
     extraReps: body.extraReps == null || body.extraReps === "" ? null : Number(body.extraReps),
     notesKo: typeof body.notesKo === "string" ? body.notesKo : "",
+    scaling: typeof body.scaling === "string" ? body.scaling : "",
+    fatigue: body.fatigue == null || body.fatigue === "" ? null : Number(body.fatigue),
   };
   const saved =
     typeof body.weekStart === "string" && body.weekStart

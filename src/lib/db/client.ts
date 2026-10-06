@@ -221,7 +221,9 @@ function applySchema(raw: Database.Database) {
       piece_name_ko TEXT NOT NULL DEFAULT '',
       named INTEGER NOT NULL DEFAULT 0,
       signature TEXT NOT NULL DEFAULT '',
-      notes_ko TEXT NOT NULL DEFAULT ''
+      notes_ko TEXT NOT NULL DEFAULT '',
+      scaling TEXT NOT NULL DEFAULT '',
+      fatigue INTEGER
     );
     CREATE INDEX IF NOT EXISTS class_day_scores_user ON class_day_scores (user_id, class_week_id, day_key);
     CREATE TABLE IF NOT EXISTS programming_months (
@@ -317,6 +319,30 @@ function applySchema(raw: Database.Database) {
   `);
   migrateProgrammingGenerations(raw);
   ensureProgrammingActiveIndexes(raw);
+  const scoreCols = new Set(
+    (raw.prepare("PRAGMA table_info(class_day_scores)").all() as { name: string }[]).map((column) => column.name),
+  );
+  if (!scoreCols.has("scaling")) {
+    raw.exec("ALTER TABLE class_day_scores ADD COLUMN scaling TEXT NOT NULL DEFAULT ''");
+  }
+  if (!scoreCols.has("fatigue")) raw.exec("ALTER TABLE class_day_scores ADD COLUMN fatigue INTEGER");
+  raw.exec(`
+    CREATE TABLE IF NOT EXISTS programming_syncs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      programming_week_id INTEGER NOT NULL REFERENCES programming_weeks(id) ON DELETE CASCADE,
+      class_week_id INTEGER NOT NULL REFERENCES class_weeks(id),
+      synced_at INTEGER NOT NULL,
+      replaced_days TEXT NOT NULL,
+      kept_json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS programming_month_proposals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      month_id INTEGER NOT NULL REFERENCES programming_months(id),
+      proposal_json TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'proposed',
+      created_at INTEGER NOT NULL
+    );
+  `);
 }
 
 function tableColumns(raw: Database.Database, table: string): Set<string> {

@@ -1,4 +1,5 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
+import { completeMonthDirection } from "./month-direction";
 import { setsMatchScheme, strengthIsHeavy } from "./schemes";
 import {
   EQUIPMENT,
@@ -247,7 +248,10 @@ export function parseMonthDirection(value: unknown): MonthDirection | null {
     if (typeof item !== "string" || !item.trim()) return null;
     constraints.push(item.trim());
   }
-  return {
+  const targets = Array.isArray(body.evaluation_targets)
+    ? body.evaluation_targets.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : undefined;
+  return completeMonthDirection({
     scheme: body.scheme,
     focus_ko: focus,
     why_ko: why,
@@ -255,7 +259,20 @@ export function parseMonthDirection(value: unknown): MonthDirection | null {
     long_conditioning_weeks: longs,
     benchmark_week: benchmark,
     constraints,
-  };
+    monthly_goal: typeof body.monthly_goal === "string" ? body.monthly_goal : undefined,
+    primary_block: typeof body.primary_block === "string" ? body.primary_block : undefined,
+    secondary_goal: typeof body.secondary_goal === "string" ? body.secondary_goal : undefined,
+    strength_direction: typeof body.strength_direction === "string" ? body.strength_direction : undefined,
+    conditioning_direction: typeof body.conditioning_direction === "string" ? body.conditioning_direction : undefined,
+    skill_direction: typeof body.skill_direction === "string" ? body.skill_direction : undefined,
+    volume_direction: typeof body.volume_direction === "string" ? body.volume_direction : undefined,
+    intensity_direction: typeof body.intensity_direction === "string" ? body.intensity_direction : undefined,
+    benchmark_direction: typeof body.benchmark_direction === "string" ? body.benchmark_direction : undefined,
+    variation_direction: typeof body.variation_direction === "string" ? body.variation_direction : undefined,
+    fatigue_direction: typeof body.fatigue_direction === "string" ? body.fatigue_direction : undefined,
+    weekly_direction: typeof body.weekly_direction === "string" ? body.weekly_direction : undefined,
+    evaluation_targets: targets,
+  });
 }
 
 export function monthSchemaErrors(direction: MonthDirection, raw: unknown): string[] {

@@ -2,6 +2,8 @@ import { serverModelKey } from "../month-plan/adapter";
 import { MONTH_PLAN_OPENAI_MODEL, MONTH_PLAN_OPENAI_URL } from "../month-plan/week-model";
 import { judgeWeek, monthSchemaErrors, parseMonthDirection } from "./rules";
 import {
+  MONTHLY_PROMPT_VERSION,
+  WEEKLY_PROMPT_VERSION,
   type FallbackReason,
   type MonthDirection,
   type StoredStructure,
@@ -177,10 +179,24 @@ export function monthPrompt(summary: ProgrammingSummary): unknown {
     personalization: null,
     summary,
     rules: RULES,
+    prompt_version: MONTHLY_PROMPT_VERSION,
     shape: {
       scheme: "531",
       focus_ko: "string",
       why_ko: "string",
+      monthly_goal: "string",
+      primary_block: "string",
+      secondary_goal: "string",
+      strength_direction: "string",
+      conditioning_direction: "string",
+      skill_direction: "string",
+      volume_direction: "string",
+      intensity_direction: "string",
+      benchmark_direction: "string",
+      variation_direction: "string",
+      fatigue_direction: "string",
+      weekly_direction: "string",
+      evaluation_targets: ["string"],
       week_themes: [{ week_index: 1, theme_ko: "string" }],
       long_conditioning_weeks: [2, 4],
       benchmark_week: 4,
@@ -196,11 +212,13 @@ export function weekPrompt(input: {
 }): unknown {
   return {
     task: "Write the whole class week, including why. Do not pick from a catalog.",
+    prompt_version: WEEKLY_PROMPT_VERSION,
     personalization: null,
     week_index: input.weekIndex,
     month_direction: input.month,
+    previous_generation_source: input.summary.previous_week?.generation_source ?? null,
     summary: input.summary,
-    rules: RULES,
+    rules: [...RULES, "Read the month direction and do not rewrite monthly_goal or the month block."],
   };
 }
 

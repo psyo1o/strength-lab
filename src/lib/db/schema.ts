@@ -214,6 +214,8 @@ export const classDayScores = sqliteTable("class_day_scores", {
   named: integer("named", { mode: "boolean" }).notNull().default(false),
   signature: text("signature").notNull().default(""),
   notesKo: text("notes_ko").notNull().default(""),
+  scaling: text("scaling").notNull().default(""),
+  fatigue: integer("fatigue"),
 });
 
 export const programmingMonths = sqliteTable(
@@ -275,6 +277,29 @@ export const programmingWeeks = sqliteTable(
     uniqueIndex("programming_weeks_one_active_slot").on(t.monthId, t.weekIndex).where(sql`status = 'active'`),
   ],
 );
+
+export const programmingSyncs = sqliteTable("programming_syncs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  programmingWeekId: integer("programming_week_id")
+    .notNull()
+    .references(() => programmingWeeks.id, { onDelete: "cascade" }),
+  classWeekId: integer("class_week_id")
+    .notNull()
+    .references(() => classWeeks.id),
+  syncedAt: integer("synced_at").notNull(),
+  replacedDays: text("replaced_days").notNull(),
+  keptJson: text("kept_json").notNull(),
+});
+
+export const programmingMonthProposals = sqliteTable("programming_month_proposals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  monthId: integer("month_id")
+    .notNull()
+    .references(() => programmingMonths.id),
+  proposalJson: text("proposal_json").notNull(),
+  status: text("status").notNull().default("proposed"),
+  createdAt: integer("created_at").notNull(),
+});
 
 export const programmingGenerationLogs = sqliteTable("programming_generation_logs", {
   id: integer("id").primaryKey({ autoIncrement: true }),

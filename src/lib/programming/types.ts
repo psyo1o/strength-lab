@@ -111,6 +111,20 @@ export type MonthDirection = {
   long_conditioning_weeks: WeekIndex[];
   benchmark_week: WeekIndex;
   constraints: string[];
+  /** Class direction for the month. Weekly generation reads these and does not write them. */
+  monthly_goal: string;
+  primary_block: string;
+  secondary_goal: string;
+  strength_direction: string;
+  conditioning_direction: string;
+  skill_direction: string;
+  volume_direction: string;
+  intensity_direction: string;
+  benchmark_direction: string;
+  variation_direction: string;
+  fatigue_direction: string;
+  weekly_direction: string;
+  evaluation_targets: string[];
 };
 
 export type GenerationSource = "model" | "fallback";
@@ -129,9 +143,9 @@ export const ENGINE_VERSION = "programming-1";
 /** Rule set stamped on each generation. Same string as the engine until the rules move on their own. */
 export const RULES_VERSION = "programming-1";
 
-export const MONTHLY_PROMPT_VERSION = "monthly-program-v1";
-export const WEEKLY_PROMPT_VERSION = "weekly-program-v1";
-export const INPUT_SUMMARY_VERSION = "summary-v1";
+export const MONTHLY_PROMPT_VERSION = "monthly-program-v2";
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v2";
+export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";
 
