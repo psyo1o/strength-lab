@@ -153,11 +153,11 @@ export type FallbackReason =
 
 export const ENGINE_VERSION = "programming-1";
 
-/** Rule set stamped on each generation. programming-2 is the fallback that does not use a weekday lift map. */
-export const RULES_VERSION = "programming-2";
+/** Rule set stamped on each generation. programming-3 is the fallback whose labels, volume, and clock match the class. */
+export const RULES_VERSION = "programming-3";
 
-export const MONTHLY_PROMPT_VERSION = "monthly-program-v2";
-export const WEEKLY_PROMPT_VERSION = "weekly-program-v3";
+export const MONTHLY_PROMPT_VERSION = "monthly-program-v3";
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v4";
 export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";

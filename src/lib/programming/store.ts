@@ -25,7 +25,7 @@ export type GenerationWrite = {
   rulesVersion: string;
   inputSummaryVersion: string;
   generationAttempt: number;
-  responses: { attempt: number; raw: unknown }[];
+  responses: { attempt: number; raw: unknown; latencyMs?: number }[];
 };
 
 export type WriteMode = "create" | "regenerate";
@@ -274,8 +274,8 @@ function insertGenerationLogs(
   if (input.responses.length === 0) return;
   const insert = raw.prepare(
     `INSERT INTO programming_generation_logs (
-       scope, scope_key, plan_id, generation_attempt, prompt_version, model_name, raw_json, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       scope, scope_key, plan_id, generation_attempt, prompt_version, model_name, raw_json, created_at, latency_ms
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   for (const response of input.responses) {
     insert.run(
@@ -287,6 +287,7 @@ function insertGenerationLogs(
       input.modelName,
       JSON.stringify(scrubGenerationPayload(response.raw)),
       input.createdAt,
+      response.latencyMs ?? null,
     );
   }
 }

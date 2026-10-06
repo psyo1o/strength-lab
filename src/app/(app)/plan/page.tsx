@@ -7,6 +7,7 @@ import { sharedToday, sharedWeekForUser } from "@/lib/month-plan/class-week";
 import { orderedDays } from "@/lib/month-plan/store";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export default async function PlanPage() {
   const user = await getCurrentUser();

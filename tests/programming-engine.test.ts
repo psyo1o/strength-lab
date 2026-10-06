@@ -170,11 +170,13 @@ describe("long-term programming engine", () => {
     expect(structurallySimilar(monday, benchmark)).toBe(false);
 
     const copied = structuredClone(draft) as WeekDraft;
+    const saturday = copied.sessions[5]!.conditioning!;
     copied.sessions[5]!.conditioning = {
-      ...copied.sessions[5]!.conditioning!,
+      ...saturday,
       format: monday.format,
       time_domain: monday.time_domain,
-      stimulus: monday.stimulus,
+      stimulus: saturday.stimulus,
+      intensity: saturday.intensity,
       movement_patterns: [...monday.movement_patterns],
       equipment: [...monday.equipment],
       volume: monday.volume,

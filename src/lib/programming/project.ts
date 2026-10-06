@@ -15,7 +15,7 @@ import {
   type StrengthPrescription,
   type WeekIndex,
 } from "../month-plan/types";
-import type { SessionDraft, Stimulus, WeekDraft } from "./types";
+import type { ConditioningDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
 
 const STIMULUS_KO: Record<Stimulus, MetconStimulus> = {
   heavy: "고중량",
@@ -35,6 +35,16 @@ function asPattern(value: string): MetconPiece["pattern"] {
     return value;
   }
   return "engine";
+}
+
+function pieceNote(conditioning: ConditioningDraft): string | undefined {
+  if (conditioning.long_conditioning) {
+    return `3라운드. 캡 ${conditioning.duration_min}분. 라운드 사이 1분 휴식.`;
+  }
+  if (conditioning.format === "emom") {
+    return `1분마다 동작을 바꿉니다. 캡 ${conditioning.duration_min}분.`;
+  }
+  return undefined;
 }
 
 function pieceFrom(session: SessionDraft): MetconPiece | null {
@@ -60,6 +70,7 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
       minutes: conditioning.duration_min,
       movements,
       long: conditioning.long_conditioning,
+      noteKo: pieceNote(conditioning),
     }),
     stimulus: conditioning.stimulus ? STIMULUS_KO[conditioning.stimulus] : null,
   };

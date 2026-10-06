@@ -10,7 +10,7 @@ import {
   regenerateProgrammingWeek,
 } from "./engine";
 import { authorMonth, authorWeek, type FetchLike } from "./model";
-import { judgeWeek, monthSchemaErrors, parseMonthDirection, similarityViolations } from "./rules";
+import { judgeWeek, similarityViolations } from "./rules";
 import { getProgrammingMonth, getProgrammingWeek, listRecentStructures, scrubGenerationPayload } from "./store";
 import type { WeekActual } from "./summary";
 import {
@@ -173,7 +173,7 @@ export async function dryRunWeek(input: {
     month: direction,
     weekIndex,
     intent: {
-      why_ko: `${direction.primary_block} 블록의 폴백 주입니다. 모델 키는 여기에 적지 않습니다.`,
+      why_ko: `${direction.primary_block} 블록의 폴백 주입니다.`,
       focus: direction.focus_ko,
       scheme_note: direction.scheme,
     },
@@ -192,7 +192,9 @@ export async function dryRunWeek(input: {
     input: { summary: promptSummary, month_direction: direction, recent_structures: recent.length },
     ai_output: authored.ok ? authored.draft : { error: authored.reason },
     raw_responses: authored.trace.responses,
-    validation: authored.ok ? { ok: true } : { ok: false, reason: authored.reason },
+    validation: authored.ok
+      ? { ok: true, detail: null }
+      : { ok: false, reason: authored.reason, detail: authored.trace.detail },
     similarity: draft ? similarityViolations(draft, recent) : [],
     fallback: { generation_source: "fallback", rules_version: RULES_VERSION, draft: fallback },
   }) as Record<string, unknown>;
@@ -209,12 +211,9 @@ export async function dryRunMonth(input: {
   const monthStart = input.monthStart ?? monthKey(nowMs);
   const summary = readOnlyMonthSummary(monthStart);
   const authored = await authorMonth({ summary, key: input.key, fetchImpl: input.fetchImpl });
-  const parsed = authored.ok ? authored.direction : parseMonthDirection(authored.trace.responses.at(-1)?.raw ?? null);
   const validation = authored.ok
-    ? { ok: true }
-    : parsed
-      ? { ok: false, reason: authored.reason, detail: monthSchemaErrors(parsed, authored.trace.responses.at(-1)?.raw ?? null)[0] ?? authored.reason }
-      : { ok: false, reason: authored.reason };
+    ? { ok: true, detail: null }
+    : { ok: false, reason: authored.reason, detail: authored.trace.detail };
   const after = counts();
   if (!sameCounts(before, after)) throw new Error("dry run wrote to the database");
   return redact({

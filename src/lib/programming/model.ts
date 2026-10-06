@@ -1,6 +1,7 @@
 import { serverModelKey } from "../month-plan/adapter";
 import { MONTH_PLAN_OPENAI_MODEL, MONTH_PLAN_OPENAI_URL } from "../month-plan/week-model";
-import { judgeWeek, monthSchemaErrors, parseMonthDirection } from "./rules";
+import { judgeWeek, MONTH_REQUIRED_KEYS, monthSchemaErrors, monthShapeDetail, parseMonthDirection } from "./rules";
+import { monthlyTimeoutMs, weeklyTimeoutMs } from "./timeouts";
 import {
   MONTHLY_PROMPT_VERSION,
   WEEKLY_PROMPT_VERSION,
@@ -29,7 +30,17 @@ const RULES = [
   "Use the month scheme for every strength day. Do not swap 5/3/1, volume, intensity, skill, or deload inside the week.",
   "Each training day carries strength_purpose, strength_volume, strength_intensity, metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration. Those fields match the strength and conditioning objects.",
   "Rx metcon is 12–20 minutes, except 8–12 minutes the day after squat or deadlift. Long conditioning is 30–40 minutes.",
+  "Warmup, strength, and conditioning together stay within about 60 minutes. Do not put a 30–40 minute piece on a strength day. Saturday is optional and has no main lift.",
   "Return JSON only. Do not pick a candidate_id.",
+];
+
+const MONTH_RULES = [
+  "Write one month direction for the shared class. Do not write daily workouts, sessions, or movements.",
+  "Personalization is empty. Do not ask for a questionnaire and do not invent a paid plan.",
+  "Do not invent kilograms.",
+  "Use one scheme for the whole month: 531, volume, intensity, skill, or deload.",
+  "long_conditioning_weeks has exactly two week indexes. benchmark_week is one week index.",
+  "Return one JSON object. Put every required key at the top level. Do not wrap the object. Do not use a key named month_direction_only.",
 ];
 
 function messageText(payload: unknown): string | null {
@@ -68,6 +79,7 @@ function isTimeout(error: unknown): boolean {
 export type ModelResponseLog = {
   attempt: number;
   raw: unknown;
+  latencyMs: number;
 };
 
 /** What the caller stores. modelName is set only when this process called the model. */
@@ -75,10 +87,125 @@ export type AuthorTrace = {
   modelName: string | null;
   attempt: number;
   responses: ModelResponseLog[];
+  detail: string | null;
 };
 
 function noModelTrace(): AuthorTrace {
-  return { modelName: null, attempt: 1, responses: [] };
+  return { modelName: null, attempt: 1, responses: [], detail: null };
+}
+
+type ResponseFormat =
+  | { type: "json_object" }
+  | { type: "json_schema"; json_schema: { name: string; strict: true; schema: Record<string, unknown> } };
+
+const JSON_OBJECT: ResponseFormat = { type: "json_object" };
+
+function monthResponseFormat(): ResponseFormat {
+  const string = { type: "string" };
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "month_direction",
+      strict: true,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          scheme: { type: "string", enum: ["531", "volume", "intensity", "skill", "deload"] },
+          focus_ko: string,
+          why_ko: string,
+          monthly_goal: string,
+          primary_block: string,
+          secondary_goal: string,
+          strength_direction: string,
+          conditioning_direction: string,
+          skill_direction: string,
+          volume_direction: string,
+          intensity_direction: string,
+          benchmark_direction: string,
+          variation_direction: string,
+          fatigue_direction: string,
+          weekly_direction: string,
+          evaluation_targets: { type: "array", items: string },
+          week_themes: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: { week_index: { type: "integer" }, theme_ko: string },
+              required: ["week_index", "theme_ko"],
+            },
+          },
+          long_conditioning_weeks: { type: "array", items: { type: "integer" } },
+          benchmark_week: { type: "integer" },
+          constraints: { type: "array", items: string },
+        },
+        required: [...MONTH_REQUIRED_KEYS],
+      },
+    },
+  };
+}
+
+function weekResponseFormat(): ResponseFormat {
+  const string = { type: "string" };
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "week_draft",
+      strict: true,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          intent: {
+            type: "object",
+            additionalProperties: false,
+            properties: { why_ko: string, focus: string, scheme_note: string },
+            required: ["why_ko", "focus", "scheme_note"],
+          },
+          sessions: { type: "array" },
+        },
+        required: ["intent", "sessions"],
+      },
+    },
+  };
+}
+
+function requestBody(userBody: unknown, maxTokens: number, format: ResponseFormat): string {
+  return JSON.stringify({
+    model: MONTH_PLAN_OPENAI_MODEL,
+    messages: [
+      {
+        role: "developer",
+        content:
+          "You program one shared class. Reply with JSON only. Never invent kilograms. Never pick a candidate id. Personalization is off.",
+      },
+      { role: "user", content: JSON.stringify(userBody) },
+    ],
+    response_format: format,
+    reasoning_effort: "none",
+    max_completion_tokens: maxTokens,
+  });
+}
+
+async function postModel(input: {
+  key: string;
+  url: string;
+  fetchImpl: FetchLike;
+  timeoutMs: number;
+  payload: string;
+}): Promise<Response> {
+  return input.fetchImpl(input.url, {
+    method: "POST",
+    redirect: "error",
+    cache: "no-store",
+    signal: AbortSignal.timeout(input.timeoutMs),
+    headers: {
+      Authorization: `Bearer ${input.key}`,
+      "Content-Type": "application/json",
+    },
+    body: input.payload,
+  });
 }
 
 async function complete(input: {
@@ -88,45 +215,71 @@ async function complete(input: {
   fetchImpl: FetchLike;
   timeoutMs: number;
   maxTokens: number;
-}): Promise<{ ok: true; json: unknown } | { ok: false; reason: FallbackReason; raw?: unknown }> {
+  format: ResponseFormat;
+}): Promise<
+  | { ok: true; json: unknown; latencyMs: number }
+  | { ok: false; reason: FallbackReason; raw: unknown; latencyMs: number; detail: string }
+> {
+  const started = Date.now();
+  const latency = () => Date.now() - started;
   try {
-    const response = await input.fetchImpl(input.url, {
-      method: "POST",
-      redirect: "error",
-      cache: "no-store",
-      signal: AbortSignal.timeout(input.timeoutMs),
-      headers: {
-        Authorization: `Bearer ${input.key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MONTH_PLAN_OPENAI_MODEL,
-        messages: [
-          {
-            role: "developer",
-            content:
-              "You program one shared class. Reply with JSON only. Never invent kilograms. Never pick a candidate id. Personalization is off.",
-          },
-          { role: "user", content: JSON.stringify(input.body) },
-        ],
-        response_format: { type: "json_object" },
-        reasoning_effort: "none",
-        max_completion_tokens: input.maxTokens,
-      }),
+    let response = await postModel({
+      key: input.key,
+      url: input.url,
+      fetchImpl: input.fetchImpl,
+      timeoutMs: input.timeoutMs,
+      payload: requestBody(input.body, input.maxTokens, input.format),
     });
-    if (!response.ok) return { ok: false, reason: "http_error" };
+    if (!response.ok && response.status === 400 && input.format.type === "json_schema") {
+      const rejected = await response.text();
+      if (/response_format|json_schema/i.test(rejected)) {
+        response = await postModel({
+          key: input.key,
+          url: input.url,
+          fetchImpl: input.fetchImpl,
+          timeoutMs: input.timeoutMs,
+          payload: requestBody(input.body, input.maxTokens, JSON_OBJECT),
+        });
+      } else {
+        return {
+          ok: false,
+          reason: "http_error",
+          raw: { status: 400, body: rejected.slice(0, 400) },
+          latencyMs: latency(),
+          detail: "http 400",
+        };
+      }
+    }
+    if (!response.ok) {
+      const text = await response.text();
+      return {
+        ok: false,
+        reason: "http_error",
+        raw: { status: response.status, body: text.slice(0, 400) },
+        latencyMs: latency(),
+        detail: `http ${response.status}`,
+      };
+    }
+    const text = await response.text();
     let payload: unknown;
     try {
-      payload = await response.json();
+      payload = JSON.parse(text);
     } catch {
-      return { ok: false, reason: "bad_json" };
+      return { ok: false, reason: "bad_json", raw: text.slice(0, 400), latencyMs: latency(), detail: "unreadable JSON" };
     }
-    const text = messageText(payload);
+    const message = messageText(payload);
     const json = parseModelJson(payload);
-    if (!json) return { ok: false, reason: "bad_json", raw: text ?? payload };
-    return { ok: true, json };
+    if (!json) return { ok: false, reason: "bad_json", raw: message ?? payload, latencyMs: latency(), detail: "unreadable JSON" };
+    return { ok: true, json, latencyMs: latency() };
   } catch (error) {
-    return { ok: false, reason: isTimeout(error) ? "timeout" : "http_error" };
+    const timeout = isTimeout(error);
+    return {
+      ok: false,
+      reason: timeout ? "timeout" : "http_error",
+      raw: timeout ? { timeout: true } : { error: "request_failed" },
+      latencyMs: latency(),
+      detail: timeout ? "timed out" : "request failed",
+    };
   }
 }
 
@@ -136,10 +289,12 @@ async function authorWithRetries<T>(input: {
   fetchImpl: FetchLike;
   timeoutMs: number;
   maxTokens: number;
-  accept: (json: unknown) => { ok: true; value: T } | { ok: false; reason: FallbackReason };
+  format: ResponseFormat;
+  accept: (json: unknown) => { ok: true; value: T } | { ok: false; reason: FallbackReason; detail: string };
 }): Promise<{ ok: true; value: T; trace: AuthorTrace } | { ok: false; reason: FallbackReason; trace: AuthorTrace }> {
   const responses: ModelResponseLog[] = [];
   let reason: FallbackReason = "http_error";
+  let detail: string | null = "request failed";
   let used = 0;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     used = attempt;
@@ -150,37 +305,44 @@ async function authorWithRetries<T>(input: {
       fetchImpl: input.fetchImpl,
       timeoutMs: input.timeoutMs,
       maxTokens: input.maxTokens,
+      format: input.format,
     });
-    if (completed.ok) responses.push({ attempt, raw: completed.json });
-    else if (completed.raw !== undefined) responses.push({ attempt, raw: completed.raw });
+    responses.push({
+      attempt,
+      raw: completed.ok ? completed.json : completed.raw,
+      latencyMs: completed.latencyMs,
+    });
     if (!completed.ok) {
       reason = completed.reason;
+      detail = completed.detail;
       continue;
     }
     const accepted = input.accept(completed.json);
     if (!accepted.ok) {
       reason = accepted.reason;
+      detail = accepted.detail;
       continue;
     }
     return {
       ok: true,
       value: accepted.value,
-      trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt, responses },
+      trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt, responses, detail: null },
     };
   }
   return {
     ok: false,
     reason,
-    trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt: used, responses },
+    trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt: used, responses, detail },
   };
 }
 
 export function monthPrompt(summary: ProgrammingSummary): unknown {
   return {
-    task: "Write the month direction only. Do not write daily WODs, sessions, or movements.",
+    task: "Return one JSON object for the month. Put every required key at the top level. Do not wrap the object. Do not use a key named month_direction_only. Do not write daily workouts.",
     personalization: null,
     summary,
-    rules: RULES,
+    rules: MONTH_RULES,
+    required_top_level_keys: [...MONTH_REQUIRED_KEYS],
     prompt_version: MONTHLY_PROMPT_VERSION,
     shape: {
       scheme: "531",
@@ -270,18 +432,20 @@ export async function authorMonth(input: {
   const key = input.key === undefined ? serverModelKey() : input.key;
   if (!key) return { ok: false, reason: "no_model", trace: noModelTrace() };
   const fetchImpl = input.fetchImpl ?? fetch;
-  const timeoutMs = input.timeoutMs ?? 12_000;
+  const timeoutMs = input.timeoutMs ?? monthlyTimeoutMs();
   const result = await authorWithRetries({
     key,
     body: monthPrompt(input.summary),
     fetchImpl,
     timeoutMs,
     maxTokens: 1200,
+    format: monthResponseFormat(),
     accept: (json) => {
+      if (!json || typeof json !== "object") return { ok: false, reason: "bad_json", detail: "unreadable JSON" };
       const direction = parseMonthDirection(json);
-      if (!direction) return { ok: false, reason: "bad_json" };
+      if (!direction) return { ok: false, reason: "schema", detail: monthShapeDetail(json) };
       const errors = monthSchemaErrors(direction, json);
-      if (errors.length) return { ok: false, reason: "schema" };
+      if (errors.length) return { ok: false, reason: "schema", detail: errors[0]! };
       return { ok: true, value: direction };
     },
   });
@@ -300,16 +464,17 @@ export async function authorWeek(input: {
   const key = input.key === undefined ? serverModelKey() : input.key;
   if (!key) return { ok: false, reason: "no_model", trace: noModelTrace() };
   const fetchImpl = input.fetchImpl ?? fetch;
-  const timeoutMs = input.timeoutMs ?? 12_000;
+  const timeoutMs = input.timeoutMs ?? weeklyTimeoutMs();
   const result = await authorWithRetries({
     key,
     body: weekPrompt({ summary: input.summary, month: input.month, weekIndex: input.weekIndex }),
     fetchImpl,
     timeoutMs,
     maxTokens: 4000,
+    format: weekResponseFormat(),
     accept: (json) => {
       const judged = judgeWeek(json, input.month, input.weekIndex, input.recent);
-      if (!judged.ok) return { ok: false, reason: judged.reason };
+      if (!judged.ok) return { ok: false, reason: judged.reason, detail: judged.detail };
       return { ok: true, value: judged.draft };
     },
   });
