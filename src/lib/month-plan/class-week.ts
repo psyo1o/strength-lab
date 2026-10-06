@@ -110,6 +110,11 @@ export function replaceClassWeek(weekStart: string, week: PlannedWeek): boolean 
   return info.changes === 1;
 }
 
+/**
+ * The screen reads class_weeks. programming_weeks is the engine row.
+ * class_weeks is written here only when that week_start is still missing,
+ * as a one-time copy of the engine display. An existing class week is not replaced.
+ */
 export async function ensureClassWeekForStart(weekStart: string, nowMs = Date.now()): Promise<StoredPlan> {
   const existing = getClassPlanByStart(weekStart);
   if (existing) return existing;

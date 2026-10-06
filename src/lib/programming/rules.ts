@@ -3,8 +3,7 @@ import { setsMatchScheme, strengthIsHeavy } from "./schemes";
 import {
   EQUIPMENT,
   MOVEMENT_PATTERNS,
-  SIMILARITY_AXES,
-  SIMILARITY_MATCHES,
+  SIMILARITY_CONFIG,
   STIMULI,
   isScheme,
   isWeekIndex,
@@ -13,6 +12,7 @@ import {
   type MonthDirection,
   type MovementPattern,
   type SessionDraft,
+  type SimilarityFeature,
   type Stimulus,
   type StoredStructure,
   type WeekDraft,
@@ -402,18 +402,47 @@ function listKey(values: readonly string[]): string {
   return [...values].sort().join("|");
 }
 
-function axisEqual(left: StoredStructure, right: StoredStructure, axis: (typeof SIMILARITY_AXES)[number]): boolean {
-  if (axis === "movement_patterns") return listKey(left.movement_patterns) === listKey(right.movement_patterns);
-  if (axis === "equipment") return listKey(left.equipment) === listKey(right.equipment);
-  if (axis === "stimulus") return (left.stimulus ?? "") === (right.stimulus ?? "");
-  return left[axis] === right[axis];
+/** One comparable token per configured feature. Movement names are not a feature. */
+function featureValue(structure: StoredStructure, feature: SimilarityFeature): string {
+  switch (feature) {
+    case "format":
+      return structure.format;
+    case "time_domain":
+      return structure.time_domain;
+    case "stimulus":
+      return structure.stimulus ?? "";
+    case "movement_pattern":
+      return listKey(structure.movement_patterns);
+    case "equipment":
+      return listKey(structure.equipment);
+    case "volume":
+      return structure.volume;
+    case "rep_structure":
+      return structure.rep_structure;
+    case "work_rest_structure":
+      return structure.work_rest_structure;
+    case "duration":
+      return String(structure.duration_min);
+    case "intensity":
+      return structure.intensity;
+  }
+}
+
+/** Sum of weights for features that match. Weight 0 features stay out until the config turns them on. */
+export function similarityScore(left: StoredStructure, right: StoredStructure): number {
+  let score = 0;
+  for (const feature of Object.keys(SIMILARITY_CONFIG.features) as SimilarityFeature[]) {
+    const weight = SIMILARITY_CONFIG.features[feature] ?? 0;
+    if (weight <= 0) continue;
+    if (featureValue(left, feature) === featureValue(right, feature)) score += weight;
+  }
+  return score;
 }
 
 /** Benchmarks are measurement, so they are never a structural duplicate. */
 export function structurallySimilar(left: StoredStructure, right: StoredStructure): boolean {
   if (left.benchmark || right.benchmark) return false;
-  const matches = SIMILARITY_AXES.filter((axis) => axisEqual(left, right, axis)).length;
-  return matches >= SIMILARITY_MATCHES;
+  return similarityScore(left, right) >= SIMILARITY_CONFIG.threshold;
 }
 
 export function toStructure(session: SessionDraft): StoredStructure | null {

@@ -7,15 +7,16 @@ import {
   fallbackMonth,
   rulesDisplayWeek,
 } from "./fallback";
-import { authorMonth, authorWeek, type FetchLike } from "./model";
+import { authorMonth, authorWeek, type AuthorTrace, type FetchLike } from "./model";
 import { projectWeek } from "./project";
 import { sessionLoad } from "./rules";
 import { schemeAfter } from "./schemes";
 import {
-  getMonthlyEvaluation,
+  getMonthlyEvaluationForStart,
   getProgrammingMonth,
   getProgrammingWeek,
   getWeeklyActual,
+  getWeeklyActualForStart,
   insertProgrammingMonth,
   insertProgrammingWeek,
   linkProgrammingWeek,
@@ -27,6 +28,7 @@ import {
   previousProgrammingWeek,
   saveMonthlyEvaluation,
   saveWeeklyActual,
+  type GenerationWrite,
   type MonthRow,
   type WeekRow,
 } from "./store";
@@ -41,6 +43,10 @@ import {
   addDays,
   DAY_OFFSET,
   ENGINE_VERSION,
+  INPUT_SUMMARY_VERSION,
+  MONTHLY_PROMPT_VERSION,
+  RULES_VERSION,
+  WEEKLY_PROMPT_VERSION,
   monthStartOf,
   weekIndexFromStart,
   type MonthDirection,
@@ -92,7 +98,7 @@ function sessionsBefore(weekStart: string): SummarySession[] {
 function progressionFor(monthStart: string): ProgrammingSummary["progression"] {
   const earlier = listProgrammingMonths().filter((month) => month.monthStart < monthStart);
   const previous = previousProgrammingMonth(monthStart);
-  const evaluation = previous ? getMonthlyEvaluation(previous.id) : null;
+  const evaluation = previous ? getMonthlyEvaluationForStart(previous.monthStart) : null;
   return {
     months_recorded: earlier.length,
     schemes: earlier.map((month) => month.direction.scheme),
@@ -109,7 +115,7 @@ function progressionFor(monthStart: string): ProgrammingSummary["progression"] {
 
 function summaryFor(weekStart: string): ProgrammingSummary {
   const previous = previousProgrammingWeek(weekStart);
-  const actual = previous ? getWeeklyActual(previous.id) : null;
+  const actual = previous ? getWeeklyActualForStart(previous.weekStart) : null;
   return buildProgrammingSummary({
     weekStart,
     sessions: sessionsBefore(weekStart),
@@ -136,13 +142,44 @@ function monthSummary(monthStart: string): ProgrammingSummary {
   });
 }
 
+function generationWrite(
+  promptVersion: string,
+  authored: { ok: boolean; trace: AuthorTrace },
+  nowMs: number,
+  fallbackReason: string | null,
+): GenerationWrite {
+  return {
+    generationSource: authored.ok ? "model" : "fallback",
+    fallbackReason: authored.ok ? null : fallbackReason,
+    generatedAt: nowMs,
+    modelName: authored.trace.modelName,
+    promptVersion,
+    rulesVersion: RULES_VERSION,
+    inputSummaryVersion: INPUT_SUMMARY_VERSION,
+    generationAttempt: authored.trace.attempt,
+    responses: authored.trace.responses,
+  };
+}
+
 export async function ensureProgrammingMonth(monthStart: string, options: EngineOptions = {}): Promise<MonthRow> {
   const existing = getProgrammingMonth(monthStart);
   if (existing) return existing;
+  return writeProgrammingMonth(monthStart, options, "create");
+}
+
+export async function regenerateProgrammingMonth(monthStart: string, options: EngineOptions = {}): Promise<MonthRow> {
+  return writeProgrammingMonth(monthStart, options, "regenerate");
+}
+
+async function writeProgrammingMonth(
+  monthStart: string,
+  options: EngineOptions,
+  mode: "create" | "regenerate",
+): Promise<MonthRow> {
   const nowMs = options.nowMs ?? Date.now();
   const summary = monthSummary(monthStart);
   const previous = previousProgrammingMonth(monthStart);
-  const evaluation = previous ? getMonthlyEvaluation(previous.id) : null;
+  const evaluation = previous ? getMonthlyEvaluationForStart(previous.monthStart) : null;
   const authored = await authorMonth({
     summary,
     key: options.key,
@@ -159,9 +196,8 @@ export async function ensureProgrammingMonth(monthStart: string, options: Engine
     direction,
     inputSummaryJson: JSON.stringify(summary),
     priorEvaluationId: evaluation?.id ?? null,
-    generationSource: authored.ok ? "model" : "fallback",
-    fallbackReason: authored.ok ? null : authored.reason,
-    generatedAt: nowMs,
+    mode,
+    ...generationWrite(MONTHLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason),
   });
 }
 
@@ -181,6 +217,18 @@ function fallbackWeek(month: MonthDirection, weekIndex: WeekIndex, reason: strin
 export async function ensureProgrammingWeek(weekStart: string, options: EngineOptions = {}): Promise<WeekRow> {
   const existing = getProgrammingWeek(weekStart);
   if (existing) return existing;
+  return writeProgrammingWeek(weekStart, options, "create");
+}
+
+export async function regenerateProgrammingWeek(weekStart: string, options: EngineOptions = {}): Promise<WeekRow> {
+  return writeProgrammingWeek(weekStart, options, "regenerate");
+}
+
+async function writeProgrammingWeek(
+  weekStart: string,
+  options: EngineOptions,
+  mode: "create" | "regenerate",
+): Promise<WeekRow> {
   const nowMs = options.nowMs ?? Date.now();
   const month = await ensureProgrammingMonth(monthStartOf(weekStart), options);
   const weekIndex = weekIndexFromStart(weekStart);
@@ -204,9 +252,8 @@ export async function ensureProgrammingWeek(weekStart: string, options: EngineOp
     draft: built.draft,
     display: built.display,
     inputSummaryJson: JSON.stringify(summary),
-    generationSource: authored.ok ? "model" : "fallback",
-    fallbackReason: authored.ok ? null : authored.reason,
-    generatedAt: nowMs,
+    mode,
+    ...generationWrite(WEEKLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason),
   });
 }
 
@@ -227,7 +274,7 @@ export function evaluateProgrammingMonth(
 ): (MonthEvaluation & { id: number }) | { error: string } {
   const month = getProgrammingMonth(monthStart);
   if (!month) return { error: "달을 찾지 못했습니다." };
-  const existing = getMonthlyEvaluation(month.id);
+  const existing = getMonthlyEvaluationForStart(monthStart);
   if (existing) return existing;
   const weeks = listProgrammingWeeksForMonth(month.id);
   let completed = 0;

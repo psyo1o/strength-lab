@@ -126,19 +126,54 @@ export type FallbackReason =
 
 export const ENGINE_VERSION = "programming-1";
 
-export const SIMILARITY_AXES = [
+/** Rule set stamped on each generation. Same string as the engine until the rules move on their own. */
+export const RULES_VERSION = "programming-1";
+
+export const MONTHLY_PROMPT_VERSION = "monthly-program-v1";
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v1";
+export const INPUT_SUMMARY_VERSION = "summary-v1";
+
+export type PlanStatus = "active" | "superseded" | "failed";
+
+/**
+ * Similarity lives here only.
+ * SIMILARITY_THRESHOLD is `threshold` (4). A feature counts when its weight is above 0.
+ * rep_structure, work_rest_structure, duration, and intensity stay at 0 until they should count.
+ * Movement names are not features. Benchmarks are exempt in the checker, not in this map.
+ */
+export const SIMILARITY_FEATURES = [
   "format",
   "time_domain",
   "stimulus",
-  "movement_patterns",
+  "movement_pattern",
   "equipment",
   "volume",
+  "rep_structure",
+  "work_rest_structure",
+  "duration",
+  "intensity",
 ] as const;
 
-export type SimilarityAxis = (typeof SIMILARITY_AXES)[number];
+export type SimilarityFeature = (typeof SIMILARITY_FEATURES)[number];
 
-/** Four or more of the six axes. Movement names are not an axis. */
-export const SIMILARITY_MATCHES = 4;
+export const SIMILARITY_CONFIG: {
+  threshold: number;
+  features: Record<SimilarityFeature, number>;
+} = {
+  threshold: 4,
+  features: {
+    format: 1,
+    time_domain: 1,
+    stimulus: 1,
+    movement_pattern: 1,
+    equipment: 1,
+    volume: 1,
+    rep_structure: 0,
+    work_rest_structure: 0,
+    duration: 0,
+    intensity: 0,
+  },
+};
 
 export type StoredStructure = {
   day: DayKey;
