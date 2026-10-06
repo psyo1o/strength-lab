@@ -13,6 +13,7 @@ import { todayWorkoutHref } from "@/lib/month-plan/today-view";
 import { PROGRAM_ENTRY_KO } from "@/lib/screen-copy";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();

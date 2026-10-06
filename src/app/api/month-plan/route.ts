@@ -4,6 +4,7 @@ import { ensureClassWeek, sharedToday } from "@/lib/month-plan/class-week";
 import { orderedDays } from "@/lib/month-plan/store";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export async function GET() {
   const user = await getCurrentUser();

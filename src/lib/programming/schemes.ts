@@ -82,13 +82,33 @@ export function schemeSets(scheme: Scheme, weekIndex: WeekIndex): StrengthSetDra
   return SETS[scheme][weekIndex].map((set) => ({ ...set }));
 }
 
-export function setsMatchScheme(scheme: Scheme, weekIndex: WeekIndex, sets: StrengthSetDraft[]): boolean {
-  const expected = schemeSets(scheme, weekIndex);
-  if (sets.length !== expected.length) return false;
-  return sets.every((set, index) => {
-    const row = expected[index]!;
+function sameSets(left: readonly StrengthSetDraft[], right: readonly StrengthSetDraft[]): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((set, index) => {
+    const row = right[index]!;
     return set.percent_of_tm === row.percent_of_tm && set.reps === row.reps && set.amrap === row.amrap;
   });
+}
+
+export function setsMatchScheme(scheme: Scheme, weekIndex: WeekIndex, sets: StrengthSetDraft[]): boolean {
+  return sameSets(sets, schemeSets(scheme, weekIndex));
+}
+
+/**
+ * Real volume cut for a tired lower body.
+ * Drop the plus set when there is one, otherwise drop a set, otherwise lower the percent.
+ */
+export function fatigueCutSets(scheme: Scheme, weekIndex: WeekIndex): StrengthSetDraft[] {
+  const sets = schemeSets(scheme, weekIndex);
+  const withoutAmrap = sets.filter((set) => !set.amrap);
+  if (withoutAmrap.length >= 2 && withoutAmrap.length < sets.length) return withoutAmrap;
+  if (sets.length > 3) return sets.slice(0, 3);
+  if (sets.length > 2) return sets.slice(0, -1);
+  return sets.map((set) => ({ ...set, percent_of_tm: Math.max(40, set.percent_of_tm - 10) }));
+}
+
+export function setsMatchFatigueCut(scheme: Scheme, weekIndex: WeekIndex, sets: StrengthSetDraft[]): boolean {
+  return sameSets(sets, fatigueCutSets(scheme, weekIndex));
 }
 
 /** A top set at 85% or more is heavy. Volume, skill, and deload stay under that. */

@@ -312,13 +312,17 @@ function applySchema(raw: Database.Database) {
       prompt_version TEXT NOT NULL,
       model_name TEXT,
       raw_json TEXT NOT NULL,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      latency_ms INTEGER
     );
     CREATE INDEX IF NOT EXISTS programming_generation_logs_scope
       ON programming_generation_logs (scope, scope_key, id);
   `);
   migrateProgrammingGenerations(raw);
   ensureProgrammingActiveIndexes(raw);
+  if (!tableColumns(raw, "programming_generation_logs").has("latency_ms")) {
+    raw.exec("ALTER TABLE programming_generation_logs ADD COLUMN latency_ms INTEGER");
+  }
   const scoreCols = new Set(
     (raw.prepare("PRAGMA table_info(class_day_scores)").all() as { name: string }[]).map((column) => column.name),
   );

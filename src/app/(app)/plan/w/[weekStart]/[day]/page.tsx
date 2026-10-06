@@ -20,6 +20,7 @@ function conditioningFor(weekStart: string, day: DayKey): ConditioningDraft | nu
 }
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 export default async function ClassDayPage({ params }: { params: Promise<{ weekStart: string; day: string }> }) {
   const user = await getCurrentUser();

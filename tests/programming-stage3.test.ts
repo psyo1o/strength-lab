@@ -211,8 +211,8 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       generationAttempt: 2,
       generatedAt: NOW,
     });
-    expect(RULES_VERSION).toBe("programming-2");
-    expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v3");
+    expect(RULES_VERSION).toBe("programming-3");
+    expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v4");
     const nextFetch = vi.fn(async () => new Response("still-down", { status: 500 }));
     await ensureProgrammingWeek("2026-10-12", { nowMs: NOW + 5, key: KEY, fetchImpl: nextFetch });
     const init = nextFetch.mock.calls[0]?.[1] as RequestInit;
@@ -339,7 +339,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       month,
       weekIndex: 1,
     }) as { prompt_version: string; session_shape: Record<string, unknown> };
-    expect(prompt.prompt_version).toBe("weekly-program-v3");
+    expect(prompt.prompt_version).toBe("weekly-program-v4");
     for (const field of [
       "strength_purpose",
       "strength_volume",
@@ -381,7 +381,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(high.wrote).toBe(false);
     expect(high.actual_case).toBe("a");
-    expect(high.prompt_version).toBe("weekly-program-v3");
+    expect(high.prompt_version).toBe("weekly-program-v4");
     expect(high).toHaveProperty("input");
     expect(high).toHaveProperty("ai_output");
     expect(high).toHaveProperty("validation");
@@ -407,7 +407,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       fetchImpl: vi.fn(async () => envelope(monthDraft)),
     });
     expect(accepted.wrote).toBe(false);
-    expect(accepted.validation).toEqual({ ok: true });
+    expect(accepted.validation).toEqual({ ok: true, detail: null });
     expect(JSON.stringify(accepted)).not.toContain(KEY);
     expect(JSON.stringify(accepted)).not.toContain(LIVE_KEY);
 
@@ -428,7 +428,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       wrote: true,
       week_start: WEEK,
       generation_source: "fallback",
-      rules_version: "programming-2",
+      rules_version: "programming-3",
       generation_attempt: 2,
     });
     expect(JSON.stringify(result)).not.toContain(LIVE_KEY);

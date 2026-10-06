@@ -311,6 +311,7 @@ export const programmingGenerationLogs = sqliteTable("programming_generation_log
   modelName: text("model_name"),
   rawJson: text("raw_json").notNull(),
   createdAt: integer("created_at").notNull(),
+  latencyMs: integer("latency_ms"),
 });
 
 export const programmingActuals = sqliteTable("programming_actuals", {

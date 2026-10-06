@@ -1,6 +1,6 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { completeMonthDirection } from "./month-direction";
-import { setsMatchScheme, strengthIsHeavy } from "./schemes";
+import { setsMatchFatigueCut, setsMatchScheme, strengthIsHeavy } from "./schemes";
 import {
   EQUIPMENT,
   MOVEMENT_PATTERNS,
@@ -234,9 +234,55 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
   return { intent: { why_ko: why, focus, scheme_note: note }, sessions };
 }
 
+const MONTH_WRAPPERS = ["month_direction_only", "month_direction", "direction", "month"] as const;
+
+export const MONTH_REQUIRED_KEYS = [
+  "scheme",
+  "focus_ko",
+  "why_ko",
+  "monthly_goal",
+  "primary_block",
+  "secondary_goal",
+  "strength_direction",
+  "conditioning_direction",
+  "skill_direction",
+  "volume_direction",
+  "intensity_direction",
+  "benchmark_direction",
+  "variation_direction",
+  "fatigue_direction",
+  "weekly_direction",
+  "evaluation_targets",
+  "week_themes",
+  "long_conditioning_weeks",
+  "benchmark_week",
+  "constraints",
+] as const;
+
+/** Pull a wrapped month object up to the top level. A real month object is left as-is. */
+export function unwrapMonthPayload(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  if (isScheme(value.scheme) || typeof value.focus_ko === "string" || Array.isArray(value.week_themes)) return value;
+  for (const key of MONTH_WRAPPERS) {
+    if (isRecord(value[key])) return unwrapMonthPayload(value[key]);
+  }
+  return value;
+}
+
+export function monthShapeDetail(value: unknown): string {
+  const body = unwrapMonthPayload(value);
+  if (!isRecord(body)) return "month JSON is not an object";
+  const missing = MONTH_REQUIRED_KEYS.filter((key) => body[key] == null || body[key] === "");
+  if (missing.length) return `missing ${missing[0]}`;
+  if (!isScheme(body.scheme)) return "scheme is not a month block";
+  return "month JSON is missing required keys";
+}
+
 export function parseMonthDirection(value: unknown): MonthDirection | null {
-  if (!isRecord(value)) return null;
-  const body = isRecord(value.direction) ? value.direction : value;
+  if (!isRecord(value) && !isRecord(unwrapMonthPayload(value))) return null;
+  const unwrapped = unwrapMonthPayload(value);
+  if (!isRecord(unwrapped)) return null;
+  const body = unwrapped;
   if (!isScheme(body.scheme)) return null;
   const focus = asString(body.focus_ko);
   const why = asString(body.why_ko);
@@ -426,7 +472,11 @@ export function constitutionViolations(draft: WeekDraft, month: MonthDirection, 
     if (!session) continue;
     exposures.set(day, exposure(session));
     if (session.strength && !setsMatchScheme(month.scheme, weekIndex, session.strength.sets)) {
-      errors.push(`${day} sets do not match the month scheme`);
+      const lowerCut =
+        session.strength_volume === "low" &&
+        (session.strength.lift === "squat" || session.strength.lift === "deadlift") &&
+        setsMatchFatigueCut(month.scheme, weekIndex, session.strength.sets);
+      if (!lowerCut) errors.push(`${day} sets do not match the month scheme`);
     }
   }
   for (let index = 0; index < DAY_ORDER.length - 1; index += 1) {
