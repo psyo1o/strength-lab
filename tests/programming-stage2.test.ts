@@ -98,10 +98,11 @@ describe("stage 2 actuals and screen sync", () => {
     if ("error" in created) throw new Error(created.error);
     saveUserMaxes(created.user.id, [{ exerciseKey: "squat", value: 180, unit: "kg" }]);
     const week = await ensureProgrammingWeek(WEEK1, { nowMs: NOW, key: null });
+    const squatDay = week.draft.sessions.find((session) => session.strength?.lift === "squat")?.day ?? "fri";
     seedScore({
       userId: created.user.id,
       weekStart: WEEK1,
-      day: "mon",
+      day: squatDay,
       scaling: "rx",
       fatigue: 3,
       completedAt: NOW,
@@ -122,8 +123,8 @@ describe("stage 2 actuals and screen sync", () => {
     expect(actual.class_summary.fatigue_signal).toBe("high");
     expect(actual.class_summary.actual_volume).toBe("high");
     expect(actual.class_summary.actual_intensity).toBe("heavy");
-    expect(actual.days.find((day) => day.day === "mon")?.strength_result).toBe("1rm_saved 1/1");
-    expect(actual.days.find((day) => day.day === "mon")?.score?.median_rounds).toBe(5);
+    expect(actual.days.find((day) => day.day === squatDay)?.strength_result).toBe("1rm_saved 1/1");
+    expect(actual.days.find((day) => day.day === squatDay)?.score?.median_rounds).toBe(5);
     expect(actual.days.find((day) => day.day === "tue")?.score?.median_time_sec).toBe(300);
 
     const stored = getSqlite()
@@ -146,10 +147,11 @@ describe("stage 2 actuals and screen sync", () => {
     const created = registerUser(SECRET_EMAIL, "password123");
     if ("error" in created) throw new Error(created.error);
     const first = await ensureProgrammingWeek(WEEK1, { nowMs: NOW, key: null });
+    const squatDay = first.draft.sessions.find((session) => session.strength?.lift === "squat")?.day ?? "fri";
     seedScore({
       userId: created.user.id,
       weekStart: WEEK1,
-      day: "mon",
+      day: squatDay,
       scaling: "rx",
       fatigue: 3,
       completedAt: NOW,
@@ -200,7 +202,7 @@ describe("stage 2 actuals and screen sync", () => {
       const week = await ensureProgrammingWeek(WEEK1, { nowMs: NOW, key: null });
       const target =
         fatigue === 3
-          ? "mon"
+          ? (week.draft.sessions.find((session) => session.strength?.lift === "squat")?.day ?? day)
           : (week.draft.sessions.find((session) => session.conditioning?.volume === "low" && !session.rest)?.day ?? day);
       seedScore({
         userId: created.user.id,

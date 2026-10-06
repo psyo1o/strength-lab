@@ -3,11 +3,9 @@ import { recomputeWeeklyActual } from "./actual";
 import { evaluationFromActuals } from "./evaluate";
 import {
   assertFallbackLegal,
-  draftForScheme,
-  extractDraft,
+  buildFallbackWeek,
   fallbackIntent,
   fallbackMonth,
-  rulesDisplayWeek,
 } from "./fallback";
 import { completeMonthDirection } from "./month-direction";
 import { authorMonth, authorWeek, type AuthorTrace, type FetchLike } from "./model";
@@ -138,9 +136,9 @@ function progressionFor(monthStart: string): ProgrammingSummary["progression"] {
   };
 }
 
-function summaryFor(weekStart: string, nowMs: number): ProgrammingSummary {
+function summaryFor(weekStart: string, nowMs: number, recompute = true): ProgrammingSummary {
   const previous = previousProgrammingWeek(weekStart);
-  if (previous) recomputeWeeklyActual(previous.weekStart, nowMs);
+  if (previous && recompute) recomputeWeeklyActual(previous.weekStart, nowMs);
   const actual = previous ? getWeeklyActualForStart(previous.weekStart) : null;
   return buildProgrammingSummary({
     weekStart,
@@ -160,9 +158,9 @@ function summaryFor(weekStart: string, nowMs: number): ProgrammingSummary {
   });
 }
 
-function monthSummary(monthStart: string, nowMs: number): ProgrammingSummary {
+function monthSummary(monthStart: string, nowMs: number, recompute = true): ProgrammingSummary {
   const previous = previousProgrammingMonth(monthStart);
-  if (previous) {
+  if (previous && recompute) {
     for (const week of listProgrammingWeeksForMonth(previous.id)) recomputeWeeklyActual(week.weekStart, nowMs);
   }
   return buildProgrammingSummary({
@@ -234,15 +232,20 @@ async function writeProgrammingMonth(
   });
 }
 
-function fallbackWeek(month: MonthDirection, weekIndex: WeekIndex, reason: string): { draft: WeekDraft; display: PlannedWeek } {
-  const intent = fallbackIntent(month, weekIndex, reason);
-  if (month.scheme === "531") {
-    const display = rulesDisplayWeek(weekIndex);
-    const draft = extractDraft(display, intent);
-    assertFallbackLegal(draft, month, weekIndex);
-    return { draft, display };
-  }
-  const draft = draftForScheme(month, weekIndex, intent);
+function fallbackWeek(
+  month: MonthDirection,
+  weekIndex: WeekIndex,
+  reason: string,
+  recent: ReturnType<typeof listRecentStructures>,
+  previousActual: WeekActual | null,
+): { draft: WeekDraft; display: PlannedWeek } {
+  const draft = buildFallbackWeek({
+    month,
+    weekIndex,
+    intent: fallbackIntent(month, weekIndex, reason),
+    recent,
+    previousActual,
+  });
   assertFallbackLegal(draft, month, weekIndex);
   return { draft, display: projectWeek(draft, weekIndex, "rules") };
 }
@@ -267,18 +270,19 @@ async function writeProgrammingWeek(
   const monthGoal = month.direction.monthly_goal;
   const weekIndex = weekIndexFromStart(weekStart);
   const summary = summaryFor(weekStart, nowMs);
+  const recent = listRecentStructures(weekStart);
   const authored = await authorWeek({
     summary,
     month: month.direction,
     weekIndex,
-    recent: listRecentStructures(weekStart),
+    recent,
     key: options.key,
     fetchImpl: options.fetchImpl,
     timeoutMs: options.timeoutMs,
   });
   const built = authored.ok
     ? { draft: authored.draft, display: projectWeek(authored.draft, weekIndex, "model") }
-    : fallbackWeek(month.direction, weekIndex, authored.reason);
+    : fallbackWeek(month.direction, weekIndex, authored.reason, recent, summary.previous_week?.actual ?? null);
   const saved = insertProgrammingWeek({
     monthId: month.id,
     weekIndex,
@@ -340,6 +344,14 @@ export function proposeMonthlyPlanChange(
   const after = getProgrammingMonth(monthStart);
   if (!after || after.direction.monthly_goal !== before) return { error: "월 목표가 바뀌었습니다." };
   return { id };
+}
+
+export function readOnlyWeekSummary(weekStart: string): ProgrammingSummary {
+  return summaryFor(weekStart, Date.now(), false);
+}
+
+export function readOnlyMonthSummary(monthStart: string): ProgrammingSummary {
+  return monthSummary(monthStart, Date.now(), false);
 }
 
 export function attachClassWeek(weekStart: string, classWeekId: number): void {
