@@ -318,6 +318,11 @@ function materialize(picked: Catalog, sex: AthleteSex): MetconPiece {
   };
 }
 
+/** Every catalog piece, ignoring weekday and week-number slots. Callers apply the rules. */
+export function listPieceMaterial(sex: AthleteSex = "m"): MetconPiece[] {
+  return CATALOG.map((piece) => materialize(piece, sex));
+}
+
 /** Pieces that already satisfy the day's role, bans, length, and sex-scoped loads. */
 export function listStructuralMetcons(req: MetconRequest): MetconPiece[] {
   return CATALOG.filter((piece) => allowed(piece, req, false, false)).map((piece) => materialize(piece, req.sex));

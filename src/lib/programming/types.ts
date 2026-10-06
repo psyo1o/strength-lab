@@ -90,6 +90,19 @@ export type SessionDraft = {
   warmup_ko: string;
   strength: StrengthDraft | null;
   conditioning: ConditioningDraft | null;
+  /** Why this strength piece is here. Null on a rest day. */
+  strength_purpose: string | null;
+  strength_volume: VolumeBand | null;
+  strength_intensity: IntensityBand | null;
+  metcon_purpose: string | null;
+  metcon_format: WodFormat | null;
+  time_domain: TimeDomain | null;
+  stimulus: Stimulus | null;
+  movement_combination: string | null;
+  equipment: Equipment[];
+  volume: VolumeBand | null;
+  intensity: IntensityBand | null;
+  expected_duration: number | null;
 };
 
 export type ProgrammingIntent = {
@@ -140,11 +153,11 @@ export type FallbackReason =
 
 export const ENGINE_VERSION = "programming-1";
 
-/** Rule set stamped on each generation. Same string as the engine until the rules move on their own. */
-export const RULES_VERSION = "programming-1";
+/** Rule set stamped on each generation. programming-2 is the fallback that does not use a weekday lift map. */
+export const RULES_VERSION = "programming-2";
 
 export const MONTHLY_PROMPT_VERSION = "monthly-program-v2";
-export const WEEKLY_PROMPT_VERSION = "weekly-program-v2";
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v3";
 export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";
