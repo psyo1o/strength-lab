@@ -92,8 +92,10 @@ describe("stage 5A week contract and strength methods", () => {
     expect(format.type).toBe("json_schema");
     expect(format.json_schema.strict).toBe(true);
     expect(format.json_schema.schema.additionalProperties).toBe(false);
-    const sessions = format.json_schema.schema.properties.sessions as { items: { properties: Record<string, { anyOf?: Array<{ properties?: { lift?: { enum?: string[] } } }> }> } };
-    const liftEnum = sessions.items.properties.strength?.anyOf?.[0]?.properties?.lift?.enum;
+    const sessions = format.json_schema.schema.properties.sessions as {
+      items: { anyOf?: Array<{ properties?: { strength?: { properties?: { lift?: { enum?: string[] } } } } }> };
+    };
+    const liftEnum = sessions.items.anyOf?.[0]?.properties?.strength?.properties?.lift?.enum;
     expect(liftEnum).toEqual(["squat", "ohp", "bench", "deadlift"]);
     expect(liftEnum).not.toContain("press");
     expect(authored.ok).toBe(true);
@@ -157,7 +159,7 @@ describe("stage 5A week contract and strength methods", () => {
     const fourteen = judgeWeek(short, month, 1, []);
     expect(fourteen.ok).toBe(false);
     if (fourteen.ok) return;
-    expect(fourteen.errors.join(" ")).toMatch(/time domain does not match duration/);
+    expect(fourteen.errors.join(" ")).toMatch(/time_domain=short duration=14/);
 
     const noSunday = { ...base, sessions: base.sessions.filter((session) => session.day !== "sun") };
     const missing = judgeWeek(noSunday, month, 1, []);

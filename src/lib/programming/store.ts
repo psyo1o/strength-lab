@@ -25,7 +25,13 @@ export type GenerationWrite = {
   rulesVersion: string;
   inputSummaryVersion: string;
   generationAttempt: number;
-  responses: { attempt: number; raw: unknown; latencyMs?: number; responseFormat?: "json_schema" | "json_object" | null }[];
+  responses: {
+    attempt: number;
+    raw: unknown;
+    latencyMs?: number;
+    responseFormat?: "json_schema" | "json_object" | null;
+    normalizations?: string[];
+  }[];
 };
 
 export type WriteMode = "create" | "regenerate";
@@ -288,6 +294,7 @@ function insertGenerationLogs(
       JSON.stringify(
         scrubGenerationPayload({
           response_format: response.responseFormat ?? null,
+          normalizations: response.normalizations ?? [],
           body: response.raw,
         }),
       ),

@@ -47,12 +47,13 @@ const PULL_KEYS: Record<"snatch" | "clean" | "deadlift", string[]> = {
 };
 
 export type Judge =
-  | { ok: true; draft: WeekDraft; detail: string | null; errors: string[] }
+  | { ok: true; draft: WeekDraft; detail: string | null; errors: string[]; normalizations: string[] }
   | {
       ok: false;
       reason: "schema" | "language" | "rule_break" | "feedback" | "weekday_pattern" | "too_similar";
       detail: string;
       errors: string[];
+      normalizations: string[];
     };
 
 const ALLOWED_LATIN = /\b(?:AMRAP|EMOM|Rx|Scaled|Benchmark|Deload|5\/3\/1|531)\b/gi;
@@ -492,6 +493,47 @@ export const TIME_DOMAIN_RANGES = {
   long: { min: 30, max: 40 },
 } as const;
 
+const DAY_LABEL: Record<DayKey, string> = {
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
+};
+
+export function dayLabel(day: string): string {
+  return DAY_LABEL[day as DayKey] ?? day;
+}
+
+/**
+ * Structural cleanup only. A null strength object cannot carry purpose, volume, or intensity.
+ * Duration and time_domain are never rewritten here.
+ */
+export function normalizeWeekPayload(raw: unknown): { value: unknown; normalizations: string[] } {
+  if (!isRecord(raw) || !Array.isArray(raw.sessions)) return { value: raw, normalizations: [] };
+  const clone = structuredClone(raw) as Record<string, unknown>;
+  const sessions = clone.sessions;
+  if (!Array.isArray(sessions)) return { value: raw, normalizations: [] };
+  const normalizations: string[] = [];
+  for (const row of sessions) {
+    if (!isRecord(row) || row.strength != null) continue;
+    const cleared: string[] = [];
+    for (const key of ["strength_purpose", "strength_volume", "strength_intensity"] as const) {
+      if (row[key] != null) {
+        cleared.push(key);
+        row[key] = null;
+      }
+    }
+    if (cleared.length) {
+      const day = typeof row.day === "string" ? row.day : "session";
+      normalizations.push(`${dayLabel(day)}: cleared ${cleared.join(", ")} because strength is null`);
+    }
+  }
+  return { value: clone, normalizations };
+}
+
 function timeDomainFits(conditioning: ConditioningDraft): boolean {
   const minutes = conditioning.duration_min;
   const range = TIME_DOMAIN_RANGES[conditioning.time_domain];
@@ -525,10 +567,15 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if (session.equipment.length === 0) errors.push(`${session.day} lists no equipment`);
     if (session.strength) {
       if (!session.strength_purpose || !session.strength_volume || !session.strength_intensity) {
-        errors.push(`${session.day} strength fields are incomplete`);
+        errors.push(`${dayLabel(session.day)}: strength is present but strength_purpose, strength_volume, or strength_intensity is null`);
       }
     } else if (session.strength_purpose || session.strength_volume || session.strength_intensity) {
-      errors.push(`${session.day} describes strength without a lift`);
+      const dangling = [
+        session.strength_purpose ? "strength_purpose" : null,
+        session.strength_volume ? "strength_volume" : null,
+        session.strength_intensity ? "strength_intensity" : null,
+      ].filter((item): item is string => item != null);
+      errors.push(`${dayLabel(session.day)}: ${dangling.join(", ")} present but strength null`);
     }
     if (session.warmup_min < 8 || session.warmup_min > 12) errors.push(`${session.day} warmup is not 8–12`);
     if (!session.warmup_ko) errors.push(`${session.day} warmup text is empty`);
@@ -553,14 +600,18 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if ((session.stimulus ?? null) !== (session.conditioning.stimulus ?? null)) {
       errors.push(`${session.day} stimulus does not match`);
     }
-    if (!timeDomainFits(session.conditioning)) errors.push(`${session.day} time domain does not match duration`);
-    if (session.conditioning.long_conditioning !== (session.conditioning.time_domain === "long")) {
-      errors.push(`${session.day} long flag does not match duration`);
+    if (!timeDomainFits(session.conditioning)) {
+      const domain = session.conditioning.time_domain;
+      const range = TIME_DOMAIN_RANGES[domain];
+      errors.push(
+        `${dayLabel(session.day)}: time_domain=${domain} duration=${session.conditioning.duration_min} is outside ${range.min}–${range.max}`,
+      );
     }
-    const engineOnly =
-      session.conditioning.movement_patterns.length === 1 && session.conditioning.movement_patterns[0] === "engine";
-    if (session.conditioning.stimulus == null && !engineOnly && !session.conditioning.benchmark) {
-      errors.push(`${session.day} stimulus must be heavy, high_rep, or technical`);
+    if (session.conditioning.long_conditioning !== (session.conditioning.time_domain === "long")) {
+      errors.push(`${dayLabel(session.day)}: long flag does not match duration`);
+    }
+    if (session.conditioning.stimulus == null || !(STIMULI as readonly string[]).includes(session.conditioning.stimulus)) {
+      errors.push(`${dayLabel(session.day)}: conditioning present but stimulus null; allowed ${STIMULI.join(", ")}`);
     }
   }
   if (seen.size !== 7) errors.push("a day is missing");
@@ -777,23 +828,34 @@ export function previousLowerFatigue(actual: WeekActual | null | undefined): "hi
   return "unknown";
 }
 
-/** Constraints the prompt shows and the feedback check enforces. */
-export function fatigueConstraintInput(actual: WeekActual | null | undefined) {
+/**
+ * Server-computed limits. The weekly prompt names this object hard_constraints.
+ * A number is a maximum. Exceeding it is a reject, not a suggestion.
+ */
+export function hardConstraints(actual: WeekActual | null | undefined) {
   const level = previousLowerFatigue(actual);
+  const high = level === "high";
   return {
+    authority: "MUST NOT EXCEED" as const,
     previous_lower_fatigue: level,
     previous_volume: actual?.class_summary?.actual_volume ?? null,
     previous_intensity: actual?.class_summary?.actual_intensity ?? null,
-    allowed_strength_sets: level === "high" ? "method_fatigue_limit" : "method_prescription",
-    heavy_lower_sessions_max: level === "high" ? 1 : null,
-    heavy_lower_metcon: level === "high" ? "avoid" : "allowed",
-    note:
-      level === "high"
-        ? "Previous lower fatigue is high. Use the method's reduced lower prescription, keep at most one heavy lower session, and do not program a heavy lower metcon."
-        : level === "low"
-          ? "Previous fatigue is low. Use the method's normal prescription. Do not drop squat or deadlift below that method, and do not switch methods."
-          : "No high or low fatigue signal. Use the selected method's prescription.",
+    allowed_strength_sets: high ? "method_fatigue_limit" : "method_prescription",
+    heavy_lower_sessions_max: high ? 1 : null,
+    heavy_lower_metcon: high ? "avoid" : "allowed",
+    volume_direction: high ? "do_not_increase_lower" : "method_prescription",
+    intensity_direction: high ? "do_not_exceed_method_fatigue_limit" : "method_prescription",
+    rule: high
+      ? "A heavy lower session is squat or deadlift with a top set at 85% or more. That count MUST NOT EXCEED heavy_lower_sessions_max. Do not program a heavy lower metcon. Exceeding a limit is rejected."
+      : level === "low"
+        ? "Previous fatigue is low. Use the method's normal prescription. Do not drop squat or deadlift below that method, and do not switch methods."
+        : "No high or low fatigue signal. Use the selected method's prescription. When a maximum is present it is mandatory.",
   };
+}
+
+/** Same object the prompt sends as hard_constraints. */
+export function fatigueConstraintInput(actual: WeekActual | null | undefined) {
+  return hardConstraints(actual);
 }
 
 function isLowerMetcon(session: SessionDraft): boolean {
@@ -869,9 +931,15 @@ export function feedbackViolations(
   }
   if (level === "high") {
     const heavy = lower.filter((session) => session.strength && strengthIsHeavy(session.strength.sets));
-    if (heavy.length > 1) errors.push("heavy lower sessions exceed 1 while previous lower fatigue is high");
+    const max = hardConstraints(actual).heavy_lower_sessions_max ?? 1;
+    if (heavy.length > max) {
+      const days = heavy.map((session) => dayLabel(session.day)).join(", ");
+      errors.push(`${days}: heavy lower sessions ${heavy.length} exceed hard_constraints.heavy_lower_sessions_max=${max}`);
+    }
     for (const session of draft.sessions) {
-      if (heavyLowerMetcon(session)) errors.push(`${session.day} heavy lower metcon while previous lower fatigue is high`);
+      if (heavyLowerMetcon(session)) {
+        errors.push(`${dayLabel(session.day)}: heavy lower metcon exceeds hard_constraints.heavy_lower_metcon=avoid`);
+      }
     }
   }
   const text = `${draft.intent.why_ko}\n${draft.intent.focus}\n${draft.intent.scheme_note}`;
@@ -924,8 +992,12 @@ function koreanErrors(value: unknown): string[] {
   return found ? [found] : [];
 }
 
-function failed(reason: Extract<Judge, { ok: false }>["reason"], errors: string[]): Judge {
-  return { ok: false, reason, detail: errors[0] ?? "validation failed", errors };
+function failed(
+  reason: Extract<Judge, { ok: false }>["reason"],
+  errors: string[],
+  normalizations: string[] = [],
+): Judge {
+  return { ok: false, reason, detail: errors[0] ?? "validation failed", errors, normalizations };
 }
 
 /**
@@ -939,16 +1011,18 @@ export function judgeWeek(
   recent: readonly StoredStructure[],
   context: WeekCheckContext = {},
 ): Judge {
-  const parsed = describeWeekParse(raw);
-  if (!parsed.ok) return failed("schema", parsed.errors);
-  const draft = parseWeekDraft(raw);
-  if (!draft) return failed("schema", ["unreadable week"]);
-  const schema = weekSchemaErrors(draft, raw);
-  if (schema.length) return failed("schema", schema);
+  const normalized = normalizeWeekPayload(raw);
+  const body = normalized.value;
+  const parsed = describeWeekParse(body);
+  if (!parsed.ok) return failed("schema", parsed.errors, normalized.normalizations);
+  const draft = parseWeekDraft(body);
+  if (!draft) return failed("schema", ["unreadable week"], normalized.normalizations);
+  const schema = weekSchemaErrors(draft, body);
   const constitution = constitutionViolations(draft, month, weekIndex);
   const scheme = constitution.filter((error) => error.includes("sets do not match"));
   const sameWeek = constitution.filter((error) => !schema.includes(error) && !error.includes("sets do not match"));
-  const stages: Array<{ reason: "rule_break" | "feedback" | "weekday_pattern" | "too_similar" | "language"; errors: string[] }> = [
+  const stages: Array<{ reason: "schema" | "rule_break" | "feedback" | "weekday_pattern" | "too_similar" | "language"; errors: string[] }> = [
+    { reason: "schema", errors: schema },
     { reason: "rule_break", errors: scheme },
     { reason: "feedback", errors: feedbackViolations(draft, month, weekIndex, context.previousActual) },
     {
@@ -960,9 +1034,9 @@ export function judgeWeek(
     { reason: "language", errors: koreanErrors(draft) },
   ];
   const hit = stages.filter((stage) => stage.errors.length > 0);
-  if (!hit.length) return { ok: true, draft, detail: null, errors: [] };
+  if (!hit.length) return { ok: true, draft, detail: null, errors: [], normalizations: normalized.normalizations };
   const errors = hit.flatMap((stage) => stage.errors);
-  return failed(hit[0]!.reason, errors);
+  return failed(hit[0]!.reason, errors, normalized.normalizations);
 }
 
 export function liftOf(session: SessionDraft): MainLift | null {

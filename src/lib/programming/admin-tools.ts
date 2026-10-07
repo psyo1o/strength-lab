@@ -14,6 +14,7 @@ import { authorMonth, authorWeek, type FetchLike } from "./model";
 import {
   describeWeekParse,
   fatigueConstraintInput,
+  hardConstraints,
   feedbackViolations,
   judgeWeek,
   similarityScore,
@@ -224,6 +225,7 @@ export async function dryRunWeek(input: {
     similarity: draft ? similarityViolations(draft, recent) : [],
     feedback: {
       metrics: draft ? weekBurden(draft) : null,
+      hard_constraints: hardConstraints(previous?.actual ?? null),
       constraints: fatigueConstraintInput(previous?.actual ?? null),
       errors: draft ? feedbackViolations(draft, direction, weekIndex, previous?.actual ?? null) : [],
     },

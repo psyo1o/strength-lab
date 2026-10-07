@@ -218,6 +218,7 @@ export function rulesDisplayWeek(weekIndex: WeekIndex): PlannedWeek {
 }
 
 export function extractDraft(display: PlannedWeek, intent: ProgrammingIntent): WeekDraft {
+  let previousStimulus: Stimulus | null = null;
   const sessions: SessionDraft[] = display.days.map((day) => {
     if (day.rest || !day.piece) {
       return fillSessionFields({
@@ -231,7 +232,10 @@ export function extractDraft(display: PlannedWeek, intent: ProgrammingIntent): W
       });
     }
     const warmup = day.blocks.find((block) => block.role === "warmup");
-    const stimulus = day.piece.stimulus ? STIMULUS_FROM_KO[day.piece.stimulus] : null;
+    const keys = day.piece.movements.map((movement) => movement.key);
+    let stimulus: Stimulus = day.piece.stimulus ? STIMULUS_FROM_KO[day.piece.stimulus] : stimulusFor(keys);
+    if (stimulus === previousStimulus) stimulus = stimulus === "high_rep" ? "technical" : "high_rep";
+    previousStimulus = stimulus;
     const patterns = [day.piece.pattern as MovementPattern];
     const conditioning: ConditioningDraft = {
       benchmark: day.piece.id === "sl-month-benchmark",
@@ -640,6 +644,178 @@ function breaksChain(
   return false;
 }
 
+type SyntheticRecipe = {
+  stimulus: Stimulus;
+  movements: Array<{ key: string; amount: string; nameKo: string }>;
+};
+
+/** Distinct pattern and equipment sets. Used only when the catalog search cannot fill the week. */
+const SYNTHETIC_RECIPES: SyntheticRecipe[] = [
+  { stimulus: "high_rep", movements: [{ key: "row", amount: "12/10cal", nameKo: "로잉" }, { key: "burpee", amount: "8", nameKo: "버피" }] },
+  { stimulus: "high_rep", movements: [{ key: "fan_bike", amount: "10/8cal", nameKo: "팬바이크" }, { key: "push_up", amount: "10", nameKo: "푸시업" }] },
+  { stimulus: "high_rep", movements: [{ key: "ski", amount: "200m", nameKo: "스키" }, { key: "sit_up", amount: "12", nameKo: "싯업" }] },
+  { stimulus: "high_rep", movements: [{ key: "double_under", amount: "30", nameKo: "더블언더" }, { key: "push_up", amount: "8", nameKo: "푸시업" }] },
+  { stimulus: "high_rep", movements: [{ key: "run", amount: "200m", nameKo: "런" }, { key: "burpee", amount: "6", nameKo: "버피" }] },
+  { stimulus: "high_rep", movements: [{ key: "row", amount: "10/8cal", nameKo: "로잉" }, { key: "push_up", amount: "6", nameKo: "푸시업" }, { key: "sit_up", amount: "10", nameKo: "싯업" }] },
+  { stimulus: "technical", movements: [{ key: "handstand", amount: "20초", nameKo: "핸드스탠드 홀드" }, { key: "ring_row", amount: "8", nameKo: "링 로우" }] },
+  { stimulus: "technical", movements: [{ key: "muscle_up", amount: "2", nameKo: "머슬업" }, { key: "push_up", amount: "6", nameKo: "푸시업" }] },
+  { stimulus: "technical", movements: [{ key: "double_under", amount: "20", nameKo: "더블언더" }, { key: "handstand", amount: "15초", nameKo: "핸드스탠드 홀드" }] },
+  { stimulus: "technical", movements: [{ key: "ski", amount: "150m", nameKo: "스키" }, { key: "toes_to_bar", amount: "6", nameKo: "토즈 투 바" }, { key: "handstand", amount: "10초", nameKo: "핸드스탠드 홀드" }] },
+  { stimulus: "technical", movements: [{ key: "hspu", amount: "3", nameKo: "핸드스탠드 푸시업" }, { key: "row", amount: "8/6cal", nameKo: "로잉" }] },
+  { stimulus: "technical", movements: [{ key: "muscle_up", amount: "2", nameKo: "머슬업" }, { key: "fan_bike", amount: "8/6cal", nameKo: "팬바이크" }] },
+  { stimulus: "heavy", movements: [{ key: "power_clean", amount: "3", nameKo: "파워 클린" }, { key: "push_up", amount: "6", nameKo: "푸시업" }] },
+  { stimulus: "heavy", movements: [{ key: "hang_power_clean", amount: "3", nameKo: "행 파워 클린" }, { key: "ring_row", amount: "6", nameKo: "링 로우" }] },
+  { stimulus: "heavy", movements: [{ key: "power_snatch", amount: "3", nameKo: "파워 스내치" }, { key: "push_up", amount: "6", nameKo: "푸시업" }] },
+  { stimulus: "heavy", movements: [{ key: "power_clean", amount: "3", nameKo: "파워 클린" }, { key: "box_jump", amount: "6", nameKo: "박스 점프" }] },
+];
+
+function recipeFormatAllowed(recipe: SyntheticRecipe, format: WodFormat): boolean {
+  if (format !== "emom") return true;
+  return recipe.movements.every((movement) => stationFitsMinute(movement.key, movement.amount));
+}
+
+function recipeBlocked(recipe: SyntheticRecipe, slot: DaySlot): boolean {
+  const patterns = patternsFor(recipe.movements.map((movement) => movement.key));
+  if (slot.avoidLower && patterns.some((pattern) => pattern === "squat" || pattern === "hinge")) return true;
+  return recipe.movements.some((movement) => slot.bans.includes(movement.key));
+}
+
+function syntheticDraft(
+  recipe: SyntheticRecipe,
+  options: { format: WodFormat; minutes: number; volume: VolumeBand; longPiece: boolean },
+): ConditioningDraft {
+  const keys = recipe.movements.map((movement) => movement.key);
+  const names = recipe.movements.map((movement) => movement.nameKo).join(", ");
+  const text = workText(options.format, options.minutes, names, options.longPiece);
+  return {
+    benchmark: false,
+    format: options.format,
+    time_domain: domain(options.minutes),
+    stimulus: recipe.stimulus,
+    movement_patterns: patternsFor(keys),
+    movements: recipe.movements.map((movement) => ({
+      key: movement.key,
+      amount: pairedAmount(movement.key, movement.amount),
+      name_ko: movement.nameKo,
+    })),
+    equipment: uniqueEquipment(keys),
+    rep_structure: text.rep,
+    work_rest_structure: text.rest,
+    duration_min: options.minutes,
+    volume: options.volume,
+    intensity: recipe.stimulus === "heavy" ? "heavy" : recipe.stimulus === "technical" ? "light" : "moderate",
+    long_conditioning: options.longPiece,
+  };
+}
+
+function minutesForRole(slot: DaySlot): number[] {
+  if (slot.role === "long") return [35, 32, 38];
+  if (slot.role === "short") return [10, 12, 8, 14, 16];
+  return [16, 14, 18, 12, 10];
+}
+
+function stimulusOrder(recovery: boolean): Stimulus[] {
+  return recovery ? ["high_rep", "technical", "heavy"] : ["technical", "high_rep", "heavy"];
+}
+
+/**
+ * Last path when the catalog cannot fill every training day.
+ * Still has to pass judgeWeek: legal stimulus, duration, no same-week conflict, not too similar.
+ */
+function assignGuaranteedConditioning(
+  slots: DaySlot[],
+  weekIndex: WeekIndex,
+  month: MonthDirection,
+  highLower: boolean,
+  lifts: Map<DayKey, MainLift>,
+  recent: readonly StoredStructure[],
+): Map<DayKey, ConditioningDraft> {
+  const recovery = month.strength_method === "DELOAD_RECOVERY" || month.scheme === "deload";
+  const assigned = new Map<DayKey, ConditioningDraft>();
+  const chosen: StoredStructure[] = [];
+  const usedCombos = new Set<string>();
+  const optionCache = new Map<string, ConditioningDraft[]>();
+  let nodes = 0;
+
+  const optionsFor = (slot: DaySlot, previousStimulus: Stimulus | null): ConditioningDraft[] => {
+    const cacheKey = `${slot.day}|${previousStimulus ?? "-"}`;
+    const cached = optionCache.get(cacheKey);
+    if (cached) return cached;
+    if (slot.role === "benchmark") {
+      const benchmark = draftOptions(slot, weekIndex, 0).slice(0, 1);
+      optionCache.set(cacheKey, benchmark);
+      return benchmark;
+    }
+    const nextDay = slots[slots.findIndex((row) => row.day === slot.day) + 1];
+    const nextLocked = nextDay && (nextDay.role === "long" || nextDay.role === "benchmark") ? "high_rep" : null;
+    const formats: WodFormat[] = ["amrap", "for_time", "intervals", "emom"];
+    const out: ConditioningDraft[] = [];
+    for (const stimulus of stimulusOrder(recovery)) {
+      if (stimulus === previousStimulus || stimulus === nextLocked) continue;
+      let added = 0;
+      for (const volume of ["low", "moderate", "high"] as VolumeBand[]) {
+        for (const format of formats) {
+          for (const minutes of minutesForRole(slot)) {
+            const longPiece = slot.role === "long" && minutes >= 30;
+            if (slot.role === "long" && !longPiece) continue;
+            if (slot.role === "short" && minutes > 12 && added > 0) continue;
+            for (const recipe of SYNTHETIC_RECIPES) {
+              if (recipe.stimulus !== stimulus || recipeBlocked(recipe, slot) || !recipeFormatAllowed(recipe, format)) continue;
+              const draft = syntheticDraft(recipe, { format, minutes, volume, longPiece });
+              if (recent.some((prior) => structurallySimilar(asStructure(draft, slot.day), prior))) continue;
+              out.push(draft);
+              added += 1;
+              if (added >= 8) break;
+            }
+            if (added >= 8) break;
+          }
+          if (added >= 8) break;
+        }
+        if (added >= 8) break;
+      }
+    }
+    optionCache.set(cacheKey, out);
+    return out;
+  };
+
+  const visit = (index: number, previousStimulus: Stimulus | null): boolean => {
+    if (index >= slots.length) return true;
+    if (nodes++ > 4000) return false;
+    const slot = slots[index]!;
+    const priors = [...chosen, ...recent];
+    const nextDay = slots[index + 1];
+    for (const draft of optionsFor(slot, previousStimulus)) {
+      if (draft.stimulus && draft.stimulus === previousStimulus) continue;
+      const combo = comboKey(draft.movements.map((movement) => movement.key));
+      if (usedCombos.has(combo)) continue;
+      if (!draft.benchmark && priors.some((prior) => structurallySimilar(asStructure(draft, slot.day), prior))) continue;
+      const today = exposureOf(slot.lift, draft, month, weekIndex, highLower);
+      const previousDay = index > 0 ? slots[index - 1] : undefined;
+      if (previousDay) {
+        const previous = exposureOf(previousDay.lift, assigned.get(previousDay.day) ?? null, month, weekIndex, highLower);
+        if (breaksChain(previous, today)) continue;
+      }
+      if (nextDay) {
+        const nextLift = lifts.get(nextDay.day) ?? null;
+        if (breaksChain(today, exposureOf(nextLift, null, month, weekIndex, highLower))) continue;
+        if ((today.heavySquat || today.heavyDeadlift) && nextDay.role === "long") continue;
+        if (draft.stimulus === "high_rep" && (nextDay.role === "long" || nextDay.role === "benchmark")) continue;
+      }
+      assigned.set(slot.day, draft);
+      usedCombos.add(combo);
+      if (!draft.benchmark) chosen.push(asStructure(draft, slot.day));
+      if (visit(index + 1, draft.stimulus)) return true;
+      assigned.delete(slot.day);
+      usedCombos.delete(combo);
+      if (!draft.benchmark) chosen.pop();
+    }
+    return false;
+  };
+
+  if (!visit(0, null)) throw new Error("no legal fallback conditioning");
+  return assigned;
+}
+
 function assignConditioning(
   slots: DaySlot[],
   weekIndex: WeekIndex,
@@ -694,8 +870,8 @@ function assignConditioning(
     return false;
   };
 
-  if (!visit(0, null)) throw new Error("no legal fallback conditioning");
-  return assigned;
+  if (visit(0, null)) return assigned;
+  return assignGuaranteedConditioning(slots, weekIndex, month, highLower, lifts, recent);
 }
 
 type FallbackCore = {
