@@ -131,7 +131,8 @@ describe("long-term programming engine", () => {
 
     const fetchImpl = vi.fn(async () => new Response("no", { status: 500 }));
     await ensureProgrammingWeek(WEEK2, { nowMs: NOW + 2, key: KEY, fetchImpl });
-    const sent = promptOf(fetchImpl);
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    const sent = promptOf(fetchImpl, 0);
     const summary = sent.summary as {
       previous_week: {
         generation_source: string;
@@ -141,11 +142,16 @@ describe("long-term programming engine", () => {
     };
     expect(summary.personalization).toBeNull();
     expect(summary.previous_week.actual.days[0]).toMatchObject({ day: "mon", result_ko: "5라운드" });
-    const packed = JSON.stringify(sent);
+    const packed = JSON.stringify(fetchImpl.mock.calls.map((call) => String((call[1] as RequestInit).body)));
     expect(packed).not.toContain(SECRET_EMAIL);
     expect(packed).not.toContain(SECRET_NOTE);
     expect(packed).not.toContain('"candidate_id"');
-    expect(sent.task).toBe("Write the whole class week, including why. Do not pick from a catalog.");
+    expect(sent.task).toBe("Return one weekly intent. Decide what each day trains. Do not write exercises, sets, reps, kilograms, or a WOD.");
+    const wod = promptOf(fetchImpl, 2);
+    expect(wod.task).toBe("Write the class week that realizes weekly_intent. The intent is already decided. Do not invent a new week purpose.");
+    const wodSummary = wod.summary as { previous_week: { actual: { days: { day: string; result_ko: string }[] } } };
+    expect(wodSummary.previous_week.actual.days[0]).toMatchObject({ day: "mon", result_ko: "5라운드" });
+    expect(wod.weekly_intent).toBeTruthy();
   });
 
   it("treats several matching structural axes as a near-copy, and lets the same movement through", () => {
@@ -197,7 +203,7 @@ describe("long-term programming engine", () => {
     await ensureProgrammingMonth("2026-09-01", { nowMs: NOW, key: null });
     const fetchImpl = vi.fn(async () => new Response("no", { status: 429 }));
     const week = await ensureProgrammingWeek(WEEK1, { nowMs: NOW, key: KEY, fetchImpl });
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
     expect(week.generationSource).toBe("fallback");
     expect(week.fallbackReason).toBe("http_error");
     expect(week.generatedAt).toBe(NOW);
@@ -207,7 +213,7 @@ describe("long-term programming engine", () => {
     recordWeeklyActual(WEEK1, { note_ko: "", days: [{ day: "fri", completed: true, result_ko: "12분" }] }, NOW);
     const nextFetch = vi.fn(async () => new Response("still-down", { status: 500 }));
     const second = await ensureProgrammingWeek(WEEK2, { nowMs: NOW + 5, key: KEY, fetchImpl: nextFetch });
-    expect(nextFetch).toHaveBeenCalledTimes(2);
+    expect(nextFetch).toHaveBeenCalledTimes(4);
     expect(second.generationSource).toBe("fallback");
     const sent = promptOf(nextFetch);
     const previous = (sent.summary as { previous_week: Record<string, unknown> }).previous_week;
@@ -234,7 +240,7 @@ describe("long-term programming engine", () => {
     monday.movement_patterns = ["engine"];
     const fetchImpl = vi.fn(async () => envelope(draft));
     const week = await ensureProgrammingWeek(WEEK1, { nowMs: NOW, key: KEY, fetchImpl });
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(week.generationSource).toBe("model");
     expect(week.fallbackReason).toBeNull();
     expect(week.draft.sessions[0]?.conditioning?.movements[0]?.key).toBe("ski");

@@ -30,17 +30,22 @@ import {
   MOVEMENT_PATTERNS,
   SIMILARITY_CONFIG,
   STIMULI,
+  INTENT_PROMPT_VERSION,
   WEEKLY_PROMPT_VERSION,
+  WOD_FROM_INTENT_PROMPT_VERSION,
   type FallbackReason,
   type MonthDirection,
   type StoredStructure,
   type WeekDraft,
   type WeekIndex,
+  type WeeklyIntentPlan,
 } from "./types";
+import { intentContextView, parseWeeklyIntent, planWeeklyIntent, type WeeklyIntentContext } from "./weekly-intent";
 import type { ProgrammingSummary } from "./summary";
 
 export const WEEK_MAX_TOKENS = 8_000;
 export const MONTH_MAX_TOKENS = 2_500;
+export const INTENT_MAX_TOKENS = 2_500;
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -1332,12 +1337,208 @@ function repairReport(previousErrors: readonly string[], previous: WeekDraft, ne
   };
 }
 
+const INTENT_ENUMS = {
+  primary_training: ["lower_strength", "upper_strength", "upper_pull", "posterior_chain", "olympic_strength", "olympic_technique", "gymnastics_skill", "aerobic", "mixed_modal", "recovery", "rest"],
+  secondary_training: ["none", "short_anaerobic", "sprint", "aerobic", "moderate_conditioning", "gymnastics_skill", "technique", "long_conditioning", "mixed_modal"],
+  stimulus: ["heavy_strength_sprint", "skill_aerobic", "strength_mixed", "recovery_technique", "posterior_sprint", "long_mixed", "olympic_short", "aerobic_capacity", "volume_strength", "upper_short", "threshold", "deload_easy"],
+  strength_lift: ["squat", "ohp", "bench", "deadlift", "none"],
+  recovery_role: ["train", "easy", "rest"],
+  block_phase: ["accumulation", "progression", "peak", "deload", "emphasis"],
+} as const;
+
+function intentResponseFormat(): ResponseFormat {
+  const day = strictObject(
+    {
+      day: stringEnum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]),
+      primary_training: stringEnum(INTENT_ENUMS.primary_training),
+      secondary_training: stringEnum(INTENT_ENUMS.secondary_training),
+      training_goal: WEEK_STRING,
+      stimulus: stringEnum(INTENT_ENUMS.stimulus),
+      intensity_profile: stringEnum(["light", "moderate", "heavy", "mixed"]),
+      volume_profile: stringEnum(["low", "moderate", "high"]),
+      duration_profile: stringEnum(["30-45", "45-60", "60-75", "rest"]),
+      fatigue_target: stringEnum(["low", "moderate", "high"]),
+      movement_pattern: stringEnum(["squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic", "mixed", "none"]),
+      progression_required: { type: "boolean" },
+      recovery_role: stringEnum(INTENT_ENUMS.recovery_role),
+      strength_lift: stringEnum(INTENT_ENUMS.strength_lift),
+      benchmark: { type: "boolean" },
+      notes_ko: WEEK_STRING,
+    },
+    [
+      "day",
+      "primary_training",
+      "secondary_training",
+      "training_goal",
+      "stimulus",
+      "intensity_profile",
+      "volume_profile",
+      "duration_profile",
+      "fatigue_target",
+      "movement_pattern",
+      "progression_required",
+      "recovery_role",
+      "strength_lift",
+      "benchmark",
+      "notes_ko",
+    ],
+  );
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "weekly_intent",
+      strict: true,
+      schema: strictObject(
+        {
+          block_phase: stringEnum(INTENT_ENUMS.block_phase),
+          emphasis: stringEnum(["mixed", "olympic", "gymnastics", "aerobic", "long_conditioning"]),
+          why_ko: WEEK_STRING,
+          focus: WEEK_STRING,
+          scheme_note: WEEK_STRING,
+          adjustment_ko: WEEK_STRING,
+          days: { type: "array", items: day },
+        },
+        ["block_phase", "emphasis", "why_ko", "focus", "scheme_note", "adjustment_ko", "days"],
+      ),
+    },
+  };
+}
+
+/**
+ * Intent prompt. It stops before sets and movement names.
+ * The month is a direction. Last week's actuals can move the days.
+ */
+export function intentPrompt(context: WeeklyIntentContext, retryErrors?: readonly string[]): unknown {
+  return {
+    ...intentContextView(context),
+    task: "Return one weekly intent. Decide what each day trains. Do not write exercises, sets, reps, kilograms, or a WOD.",
+    prompt_version: INTENT_PROMPT_VERSION,
+    previous_generation_source: context.summary?.previous_week?.generation_source ?? null,
+    summary: context.summary ?? null,
+    rules: [
+      "Seven days, mon through sun. Sunday is rest unless recovery is already covered and the month still needs a training day. A rest day has primary_training rest.",
+      "Do not lock Monday to squat or any other weekday to one exercise. The day's role can move next week.",
+      "Keep the month's strength method. Do not switch it in this week.",
+      "Same movement pattern may continue when progression_required is true. Changing only the exercise name is not variation.",
+      "High lower-body fatigue means fewer lower exposures and lower volume, not a random new week.",
+      "Missed days mean the same purpose at lower volume, not a harder week.",
+      "A long conditioning week gets one day whose secondary_training is long_conditioning. Other weeks do not.",
+      "The benchmark week gets one benchmark day.",
+      "why_ko, focus, scheme_note, adjustment_ko, training_goal, and notes_ko are Korean.",
+    ],
+    ...(retryErrors && retryErrors.length
+      ? {
+          instruction: `Previous output violated: ${retryErrors[0]}`,
+          previous_output_violated: retryErrors.slice(0, 3),
+        }
+      : {}),
+  };
+}
+
+/** WOD prompt. The intent is already chosen. This call only realizes it. */
+export function wodFromIntentPrompt(input: {
+  summary: ProgrammingSummary;
+  month: MonthDirection;
+  weekIndex: WeekIndex;
+  recent?: readonly StoredStructure[];
+  weeklyIntent: WeeklyIntentPlan;
+  retryErrors?: readonly string[];
+  previousDraft?: unknown;
+}): unknown {
+  const method = input.month.strength_method || input.month.scheme;
+  const previous = input.summary.previous_week;
+  const limits = hardConstraints(previous?.actual);
+  const allowed = allowedStrengthProgramming(method, input.weekIndex, previous?.actual);
+  const requirements = weeklyRequirements(input.month, input.weekIndex);
+  const retry = input.retryErrors?.length
+    ? {
+        instruction: `Previous output violated: ${input.retryErrors[0]}`,
+        previous_output_violated: input.retryErrors.slice(0, 4),
+        previous_draft: input.previousDraft ?? null,
+        repair: "Change only the day named by the violation. Keep the weekly intent. Do not rewrite the other days.",
+      }
+    : null;
+  return {
+    task: "Write the class week that realizes weekly_intent. The intent is already decided. Do not invent a new week purpose.",
+    prompt_version: WOD_FROM_INTENT_PROMPT_VERSION,
+    previous_generation_source: previous?.generation_source ?? null,
+    summary: input.summary,
+    week_index: input.weekIndex,
+    weekly_intent: input.weeklyIntent,
+    strength_method: method,
+    allowed_programming: allowed,
+    weekly_requirements: requirements,
+    hard_constraints: {
+      heavy_lower_sessions_max: limits.heavy_lower_sessions_max,
+      heavy_lower_metcon: limits.heavy_lower_metcon,
+      heavy_lower_definition: limits.heavy_lower_definition,
+    },
+    safety: [
+      "No invented kilograms. Strength is percent_of_tm only.",
+      "A rest day has rest true, warmup_min 0, empty warmup_ko, and null work.",
+      "Training days need conditioning. duration_min chooses time_domain: 1–12 short, 13–29 medium, 30–40 long.",
+      "Long conditioning matches weekly_requirements. Not on a heavy squat or deadlift, and not the day after one.",
+      "Squat and deadlift use lower_body_sets. Bench and ohp use upper_body_sets.",
+      "Do not place a heavy pull the day after a heavy squat, or a heavy squat the day after a heavy deadlift.",
+      "Same intent still changes format, work/rest, or combination. Do not only rename a movement.",
+      "Progression may keep strength_lift and the method sets.",
+      "Korean for every *_ko field, focus, and scheme_note.",
+      "Top-level JSON is { intent, sessions } with mon through sun.",
+    ],
+    recent_structures: (input.recent ?? []).slice(-8).map((row) => ({
+      format: row.format,
+      time_domain: row.time_domain,
+      stimulus: row.stimulus,
+      movement_pattern: row.movement_patterns,
+      volume: row.volume,
+    })),
+    ...(retry ? { retry } : {}),
+  };
+}
+
+export async function authorWeeklyIntent(input: {
+  context: WeeklyIntentContext;
+  key?: string | null;
+  fetchImpl?: FetchLike;
+  timeoutMs?: number;
+}): Promise<{ ok: true; plan: WeeklyIntentPlan; trace: AuthorTrace } | { ok: false; reason: FallbackReason; trace: AuthorTrace }> {
+  const key = input.key === undefined ? serverModelKey() : input.key;
+  const baseline = planWeeklyIntent(input.context);
+  if (!key) return { ok: false, reason: "no_model", trace: noModelTrace() };
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const timeoutMs = input.timeoutMs ?? weeklyTimeoutMs();
+  const result = await authorWithRetries({
+    key,
+    body: intentPrompt(input.context),
+    fetchImpl,
+    timeoutMs,
+    maxTokens: INTENT_MAX_TOKENS,
+    format: intentResponseFormat(),
+    retryBody: (errors) => intentPrompt(input.context, errors),
+    accept: (json) => {
+      const plan = parseWeeklyIntent(json, baseline);
+      if (!plan) return { ok: false, reason: "schema", detail: "weekly intent schema", errors: ["weekly intent schema"] };
+      const english = englishKoPath({
+        why_ko: plan.why_ko,
+        focus: plan.focus,
+        scheme_note: plan.scheme_note,
+        adjustment_ko: plan.adjustment_ko,
+        days: plan.days.map((day) => ({ notes_ko: day.notes_ko })),
+      });
+      if (english) return { ok: false, reason: "language", detail: english, errors: [english] };
+      return { ok: true, value: plan };
+    },
+  });
+  return result.ok ? { ok: true, plan: result.value, trace: result.trace } : result;
+}
+
 export async function authorWeek(input: {
   summary: ProgrammingSummary;
   month: MonthDirection;
   weekIndex: WeekIndex;
   recent: readonly StoredStructure[];
   recentLiftMaps?: readonly string[];
+  weeklyIntent?: WeeklyIntentPlan | null;
   key?: string | null;
   fetchImpl?: FetchLike;
   timeoutMs?: number;
@@ -1356,15 +1557,19 @@ export async function authorWeek(input: {
     weekIndex: input.weekIndex,
     recent: input.recent,
   };
+  const intent = input.weeklyIntent ?? null;
   let previousErrors: string[] = [];
   const result = await authorWithRetries({
     key,
-    body: weekPrompt(promptInput),
+    body: intent ? wodFromIntentPrompt({ ...promptInput, weeklyIntent: intent }) : weekPrompt(promptInput),
     fetchImpl,
     timeoutMs,
     maxTokens: WEEK_MAX_TOKENS,
     format: weekResponseFormat(),
-    retryBody: (errors, previous) => weekPrompt({ ...promptInput, retryErrors: errors, previousDraft: previous }),
+    retryBody: (errors, previous) =>
+      intent
+        ? wodFromIntentPrompt({ ...promptInput, weeklyIntent: intent, retryErrors: errors, previousDraft: previous })
+        : weekPrompt({ ...promptInput, retryErrors: errors, previousDraft: previous }),
     accept: (json, meta) => {
       const judged = judgeWeek(json, input.month, input.weekIndex, input.recent, context);
       const draft = judged.ok ? judged.draft : parseWeekDraft(normalizeWeekPayload(json).value);

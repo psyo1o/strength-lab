@@ -20,6 +20,7 @@ import {
   RULES_VERSION,
   SIMILARITY_CONFIG,
   WEEKLY_PROMPT_VERSION,
+  WOD_FROM_INTENT_PROMPT_VERSION,
   type StoredStructure,
 } from "../src/lib/programming/types";
 
@@ -156,7 +157,7 @@ describe("stage 1 generation guard", () => {
       generationSource: "model",
       fallbackReason: null,
       modelName: MONTH_PLAN_OPENAI_MODEL,
-      promptVersion: WEEKLY_PROMPT_VERSION,
+      promptVersion: WOD_FROM_INTENT_PROMPT_VERSION,
       rulesVersion: RULES_VERSION,
       generationTimestamp: NOW + 1,
       inputSummaryVersion: INPUT_SUMMARY_VERSION,
@@ -164,11 +165,12 @@ describe("stage 1 generation guard", () => {
       status: "active",
     });
     expect(week.modelName).toBe("gpt-5.4-nano");
+    expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v10");
     const logs = getSqlite()
       .prepare("SELECT raw_json, model_name, prompt_version FROM programming_generation_logs WHERE scope = 'week'")
       .all() as { raw_json: string; model_name: string; prompt_version: string }[];
     expect(logs).toHaveLength(1);
-    expect(logs[0]).toMatchObject({ model_name: MONTH_PLAN_OPENAI_MODEL, prompt_version: WEEKLY_PROMPT_VERSION });
+    expect(logs[0]).toMatchObject({ model_name: MONTH_PLAN_OPENAI_MODEL, prompt_version: WOD_FROM_INTENT_PROMPT_VERSION });
     expect(logs[0]?.raw_json).not.toContain("secret@example.com");
     expect(logs[0]?.raw_json).not.toContain("회원이름토큰");
     expect(logs[0]?.raw_json).toContain("[redacted]");
@@ -176,12 +178,12 @@ describe("stage 1 generation guard", () => {
 
     const failed = vi.fn(async () => new Response("no", { status: 500 }));
     const fallback = await ensureProgrammingWeek("2026-10-12", { nowMs: NOW + 2, key: KEY, fetchImpl: failed });
-    expect(failed).toHaveBeenCalledTimes(2);
+    expect(failed).toHaveBeenCalledTimes(4);
     expect(fallback).toMatchObject({
       generationSource: "fallback",
       fallbackReason: "http_error",
       modelName: MONTH_PLAN_OPENAI_MODEL,
-      promptVersion: WEEKLY_PROMPT_VERSION,
+      promptVersion: WOD_FROM_INTENT_PROMPT_VERSION,
       rulesVersion: RULES_VERSION,
       generationTimestamp: NOW + 2,
       inputSummaryVersion: INPUT_SUMMARY_VERSION,

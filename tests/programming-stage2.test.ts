@@ -17,7 +17,7 @@ import {
 } from "../src/lib/programming/engine";
 import { draftForScheme, fallbackIntent, fallbackMonth } from "../src/lib/programming/fallback";
 import { getProgrammingMonth, getProgrammingWeek } from "../src/lib/programming/store";
-import { INPUT_SUMMARY_VERSION, MONTHLY_PROMPT_VERSION, WEEKLY_PROMPT_VERSION } from "../src/lib/programming/types";
+import { INPUT_SUMMARY_VERSION, INTENT_PROMPT_VERSION, MONTHLY_PROMPT_VERSION, WEEKLY_PROMPT_VERSION, WOD_FROM_INTENT_PROMPT_VERSION } from "../src/lib/programming/types";
 import type { DayKey } from "../src/lib/month-plan/types";
 
 const KEY = "sk-test-not-a-real-key";
@@ -168,7 +168,7 @@ describe("stage 2 actuals and screen sync", () => {
     });
     const fetchImpl = vi.fn(async () => new Response("no", { status: 500 }));
     const second = await ensureProgrammingWeek(WEEK2, { nowMs: NOW + 86_400_000, key: KEY, fetchImpl });
-    expect(second.promptVersion).toBe(WEEKLY_PROMPT_VERSION);
+    expect(second.promptVersion).toBe(WOD_FROM_INTENT_PROMPT_VERSION);
     expect(second.inputSummaryVersion).toBe(INPUT_SUMMARY_VERSION);
     const sent = promptOf(fetchImpl);
     const previous = previousActual(sent);
@@ -190,7 +190,7 @@ describe("stage 2 actuals and screen sync", () => {
     const packed = JSON.stringify(sent);
     expect(packed).not.toContain(SECRET_EMAIL);
     expect(packed).not.toContain(SECRET_NOTE);
-    expect(sent.prompt_version).toBe(WEEKLY_PROMPT_VERSION);
+    expect(sent.prompt_version).toBe(INTENT_PROMPT_VERSION);
   });
 
   it("test 10 sends previous_generation_source fallback from a fallback week", async () => {

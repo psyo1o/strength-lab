@@ -8,9 +8,11 @@ import {
   fallbackMonth,
 } from "./fallback";
 import { completeMonthDirection } from "./month-direction";
-import { authorMonth, authorWeek, type AuthorTrace, type FetchLike } from "./model";
+import { authorMonth, authorWeek, authorWeeklyIntent, type AuthorTrace, type FetchLike } from "./model";
+import { realizeWeekFromIntent } from "./realize-intent";
+import { planWeeklyIntent, weeklyIntentFrom, type WeeklyIntentContext } from "./weekly-intent";
 import { projectWeek } from "./project";
-import { sessionLoad } from "./rules";
+import { judgeWeek, sessionLoad } from "./rules";
 import {
   getMonthlyEvaluationForStart,
   getProgrammingMonth,
@@ -50,6 +52,7 @@ import {
   MONTHLY_PROMPT_VERSION,
   RULES_VERSION,
   WEEKLY_PROMPT_VERSION,
+  WOD_FROM_INTENT_PROMPT_VERSION,
   monthStartOf,
   weekIndexFromStart,
   type MonthDirection,
@@ -277,35 +280,112 @@ async function writeProgrammingWeek(
   const weekIndex = weekIndexFromStart(weekStart);
   const summary = summaryFor(weekStart, nowMs);
   const recent = listRecentStructures(weekStart);
+  const recentLiftMaps = listRecentLiftMaps(weekStart);
+  const intentContext: WeeklyIntentContext = {
+    month: month.direction,
+    weekIndex,
+    previousActual: summary.previous_week?.actual ?? null,
+    recentPlans: listProgrammingWeeksBefore(weekStart)
+      .slice(-3)
+      .map((week) => weeklyIntentFrom(week.intent))
+      .filter((plan): plan is NonNullable<typeof plan> => plan != null),
+    recentStructures: recent,
+    summary,
+  };
+  const key = options.key === undefined ? undefined : options.key;
+  const intentAuthored = await authorWeeklyIntent({
+    context: intentContext,
+    key,
+    fetchImpl: options.fetchImpl,
+    timeoutMs: options.timeoutMs,
+  });
+  const intentPlan = intentAuthored.ok ? intentAuthored.plan : planWeeklyIntent(intentContext);
   const authored = await authorWeek({
     summary,
     month: month.direction,
     weekIndex,
     recent,
-    recentLiftMaps: listRecentLiftMaps(weekStart),
-    key: options.key,
+    recentLiftMaps,
+    weeklyIntent: intentPlan,
+    key,
     fetchImpl: options.fetchImpl,
     timeoutMs: options.timeoutMs,
   });
-  const built = authored.ok
-    ? { draft: authored.draft, display: projectWeek(authored.draft, weekIndex, "model", month.direction.strength_method) }
-    : fallbackWeek(
-        month.direction,
-        weekIndex,
-        authored.reason,
-        recent,
-        summary.previous_week?.actual ?? null,
-        listRecentLiftMaps(weekStart),
-      );
+  const realized = realizeWeekFromIntent({
+    month: month.direction,
+    weekIndex,
+    plan: { ...intentPlan, intent_source: intentAuthored.ok ? "model" : "fallback", realization: "intent" },
+    recent,
+    previousActual: summary.previous_week?.actual ?? null,
+    recentLiftMaps,
+  });
+  const checkDraft: WeekDraft = {
+    ...realized,
+    intent: {
+      why_ko: realized.intent.why_ko,
+      focus: realized.intent.focus,
+      scheme_note: realized.intent.scheme_note,
+    },
+  };
+  const realizedJudged = judgeWeek(checkDraft, month.direction, weekIndex, recent, {
+    previousActual: summary.previous_week?.actual ?? null,
+    recentLiftMaps,
+  });
+  const modelPlan = {
+    ...intentPlan,
+    intent_source: intentAuthored.ok ? ("model" as const) : ("fallback" as const),
+    realization: "model" as const,
+  };
+  let draft: WeekDraft;
+  let display: PlannedWeek;
+  if (authored.ok) {
+    draft = {
+      ...authored.draft,
+      intent: {
+        why_ko: authored.draft.intent.why_ko,
+        focus: authored.draft.intent.focus,
+        scheme_note: authored.draft.intent.scheme_note,
+        plan: modelPlan,
+      },
+    };
+    display = projectWeek(authored.draft, weekIndex, "model", month.direction.strength_method);
+  } else if (authored.reason !== "no_model" && realizedJudged.ok) {
+    draft = realized;
+    display = projectWeek(realized, weekIndex, "rules", month.direction.strength_method);
+  } else {
+    const legacy = fallbackWeek(
+      month.direction,
+      weekIndex,
+      authored.reason,
+      recent,
+      summary.previous_week?.actual ?? null,
+      recentLiftMaps,
+    );
+    draft = {
+      ...legacy.draft,
+      intent: {
+        ...legacy.draft.intent,
+        plan: { ...intentPlan, intent_source: "fallback", realization: "legacy_fallback" },
+      },
+    };
+    display = legacy.display;
+  }
+  const calledModel = authored.ok || authored.reason !== "no_model";
   const saved = insertProgrammingWeek({
     monthId: month.id,
     weekIndex,
     weekStart,
-    draft: built.draft,
-    display: built.display,
+    draft,
+    display,
     inputSummaryJson: JSON.stringify(summary),
     mode,
-    ...generationWrite(WEEKLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason, options.logContext),
+    ...generationWrite(
+      calledModel ? WOD_FROM_INTENT_PROMPT_VERSION : WEEKLY_PROMPT_VERSION,
+      authored,
+      nowMs,
+      authored.ok ? null : authored.reason,
+      options.logContext,
+    ),
   });
   syncClassWeek(saved, nowMs);
   const after = getProgrammingMonth(month.monthStart);

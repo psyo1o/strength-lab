@@ -629,7 +629,19 @@ export function inventedWeightErrors(draft: WeekDraft): string[] {
     const where = day ? `${dayLabel(day)}: ` : "";
     errors.push(`${where}invented prescribed weight "${tokens[0]}" in ${path}. ${INVENTED_WEIGHT_RETRY}`);
   };
-  for (const [key, value] of Object.entries(draft.intent)) report(null, `intent.${key}`, inventedKgIn(value, []));
+  for (const [key, value] of Object.entries(draft.intent)) {
+    if (typeof value !== "string") continue;
+    report(null, `intent.${key}`, inventedKgIn(value, []));
+  }
+  const plan = draft.intent.plan;
+  if (plan) {
+    report(null, "intent.plan.adjustment_ko", inventedKgIn(plan.adjustment_ko, []));
+    report(null, "intent.plan.quality.similarity_note_ko", inventedKgIn(plan.quality.similarity_note_ko, []));
+    for (const day of plan.days) {
+      report(null, `intent.plan.${day.day}.training_goal`, inventedKgIn(day.training_goal, []));
+      if (day.notes_ko) report(null, `intent.plan.${day.day}.notes_ko`, inventedKgIn(day.notes_ko, []));
+    }
+  }
   draft.sessions.forEach((session, index) => {
     const base = `sessions[${index}]`;
     const strings: Array<[string, string | null]> = [

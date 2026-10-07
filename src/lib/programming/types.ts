@@ -1,5 +1,7 @@
 import type { DayKey, MainLift, WeekIndex } from "../month-plan/types";
 
+export type { DayKey, MainLift };
+
 export type { WeekIndex };
 
 /** One scheme for the whole month block. Weeks do not swap this at random. */
@@ -121,6 +123,113 @@ export type ProgrammingIntent = {
   why_ko: string;
   focus: string;
   scheme_note: string;
+  /**
+   * Weekly training intent. Absent on rows written before Stage 10.
+   * The WOD is a realization of this plan, not a substitute for it.
+   */
+  plan?: WeeklyIntentPlan;
+};
+
+/** What this day is for. Not an exercise name and not a permanent weekday. */
+export const PRIMARY_TRAININGS = [
+  "lower_strength",
+  "upper_strength",
+  "upper_pull",
+  "posterior_chain",
+  "olympic_strength",
+  "olympic_technique",
+  "gymnastics_skill",
+  "aerobic",
+  "mixed_modal",
+  "recovery",
+  "rest",
+] as const;
+
+export type PrimaryTraining = (typeof PRIMARY_TRAININGS)[number];
+
+export const SECONDARY_TRAININGS = [
+  "none",
+  "short_anaerobic",
+  "sprint",
+  "aerobic",
+  "moderate_conditioning",
+  "gymnastics_skill",
+  "technique",
+  "long_conditioning",
+  "mixed_modal",
+] as const;
+
+export type SecondaryTraining = (typeof SECONDARY_TRAININGS)[number];
+
+export const COACHING_STIMULI = [
+  "heavy_strength_sprint",
+  "skill_aerobic",
+  "strength_mixed",
+  "recovery_technique",
+  "posterior_sprint",
+  "long_mixed",
+  "olympic_short",
+  "aerobic_capacity",
+  "volume_strength",
+  "upper_short",
+  "threshold",
+  "deload_easy",
+] as const;
+
+export type CoachingStimulus = (typeof COACHING_STIMULI)[number];
+
+export type DurationProfile = "30-45" | "45-60" | "60-75" | "rest";
+
+export type RecoveryRole = "train" | "easy" | "rest";
+
+export type BlockPhase = "accumulation" | "progression" | "peak" | "deload" | "emphasis";
+
+export type StrengthLiftChoice = MainLift | "none";
+
+/**
+ * One day's training intent. The exercise, sets, and format are chosen later.
+ * strength_lift is the exposure to keep when progression asks for the same pattern.
+ */
+export type DayIntent = {
+  day: DayKey;
+  primary_training: PrimaryTraining;
+  secondary_training: SecondaryTraining;
+  training_goal: string;
+  stimulus: CoachingStimulus;
+  intensity_profile: IntensityBand | "mixed";
+  volume_profile: VolumeBand;
+  duration_profile: DurationProfile;
+  fatigue_target: "low" | "moderate" | "high";
+  movement_pattern: MovementPattern | "mixed" | "none";
+  progression_required: boolean;
+  recovery_role: RecoveryRole;
+  strength_lift: StrengthLiftChoice;
+  benchmark: boolean;
+  notes_ko: string;
+};
+
+/**
+ * This week's strategy. Monthly direction stays the block.
+ * Actual performance changes this object before any WOD is written.
+ */
+export type WeeklyIntentPlan = {
+  version: "intent-v1";
+  week_index: WeekIndex;
+  block_phase: BlockPhase;
+  strength_method: string;
+  emphasis: "mixed" | "olympic" | "gymnastics" | "aerobic" | "long_conditioning";
+  why_ko: string;
+  focus: string;
+  scheme_note: string;
+  adjustment_ko: string;
+  intent_source: "model" | "fallback";
+  realization: "model" | "intent" | "legacy_fallback";
+  days: DayIntent[];
+  quality: {
+    repetition_risk: "low" | "moderate" | "high";
+    similarity_note_ko: string;
+    repeated_signature: string | null;
+  };
 };
 
 export type WeekDraft = {
@@ -188,6 +297,10 @@ export const MONTHLY_PROMPT_VERSION = "monthly-program-v4";
  * Retry still repairs only failing sessions, and an intent-only error repairs text.
  */
 export const WEEKLY_PROMPT_VERSION = "weekly-program-v10";
+/** Intent call. It decides the week. It does not write sets or movements. */
+export const INTENT_PROMPT_VERSION = "weekly-intent-v1";
+/** WOD call. It realizes a weekly intent that was already chosen. */
+export const WOD_FROM_INTENT_PROMPT_VERSION = "wod-from-intent-v1";
 export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";

@@ -11,6 +11,7 @@ import {
   regenerateProgrammingWeek,
 } from "./engine";
 import { authorMonth, authorWeek, type FetchLike } from "./model";
+import { planWeeklyIntent } from "./weekly-intent";
 import {
   describeWeekParse,
   fatigueConstraintInput,
@@ -39,7 +40,9 @@ import {
   ENGINE_VERSION,
   MONTHLY_PROMPT_VERSION,
   RULES_VERSION,
+  INTENT_PROMPT_VERSION,
   WEEKLY_PROMPT_VERSION,
+  WOD_FROM_INTENT_PROMPT_VERSION,
   addDays,
   monthStartOf,
   nextMonthStart,
@@ -180,12 +183,20 @@ export async function dryRunWeek(input: {
   const weekIndex = weekIndexFromStart(weekStart);
   const recent = listRecentStructures(weekStart);
   const recentLiftMaps = listRecentLiftMaps(weekStart);
+  const weeklyIntent = planWeeklyIntent({
+    month: direction,
+    weekIndex,
+    previousActual: previous?.actual ?? null,
+    recentStructures: recent,
+    summary: promptSummary,
+  });
   const authored = await authorWeek({
     summary: promptSummary,
     month: direction,
     weekIndex,
     recent,
     recentLiftMaps,
+    weeklyIntent,
     key: input.key,
     fetchImpl: input.fetchImpl,
   });
@@ -216,6 +227,9 @@ export async function dryRunWeek(input: {
     scope: "week",
     week_start: weekStart,
     prompt_version: WEEKLY_PROMPT_VERSION,
+    intent_prompt_version: INTENT_PROMPT_VERSION,
+    wod_prompt_version: WOD_FROM_INTENT_PROMPT_VERSION,
+    weekly_intent: weeklyIntent,
     rules_version: RULES_VERSION,
     actual_case: input.actualCase ?? null,
     input: { summary: promptSummary, month_direction: direction, recent_structures: recent.length },
