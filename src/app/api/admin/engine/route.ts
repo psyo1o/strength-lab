@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { runAdminAction, type ActualCase } from "@/lib/programming/admin-tools";
+import { runAdminAction, type ActualCase, type SaveWeekMode } from "@/lib/programming/admin-tools";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -15,11 +15,12 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   const block = denied(user);
   if (block) return block;
-  const body = (await req.json().catch(() => ({}))) as { action?: unknown; actualCase?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { action?: unknown; actualCase?: unknown; mode?: unknown };
   const action = typeof body.action === "string" ? body.action : "";
   const actualCase = body.actualCase === "a" || body.actualCase === "b" ? (body.actualCase as ActualCase) : null;
+  const mode: SaveWeekMode | undefined = body.mode === "production" ? "production" : body.mode === "probe" ? "probe" : undefined;
   try {
-    const result = await runAdminAction(action, { actualCase });
+    const result = await runAdminAction(action, { actualCase, mode });
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "실행하지 못했습니다.";

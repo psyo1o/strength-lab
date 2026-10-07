@@ -17,6 +17,8 @@ import {
   hardConstraints,
   feedbackViolations,
   judgeWeek,
+  similarityDiagnostics,
+  similarityMatch,
   similarityScore,
   similarityViolations,
   structurallySimilar,
@@ -223,6 +225,7 @@ export async function dryRunWeek(input: {
       : { ok: false, reason: authored.reason, detail: authored.trace.detail },
     validation_errors: authored.ok ? [] : authored.trace.errors,
     similarity: draft ? similarityViolations(draft, recent) : [],
+    similarity_detail: draft ? similarityDiagnostics(draft, recent) : null,
     feedback: {
       metrics: draft ? weekBurden(draft) : null,
       hard_constraints: hardConstraints(previous?.actual ?? null),
@@ -308,6 +311,8 @@ export async function runValidation(nowMs = Date.now()): Promise<Record<string, 
 const PROBE_EMAIL = "engine-probe@example.com";
 const PROBE_ACTUAL_MONTH = "2099-08-01";
 const PROBE_ACTUAL_WEEK = "2099-08-04";
+/** Monday inside the 2099 probe month. Never the live class week. */
+export const PROBE_MODEL_WEEK = "2099-08-03";
 const PROBE_CYCLE_MONTH = "2099-03-01";
 const PROBE_CYCLE_WEEKS = ["2099-03-02", "2099-03-09", "2099-03-16", "2099-03-23"] as const;
 const PROBE_NEXT_MONTH = "2099-04-01";
@@ -396,27 +401,79 @@ export function probeSimilarity(): Record<string, unknown> {
     action: "probe-similarity",
     near_copy: structurallySimilar(left, near) ? "FAIL" : "PASS",
     near_copy_score: similarityScore(left, near),
+    near_copy_matched: similarityMatch(left, near).matched,
     different: structurallySimilar(left, different) ? "FAIL" : "PASS",
     different_score: similarityScore(left, different),
     benchmark: structurallySimilar(left, benchmark) ? "FAIL" : "PASS",
   };
 }
 
+export type SaveWeekMode = "probe" | "production";
+
+/** Probe writes the 2099 week. It refuses when that target is the class week being trained. */
+export function probeBlocked(targetWeek: string, nowMs: number): boolean {
+  return targetWeek === classWeekToTrain(nowMs);
+}
+
+function latestWeekLatency(weekStart: string): number | null {
+  const row = getSqlite()
+    .prepare(
+      `SELECT latency_ms FROM programming_generation_logs
+       WHERE scope = 'week' AND scope_key = ?
+       ORDER BY id DESC LIMIT 1`,
+    )
+    .get(weekStart) as { latency_ms: number | null } | undefined;
+  return row?.latency_ms ?? null;
+}
+
 export async function saveModelWeek(input: {
   nowMs?: number;
   key?: string | null;
   fetchImpl?: FetchLike;
+  mode?: SaveWeekMode;
 } = {}): Promise<Record<string, unknown>> {
+  const mode: SaveWeekMode = input.mode === "production" ? "production" : "probe";
   const nowMs = input.nowMs ?? Date.now();
-  const weekStart = classWeekToTrain(nowMs);
-  const week = await regenerateProgrammingWeek(weekStart, { nowMs, key: input.key, fetchImpl: input.fetchImpl });
+  const current = classWeekToTrain(nowMs);
+  const weekStart = mode === "production" ? current : PROBE_MODEL_WEEK;
+  const isProduction = mode === "production";
+  if (mode === "probe" && probeBlocked(weekStart, nowMs)) {
+    return {
+      wrote: false,
+      rejected: true,
+      error: "probe cannot modify the active week",
+      action: "save-model-week",
+      mode,
+      target_week: weekStart,
+      is_production: false,
+      generation_source: null,
+      fallback_reason: null,
+    };
+  }
+  const week = await regenerateProgrammingWeek(weekStart, {
+    nowMs,
+    key: input.key,
+    fetchImpl: input.fetchImpl,
+    logContext: {
+      mode,
+      target_week: weekStart,
+      is_production: isProduction,
+    },
+  });
   return {
     wrote: true,
     action: "save-model-week",
+    mode,
+    target_week: week.weekStart,
+    is_production: isProduction,
     week_start: week.weekStart,
+    programming_week_id: week.id,
     generation_source: week.generationSource,
     fallback_reason: week.fallbackReason,
     generation_attempt: week.generationAttempt,
+    attempt: week.generationAttempt,
+    model: week.modelName,
+    latency: latestWeekLatency(week.weekStart),
     rules_version: week.rulesVersion,
   };
 }
@@ -529,13 +586,21 @@ export async function simulateMonthCycle(input: { nowMs?: number; key?: string |
 
 export async function runAdminAction(
   action: string,
-  input: { nowMs?: number; actualCase?: ActualCase | null; key?: string | null; fetchImpl?: FetchLike } = {},
+  input: {
+    nowMs?: number;
+    actualCase?: ActualCase | null;
+    key?: string | null;
+    fetchImpl?: FetchLike;
+    mode?: SaveWeekMode;
+  } = {},
 ): Promise<Record<string, unknown>> {
   const nowMs = input.nowMs ?? Date.now();
   if (action === "dry-run-week") return dryRunWeek({ nowMs, actualCase: input.actualCase, key: input.key, fetchImpl: input.fetchImpl });
   if (action === "dry-run-month") return dryRunMonth({ nowMs, key: input.key, fetchImpl: input.fetchImpl });
   if (action === "probe-similarity") return probeSimilarity();
-  if (action === "save-model-week") return saveModelWeek({ nowMs, key: input.key, fetchImpl: input.fetchImpl });
+  if (action === "save-model-week") {
+    return saveModelWeek({ nowMs, key: input.key, fetchImpl: input.fetchImpl, mode: input.mode });
+  }
   if (action === "save-forced-fallback") return saveForcedFallback(nowMs);
   if (action === "seed-week-actual") return seedWeekActual(nowMs);
   if (action === "simulate-month-cycle") return simulateMonthCycle({ nowMs, key: input.key, fetchImpl: input.fetchImpl });

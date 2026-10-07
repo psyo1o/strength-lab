@@ -2,7 +2,7 @@ import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { isWodPurpose } from "../wod/purpose";
 import { completeMonthDirection } from "./month-direction";
 import { strengthIsHeavy } from "./schemes";
-import { legacySchemeForMethod, validateStrengthPrescription } from "./strength-methods";
+import { exampleSets, legacySchemeForMethod, validateStrengthPrescription } from "./strength-methods";
 import type { WeekActual } from "./summary";
 import {
   EQUIPMENT,
@@ -704,7 +704,11 @@ export function constitutionViolations(draft: WeekDraft, month: MonthDirection, 
   }
   const longs = draft.sessions.filter((session) => session.conditioning?.long_conditioning);
   const expectsLong = month.long_conditioning_weeks.includes(weekIndex);
-  if (expectsLong && longs.length !== 1) errors.push("this week needs one long conditioning piece");
+  if (expectsLong && longs.length !== 1) {
+    errors.push(
+      `this week needs one long conditioning piece; weekly_requirements.long_conditioning_sessions_min=1 current=${longs.length} long means ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes`,
+    );
+  }
   if (!expectsLong && longs.length !== 0) errors.push("this week is not a long-conditioning week");
   for (const session of longs) {
     const minutes = session.conditioning?.duration_min ?? 0;
@@ -749,14 +753,50 @@ function featureValue(structure: StoredStructure, feature: SimilarityFeature): s
 }
 
 /** Sum of weights for features that match. Weight 0 features stay out until the config turns them on. */
-export function similarityScore(left: StoredStructure, right: StoredStructure): number {
+export function similarityMatch(left: StoredStructure, right: StoredStructure): { score: number; matched: SimilarityFeature[] } {
+  const matched: SimilarityFeature[] = [];
   let score = 0;
   for (const feature of Object.keys(SIMILARITY_CONFIG.features) as SimilarityFeature[]) {
     const weight = SIMILARITY_CONFIG.features[feature] ?? 0;
     if (weight <= 0) continue;
-    if (featureValue(left, feature) === featureValue(right, feature)) score += weight;
+    if (featureValue(left, feature) === featureValue(right, feature)) {
+      score += weight;
+      matched.push(feature);
+    }
   }
-  return score;
+  return { score, matched };
+}
+
+export function similarityScore(left: StoredStructure, right: StoredStructure): number {
+  return similarityMatch(left, right).score;
+}
+
+export type SimilarityComparison = {
+  candidate_day: string;
+  compared_day: string;
+  compared_scope: "same_week" | "recent";
+  score: number;
+  threshold: number;
+  matched: SimilarityFeature[];
+  similar: boolean;
+};
+
+function comparison(
+  left: StoredStructure,
+  right: StoredStructure,
+  scope: SimilarityComparison["compared_scope"],
+): SimilarityComparison {
+  const { score, matched } = similarityMatch(left, right);
+  const exempt = left.benchmark || right.benchmark;
+  return {
+    candidate_day: left.day,
+    compared_day: right.day,
+    compared_scope: scope,
+    score: exempt ? 0 : score,
+    threshold: SIMILARITY_CONFIG.threshold,
+    matched: exempt ? [] : matched,
+    similar: !exempt && score >= SIMILARITY_CONFIG.threshold,
+  };
 }
 
 /** Benchmarks are measurement, so they are never a structural duplicate. */
@@ -786,21 +826,39 @@ export function toStructure(session: SessionDraft): StoredStructure | null {
   };
 }
 
-export function similarityViolations(draft: WeekDraft, recent: readonly StoredStructure[]): string[] {
+/** Every same-week and recent pair, including the closest miss. Threshold is not changed here. */
+export function similarityDiagnostics(draft: WeekDraft, recent: readonly StoredStructure[]): {
+  threshold: number;
+  hits: SimilarityComparison[];
+  closest: SimilarityComparison | null;
+} {
   const fresh = draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null && !row.benchmark);
-  const errors: string[] = [];
+  const pairs: SimilarityComparison[] = [];
   for (let index = 0; index < fresh.length; index += 1) {
     for (let other = index + 1; other < fresh.length; other += 1) {
-      if (structurallySimilar(fresh[index]!, fresh[other]!)) {
-        errors.push(`${fresh[index]!.day} and ${fresh[other]!.day} are structurally similar`);
-      }
+      pairs.push(comparison(fresh[index]!, fresh[other]!, "same_week"));
     }
     for (const prior of recent) {
       if (prior.benchmark) continue;
-      if (structurallySimilar(fresh[index]!, prior)) errors.push(`${fresh[index]!.day} matches a recent structure`);
+      pairs.push(comparison(fresh[index]!, prior, "recent"));
     }
   }
-  return errors;
+  const hits = pairs.filter((pair) => pair.similar);
+  const closest = pairs.reduce<SimilarityComparison | null>(
+    (best, pair) => (best == null || pair.score > best.score ? pair : best),
+    null,
+  );
+  return { threshold: SIMILARITY_CONFIG.threshold, hits, closest };
+}
+
+export function similarityViolations(draft: WeekDraft, recent: readonly StoredStructure[]): string[] {
+  return similarityDiagnostics(draft, recent).hits.map((hit) => {
+    const matched = hit.matched.join(",");
+    if (hit.compared_scope === "same_week") {
+      return `${hit.candidate_day} and ${hit.compared_day} are structurally similar score=${hit.score} matched=${matched}`;
+    }
+    return `${hit.candidate_day} matches a recent structure score=${hit.score} matched=${matched}`;
+  });
 }
 
 export type WeekBurden = {
@@ -831,26 +889,197 @@ export function previousLowerFatigue(actual: WeekActual | null | undefined): "hi
 /**
  * Server-computed limits. The weekly prompt names this object hard_constraints.
  * A number is a maximum. Exceeding it is a reject, not a suggestion.
+ * `guidance` is preference. `programming_space` is the boundary, not a weekday plan.
  */
 export function hardConstraints(actual: WeekActual | null | undefined) {
   const level = previousLowerFatigue(actual);
   const high = level === "high";
+  const heavyMax = high ? 1 : null;
+  const metcon = high ? ("avoid" as const) : ("allowed" as const);
   return {
     authority: "MUST NOT EXCEED" as const,
     previous_lower_fatigue: level,
     previous_volume: actual?.class_summary?.actual_volume ?? null,
     previous_intensity: actual?.class_summary?.actual_intensity ?? null,
     allowed_strength_sets: high ? "method_fatigue_limit" : "method_prescription",
-    heavy_lower_sessions_max: high ? 1 : null,
-    heavy_lower_metcon: high ? "avoid" : "allowed",
+    heavy_lower_sessions_max: heavyMax,
+    heavy_lower_metcon: metcon,
     volume_direction: high ? "do_not_increase_lower" : "method_prescription",
     intensity_direction: high ? "do_not_exceed_method_fatigue_limit" : "method_prescription",
+    heavy_lower_definition: "squat or deadlift with a top set at 85% or more",
     rule: high
       ? "A heavy lower session is squat or deadlift with a top set at 85% or more. That count MUST NOT EXCEED heavy_lower_sessions_max. Do not program a heavy lower metcon. Exceeding a limit is rejected."
       : level === "low"
         ? "Previous fatigue is low. Use the method's normal prescription. Do not drop squat or deadlift below that method, and do not switch methods."
         : "No high or low fatigue signal. Use the selected method's prescription. When a maximum is present it is mandatory.",
+    guidance: {
+      authority: "PREFER" as const,
+      volume_direction: high ? "do_not_increase_lower" : "method_prescription",
+      intensity_direction: high ? "do_not_exceed_method_fatigue_limit" : "method_prescription",
+      note: high
+        ? "favor recovery-friendly lower-body structure"
+        : "Follow the selected method. This note is guidance, not an extra cap.",
+    },
+    programming_space: {
+      heavy_lower_slots_available: heavyMax,
+      heavy_lower_metcon: metcon,
+      heavy_lower_definition: "squat or deadlift with a top set at 85% or more",
+      ai_still_chooses: [
+        "day",
+        "lift",
+        "session structure",
+        "accessory",
+        "conditioning",
+        "stimulus",
+        "equipment",
+        "work_rest",
+        "duration",
+        "variation",
+      ],
+      does_not_assign: "The server does not assign a weekday or a lift.",
+    },
   };
+}
+
+/** This week's structural requirements. Long conditioning is required or forbidden, never rewritten. */
+export function weeklyRequirements(month: MonthDirection, weekIndex: 1 | 2 | 3 | 4) {
+  const required = month.long_conditioning_weeks.includes(weekIndex) ? 1 : 0;
+  const min = TIME_DOMAIN_RANGES.long.min;
+  const max = TIME_DOMAIN_RANGES.long.max;
+  return {
+    long_conditioning_sessions_min: required,
+    long_conditioning_sessions_max: required,
+    long_time_domain: "long" as const,
+    long_duration_min: { min, max },
+    benchmark_sessions: month.benchmark_week === weekIndex ? 1 : 0,
+    statement:
+      required === 1
+        ? `This is a hard weekly structural requirement. Required: exactly 1 long conditioning session. Long means ${min}–${max} minutes. The requirement must be satisfied in the actual sessions array. The server rejects a missing long session and does not rewrite duration.`
+        : "This week requires exactly 0 long conditioning sessions. Do not add one. The server does not rewrite duration.",
+  };
+}
+
+/**
+ * Method rule plus the current fatigue limit.
+ * Upper-body sets stay on the method. Lower-body sets use the fatigue limit when fatigue is high.
+ */
+export function allowedStrengthProgramming(
+  method: string,
+  weekIndex: 1 | 2 | 3 | 4,
+  actual: WeekActual | null | undefined,
+) {
+  const level = previousLowerFatigue(actual);
+  const fatigue = level === "high" || level === "low" ? level : "unknown";
+  const upper = exampleSets(method, weekIndex, "unknown", "bench");
+  const lower = exampleSets(method, weekIndex, fatigue, "squat");
+  const lowerHeavy = (lower ?? []).some((set) => set.percent_of_tm >= 85);
+  const limits = hardConstraints(actual);
+  return {
+    equation: "method rule + current state constraint = the sets you may write",
+    current_fatigue: level,
+    upper_body_sets: upper,
+    lower_body_sets: lower,
+    heavy_lower_slots_available: limits.programming_space.heavy_lower_slots_available,
+    lower_lift_count_max: level === "high" && lowerHeavy ? 1 : null,
+    rule:
+      level === "high"
+        ? lowerHeavy
+          ? "Squat and deadlift must use lower_body_sets. Those sets are still a heavy lower session, so this week can include at most one squat or deadlift. Do not add a second lower lift. Do not copy upper_body_sets onto a lower lift."
+          : "Squat and deadlift must use lower_body_sets. Do not copy upper_body_sets or the unrestricted method sets onto squat or deadlift. A heavy lower session is a top set at 85% or more, and that count must stay within heavy_lower_slots_available."
+        : level === "low"
+          ? "Previous fatigue is low. Use lower_body_sets for squat and deadlift and upper_body_sets for ohp and bench. Do not drop a lower lift below the method, and do not switch methods."
+          : "No high or low fatigue signal. Use the method sets for every lift.",
+  };
+}
+
+export type StructuredValidationError = {
+  day: string | null;
+  rule: string;
+  current: number | null;
+  maximum: number | null;
+  severity: "hard" | "weekly_requirement";
+  message: string;
+};
+
+const LABEL_TO_DAY: Record<string, string> = {
+  Monday: "monday",
+  Tuesday: "tuesday",
+  Wednesday: "wednesday",
+  Thursday: "thursday",
+  Friday: "friday",
+  Saturday: "saturday",
+  Sunday: "sunday",
+};
+
+function labelToDay(label: string): string {
+  return label
+    .split(",")
+    .map((part) => LABEL_TO_DAY[part.trim()] ?? part.trim().toLowerCase())
+    .join(",");
+}
+
+/** One sentence per violation. Retry uses this so the next attempt sees the count it must not repeat. */
+export function constraintFailureBriefs(errors: readonly string[]): string[] {
+  return structureValidationErrors(errors).map((error) => {
+    if (error.rule === "heavy_lower_sessions_max" && error.current != null && error.maximum != null) {
+      return `Previous attempt violated hard constraint: heavy_lower_sessions_max = ${error.maximum}. Previous output contained ${error.current} heavy lower sessions. You MUST produce <= ${error.maximum} heavy lower session.`;
+    }
+    if (error.rule === "heavy_lower_metcon") {
+      return "Previous attempt violated hard constraint: heavy_lower_metcon = avoid. Previous output contained a heavy lower metcon. You MUST produce 0 heavy lower metcons.";
+    }
+    if (error.rule === "long_conditioning_sessions_min") {
+      return `Previous attempt violated weekly requirement: long conditioning required = 1. Previous output contained ${error.current ?? 0}. At least one conditioning session must satisfy the long-duration requirement of 30–40 minutes. You MUST produce exactly 1 long conditioning session. Do not expect the server to change duration.`;
+    }
+    return `Previous attempt violated: ${error.message} Do not repeat this violation. Keep every session that was already valid.`;
+  });
+}
+
+/** Turns a judge error into the retry object. The original sentence stays on `message`. */
+export function structureValidationErrors(errors: readonly string[]): StructuredValidationError[] {
+  return errors.map((message) => {
+    const heavy = message.match(/heavy lower sessions (\d+) exceed hard_constraints\.heavy_lower_sessions_max=(\d+)/);
+    if (heavy) {
+      return {
+        day: labelToDay(message.split(":")[0] ?? ""),
+        rule: "heavy_lower_sessions_max",
+        current: Number(heavy[1]),
+        maximum: Number(heavy[2]),
+        severity: "hard" as const,
+        message,
+      };
+    }
+    const metcon = message.match(/^([^:]+): heavy lower metcon exceeds/);
+    if (metcon) {
+      return {
+        day: labelToDay(metcon[1] ?? ""),
+        rule: "heavy_lower_metcon",
+        current: 1,
+        maximum: 0,
+        severity: "hard" as const,
+        message,
+      };
+    }
+    if (message.includes("long conditioning") || message.includes("long_conditioning_sessions")) {
+      const current = message.match(/current=(\d+)/);
+      return {
+        day: null,
+        rule: "long_conditioning_sessions_min",
+        current: current ? Number(current[1]) : 0,
+        maximum: 1,
+        severity: "weekly_requirement" as const,
+        message,
+      };
+    }
+    const named = message.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/);
+    return {
+      day: named ? labelToDay(named[1] ?? "") : null,
+      rule: "validation",
+      current: null,
+      maximum: null,
+      severity: "hard" as const,
+      message,
+    };
+  });
 }
 
 /** Same object the prompt sends as hard_constraints. */

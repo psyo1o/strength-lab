@@ -72,6 +72,7 @@ export type EngineOptions = {
   key?: string | null;
   fetchImpl?: FetchLike;
   timeoutMs?: number;
+  logContext?: Record<string, unknown>;
 };
 
 function sessionsBefore(weekStart: string): SummarySession[] {
@@ -177,6 +178,7 @@ function generationWrite(
   authored: { ok: boolean; trace: AuthorTrace },
   nowMs: number,
   fallbackReason: string | null,
+  logContext?: Record<string, unknown>,
 ): GenerationWrite {
   return {
     generationSource: authored.ok ? "model" : "fallback",
@@ -188,6 +190,7 @@ function generationWrite(
     inputSummaryVersion: INPUT_SUMMARY_VERSION,
     generationAttempt: authored.trace.attempt,
     responses: authored.trace.responses,
+    logContext,
   };
 }
 
@@ -229,7 +232,7 @@ async function writeProgrammingMonth(
     inputSummaryJson: JSON.stringify(summary),
     priorEvaluationId: evaluation?.id ?? null,
     mode,
-    ...generationWrite(MONTHLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason),
+    ...generationWrite(MONTHLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason, options.logContext),
   });
 }
 
@@ -302,7 +305,7 @@ async function writeProgrammingWeek(
     display: built.display,
     inputSummaryJson: JSON.stringify(summary),
     mode,
-    ...generationWrite(WEEKLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason),
+    ...generationWrite(WEEKLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason, options.logContext),
   });
   syncClassWeek(saved, nowMs);
   const after = getProgrammingMonth(month.monthStart);
