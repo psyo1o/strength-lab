@@ -31,7 +31,7 @@ export type PrescriptionContext = {
   day: string;
   weekIndex: WeekIndex;
   lift: MainLift;
-  /** high = previous lower fatigue, or a voluntary lower-body cut. */
+  /** high = previous lower fatigue on squat and deadlift. low = method sets, no voluntary cut. */
   fatigue: "high" | "low" | "unknown";
 };
 

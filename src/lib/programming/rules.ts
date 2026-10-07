@@ -772,7 +772,12 @@ function byDay(draft: WeekDraft): Map<DayKey, SessionDraft> {
   return new Map(draft.sessions.map((session) => [session.day, session]));
 }
 
-export function constitutionViolations(draft: WeekDraft, month: MonthDirection, weekIndex: 1 | 2 | 3 | 4): string[] {
+export function constitutionViolations(
+  draft: WeekDraft,
+  month: MonthDirection,
+  weekIndex: 1 | 2 | 3 | 4,
+  actual?: WeekActual | null,
+): string[] {
   const errors = [...weekSchemaErrors(draft, draft)];
   const sessions = byDay(draft);
   const exposures = new Map<DayKey, Exposure>();
@@ -781,12 +786,11 @@ export function constitutionViolations(draft: WeekDraft, month: MonthDirection, 
     if (!session) continue;
     exposures.set(day, exposure(session));
     if (session.strength) {
-      const voluntaryCut = session.strength_volume === "low" && isLowerBodyLift(session.strength.lift);
       const problem = validateStrengthPrescription(month.strength_method || month.scheme, session.strength.sets, {
         day,
         weekIndex,
         lift: session.strength.lift,
-        fatigue: voluntaryCut ? "high" : "unknown",
+        fatigue: strengthCheckFatigue(session.strength.lift, actual),
       });
       if (problem) errors.push(problem);
     }
@@ -986,7 +990,28 @@ export type WeekCheckContext = {
 };
 
 const LOWER_LIFTS = new Set<MainLift>(LOWER_BODY_LIFTS);
-const REDUCED_INTENT = /하체.{0,16}(줄|낮|적)|볼륨을 줄|세트를 줄|부담을 줄|줄였|낮췄/;
+/**
+ * Lower-body programming was cut. The subject is 하체 and the action is a verb
+ * that reduces volume, load, sets, intensity, or work. "피로가 낮다" is not that action.
+ */
+const REDUCED_INTENT =
+  /하체(?:[^.。\n]{0,48}?)(?:볼륨|부하|세트|강도|훈련량|부담)(?:을|를|이|가)?\s*(?:줄(?:이|였|인|임|여)|낮(?:춰|추|춘|췄)|감소)|하체(?:를|을)?\s*(?:줄(?:이|였|인|임|여)|낮(?:춰|추|춘|췄)|감소)/;
+
+/** True when the text says the lower-body prescription itself was reduced. */
+export function mentionsReducedLowerIntent(text: string): boolean {
+  return REDUCED_INTENT.test(text);
+}
+
+/**
+ * Fatigue passed to the strength method.
+ * Previous lower fatigue is the only signal. strength_volume does not choose it.
+ * Squat and deadlift share that level. Upper-body lifts stay on the method.
+ */
+export function strengthCheckFatigue(lift: MainLift, actual: WeekActual | null | undefined): "high" | "low" | "unknown" {
+  const level = previousLowerFatigue(actual);
+  if (isLowerBodyLift(lift) && (level === "high" || level === "low")) return level;
+  return "unknown";
+}
 
 export function previousLowerFatigue(actual: WeekActual | null | undefined): "high" | "moderate" | "low" | "unknown" {
   const signal = actual?.class_summary?.fatigue_signal;
@@ -1598,7 +1623,7 @@ export function feedbackViolations(
         day: session.day,
         weekIndex,
         lift: session.strength.lift,
-        fatigue: level,
+        fatigue: strengthCheckFatigue(session.strength.lift, actual),
       });
       if (problem) errors.push(problem);
     }
@@ -1628,7 +1653,7 @@ export function feedbackViolations(
       }) != null
     );
   });
-  if (REDUCED_INTENT.test(text) && keptHeavy) {
+  if (mentionsReducedLowerIntent(text) && keptHeavy) {
     errors.push("intent says lower load was reduced but the prescription is heavier than the fatigue limit");
   }
   return errors;
@@ -1677,6 +1702,13 @@ function dedupe(errors: string[]): string[] {
   return [...new Set(errors)];
 }
 
+function isLowerSetMismatch(draft: WeekDraft, error: string): boolean {
+  const day = error.match(/^(mon|tue|wed|thu|fri|sat|sun) sets do not match/)?.[1];
+  if (!day) return false;
+  const lift = draft.sessions.find((session) => session.day === day)?.strength?.lift;
+  return isLowerBodyLift(lift);
+}
+
 function failed(
   reason: JudgeFailure,
   errors: string[],
@@ -1703,8 +1735,14 @@ export function judgeWeek(
   const draft = parseWeekDraft(body);
   if (!draft) return failed("schema", ["unreadable week"], normalized.normalizations);
   const schema = weekSchemaErrors(draft, body);
-  const constitution = constitutionViolations(draft, month, weekIndex);
-  const scheme = constitution.filter((error) => error.includes("sets do not match"));
+  const constitution = constitutionViolations(draft, month, weekIndex, context.previousActual);
+  const level = previousLowerFatigue(context.previousActual);
+  const setErrors = constitution.filter((error) => error.includes("sets do not match"));
+  // High and low fatigue own the lower-body sets. feedbackViolations reports that same check.
+  const scheme =
+    level === "high" || level === "low"
+      ? setErrors.filter((error) => !isLowerSetMismatch(draft, error))
+      : setErrors;
   const sameWeek = constitution.filter((error) => !schema.includes(error) && !error.includes("sets do not match"));
   const stages: Array<{ reason: JudgeFailure; errors: string[] }> = [
     { reason: "schema", errors: schema },
