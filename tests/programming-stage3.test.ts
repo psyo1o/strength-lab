@@ -26,6 +26,7 @@ import {
   RULES_VERSION,
   SIMILARITY_CONFIG,
   WEEKLY_PROMPT_VERSION,
+  WOD_FROM_INTENT_PROMPT_VERSION,
   type Equipment,
   type MonthDirection,
   type MovementPattern,
@@ -199,7 +200,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
     process.env.MONTH_PLAN_MODEL_KEY = LIVE_KEY;
     const fetchImpl = vi.fn(async () => new Response("forced-failure", { status: 500 }));
     const week = await ensureProgrammingWeek(WEEK, { nowMs: NOW, key: KEY, fetchImpl });
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
     const header = (fetchImpl.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
     expect(header.Authorization).toBe(`Bearer ${KEY}`);
     expect(header.Authorization).not.toContain(LIVE_KEY);
@@ -207,7 +208,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       generationSource: "fallback",
       fallbackReason: "http_error",
       rulesVersion: RULES_VERSION,
-      promptVersion: WEEKLY_PROMPT_VERSION,
+      promptVersion: WOD_FROM_INTENT_PROMPT_VERSION,
       generationAttempt: 2,
       generatedAt: NOW,
     });
