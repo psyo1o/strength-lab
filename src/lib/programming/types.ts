@@ -165,11 +165,11 @@ export type FallbackReason =
 
 export const ENGINE_VERSION = "programming-1";
 
-/** Rule set stamped on each generation. programming-5 adds the day-after heavy-lower long-conditioning ban. */
-export const RULES_VERSION = "programming-5";
+/** Rule set stamped on each generation. programming-6 rejects dangling strength metadata, time-domain mismatches, null stimulus, and hard-constraint overages. */
+export const RULES_VERSION = "programming-6";
 
 export const MONTHLY_PROMPT_VERSION = "monthly-program-v4";
-export const WEEKLY_PROMPT_VERSION = "weekly-program-v5";
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v6";
 export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";

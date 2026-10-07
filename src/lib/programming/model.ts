@@ -3,7 +3,7 @@ import { DAY_ORDER } from "../month-plan/types";
 import { MONTH_PLAN_OPENAI_MODEL, MONTH_PLAN_OPENAI_URL } from "../month-plan/week-model";
 import {
   englishKoPath,
-  fatigueConstraintInput,
+  hardConstraints,
   judgeWeek,
   MONTH_REQUIRED_KEYS,
   monthSchemaErrors,
@@ -38,7 +38,10 @@ const RULES = [
   "Do not invent kilograms. Strength is percent of training max only.",
   "Sex changes nothing except wall ball, kettlebell, box height, and machine calories, and the server applies those later.",
   "Warmup is 8–12 minutes and is never cut.",
-  "Stimulus is only heavy, high_rep, or technical, and the same stimulus cannot sit on consecutive training days.",
+  `Stimulus is only ${STIMULI.join(", ")}. If conditioning exists, stimulus is required and is that same value on the session and on conditioning. Null is invalid. The same stimulus cannot sit on consecutive training days.`,
+  "If strength is null, strength_purpose, strength_volume, and strength_intensity must be null. If any of those is set, strength and its lift are required.",
+  "Choose duration_min first, then set time_domain from that duration. Do not choose time_domain first.",
+  "hard_constraints are mandatory. MUST NOT EXCEED means the server rejects the week. They are not suggestions.",
   "No heavy snatch, clean, or deadlift the day after a heavy squat.",
   "No heavy squat the day after a heavy deadlift.",
   "No heavy snatch the day after a heavy press.",
@@ -46,7 +49,7 @@ const RULES = [
   "A repeated benchmark is a measurement, not a duplicate session.",
   "The monthly strength method is a constraint, not a fixed weekday template. If the method is 531, use the server's exact sets. Otherwise do not force 5/3/1 set or rep patterns.",
   "Each training day carries strength_purpose, strength_volume, strength_intensity, metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration. Those fields match the strength and conditioning objects.",
-  "Rx metcon is 12–20 minutes and hard, so time_domain is medium. Only the day after squat or deadlift is 8–12 minutes and time_domain short. duration_min 14 is medium, never short. Long conditioning is 30–40 minutes and time_domain long.",
+  "Rx metcon is 12–20 minutes, so time_domain is medium. Only the day after squat or deadlift is 8–12 minutes and time_domain short. duration_min 14 is medium, never short. Long conditioning is 30–40 minutes and time_domain long.",
   "Allowed lifts are squat, ohp, bench, and deadlift. The word press means ohp. Do not use lift press.",
   "Every *_ko field, focus, and scheme_note is Korean. Do not write those fields in English.",
   "Machine calories are a male/female pair such as 12/10cal. Wall ball is 남 9kg · 여 6kg, kettlebell 남 24kg · 여 16kg, box 남 60cm · 여 50cm.",
@@ -103,6 +106,7 @@ export type ModelResponseLog = {
   raw: unknown;
   latencyMs: number;
   responseFormat: "json_schema" | "json_object" | null;
+  normalizations: string[];
 };
 
 /** What the caller stores. modelName is set only when this process called the model. */
@@ -112,10 +116,11 @@ export type AuthorTrace = {
   responses: ModelResponseLog[];
   detail: string | null;
   errors: string[];
+  normalizations: string[];
 };
 
 function noModelTrace(): AuthorTrace {
-  return { modelName: null, attempt: 1, responses: [], detail: null, errors: [] };
+  return { modelName: null, attempt: 1, responses: [], detail: null, errors: [], normalizations: [] };
 }
 
 type ResponseFormat =
@@ -216,7 +221,7 @@ function weekResponseFormat(): ResponseFormat {
       benchmark: { type: "boolean" },
       format: stringEnum(["amrap", "for_time", "emom", "intervals"]),
       time_domain: stringEnum(["short", "medium", "long"]),
-      stimulus: nullable(stringEnum(STIMULI)),
+      stimulus: stringEnum(STIMULI),
       movement_patterns: { type: "array", items: stringEnum(MOVEMENT_PATTERNS) },
       movements: { type: "array", items: movement },
       equipment: { type: "array", items: stringEnum(EQUIPMENT) },
@@ -243,50 +248,69 @@ function weekResponseFormat(): ResponseFormat {
       "long_conditioning",
     ],
   );
-  const session = strictObject(
-    {
-      day: stringEnum(DAY_ORDER),
-      rest: { type: "boolean" },
-      optional: { type: "boolean" },
-      warmup_min: { type: "integer" },
-      warmup_ko: WEEK_STRING,
-      strength_purpose: nullable(WEEK_STRING),
-      strength_volume: nullable(stringEnum(["low", "moderate", "high"])),
-      strength_intensity: nullable(stringEnum(["light", "moderate", "heavy"])),
-      metcon_purpose: nullable(WEEK_STRING),
-      metcon_format: nullable(stringEnum(["amrap", "for_time", "emom", "intervals"])),
-      time_domain: nullable(stringEnum(["short", "medium", "long"])),
-      stimulus: nullable(stringEnum(STIMULI)),
-      movement_combination: nullable(WEEK_STRING),
-      equipment: { type: "array", items: stringEnum(EQUIPMENT) },
-      volume: nullable(stringEnum(["low", "moderate", "high"])),
-      intensity: nullable(stringEnum(["light", "moderate", "heavy"])),
-      expected_duration: nullable({ type: "integer" }),
-      strength: nullable(strength),
-      conditioning: nullable(conditioning),
-    },
-    [
-      "day",
-      "rest",
-      "optional",
-      "warmup_min",
-      "warmup_ko",
-      "strength_purpose",
-      "strength_volume",
-      "strength_intensity",
-      "metcon_purpose",
-      "metcon_format",
-      "time_domain",
-      "stimulus",
-      "movement_combination",
-      "equipment",
-      "volume",
-      "intensity",
-      "expected_duration",
-      "strength",
-      "conditioning",
+  const sessionKeys = [
+    "day",
+    "rest",
+    "optional",
+    "warmup_min",
+    "warmup_ko",
+    "strength_purpose",
+    "strength_volume",
+    "strength_intensity",
+    "metcon_purpose",
+    "metcon_format",
+    "time_domain",
+    "stimulus",
+    "movement_combination",
+    "equipment",
+    "volume",
+    "intensity",
+    "expected_duration",
+    "strength",
+    "conditioning",
+  ];
+  const sharedSession = {
+    day: stringEnum(DAY_ORDER),
+    rest: { type: "boolean" },
+    optional: { type: "boolean" },
+    warmup_min: { type: "integer" },
+    warmup_ko: WEEK_STRING,
+    metcon_purpose: nullable(WEEK_STRING),
+    metcon_format: nullable(stringEnum(["amrap", "for_time", "emom", "intervals"])),
+    time_domain: nullable(stringEnum(["short", "medium", "long"])),
+    stimulus: nullable(stringEnum(STIMULI)),
+    movement_combination: nullable(WEEK_STRING),
+    equipment: { type: "array", items: stringEnum(EQUIPMENT) },
+    volume: nullable(stringEnum(["low", "moderate", "high"])),
+    intensity: nullable(stringEnum(["light", "moderate", "heavy"])),
+    expected_duration: nullable({ type: "integer" }),
+    conditioning: nullable(conditioning),
+  };
+  // OpenAI strict allows anyOf and rejects if/then. Two branches couple strength to its metadata.
+  const session = {
+    anyOf: [
+      strictObject(
+        {
+          ...sharedSession,
+          strength_purpose: WEEK_STRING,
+          strength_volume: stringEnum(["low", "moderate", "high"]),
+          strength_intensity: stringEnum(["light", "moderate", "heavy"]),
+          strength,
+        },
+        sessionKeys,
+      ),
+      strictObject(
+        {
+          ...sharedSession,
+          strength_purpose: { type: "null" },
+          strength_volume: { type: "null" },
+          strength_intensity: { type: "null" },
+          strength: { type: "null" },
+        },
+        sessionKeys,
+      ),
     ],
-  );
+  };
   return {
     type: "json_schema",
     json_schema: {
@@ -462,18 +486,20 @@ async function authorWithRetries<T>(input: {
   accept: (
     json: unknown,
   ) =>
-    | { ok: true; value: T; detail?: string | null }
-    | { ok: false; reason: FallbackReason; detail: string; errors?: string[] };
-  retryBody?: (errors: string[]) => unknown;
+    | { ok: true; value: T; detail?: string | null; normalizations?: string[] }
+    | { ok: false; reason: FallbackReason; detail: string; errors?: string[]; normalizations?: string[] };
+  retryBody?: (errors: string[], previous: unknown) => unknown;
 }): Promise<{ ok: true; value: T; trace: AuthorTrace } | { ok: false; reason: FallbackReason; trace: AuthorTrace }> {
   const responses: ModelResponseLog[] = [];
   let reason: FallbackReason = "http_error";
   let detail: string | null = "request failed";
   let errors: string[] = ["request failed"];
+  let normalizations: string[] = [];
+  let previous: unknown = null;
   let used = 0;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     used = attempt;
-    const body = attempt === 2 && input.retryBody && errors.length ? input.retryBody(errors) : input.body;
+    const body = attempt === 2 && input.retryBody && errors.length ? input.retryBody(errors, previous) : input.body;
     const completed = await complete({
       key: input.key,
       url: MONTH_PLAN_OPENAI_URL,
@@ -483,35 +509,47 @@ async function authorWithRetries<T>(input: {
       maxTokens: input.maxTokens,
       format: input.format,
     });
+    if (completed.ok) previous = completed.json;
+    const accepted = completed.ok ? input.accept(completed.json) : null;
+    const attemptNormalizations = accepted?.normalizations ?? [];
     responses.push({
       attempt,
       raw: completed.ok ? completed.json : completed.raw,
       latencyMs: completed.latencyMs,
       responseFormat: completed.responseFormat,
+      normalizations: attemptNormalizations,
     });
     if (!completed.ok) {
       reason = completed.reason;
       detail = completed.detail;
       errors = [completed.detail];
+      normalizations = [];
       continue;
     }
-    const accepted = input.accept(completed.json);
-    if (!accepted.ok) {
-      reason = accepted.reason;
-      detail = accepted.detail;
-      errors = accepted.errors?.length ? accepted.errors : [accepted.detail];
+    if (!accepted || !accepted.ok) {
+      reason = accepted && !accepted.ok ? accepted.reason : "schema";
+      detail = accepted && !accepted.ok ? accepted.detail : "unreadable JSON";
+      errors = accepted && !accepted.ok ? (accepted.errors?.length ? accepted.errors : [accepted.detail]) : ["unreadable JSON"];
+      normalizations = attemptNormalizations;
       continue;
     }
     return {
       ok: true,
       value: accepted.value,
-      trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt, responses, detail: accepted.detail ?? null, errors: [] },
+      trace: {
+        modelName: MONTH_PLAN_OPENAI_MODEL,
+        attempt,
+        responses,
+        detail: accepted.detail ?? null,
+        errors: [],
+        normalizations: attemptNormalizations,
+      },
     };
   }
   return {
     ok: false,
     reason,
-    trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt: used, responses, detail, errors },
+    trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt: used, responses, detail, errors, normalizations },
   };
 }
 
@@ -567,15 +605,25 @@ export function weekPrompt(input: {
   weekIndex: WeekIndex;
   recent?: readonly StoredStructure[];
   retryErrors?: readonly string[];
+  previousDraft?: unknown;
 }): unknown {
   const method = input.month.strength_method || input.month.scheme;
   const guide = prescriptionGuide(method, input.weekIndex);
   const sets = exampleSets(method, input.weekIndex, "unknown", "squat");
   const theme = input.month.week_themes.find((row) => row.week_index === input.weekIndex)?.theme_ko ?? "";
   const previous = input.summary.previous_week;
+  const limits = hardConstraints(previous?.actual);
   return {
     task: "Write the whole class week, including why. Do not pick from a catalog.",
     prompt_version: WEEKLY_PROMPT_VERSION,
+    decision_order: [
+      "monthly strength method",
+      "method prescription",
+      "hard_constraints",
+      "ai chooses lifts, days, and structure inside those boundaries",
+      "program the week",
+      "server validation rejects anything outside the limits",
+    ],
     personalization: null,
     week_index: input.weekIndex,
     month_summary: {
@@ -608,7 +656,15 @@ export function weekPrompt(input: {
     })),
     strength_prescription: guide,
     example_sets: sets,
-    fatigue_constraints: fatigueConstraintInput(previous?.actual),
+    hard_constraints: limits,
+    strength_constraints: {
+      note: "Boundaries only. You still choose the lifts, the days, and the session structure.",
+      max_heavy_lower_sessions: limits.heavy_lower_sessions_max,
+      heavy_lower_metcon: limits.heavy_lower_metcon,
+      volume_direction: limits.volume_direction,
+      intensity_direction: limits.intensity_direction,
+      ai_still_chooses: ["lift", "day", "session structure"],
+    },
     similarity_constraints: {
       threshold: 4,
       features: ["format", "time_domain", "stimulus", "movement_pattern", "equipment", "volume"],
@@ -624,11 +680,34 @@ export function weekPrompt(input: {
       intensity: ["light", "moderate", "heavy"],
       equipment: [...EQUIPMENT],
     },
-    enum_rule: "Do not invent values outside these enums. press is not a lift. Use ohp or bench.",
+    enum_rule: `Do not invent values outside these enums. press is not a lift. Use ohp or bench. stimulus is exactly ${STIMULI.join(" | ")}.`,
+    strength_metadata_rule:
+      "If strength is null, strength_purpose, strength_volume, and strength_intensity are null. If strength_purpose is set, strength and lift are required.",
     time_domain_rules: {
+      order: "Pick duration_min first. Then set time_domain from that number.",
       short: `${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} minutes. Only the day after squat or deadlift.`,
       medium: `${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} minutes. Hard Rx metcon is 12–20 minutes, so 14, 16, and 18 are medium.`,
       long: `${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes. Not on a heavy squat or deadlift day.`,
+    },
+    time_domain_examples: {
+      valid: [
+        { time_domain: "short", duration_min: 10 },
+        { time_domain: "short", duration_min: 12 },
+        { time_domain: "medium", duration_min: 14 },
+        { time_domain: "medium", duration_min: 16 },
+        { time_domain: "medium", duration_min: 18 },
+        { time_domain: "long", duration_min: 30 },
+        { time_domain: "long", duration_min: 35 },
+        { time_domain: "long", duration_min: 40 },
+      ],
+      invalid: [
+        { time_domain: "short", duration_min: 14, why: "14 is medium, not short" },
+        { time_domain: "short", duration_min: 16, why: "16 is medium, not short" },
+        { time_domain: "medium", duration_min: 12, why: "12 is short, not medium" },
+        { time_domain: "medium", duration_min: 30, why: "30 is long, not medium" },
+        { time_domain: "long", duration_min: 20, why: "20 is medium, not long" },
+        { time_domain: "long", duration_min: 14, why: "14 is medium, not long" },
+      ],
     },
     rules: [
       ...RULES,
@@ -638,7 +717,14 @@ export function weekPrompt(input: {
       "Use strength_prescription. Do not invent a percent outside it. Do not copy a 5/3/1 pattern unless the method is 531.",
     ],
     ...(input.retryErrors && input.retryErrors.length
-      ? { retry: { instruction: "Do not repeat these errors", errors: [...input.retryErrors] } }
+      ? {
+          retry: {
+            instruction:
+              "Preserve valid sessions and the original weekly intent. Fix only the listed errors. Do not redesign unrelated days unless a cross-day rule requires it. Do not repeat these errors.",
+            errors: [...input.retryErrors],
+            ...(input.previousDraft ? { previous_draft: input.previousDraft } : {}),
+          },
+        }
       : {}),
     output_shape: {
       top_level_keys: ["intent", "sessions"],
@@ -816,11 +902,19 @@ export async function authorWeek(input: {
     timeoutMs,
     maxTokens: WEEK_MAX_TOKENS,
     format: weekResponseFormat(),
-    retryBody: (errors) => weekPrompt({ ...promptInput, retryErrors: errors }),
+    retryBody: (errors, previous) => weekPrompt({ ...promptInput, retryErrors: errors, previousDraft: previous }),
     accept: (json) => {
       const judged = judgeWeek(json, input.month, input.weekIndex, input.recent, context);
-      if (!judged.ok) return { ok: false, reason: judged.reason, detail: judged.detail, errors: judged.errors };
-      return { ok: true, value: judged.draft, detail: judged.detail };
+      if (!judged.ok) {
+        return {
+          ok: false,
+          reason: judged.reason,
+          detail: judged.detail,
+          errors: judged.errors,
+          normalizations: judged.normalizations,
+        };
+      }
+      return { ok: true, value: judged.draft, detail: judged.detail, normalizations: judged.normalizations };
     },
   });
   return result.ok ? { ok: true, draft: result.value, trace: result.trace } : result;
