@@ -211,7 +211,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       generationAttempt: 2,
       generatedAt: NOW,
     });
-    expect(RULES_VERSION).toBe("programming-4");
+    expect(RULES_VERSION).toBe("programming-5");
     expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v5");
     const nextFetch = vi.fn(async () => new Response("still-down", { status: 500 }));
     await ensureProgrammingWeek("2026-10-12", { nowMs: NOW + 5, key: KEY, fetchImpl: nextFetch });
@@ -429,7 +429,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       wrote: true,
       week_start: WEEK,
       generation_source: "fallback",
-      rules_version: "programming-4",
+      rules_version: "programming-5",
       generation_attempt: 2,
     });
     expect(JSON.stringify(result)).not.toContain(LIVE_KEY);

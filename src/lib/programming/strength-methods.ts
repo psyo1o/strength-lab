@@ -228,7 +228,7 @@ export function exampleSets(method: string, weekIndex: WeekIndex, fatigue: Presc
   }
   if (method === "INTENSITY_BLOCK") {
     if (fatigue === "high") return repeat(80, 3, 3);
-    if (weekIndex === 1) return repeat(82, 3, 4);
+    if (weekIndex === 1) return repeat(85, 3, 4);
     if (weekIndex === 2) return repeat(85, 2, 4);
     if (weekIndex === 3) return repeat(90, 1, 3);
     return repeat(65, 5, 3);

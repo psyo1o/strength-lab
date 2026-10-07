@@ -626,6 +626,10 @@ export function constitutionViolations(draft: WeekDraft, month: MonthDirection, 
     }
     if (today.heavyDeadlift && next.heavySquat) errors.push(`heavy squat the day after deadlift (${today.day})`);
     if (today.heavyPress && next.heavySnatch) errors.push(`heavy snatch the day after press (${today.day})`);
+    const nextSession = sessions.get(DAY_ORDER[index + 1]!);
+    if ((today.heavySquat || today.heavyDeadlift) && nextSession?.conditioning?.long_conditioning) {
+      errors.push(`${nextSession.day} long conditioning follows a heavy squat or deadlift`);
+    }
   }
   const training = draft.sessions.filter((session) => !session.rest);
   for (let index = 1; index < training.length; index += 1) {
