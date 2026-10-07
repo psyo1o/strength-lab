@@ -13,6 +13,11 @@ export type Tip = {
   mistake: string;
   alternative: string;
   sheet: string;
+  /** How to get into the position. Empty only when the seed has no setup line. */
+  setup?: string;
+  /** One line when the movement needs a prior skill. Null when none. */
+  prereq?: string | null;
+  youtubeTitle?: string;
   name?: string;
   exerciseId?: string;
   imageUrl?: string | null;

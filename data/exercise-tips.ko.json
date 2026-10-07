@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.1",
   "owner": "tips",
   "lang": "ko",
   "canonicalRef": "exercises.canonical.json",
@@ -12,7 +12,10 @@
     "media",
     "youtubeUrl",
     "youtubeCredit",
-    "youtubeLinks"
+    "youtubeLinks",
+    "setup",
+    "prereq",
+    "youtubeTitle"
   ],
   "disclaimer": "참고 영상일 뿐. 찌릿·저림은 전문가.",
   "tips": {
@@ -34,7 +37,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "발은 어깨~골반보다 조금 넓게, 바는 등 위에 안정하게 얹어 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Learning to Squat | The Starting Strength Method"
     },
     "bench_press": {
       "exerciseId": "bench_press",
@@ -54,7 +60,10 @@
         "origin": "",
         "youtubeUrl": "https://www.youtube.com/watch?v=rxD321l2svE",
         "youtubeCredit": "Starting Strength"
-      }
+      },
+      "setup": "견갑을 모은 채 벤치에 눕고, 발은 바닥에 단단히 두어 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Learning to Bench Press | The Starting Strength Method"
     },
     "deadlift": {
       "exerciseId": "deadlift",
@@ -74,7 +83,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "바는 정강이 앞에 두고, 발은 골반 너비로 맞춰 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Learning to Deadlift | The Starting Strength Method"
     },
     "ohp": {
       "exerciseId": "ohp",
@@ -94,7 +106,10 @@
         "origin": "",
         "youtubeUrl": "https://www.youtube.com/watch?v=8dacy5hjaE8",
         "youtubeCredit": "Starting Strength"
-      }
+      },
+      "setup": "발은 골반 너비, 바는 쇄골 앞 선반에 얹어 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Learning to Press | The Starting Strength Method"
     },
     "front_squat": {
       "exerciseId": "front_squat",
@@ -114,7 +129,10 @@
         "origin": "",
         "youtubeUrl": "https://www.youtube.com/watch?v=Cnc0qKLAgcU",
         "youtubeCredit": "JTS"
-      }
+      },
+      "setup": "바는 어깨 앞 선반에 얹고, 발은 어깨 너비로 두어 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Front Squat Tutorial | JTSstrength.com"
     },
     "close_grip_bench": {
       "exerciseId": "close_grip_bench",
@@ -131,8 +149,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=hWEpF7lFR9Q",
+        "youtubeCredit": "Barbell Logic"
+      },
+      "setup": "그립은 어깨 안쪽, 견갑은 벤치에 고정해 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Close Grip Bench Press: Gym Shorts (How To)",
+      "youtubeUrl": "https://www.youtube.com/watch?v=hWEpF7lFR9Q",
+      "youtubeCredit": "Barbell Logic"
     },
     "incline_bench": {
       "exerciseId": "incline_bench",
@@ -149,8 +174,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=5k_enq6vXGM",
+        "youtubeCredit": "Barbell Logic"
+      },
+      "setup": "벤치 각도는 30도 전후, 견갑을 고정한 채 누워 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Incline Bench Press: Gym Shorts (How To)",
+      "youtubeUrl": "https://www.youtube.com/watch?v=5k_enq6vXGM",
+      "youtubeCredit": "Barbell Logic"
     },
     "stiff_leg_deadlift": {
       "exerciseId": "stiff_leg_deadlift",
@@ -167,8 +199,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=k6cUaJasD5U",
+        "youtubeCredit": "Starting Strength"
+      },
+      "setup": "발은 골반 너비, 바는 허벅지 앞에 두고 시작해 주세요.",
+      "prereq": null,
+      "youtubeTitle": "How to do the RDL (Romanian Deadlift) with Mark Rippetoe",
+      "youtubeUrl": "https://www.youtube.com/watch?v=k6cUaJasD5U",
+      "youtubeCredit": "Starting Strength"
     },
     "barbell_row": {
       "exerciseId": "barbell_row",
@@ -185,8 +224,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=G8l_8chR5BE",
+        "youtubeCredit": "Alan Thrall (Untamed Strength)"
+      },
+      "setup": "발은 골반 너비, 상체는 약 45도로 숙여 바를 잡아 주세요.",
+      "prereq": null,
+      "youtubeTitle": "\"How To\" Barbell Row",
+      "youtubeUrl": "https://www.youtube.com/watch?v=G8l_8chR5BE",
+      "youtubeCredit": "Alan Thrall (Untamed Strength)"
     },
     "chin_up": {
       "exerciseId": "chin_up",
@@ -203,8 +249,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=u5h9TM9KAh0",
+        "youtubeCredit": "Barbell Logic"
+      },
+      "setup": "손바닥은 나를 향하게, 어깨 너비로 바를 잡아 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Gym Shorts (How To): The Chin Up",
+      "youtubeUrl": "https://www.youtube.com/watch?v=u5h9TM9KAh0",
+      "youtubeCredit": "Barbell Logic"
     },
     "pull_up": {
       "exerciseId": "pull_up",
@@ -234,7 +287,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "손바닥은 앞, 그립은 어깨보다 조금 넓게, 엄지는 바를 감싸면 됩니다. 시작할 때 팔은 펴고 어깨는 귀에서 내려 주세요.",
+      "prereq": null,
+      "youtubeTitle": "The Strict Pull-Up"
     },
     "thruster": {
       "exerciseId": "thruster",
@@ -256,7 +312,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "바는 어깨 앞, 팔꿈치는 앞을 보게 프론트랙으로 두면 됩니다. 발은 어깨 너비, 그립은 어깨보다 조금 넓으면 됩니다.",
+      "prereq": null,
+      "youtubeTitle": "The Thruster"
     },
     "kipping_pull_up": {
       "exerciseId": "kipping_pull_up",
@@ -278,7 +337,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "엄지가 바를 감싸게 잡고, 어깨를 먼저 내린 뒤 시작합니다. 스트릭트 풀업이 몇 개 되지 않으면 키핑보다 밴드나 링 로우가 먼저입니다.",
+      "prereq": "스트릭트 풀업이 안정되면 시도해 주세요.",
+      "youtubeTitle": "The Kipping Pull-Up"
     },
     "butterfly_pull_up": {
       "exerciseId": "butterfly_pull_up",
@@ -300,7 +362,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "키핑이 흔들림 없이 된 뒤에만 시도하면 됩니다. 그립은 어깨보다 조금 넓고, 바 높이는 매달렸을 때 발이 바닥에 닿지 않을 정도면 됩니다.",
+      "prereq": "키핑 풀업이 흔들림 없이 된 뒤에 시도해 주세요.",
+      "youtubeTitle": "The Butterfly Pull-Up"
     },
     "toes_to_bar": {
       "exerciseId": "toes_to_bar",
@@ -322,7 +387,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "바를 어깨 너비로 잡고, 매달린 상태에서 견갑을 내려 주세요. 발은 모아 두면 방향이 덜 흩어집니다.",
+      "prereq": "니레이즈가 안정되면 시도해 주세요.",
+      "youtubeTitle": "The Kipping Toes-to-bar"
     },
     "double_under": {
       "exerciseId": "double_under",
@@ -344,7 +412,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "줄 손잡이는 가볍게, 팔꿈치는 옆구리에 붙여 두면 됩니다. 줄 길이는 한 발로 가운데를 밟았을 때 손잡이가 겨드랑이 근처면 적당합니다.",
+      "prereq": "싱글언더 리듬이 안정되면 시도해 주세요.",
+      "youtubeTitle": "The Double-under"
     },
     "burpee": {
       "exerciseId": "burpee",
@@ -366,7 +437,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "손은 어깨 아래, 발은 점프하기 편한 너비로 두면 됩니다. 바닥은 미끄럽지 않은 곳이 좋습니다.",
+      "prereq": null,
+      "youtubeTitle": "The Burpee"
     },
     "kb_swing": {
       "exerciseId": "kb_swing",
@@ -383,8 +457,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=PAhDt_0PjP4",
+        "youtubeCredit": "StrongFirst"
+      },
+      "setup": "발은 어깨보다 조금 넓게, 벨은 한 팔 길이 앞에 두면 됩니다. 등은 길게, 시선은 앞입니다. 높이는 어깨까지(러시안)로 두면 충분합니다.",
+      "prereq": null,
+      "youtubeTitle": "Improve Your Kettlebell Swing | StrongFirst",
+      "youtubeUrl": "https://www.youtube.com/watch?v=PAhDt_0PjP4",
+      "youtubeCredit": "StrongFirst"
     },
     "wall_ball": {
       "exerciseId": "wall_ball",
@@ -406,7 +487,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "공은 가슴에 붙이고, 타깃은 팔을 뻗어 손이 닿는 높이보다 조금 위면 됩니다. 발은 어깨 너비, 벽과의 거리는 스쿼트에서 일어나며 공이 자연스럽게 올라갈 거리로 맞추면 됩니다.",
+      "prereq": null,
+      "youtubeTitle": "The Wall-Ball Shot"
     },
     "box_jump": {
       "exerciseId": "box_jump",
@@ -428,7 +512,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "박스 높이는 두 발로 위에 안정하게 설 수 있는 높이로 맞추면 됩니다. 발은 어깨 너비, 박스는 흔들리지 않는 곳에 두어 주세요.",
+      "prereq": null,
+      "youtubeTitle": "The Box Jump"
     },
     "power_clean": {
       "exerciseId": "power_clean",
@@ -448,7 +535,10 @@
         "origin": "",
         "youtubeUrl": "https://www.youtube.com/watch?v=YG8M_-11C2A",
         "youtubeCredit": "Catalyst"
-      }
+      },
+      "setup": "발은 골반 너비, 바는 정강이 앞에 두고 훅 그립으로 잡아 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Power Clean | Olympic Weightlifting Exercise Library"
     },
     "abs": {
       "exerciseId": "abs",
@@ -465,8 +555,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=p7j02V1fIzU",
+        "youtubeCredit": "CrossFit"
+      },
+      "setup": "바닥에서 허리 아래가 뜨지 않게 눕고, 무릎은 구부려 두면 됩니다. 목 뒤를 당기는 손은 없어도 됩니다.",
+      "prereq": null,
+      "youtubeTitle": "The Hollow Rock",
+      "youtubeUrl": "https://www.youtube.com/watch?v=p7j02V1fIzU",
+      "youtubeCredit": "CrossFit"
     },
     "free_accessory": {
       "exerciseId": "free_accessory",
@@ -483,8 +580,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=HZ4xWvMtxy4",
+        "youtubeCredit": "Barbell Logic"
+      },
+      "setup": "오늘 메인 리프트와 같은 패턴은 피하고, 약한 부위 하나만 고르면 됩니다. 무게는 마지막 두 번이 깨끗할 정도로 두면 됩니다.",
+      "prereq": null,
+      "youtubeTitle": "Complete Guide to Supplemental Lifts for Strength",
+      "youtubeUrl": "https://www.youtube.com/watch?v=HZ4xWvMtxy4",
+      "youtubeCredit": "Barbell Logic"
     },
     "squat_clean": {
       "exerciseId": "squat_clean",
@@ -504,7 +608,10 @@
         "origin": "",
         "youtubeUrl": "https://www.youtube.com/watch?v=oQIaWLrB318",
         "youtubeCredit": "Catalyst"
-      }
+      },
+      "setup": "발은 골반 너비, 바는 정강이 앞에 두고 훅 그립으로 잡아 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Clean | Olympic Weightlifting Exercise Library"
     },
     "power_snatch": {
       "exerciseId": "power_snatch",
@@ -524,7 +631,10 @@
         "origin": "",
         "youtubeUrl": "https://www.youtube.com/watch?v=ydHHsju1-Nc",
         "youtubeCredit": "Catalyst"
-      }
+      },
+      "setup": "와이드 그립으로 바를 잡고, 발은 골반 너비로 두어 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Power Snatch | Olympic Weightlifting Exercise Library"
     },
     "squat_snatch": {
       "exerciseId": "squat_snatch",
@@ -544,7 +654,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "와이드 그립으로 바를 잡고, 발은 골반 너비로 두어 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Snatch | Olympic Weightlifting Exercise Library"
     },
     "split_jerk": {
       "exerciseId": "split_jerk",
@@ -564,7 +677,10 @@
         "origin": "",
         "youtubeUrl": "https://www.youtube.com/watch?v=2GPA-cjUFnA",
         "youtubeCredit": "Catalyst"
-      }
+      },
+      "setup": "바는 프론트랙, 발은 골반 너비로 세팅해 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Split Jerk | Olympic Weightlifting Exercise Library"
     },
     "pause_squat": {
       "exerciseId": "pause_squat",
@@ -581,8 +697,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=nknf16JJTZo",
+        "youtubeCredit": "Barbell Logic"
+      },
+      "setup": "발 너비와 바 위치는 평소 스쿼트와 같게 두면 됩니다. 하단에서 셀 수 있게 무게는 평소보다 낮춰 주세요.",
+      "prereq": null,
+      "youtubeTitle": "The Paused Squat: Gym Shorts (How To)",
+      "youtubeUrl": "https://www.youtube.com/watch?v=nknf16JJTZo",
+      "youtubeCredit": "Barbell Logic"
     },
     "pin_squat": {
       "exerciseId": "pin_squat",
@@ -599,8 +722,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=ot1rrHWETsc",
+        "youtubeCredit": "Barbell Logic"
+      },
+      "setup": "핀 높이는 허벅지가 바닥과 거의 나란한 지점부터 맞추면 됩니다. 안전핀이 흔들리지 않는지 먼저 확인해 주세요.",
+      "prereq": null,
+      "youtubeTitle": "The Pin Squat - Gym Shorts (How To)",
+      "youtubeUrl": "https://www.youtube.com/watch?v=ot1rrHWETsc",
+      "youtubeCredit": "Barbell Logic"
     },
     "deficit_deadlift": {
       "exerciseId": "deficit_deadlift",
@@ -617,8 +747,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=3KQP-CNKr9U",
+        "youtubeCredit": "Barbell Logic"
+      },
+      "setup": "2.5~5cm 판 위에 서서, 바는 정강이 앞에 두어 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Deficit Deadlift: Gym Shorts (How To)",
+      "youtubeUrl": "https://www.youtube.com/watch?v=3KQP-CNKr9U",
+      "youtubeCredit": "Barbell Logic"
     },
     "spoto_press": {
       "exerciseId": "spoto_press",
@@ -635,8 +772,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=CoQSqnn5GME",
+        "youtubeCredit": "Mark Bell - Super Training Gym"
+      },
+      "setup": "벤치에 견갑을 모으고 발은 바닥을 밀어 두면 됩니다. 바는 평소 벤치와 같은 궤도로 내리되, 가슴에 닿기 직전을 목표로 해 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Spoto Press Your Way To A MASSIVE Bench Press!",
+      "youtubeUrl": "https://www.youtube.com/watch?v=CoQSqnn5GME",
+      "youtubeCredit": "Mark Bell - Super Training Gym"
     },
     "floor_press": {
       "exerciseId": "floor_press",
@@ -653,8 +797,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=aM1TYdZaXMk",
+        "youtubeCredit": "CrossFit"
+      },
+      "setup": "바닥에 누워 견갑을 모으고, 발은 바닥에 붙여 주세요.",
+      "prereq": null,
+      "youtubeTitle": "The Floor Press",
+      "youtubeUrl": "https://www.youtube.com/watch?v=aM1TYdZaXMk",
+      "youtubeCredit": "CrossFit"
     },
     "face_pull": {
       "exerciseId": "face_pull",
@@ -671,8 +822,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=ljgqer1ZpXg",
+        "youtubeCredit": "ATHLEAN-X™"
+      },
+      "setup": "케이블이나 밴드는 얼굴 높이, 로프는 엄지가 뒤를 보게 잡으면 됩니다. 한 발은 앞뒤로 두어 몸이 끌려가지 않게 해 주세요.",
+      "prereq": null,
+      "youtubeTitle": "STOP F*cking Up Face Pulls (PROPER FORM!)",
+      "youtubeUrl": "https://www.youtube.com/watch?v=ljgqer1ZpXg",
+      "youtubeCredit": "ATHLEAN-X™"
     },
     "clean_jerk": {
       "exerciseId": "clean_jerk",
@@ -702,7 +860,10 @@
         "sourcePage": "",
         "alt": "",
         "origin": ""
-      }
+      },
+      "setup": "발은 골반 너비, 바는 정강이 앞에 두고 훅 그립으로 잡아 주세요.",
+      "prereq": null,
+      "youtubeTitle": "Clean & Jerk | Olympic Weightlifting Exercise Library"
     },
     "run": {
       "exerciseId": "run",
@@ -719,8 +880,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=4aJC13SYNfw",
+        "youtubeCredit": "CrossFit"
+      },
+      "setup": "평소 걸음보다 조금 짧게, 시선은 앞을 보면 됩니다. 신발 끈은 단단히, 처음 몇 분은 숨이 차오르기 전에 자세부터 맞춰 주세요.",
+      "prereq": null,
+      "youtubeTitle": "CrossFit - Coaching Tools for Running: Part 1 (Journal Preview)",
+      "youtubeUrl": "https://www.youtube.com/watch?v=4aJC13SYNfw",
+      "youtubeCredit": "CrossFit"
     },
     "push_up": {
       "exerciseId": "push_up",
@@ -737,8 +905,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=_l3ySVKYVJ8",
+        "youtubeCredit": "CrossFit"
+      },
+      "setup": "손은 어깨 바로 아래, 손가락은 앞을 향하게 둡니다. 발끝부터 머리까지 한 줄이 되도록 배와 엉덩이에 힘을 주세요.",
+      "prereq": null,
+      "youtubeTitle": "The Push-Up",
+      "youtubeUrl": "https://www.youtube.com/watch?v=_l3ySVKYVJ8",
+      "youtubeCredit": "CrossFit"
     },
     "sit_up": {
       "exerciseId": "sit_up",
@@ -755,8 +930,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=VIZX2Ru9qU8",
+        "youtubeCredit": "CrossFit"
+      },
+      "setup": "무릎은 구부리고, 발은 바닥에 둡니다. 손은 가슴 앞이나 관자놀이 옆에 가볍게 두면 되고, 목 뒤를 당기지 않아도 됩니다.",
+      "prereq": null,
+      "youtubeTitle": "The AbMat Sit-Up",
+      "youtubeUrl": "https://www.youtube.com/watch?v=VIZX2Ru9qU8",
+      "youtubeCredit": "CrossFit"
     },
     "ring_row": {
       "exerciseId": "ring_row",
@@ -773,8 +955,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=sEAOZc77wk8",
+        "youtubeCredit": "CrossFit"
+      },
+      "setup": "링은 골반 높이 근처, 몸은 발뒤꿈치부터 어깨까지 한 줄로 둡니다. 어려우면 발을 링 쪽으로 걸어가 몸을 더 세우면 됩니다.",
+      "prereq": null,
+      "youtubeTitle": "The Ring Row",
+      "youtubeUrl": "https://www.youtube.com/watch?v=sEAOZc77wk8",
+      "youtubeCredit": "CrossFit"
     },
     "handstand": {
       "exerciseId": "handstand",
@@ -791,8 +980,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=8Fdyew622mg",
+        "youtubeCredit": "CrossFit"
+      },
+      "setup": "벽에서 한 발 정도 떨어뜨리고, 손은 어깨 너비로 손가락을 벌려 바닥을 밀어 주세요. 배는 벽을 보는 쪽이 처음엔 더 안정적입니다.",
+      "prereq": "벽 홀드나 박스 파이크가 편해진 뒤에 시도해 주세요.",
+      "youtubeTitle": "Handstand Hold Progression | CrossFit Movement Demo",
+      "youtubeUrl": "https://www.youtube.com/watch?v=8Fdyew622mg",
+      "youtubeCredit": "CrossFit"
     },
     "fan_bike": {
       "exerciseId": "fan_bike",
@@ -809,8 +1005,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=9xfUu652CMg",
+        "youtubeCredit": "Rogue Fitness"
+      },
+      "setup": "안장 높이는 페달 아래에서 무릎이 살짝 구부러질 정도로 맞추면 됩니다. 발은 스트랩 안에 넣고, 손은 핸들을 가볍게 잡아 주세요.",
+      "prereq": null,
+      "youtubeTitle": "The New Rogue Echo Bike",
+      "youtubeUrl": "https://www.youtube.com/watch?v=9xfUu652CMg",
+      "youtubeCredit": "Rogue Fitness"
     },
     "ski": {
       "exerciseId": "ski",
@@ -827,8 +1030,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=B0lIgT5PHc8",
+        "youtubeCredit": "concept2usa"
+      },
+      "setup": "발은 골반 너비, 손잡이는 어깨 높이에서 잡으면 됩니다. 무릎은 살짝 구부리고 등은 길게 세워 주세요.",
+      "prereq": null,
+      "youtubeTitle": "SkiErgTechnique | Learn How to Use the SkiErg | Concept2",
+      "youtubeUrl": "https://www.youtube.com/watch?v=B0lIgT5PHc8",
+      "youtubeCredit": "concept2usa"
     },
     "row": {
       "exerciseId": "row",
@@ -845,8 +1055,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=4zWu1yuJ0_g",
+        "youtubeCredit": "concept2usa"
+      },
+      "setup": "발판에 스트랩을 채우고, 핸들을 잡았을 때 정강이는 거의 수직이면 됩니다. 모니터 댐퍼는 중간 근처에서 시작하면 충분합니다. 바벨 로우와는 다른 동작입니다.",
+      "prereq": null,
+      "youtubeTitle": "Correct Rowing Machine Technique, Improve Your Rowing  | Concept2",
+      "youtubeUrl": "https://www.youtube.com/watch?v=4zWu1yuJ0_g",
+      "youtubeCredit": "concept2usa"
     },
     "lunge": {
       "exerciseId": "lunge",
@@ -863,8 +1080,15 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
-      }
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=DlhojghkaQ0",
+        "youtubeCredit": "CrossFit"
+      },
+      "setup": "한 발은 앞, 한 발은 뒤로 골반 너비만큼 벌려 두면 됩니다. 앞발 전체로 바닥을 누르고, 상체는 세워 주세요.",
+      "prereq": null,
+      "youtubeTitle": "The Walking Lunge",
+      "youtubeUrl": "https://www.youtube.com/watch?v=DlhojghkaQ0",
+      "youtubeCredit": "CrossFit"
     },
     "knee_raise": {
       "exerciseId": "knee_raise",
@@ -881,7 +1105,189 @@
         "licenseUrl": "",
         "sourcePage": "",
         "alt": "",
-        "origin": ""
+        "origin": "",
+        "youtubeUrl": "https://www.youtube.com/watch?v=_DUlB4YpZRw",
+        "youtubeCredit": "CrossFit"
+      },
+      "setup": "바나 링에 매달려 어깨를 귀에서 내리고, 갈비뼈는 넣어 주세요. 다리는 모아 두면 됩니다.",
+      "prereq": null,
+      "youtubeTitle": "The Strict Knees to Elbows",
+      "youtubeUrl": "https://www.youtube.com/watch?v=_DUlB4YpZRw",
+      "youtubeCredit": "CrossFit"
+    },
+    "air_squat": {
+      "exerciseId": "air_squat",
+      "name": "에어 스쿼트",
+      "setup": "발은 어깨 너비, 발끝은 살짝 바깥을 보게 둡니다. 팔은 앞으로 뻗거나 가슴 앞에 모으면 됩니다.",
+      "cue": "엉덩이를 뒤로 보내며 무릎이 발끝 방향으로 굽혀지게 해 주세요. 허벅지가 바닥과 나란하거나 그 아래로 내려간 뒤, 발 전체로 밀어 일어서면 됩니다.",
+      "mistake": "무릎이 안으로 모이거나 발뒤꿈치가 뜨고, 허리가 둥글게 말리는 경우가 많습니다.",
+      "alternative": "깊이가 어렵거나 무릎이 찌릿하면 박스 스쿼트로 바꿔 주세요.",
+      "sheet": "발은 어깨 너비, 발끝은 살짝 바깥을 보게 둡니다. 팔은 앞으로 뻗거나 가슴 앞에 모으면 됩니다. 엉덩이를 뒤로 보내며 무릎이 발끝 방향으로 굽혀지게 해 주세요. 허벅지가 바닥과 나란하거나 그 아래로 내려간 뒤, 발 전체로 밀어 일어서면 됩니다. 무릎이 안으로 모이거나 발뒤꿈치가 뜨고, 허리가 둥글게 말리는 경우가 많습니다. 깊이가 어렵거나 무릎이 찌릿하면 박스 스쿼트로 바꿔 주세요.",
+      "prereq": null,
+      "youtubeUrl": "https://www.youtube.com/watch?v=C_VtOYc6j5c",
+      "youtubeCredit": "CrossFit",
+      "youtubeTitle": "The Air Squat: CrossFit Foundational Movement",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "empty",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "에어스쿼트 동작 참고",
+        "origin": "empty",
+        "youtubeUrl": "https://www.youtube.com/watch?v=C_VtOYc6j5c",
+        "youtubeCredit": "CrossFit"
+      }
+    },
+    "handstand_push_up": {
+      "exerciseId": "handstand_push_up",
+      "name": "핸드스탠드 푸시업",
+      "setup": "벽에서 손끝 한 뼘 앞에 손을 어깨 너비로 두고, 손가락을 벌려 바닥을 밀어 주세요. 발로 차 올려 발뒤꿈치가 벽에 닿게 합니다.",
+      "cue": "갈비뼈를 넣고 엉덩이를 조인 채, 머리가 손 사이 바닥에 닿을 때까지 내려갔다가 팔꿈치를 펴며 밀어 올리면 됩니다.",
+      "mistake": "허리가 과하게 젖혀지거나 팔꿈치가 옆으로 벌어지는 경우가 많습니다.",
+      "alternative": "어렵으면 박스 파이크 푸시업으로 바꿔 주세요. 손목·어깨가 찌릿하면 중단해 주세요.",
+      "sheet": "벽에서 손끝 한 뼘 앞에 손을 어깨 너비로 두고, 손가락을 벌려 바닥을 밀어 주세요. 발로 차 올려 발뒤꿈치가 벽에 닿게 합니다. 갈비뼈를 넣고 엉덩이를 조인 채, 머리가 손 사이 바닥에 닿을 때까지 내려갔다가 팔꿈치를 펴며 밀어 올리면 됩니다. 허리가 과하게 젖혀지거나 팔꿈치가 옆으로 벌어지는 경우가 많습니다. 어렵으면 박스 파이크 푸시업으로 바꿔 주세요. 손목·어깨가 찌릿하면 중단해 주세요.",
+      "prereq": "벽 핸드스탠드 홀드와 파이크 푸시업이 안정되면 시도해 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=0wDEO6shVjc",
+      "youtubeCredit": "CrossFit",
+      "youtubeTitle": "The Strict Handstand Push-Up",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "empty",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "핸드스탠드 푸시업 동작 참고",
+        "origin": "empty",
+        "youtubeUrl": "https://www.youtube.com/watch?v=0wDEO6shVjc",
+        "youtubeCredit": "CrossFit"
+      }
+    },
+    "ring_dip": {
+      "exerciseId": "ring_dip",
+      "name": "링 딥",
+      "setup": "링을 어깨 너비 근처로 맞추고, 팔꿈치를 편 채 링을 몸 옆에 두며 서포트로 시작합니다.",
+      "cue": "어깨를 귀에서 내린 채 팔꿈치를 뒤로 보내며 어깨가 링 높이 근처까지 내려갔다가, 다시 밀어 올려 팔꿈치를 펴면 됩니다.",
+      "mistake": "링이 몸에서 멀리 벌어지거나 어깨가 앞으로 말리고, 하단에서 튕기는 경우가 많습니다.",
+      "alternative": "어렵으면 밴드 보조나 박스 딥으로 바꿔 주세요. 어깨가 찌릿하면 중단해 주세요.",
+      "sheet": "링을 어깨 너비 근처로 맞추고, 팔꿈치를 편 채 링을 몸 옆에 두며 서포트로 시작합니다. 어깨를 귀에서 내린 채 팔꿈치를 뒤로 보내며 어깨가 링 높이 근처까지 내려갔다가, 다시 밀어 올려 팔꿈치를 펴면 됩니다. 링이 몸에서 멀리 벌어지거나 어깨가 앞으로 말리고, 하단에서 튕기는 경우가 많습니다. 어렵으면 밴드 보조나 박스 딥으로 바꿔 주세요. 어깨가 찌릿하면 중단해 주세요.",
+      "prereq": "링 서포트 홀드가 안정되면 시도해 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=Vt0lO4jpIDo",
+      "youtubeCredit": "CrossFit",
+      "youtubeTitle": "The Ring Dip",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "empty",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "링 딥 동작 참고",
+        "origin": "empty",
+        "youtubeUrl": "https://www.youtube.com/watch?v=Vt0lO4jpIDo",
+        "youtubeCredit": "CrossFit"
+      }
+    },
+    "pistol": {
+      "exerciseId": "pistol",
+      "name": "피스톨 스쿼트",
+      "setup": "서는 발은 바닥 전체에 두고, 반대쪽 다리는 앞으로 뻗습니다. 팔은 앞으로 뻗어 균형을 잡으면 됩니다.",
+      "cue": "엉덩이를 뒤로 보내며 한 다리로 앉았다가, 발 전체로 밀어 일어서면 됩니다. 무릎은 발끝 방향입니다.",
+      "mistake": "발뒤꿈치가 뜨거나 무릎이 안으로 접히고, 반대쪽 다리가 바닥에 닿는 경우가 많습니다.",
+      "alternative": "박스에 앉았다 일어나거나 밴드를 잡는 스케일로 바꿔 주세요. 무릎이 찌릿하면 런지로 바꿔 주세요.",
+      "sheet": "서는 발은 바닥 전체에 두고, 반대쪽 다리는 앞으로 뻗습니다. 팔은 앞으로 뻗어 균형을 잡으면 됩니다. 엉덩이를 뒤로 보내며 한 다리로 앉았다가, 발 전체로 밀어 일어서면 됩니다. 무릎은 발끝 방향입니다. 발뒤꿈치가 뜨거나 무릎이 안으로 접히고, 반대쪽 다리가 바닥에 닿는 경우가 많습니다. 박스에 앉았다 일어나거나 밴드를 잡는 스케일로 바꿔 주세요. 무릎이 찌릿하면 런지로 바꿔 주세요.",
+      "prereq": "에어스쿼트 깊이와 한 다리 균형이 편해진 뒤에 시도해 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=qDcniqddTeE",
+      "youtubeCredit": "CrossFit",
+      "youtubeTitle": "The Pistol",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "empty",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "피스톨 스쿼트 동작 참고",
+        "origin": "empty",
+        "youtubeUrl": "https://www.youtube.com/watch?v=qDcniqddTeE",
+        "youtubeCredit": "CrossFit"
+      }
+    },
+    "overhead_squat": {
+      "exerciseId": "overhead_squat",
+      "name": "오버헤드 스쿼트",
+      "setup": "바는 머리 위, 팔꿈치는 펴고 견갑은 아래로 내려 활성 어깨를 만듭니다. 그립은 어깨보다 넓게 두면 됩니다.",
+      "cue": "바가 발등 위에 오도록 몸 바로 위에 둔 채, 엉덩이를 뒤로 보내 스쿼트 깊이를 찍고 일어서면 됩니다.",
+      "mistake": "바가 앞으로 나가며 허리가 접히거나, 팔꿈치가 구부러지는 경우가 많습니다.",
+      "alternative": "바가 흔들리면 PVC로 연습해 주세요. 어깨가 아프면 프론트스쿼트로 바꿔 주세요.",
+      "sheet": "바는 머리 위, 팔꿈치는 펴고 견갑은 아래로 내려 활성 어깨를 만듭니다. 그립은 어깨보다 넓게 두면 됩니다. 바가 발등 위에 오도록 몸 바로 위에 둔 채, 엉덩이를 뒤로 보내 스쿼트 깊이를 찍고 일어서면 됩니다. 바가 앞으로 나가며 허리가 접히거나, 팔꿈치가 구부러지는 경우가 많습니다. 바가 흔들리면 PVC로 연습해 주세요. 어깨가 아프면 프론트스쿼트로 바꿔 주세요.",
+      "prereq": "에어스쿼트와 오버헤드 락아웃이 안정되면 시도해 주세요.",
+      "youtubeUrl": "https://www.youtube.com/watch?v=RD_vUnqwqqI",
+      "youtubeCredit": "CrossFit",
+      "youtubeTitle": "The Overhead Squat: CrossFit Foundational Movement",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "empty",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "오버헤드 스쿼트 동작 참고",
+        "origin": "empty",
+        "youtubeUrl": "https://www.youtube.com/watch?v=RD_vUnqwqqI",
+        "youtubeCredit": "CrossFit"
+      }
+    },
+    "push_press": {
+      "exerciseId": "push_press",
+      "name": "푸시 프레스",
+      "setup": "바는 어깨 앞, 팔꿈치는 살짝 앞을 보게 둡니다. 발은 어깨 너비로 두면 됩니다.",
+      "cue": "무릎과 엉덩이로 짧게 딥한 뒤, 다리를 펴며 그 힘으로 바를 머리 위로 밀어 팔꿈치를 펴 주세요. 바는 몸 가까이 올리면 됩니다.",
+      "mistake": "딥이 너무 깊거나 앞으로 기울고, 팔만으로 밀어 올리며 허리가 젖혀지는 경우가 많습니다.",
+      "alternative": "무게가 무거우면 스트릭트 프레스나 덤벨로 바꿔 주세요. 허리가 찌릿하면 중단해 주세요.",
+      "sheet": "바는 어깨 앞, 팔꿈치는 살짝 앞을 보게 둡니다. 발은 어깨 너비로 두면 됩니다. 무릎과 엉덩이로 짧게 딥한 뒤, 다리를 펴며 그 힘으로 바를 머리 위로 밀어 팔꿈치를 펴 주세요. 바는 몸 가까이 올리면 됩니다. 딥이 너무 깊거나 앞으로 기울고, 팔만으로 밀어 올리며 허리가 젖혀지는 경우가 많습니다. 무게가 무거우면 스트릭트 프레스나 덤벨로 바꿔 주세요. 허리가 찌릿하면 중단해 주세요.",
+      "prereq": null,
+      "youtubeUrl": "https://www.youtube.com/watch?v=X6-DMh-t4nQ",
+      "youtubeCredit": "CrossFit",
+      "youtubeTitle": "The Push Press: CrossFit Foundational Movement",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "empty",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "푸시 프레스 동작 참고",
+        "origin": "empty",
+        "youtubeUrl": "https://www.youtube.com/watch?v=X6-DMh-t4nQ",
+        "youtubeCredit": "CrossFit"
+      }
+    },
+    "sumo_deadlift_high_pull": {
+      "exerciseId": "sumo_deadlift_high_pull",
+      "name": "스모 데드리프트 하이풀",
+      "setup": "발은 어깨보다 넓게, 발가락은 바깥, 손은 무릎 안쪽에서 바를 잡으면 됩니다. 등은 길게 세워 주세요.",
+      "cue": "다리로 바를 들어 올린 뒤, 엉덩이를 펴며 바를 턱 높이까지 끌어 올리면 됩니다. 팔꿈치는 높게, 바는 몸 가까이 유지해 주세요.",
+      "mistake": "허리가 먼저 펴지거나 팔만으로 당기고, 바가 몸에서 멀어지는 경우가 많습니다.",
+      "alternative": "무게를 낮추거나 케틀벨로 바꿔 주세요. 허리가 말리면 데드리프트나 스윙으로 바꿔 주세요.",
+      "sheet": "발은 어깨보다 넓게, 발가락은 바깥, 손은 무릎 안쪽에서 바를 잡으면 됩니다. 등은 길게 세워 주세요. 다리로 바를 들어 올린 뒤, 엉덩이를 펴며 바를 턱 높이까지 끌어 올리면 됩니다. 팔꿈치는 높게, 바는 몸 가까이 유지해 주세요. 허리가 먼저 펴지거나 팔만으로 당기고, 바가 몸에서 멀어지는 경우가 많습니다. 무게를 낮추거나 케틀벨로 바꿔 주세요. 허리가 말리면 데드리프트나 스윙으로 바꿔 주세요.",
+      "prereq": null,
+      "youtubeUrl": "https://www.youtube.com/watch?v=gh55vVlwlQg",
+      "youtubeCredit": "CrossFit",
+      "youtubeTitle": "The Sumo Deadlift High Pull",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "empty",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "스모 데드리프트 하이풀 동작 참고",
+        "origin": "empty",
+        "youtubeUrl": "https://www.youtube.com/watch?v=gh55vVlwlQg",
+        "youtubeCredit": "CrossFit"
       }
     }
   },

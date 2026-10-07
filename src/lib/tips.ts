@@ -14,12 +14,19 @@ type CanonicalFile = {
   exercises?: Record<string, TipMediaFields & { id?: string; oneRmField?: string }>;
 };
 
+type AliasFile = {
+  aliases?: Record<string, string>;
+  unmapped?: unknown[];
+};
+
 let cached: TipFile | null = null;
 let cachedCanon: CanonicalFile | null = null;
+let cachedAliases: Record<string, string> | null = null;
 
 export function resetTipsCache() {
   cached = null;
   cachedCanon = null;
+  cachedAliases = null;
 }
 
 export function loadTips(): TipFile {
@@ -47,6 +54,54 @@ export function loadCanonical(): CanonicalFile {
     cachedCanon = {};
   }
   return cachedCanon;
+}
+
+/** WOD movement string → tip exerciseId. Seed file is the map. Unmapped stays empty. */
+export function loadWodAliases(): Record<string, string> {
+  if (cachedAliases) return cachedAliases;
+  const file = path.join(process.cwd(), "data", "wod-exercise-aliases.json");
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as AliasFile;
+    cachedAliases = parsed.aliases && typeof parsed.aliases === "object" ? parsed.aliases : {};
+  } catch {
+    cachedAliases = {};
+  }
+  return cachedAliases;
+}
+
+export function loadWodUnmapped(): unknown[] {
+  const file = path.join(process.cwd(), "data", "wod-exercise-aliases.json");
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as AliasFile;
+    return Array.isArray(parsed.unmapped) ? parsed.unmapped : [];
+  } catch {
+    return [];
+  }
+}
+
+function wodAliasTarget(exerciseKey: string): string | null {
+  const aliases = loadWodAliases();
+  const raw = exerciseKey.trim();
+  if (!raw) return null;
+  const folded = raw.toLowerCase();
+  const keys = [raw, folded, folded.replace(/-/g, "_"), folded.replace(/_/g, "-"), folded.replace(/[\s_]+/g, "-"), folded.replace(/[\s-]+/g, "_")];
+  for (const key of keys) {
+    const hit = aliases[key];
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** Resolve a WOD or catalog string to a tip exerciseId. Null when nothing maps. */
+export function resolveTipExerciseId(exerciseKey: string): string | null {
+  const tips = loadTips().tips ?? {};
+  const direct = tips[exerciseKey];
+  if (direct) return direct.exerciseId || exerciseKey;
+  const fromWod = wodAliasTarget(exerciseKey);
+  if (fromWod && tips[fromWod]) return tips[fromWod].exerciseId || fromWod;
+  const legacy = TIP_ALIASES[exerciseKey];
+  if (legacy && tips[legacy]) return tips[legacy].exerciseId || legacy;
+  return null;
 }
 
 export const TIP_ALIASES: Record<string, string> = {
@@ -92,11 +147,15 @@ function watchLinksFrom(raw: Tip, fallbackUrl: string | null, fallbackCredit: st
 /** Flight-safe tip: no `undefined` (Next RSC throws when passing those to client). */
 export function sanitizeTip(raw: Tip, media: ReturnType<typeof resolveTipMedia>): Tip {
   const youtubeLinks = watchLinksFrom(raw, media.youtubeUrl ?? null, media.youtubeCredit ?? "");
+  const prereq = text(raw.prereq);
   return {
     cue: text(raw.cue),
     mistake: text(raw.mistake),
     alternative: text(raw.alternative),
     sheet: text(raw.sheet),
+    setup: text(raw.setup),
+    prereq: prereq || null,
+    youtubeTitle: text(raw.youtubeTitle),
     name: text(raw.name),
     exerciseId: text(raw.exerciseId),
     imageUrl: media.imageUrl ?? "",
@@ -118,9 +177,13 @@ export function sanitizeTip(raw: Tip, media: ReturnType<typeof resolveTipMedia>)
 export function tipFor(exerciseKey: string): Tip | null {
   try {
     const file = loadTips();
-    const raw = file.tips?.[exerciseKey] ?? file.tips?.[TIP_ALIASES[exerciseKey]];
+    const resolved = resolveTipExerciseId(exerciseKey);
+    const raw =
+      file.tips?.[exerciseKey] ??
+      (resolved ? file.tips?.[resolved] : undefined) ??
+      file.tips?.[TIP_ALIASES[exerciseKey]];
     if (!raw) return null;
-    const id = raw.exerciseId || TIP_ALIASES[exerciseKey] || exerciseKey;
+    const id = raw.exerciseId || resolved || TIP_ALIASES[exerciseKey] || exerciseKey;
     const canon = loadCanonical().exercises?.[id];
     const media = resolveTipMedia(raw, id, canon);
     return sanitizeTip(raw, media);

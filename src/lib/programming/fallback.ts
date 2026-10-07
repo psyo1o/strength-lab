@@ -14,6 +14,7 @@ import {
 import { schemeSets, strengthIsHeavy } from "./schemes";
 import { exampleSets } from "./strength-methods";
 import { fillSessionFields } from "./session-fields";
+import { classMetconPurpose } from "../wod/purpose";
 import type { WeekActual } from "./summary";
 import {
   type ConditioningDraft,
@@ -250,6 +251,13 @@ export function extractDraft(display: PlannedWeek, intent: ProgrammingIntent): W
       volume: volumeFor(day.piece.minutes),
       intensity: stimulus === "heavy" ? "heavy" : stimulus === "technical" ? "light" : "moderate",
       long_conditioning: day.longPiece,
+      purpose: classMetconPurpose({
+        names: day.piece.movements.map((movement) => movement.nameKo),
+        benchmark: day.piece.id === "sl-month-benchmark",
+        longPiece: day.longPiece,
+        format: day.piece.format,
+        stimulus,
+      }),
     };
     return fillSessionFields({
       day: day.day,
@@ -374,6 +382,13 @@ function pieceConditioning(
     volume: volumeFor(options.minutes),
     intensity: stimulus === "heavy" ? "heavy" : stimulus === "technical" ? "light" : "moderate",
     long_conditioning: options.longPiece,
+    purpose: classMetconPurpose({
+      names: piece.movements.map((movement) => movement.nameKo),
+      benchmark: options.benchmark,
+      longPiece: options.longPiece,
+      format: options.format,
+      stimulus,
+    }),
   };
 }
 

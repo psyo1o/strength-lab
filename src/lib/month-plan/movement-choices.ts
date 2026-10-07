@@ -1,7 +1,7 @@
 import type { AthleteSex } from "../auth";
 import { EXERCISES } from "../programs/catalog";
 import { knownFallbackMovements } from "../programming/fallback";
-import { loadCanonical, loadTips, TIP_ALIASES } from "../tips";
+import { loadCanonical, loadTips, resolveTipExerciseId, TIP_ALIASES } from "../tips";
 import { listWodTemplates } from "../wod/templates";
 import { catalogMovementChoices, catalogMovements } from "./pieces";
 import { definedSexLoad } from "./shared-line";
@@ -158,6 +158,22 @@ function collect(sex: AthleteSex): Map<string, Entry> {
     const drop = keep === left ? right : left;
     mergeInto(entries.get(keep)!, entries.get(drop)!);
     entries.delete(drop);
+  }
+
+  // Gap tips such as handstand_push_up are the resolved id for hspu.
+  // Keep them on the movement key the class week already stores.
+  // Canonical exercises stay their own rows.
+  const canonicalIds = new Set(Object.keys(loadCanonical().exercises ?? {}));
+  for (const key of [...entries.keys()]) {
+    const entry = entries.get(key);
+    if (!entry || entry.inCatalog || entry.inWod || entry.inExercises || !entry.inTips) continue;
+    if (canonicalIds.has(key)) continue;
+    const host = [...entries.keys()].find((other) => other !== key && resolveTipExerciseId(other) === key);
+    if (!host) continue;
+    const hostEntry = entries.get(host);
+    if (!hostEntry) continue;
+    mergeInto(hostEntry, entry);
+    entries.delete(key);
   }
 
   return entries;

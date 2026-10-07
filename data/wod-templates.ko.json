@@ -28,6 +28,32 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "박스·월볼 타깃 그대로 5라운드." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "박스 낮춤·스텝업. 월볼 무게·타깃 낮춤. 런 200–300m." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "3라운드. 스텝업. 고블릿 스쿼트. 런 대신 행." }
+      ],
+      "purpose": "런·박스점프·월볼을 다섯 라운드 도는 엔진·하체 컨디셔닝 템플릿이에요. 유산소와 점프·스쿼트 지구력을 함께 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "run",
+          "toExerciseIds": [
+            "fan_bike",
+            "row"
+          ],
+          "note": "런 거리 축소 또는 머신."
+        },
+        {
+          "fromExerciseId": "box_jump",
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "낮은 박스·스텝(스텝업 tip 없음)·런지."
+        },
+        {
+          "fromExerciseId": "wall_ball",
+          "toExerciseIds": [
+            "front_squat",
+            "thruster"
+          ],
+          "note": "월볼 무게·타깃 낮추기 또는 고블릿/프론트."
+        }
       ]
     },
     {
@@ -47,6 +73,25 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "분 안에 두 동작을 끝내고 나머진 휴식." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "스러스터 무게 낮춤. 버피 4회. 또는 8분." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨 스러스터 6 + 버피 4. 8분 EMOM." }
+      ],
+      "purpose": "매분 스러스터와 버피를 소화하는 짧은 EMOM 엔진이에요. 분 단위 페이스를 지키며 하체 푸시와 전신 출력을 유지해요.",
+      "scale": [
+        {
+          "fromExerciseId": "thruster",
+          "toExerciseIds": [
+            "front_squat",
+            "wall_ball"
+          ],
+          "note": "스러스터 무게 감소·덤벨/월볼 패턴."
+        },
+        {
+          "fromExerciseId": "burpee",
+          "toExerciseIds": [
+            "push_up",
+            "box_jump"
+          ],
+          "note": "스텝 버피·업다운. 부담이면 푸시업+스텝으로 나눠 주세요."
+        }
       ]
     }
   ]

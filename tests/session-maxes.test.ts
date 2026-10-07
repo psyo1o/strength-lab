@@ -120,7 +120,7 @@ describe("maxes fields", () => {
 });
 
 describe("accessory tips", () => {
-  it("loads the six accessory ids with Korean names and empty media", () => {
+  it("loads the six accessory ids with Korean names and external watch links only", () => {
     const expected: Record<string, string> = {
       pause_squat: "퍼즈 스쿼트",
       pin_squat: "핀 스쿼트",
@@ -138,7 +138,7 @@ describe("accessory tips", () => {
       expect(tip!.alternative).toBeTruthy();
       expect(tip!.sheet).toBeTruthy();
       expect(tip!.videoUrl).toBeNull();
-      expect(tip!.youtubeUrl == null || tip!.youtubeUrl === "").toBe(true);
+      expect(tip!.youtubeUrl).toMatch(/^https:\/\/www\.youtube\.com\/watch\?v=/);
       expect(() => JSON.stringify(tip)).not.toThrow();
     }
   });
