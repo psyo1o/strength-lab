@@ -17,11 +17,13 @@ import {
   hardConstraints,
   feedbackViolations,
   judgeWeek,
+  retryRepairPlan,
   similarityDiagnostics,
   similarityMatch,
   similarityScore,
   similarityViolations,
   structurallySimilar,
+  structureValidationErrors,
   weekBurden,
 } from "./rules";
 import {
@@ -224,6 +226,13 @@ export async function dryRunWeek(input: {
       ? { ok: true, detail: authored.trace.detail }
       : { ok: false, reason: authored.reason, detail: authored.trace.detail },
     validation_errors: authored.ok ? [] : authored.trace.errors,
+    structured_errors: authored.ok ? [] : structureValidationErrors(authored.trace.errors),
+    repair_plan: authored.ok ? null : retryRepairPlan(authored.trace.errors),
+    field_trace: authored.trace.responses.map((response) => ({
+      attempt: response.attempt,
+      sessions: (response.diagnostics as { field_trace?: unknown } | null)?.field_trace ?? null,
+      retry_repair: (response.diagnostics as { retry_repair?: unknown } | null)?.retry_repair ?? null,
+    })),
     similarity: draft ? similarityViolations(draft, recent) : [],
     similarity_detail: draft ? similarityDiagnostics(draft, recent) : null,
     feedback: {
