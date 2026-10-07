@@ -49,7 +49,7 @@ const RULES = [
   "Personalization is empty. Do not ask for a questionnaire and do not invent a paid plan.",
   "Do not invent kilograms. Strength is percent of training max only.",
   "Sex changes nothing except wall ball, kettlebell, box height, and machine calories, and the server applies those later.",
-  "Warmup is 8–12 minutes and is never cut.",
+  "On a training day, warmup is 8–12 minutes and is never cut. A rest day is not a training day: warmup_min is 0, warmup_ko is empty, and there is no warm-up and no workout.",
   `Stimulus is only ${STIMULI.join(", ")}. If conditioning exists, stimulus is required and is that same value on the session and on conditioning. Null is invalid. The same stimulus cannot sit on consecutive training days.`,
   "If strength is null, strength_purpose, strength_volume, and strength_intensity must be null. If any of those is set, strength and its lift are required.",
   "Choose duration_min first, then set time_domain from that duration. Do not choose time_domain first.",
@@ -134,6 +134,9 @@ const RETRY_INSTRUCTION = [
   "Do not introduce new movements, formats, equipment, weights, or structures unless required to repair the listed failure.",
   "Do not fix one validation error by creating another validation error.",
   "Do not redesign unrelated days.",
+  "When repairing a failed draft, change only sessions listed in repair_scope and repair_sessions.",
+  "Preserve PASS sessions exactly.",
+  "Do not change a valid session merely to make the week look different.",
   "Do not introduce a new strength method.",
   "Do not change the monthly goal.",
   "All hard constraints remain mandatory.",
@@ -142,41 +145,108 @@ const RETRY_INSTRUCTION = [
   "Before returning the revised week, re-check all seven days against every hard constraint, every weekly requirement, the lower-body fatigue rule, the no-kilogram rule, Korean naming, and same-week similarity.",
 ].join(" ");
 
-const GENERATION_PHASES = {
-  note: "Think in this order. Output only the final JSON. Do not print the phases.",
-  phase_1_week_structure: {
-    goal: "Decide the role of every day before writing any session.",
-    per_day_decisions: [
-      "session type: strength / conditioning / mixed",
-      "movement pattern",
-      "primary stimulus",
-      "time domain and duration",
-      "approximate volume",
-      "intensity direction",
-      "equipment",
-      "work/rest",
-      "fatigue role",
-      "similarity avoidance against recent_structure_avoidance and against the other days of this week",
-    ],
-  },
-  phase_2_constraint_check: {
-    goal: "Check the structure before writing JSON.",
-    checks: [
-      "hard_constraints",
-      "weekly_requirements",
-      "monthly strength method",
-      "previous week feedback",
-      "lower_body_fatigue_rule on squat and deadlift",
-      "long conditioning count and 30–40 minutes",
-      "benchmark requirement",
-      "no two days share format + time_domain + stimulus + movement_pattern + equipment + volume at 4 or more matches",
-      "no kilograms anywhere",
-    ],
-  },
-  phase_3_final_json: {
-    goal: "Write the checked structure as the sessions array in the existing schema. Nothing else.",
-  },
-} as const;
+/** Features the similarity checker actually scores. Weight 0 features stay out of this list. */
+function scoredSimilarityFeatures(): string[] {
+  return (Object.keys(SIMILARITY_CONFIG.features) as Array<keyof typeof SIMILARITY_CONFIG.features>).filter(
+    (feature) => SIMILARITY_CONFIG.features[feature] > 0,
+  );
+}
+
+/**
+ * Planning instructions for this week. The model fills structure_slots in its head, then writes sessions.
+ * Nothing here assigns a lift or a movement to a weekday.
+ */
+function generationPhases(input: { longCount: number; highFatigue: boolean; heavyDefinition: string }) {
+  const scored = scoredSimilarityFeatures().join(", ");
+  const shareLimit = SIMILARITY_CONFIG.threshold - 1;
+  return {
+    note: "Think in this order. Output only the final JSON. Do not print the phases, the slots, or a reasoning trace.",
+    phase_1_week_structure: {
+      goal: "Before writing any workout details, design the 7-day structure in structure_slots. A slot is a structural decision. It does not assign a lift, a movement, or a fixed weekday template.",
+      read_first: [
+        "monthly plan and month_summary",
+        "current strength method and strength_prescription",
+        "recent actual performance and fatigue",
+        "recent_structure_avoidance",
+        "weekly_requirements",
+        "hard_constraints",
+      ],
+      per_day_decisions: [
+        "programming_intent",
+        `primary_stimulus from ${STIMULI.join(" | ")}`,
+        "secondary_stimulus or none",
+        "format_family from amrap | for_time | emom | intervals",
+        "time_domain from duration_min, using time_domain_rules",
+        "movement_pattern",
+        "strength_exposure: none | upper | lower, and whether it is a heavy lower exposure",
+        "conditioning_role: short | medium | long | none",
+        "lower_body_stress: none | moderate | heavy",
+        "recovery_role: train | easy | rest",
+        "volume_profile and equipment_profile",
+      ],
+      long_conditioning:
+        input.longCount === 1
+          ? "weekly_requirements asks for exactly 1 long conditioning session. Choose that day now, before any other session is written. time_domain long, duration inside the long range, not a heavy squat or deadlift day, and not the day after one. That day is not rest."
+          : "weekly_requirements asks for exactly 0 long conditioning sessions. Do not plan one.",
+      rest_day:
+        "Decide each day's role from weekly requirements before marking rest. A rest day is rest=true, warmup_min 0, warmup_ko empty, strength null, conditioning null, and every work field null. Do not write a warm-up or a workout on it. A day that carries a weekly requirement cannot be rest.",
+      fatigue: input.highFatigue
+        ? "Previous lower-body fatigue is high. Do not increase lower-body loading. Use the fatigue-cut prescription already defined by the active strength method: lower_body_sets for squat and deadlift. Do not invent percentages or kilograms."
+        : "Previous lower-body fatigue is not high. Use the method prescription. Do not drop squat or deadlift below that method.",
+      not_a_template:
+        "Do not reuse a fixed weekday map. Monday is not squat, Tuesday is not conditioning, and no other day is pre-assigned. Choose from the month, the method, fatigue, recent structures, and weekly requirements.",
+    },
+    phase_2_constraint_check: {
+      goal: "Before writing prescriptions, compare the planned slots. If a check fails, redesign that day. Do not fix a match by renaming a movement.",
+      before_writing: [
+        "Draft the weekly structure.",
+        "Compare every pair of days.",
+        `Do not allow two days to share ${SIMILARITY_CONFIG.threshold} or more of: ${scored}.`,
+        "If two days are that similar, redesign one day before writing final prescriptions.",
+        "Review recent_structure_avoidance the same way. Do not copy a recent structural fingerprint.",
+      ],
+      checks: [
+        "no consecutive training days share a stimulus",
+        `no repeated structural fingerprint inside the week: share at most ${shareLimit} of ${scored}`,
+        "no day shares that many features with a recent_structure_avoidance entry",
+        "movement-name swaps are not variation",
+        `adequate spacing between heavy lower exposures (${input.heavyDefinition})`,
+        "weekly long-conditioning count matches weekly_requirements",
+        "strength method and lower_body_fatigue_rule are respected",
+        "fatigue constraints are respected",
+        "rest days have no warm-up and no workout",
+        "hard_constraints and the benchmark requirement",
+        "no kilograms anywhere",
+      ],
+      lower_body_spacing: `Prefer adequate recovery spacing between heavy lower-body exposures. Do not place heavy squat and heavy deadlift on consecutive days unless the selected strength method explicitly requires or permits that sequence and the fatigue profile stays inside hard_constraints. No implemented method requires that sequence. The constitution rejects a heavy pull the day after a heavy squat and a heavy squat the day after a heavy deadlift. Heavy means: ${input.heavyDefinition}.`,
+      variation:
+        "Change the underlying training stimulus, not only movement names. Variation is a different combination of format, time domain, stimulus, movement pattern, volume, equipment, and work/rest. back squat to front squat, or thruster to wall ball inside the same format and time domain, is not variation.",
+    },
+    phase_3_final_json: {
+      goal: "Only after the structure passes phase 2, write the session prescriptions in the existing schema.",
+      prescriptions: [
+        "Copy sets from allowed_programming. lower_body_sets for squat and deadlift. upper_body_sets for ohp and bench. Do not invent percentages.",
+        "A training day fills every required session field. movement_combination is not null.",
+        "Do not invent equipment loads. Use movement names, method percentages, and machine calorie pairs only.",
+        "Session names are natural Korean where Korean naming is expected.",
+      ],
+    },
+    phase_4_self_check: {
+      goal: "Before returning JSON, confirm the week. Return { intent, sessions } only.",
+      checks: [
+        "all required fields populated",
+        "no invented weights",
+        "no null movement_combination on training days",
+        "Korean naming where expected, without sacrificing the program",
+        "no accidental rest-day workout or warm-up",
+        "no heavy lower consecutive-day conflict",
+        "no repeated stimulus on consecutive training days",
+        "long conditioning count matches weekly_requirements",
+        "no day shares too many fingerprint features with another day or a recent session",
+      ],
+    },
+  };
+}
 
 const PRESCRIBED_WEIGHT_RULE = {
   rule: "Do not invent kilogram values. Do not invent male/female prescribed weights. Do not invent equipment specifications. Do not invent benchmark loads.",
@@ -193,6 +263,9 @@ const NAME_KO_RULE = {
     "Korean letters only, apart from the allowed tokens AMRAP, EMOM, Rx, Scaled, Benchmark, Deload, 5/3/1.",
     "No kilograms, no male/female loads, no English abbreviations such as T2B or HSPU in name_ko.",
     "Descriptions, purposes, and warmup text are Korean sentences, not English.",
+    "Session names should be natural Korean where Korean naming is expected.",
+    "Do not use unnecessary English-only names.",
+    "Do not sacrifice programming quality merely to satisfy naming.",
     "The server measures the Korean share of every *_ko field. Below 0.7 is rejected.",
   ],
   examples: [
@@ -741,29 +814,56 @@ function structureAvoidanceEntry(row: StoredStructure) {
 }
 
 /**
- * One slot per weekday. The server names only the structural space and what must not repeat.
- * It does not assign a lift, a movement, or a role to any day.
+ * One slot per weekday. The server names the decisions the model must make before writing sessions.
+ * It does not assign a lift, a movement, or a fixed role to any day.
  */
-function structureSlots(longRequired: boolean) {
+function structureSlots(input: { longRequired: boolean; highFatigue: boolean }) {
+  const scored = scoredSimilarityFeatures();
+  const signature = scored.join("|");
   const chooses = {
-    role: "AI chooses: strength / mixed / conditioning",
-    structure_signature: "AI must choose: format|time_domain|stimulus|movement_pattern|equipment|volume",
-    movement_pattern: "AI must choose",
+    role: "AI chooses: strength / mixed / conditioning / rest. This slot does not assign a lift.",
+    programming_intent: "Decide from the month, the method, fatigue, recent structures, and weekly requirements. Not a fixed weekday template.",
+    primary_stimulus: `Decide one of ${STIMULI.join(" | ")} before writing movements. Consecutive training days must not share it.`,
+    secondary_stimulus: "Optional second quality, or none. It does not replace primary_stimulus.",
+    format_family: "Decide one of amrap | for_time | emom | intervals. Do not invent a format name.",
+    time_domain: "Decide short | medium | long only after duration_min, using time_domain_rules.",
+    movement_pattern: `Decide from ${MOVEMENT_PATTERNS.join(" | ")}. A different exercise name can still be the same pattern.`,
+    strength_exposure: "Decide none | upper | lower. Do not name the lift in this slot.",
+    lower_body_stress: "Decide none | moderate | heavy. Heavy lower exposures need recovery spacing.",
+    conditioning_role: "Decide short | medium | long | none.",
+    volume_profile: "Decide low | moderate | high for the whole session.",
+    recovery_role: "Decide train | easy | rest only after weekly requirements have a day.",
+    equipment_profile: "Decide equipment from the enum. Do not invent kilogram loads.",
+    structure_signature: `Decide ${signature}. Share at most ${SIMILARITY_CONFIG.threshold - 1} of those features with every other day and every recent entry.`,
     stimulus: "AI must choose",
     equipment: "AI must choose",
   };
   return DAY_ORDER.map((day, index) => {
     const earlier = DAY_ORDER.slice(0, index);
     const notes: string[] = [];
+    notes.push("Fill this slot in phase 1. Do not write the session until phase 2 accepts the week.");
     if (earlier.length) notes.push(`must not share ${SIMILARITY_CONFIG.threshold} or more similarity features with ${earlier.join(", ")}`);
-    notes.push("must not share 4 or more similarity features with any recent_structure_avoidance entry");
+    notes.push(`must not share ${SIMILARITY_CONFIG.threshold} or more similarity features with any recent_structure_avoidance entry`);
+    notes.push("Changing only a movement name does not change the signature.");
     notes.push("must respect hard_constraints, lower_body_fatigue_rule, and the day-after rules");
     if (index > 0) notes.push(`stimulus must differ from ${earlier[earlier.length - 1]} when both days train`);
-    if (longRequired) {
-      notes.push("eligible for the one long conditioning session if it is not a heavy squat or deadlift day and not the day after one; you choose the day");
+    if (input.highFatigue) {
+      notes.push("High lower fatigue. If this day uses squat or deadlift, copy lower_body_sets. Do not invent percentages or kilograms.");
     }
+    if (input.longRequired) {
+      notes.push(
+        "The one long conditioning session is chosen in phase 1. This day is eligible only if it is not a heavy squat or deadlift day and not the day after one. Exactly one day takes it, and that day is not rest.",
+      );
+    } else {
+      notes.push("This week requires zero long conditioning sessions. Do not mark this day long.");
+    }
+    notes.push("If this day is rest, it has no warm-up and no workout.");
     if (day === "sat") notes.push("optional day, no main lift");
-    if (day === "sun") notes.push("may be the rest day; a rest day has rest=true, warmup_min 0, and null work fields");
+    if (day === "sun") {
+      notes.push(
+        "Rest is allowed here only after weekly requirements already have a day. rest=true, warmup_min 0, warmup_ko empty, and every work field null.",
+      );
+    }
     return { day, ...chooses, notes };
   });
 }
@@ -808,7 +908,7 @@ function retrySection(retryErrors: readonly string[], previousDraft: unknown) {
         ],
         hard_constraints: "All hard constraints remain mandatory.",
         final_check:
-          "Before returning the revised JSON, mentally validate ALL seven sessions against ALL previously supplied hard constraints and weekly requirements, the lower-body fatigue rule, the no-kilogram rule, Korean naming, and same-week similarity. A repair that creates a new violation is a failed repair.",
+          "Change only repair_scope. Before returning the revised JSON, mentally validate ALL seven sessions against ALL previously supplied hard constraints and weekly requirements, the lower-body fatigue rule, the no-kilogram rule, Korean naming, and same-week similarity. A repair that creates a new violation is a failed repair.",
       },
     },
   };
@@ -833,7 +933,7 @@ export function weekPrompt(input: {
   const longShape =
     requirements.long_conditioning_sessions_min === 1
       ? {
-          note: "Shape only. You choose the day. Do not put this on a heavy squat or deadlift day. The server will not rewrite a shorter piece into this duration.",
+          note: "Choose this day in phase 1, before writing sessions. You choose the day. Do not put this on a heavy squat or deadlift day or the day after one. That day is not rest. The server will not rewrite a shorter piece into this duration.",
           time_domain: "long" as const,
           duration_min: TIME_DOMAIN_RANGES.long.min,
           long_conditioning: true,
@@ -842,21 +942,28 @@ export function weekPrompt(input: {
   const exampleHeavy = (sets ?? []).some((set) => set.percent_of_tm >= 85);
   const lowerRule = lowerBodyFatigueRule(method, input.weekIndex, previous?.actual);
   const recentStructures = (input.recent ?? []).filter((row) => !row.benchmark).map(structureAvoidanceEntry);
+  const highFatigue = lowerRule.active;
+  const longCount = requirements.long_conditioning_sessions_min;
+  const scored = scoredSimilarityFeatures();
   return {
     task: "Write the whole class week, including why. Do not pick from a catalog.",
     prompt_version: WEEKLY_PROMPT_VERSION,
-    generation_phases: GENERATION_PHASES,
+    generation_phases: generationPhases({
+      longCount,
+      highFatigue,
+      heavyDefinition: limits.heavy_lower_definition,
+    }),
     decision_order: [
       "monthly strength method",
-      "method prescription",
-      "current fatigue and actuals",
-      "hard_constraints",
-      "programming_space",
-      "weekly_requirements",
-      "allowed_programming",
-      "ai chooses lifts, days, and structure inside those boundaries",
-      "program the week",
-      "server validation rejects anything outside the limits",
+      "month plan",
+      "recent actual performance and fatigue",
+      "recent weekly structures",
+      "weekly requirements and hard constraints",
+      "build the 7-day structure in structure_slots",
+      "check stimulus diversity, structural fingerprints, lower-body spacing, long conditioning, and rest days",
+      "write session prescriptions only after that check",
+      "server validation",
+      "on failure, repair only the sessions in repair_scope",
     ],
     personalization: null,
     week_index: input.weekIndex,
@@ -889,11 +996,31 @@ export function weekPrompt(input: {
       volume: row.volume,
     })),
     recent_structure_avoidance: {
-      rule: `Similarity counts six features: format, time_domain, stimulus, movement_pattern, equipment, volume. A session that shares ${SIMILARITY_CONFIG.threshold} or more of them with any entry below, or with another day of this same week, is rejected. Share at most ${SIMILARITY_CONFIG.threshold - 1} features with every entry and with every other day. Renaming a movement changes nothing; change the features.`,
+      rule: `Do not copy the structural fingerprint of recent sessions. Review these entries before creating the weekly structure. Similarity counts ${scored.join(", ")}. A session that shares ${SIMILARITY_CONFIG.threshold} or more of them with any entry below, or with another day of this same week, is rejected. Share at most ${SIMILARITY_CONFIG.threshold - 1} features with every entry and with every other day. Movement-name changes alone do not count as meaningful variation. Change the underlying training stimulus, not only movement names.`,
       entries: recentStructures,
-      same_week: "Apply the same rule between the days you are writing now. Keep a running list of this week's signatures while you plan.",
+      same_week:
+        "Before writing prescriptions, compare every pair of days against this same rule. If two days are similar, redesign one day first. Keep a running list of this week's signatures while you plan.",
     },
-    structure_slots: structureSlots(requirements.long_conditioning_sessions_min === 1),
+    structure_slots: structureSlots({ longRequired: longCount === 1, highFatigue }),
+    structure_planning: {
+      fingerprint: scored,
+      share_at_most: SIMILARITY_CONFIG.threshold - 1,
+      rejected_at: SIMILARITY_CONFIG.threshold,
+      compare_before_writing:
+        "Draft the slots, compare every pair, and compare every day with recent_structure_avoidance. Redesign a similar day before writing sets or movements.",
+      variation:
+        "Variation changes format, time domain, stimulus, movement pattern, volume, equipment, or work/rest. A movement substitution that keeps those features is not variation. Stimulus values are only the stimulus enum.",
+      lower_body_spacing: `Prefer adequate recovery spacing between heavy lower-body exposures (${limits.heavy_lower_definition}). Do not place heavy squat and heavy deadlift on consecutive days unless the selected strength method explicitly requires or permits it and the fatigue profile stays acceptable. No implemented method requires that sequence.`,
+      rest_day:
+        "Place weekly requirements first, then mark rest. A rest day has rest=true, warmup_min 0, empty warmup_ko, and null work. Do not attach a warm-up or a workout.",
+      long_conditioning:
+        longCount === 1
+          ? "Choose the single long conditioning day in phase 1, then set that day's stimulus, recovery role, and lower-body stress. Do not add it after the other sessions are written."
+          : "This week has no long conditioning session. Do not add one at the end.",
+      fatigue: highFatigue
+        ? "Do not increase lower-body loading. Use the existing fatigue-cut prescription on lower_body_sets for squat and deadlift. Do not invent percentages or kilograms."
+        : "Use the method prescription for squat and deadlift. Do not drop a lower lift below the method.",
+    },
     strength_prescription: guide,
     example_sets: {
       upper_body: allowed.upper_body_sets,
@@ -918,9 +1045,9 @@ export function weekPrompt(input: {
       ai_still_chooses: ["lift", "day", "session structure"],
     },
     similarity_constraints: {
-      threshold: 4,
-      features: ["format", "time_domain", "stimulus", "movement_pattern", "equipment", "volume"],
-      note: "Do not repeat a recent structure. Changing only the movement name is not enough. Benchmarks may repeat.",
+      threshold: SIMILARITY_CONFIG.threshold,
+      features: scored,
+      note: "Do not repeat a recent structure or another day of this week. Changing only the movement name is not enough. Compare fingerprints before writing sessions. Benchmarks may repeat.",
     },
     enums: {
       day: [...DAY_ORDER],
@@ -970,7 +1097,9 @@ export function weekPrompt(input: {
       "weekly_requirements is a hard structural requirement for this week. Satisfy it inside sessions. The server rejects a miss and does not change duration for you.",
       "programming_space is only a boundary. Choose the day and the lift yourself.",
       "lower_body_fatigue_rule.applies_to lists every lift the fatigue cut covers. When it is active, squat and deadlift both use lower_body_sets. A deadlift at the unrestricted method sets is rejected the same way a squat would be.",
-      "structure_slots name the structural space per day. They do not assign a lift or a movement. Use them to keep every day's signature apart from the others and from recent_structure_avoidance.",
+      "Plan structure_slots before writing any session. Do not use a fixed weekday template.",
+      "structure_slots name the structural decisions per day. They do not assign a lift or a movement. Fill them in phase 1 and keep every day's signature apart from the others and from recent_structure_avoidance.",
+      "A rest day stays empty. Weekly requirements, including the long conditioning session, are placed before any day is marked rest.",
     ],
     ...(input.retryErrors && input.retryErrors.length ? retrySection(input.retryErrors, input.previousDraft) : {}),
     output_shape: {
@@ -978,6 +1107,8 @@ export function weekPrompt(input: {
       intent: { why_ko: "한국어", focus: "한국어", scheme_note: "한국어" },
       sessions: "exactly 7 objects, one per day mon through sun",
     },
+    compact_example_note:
+      "Schema shape only. The day and lift in this example are not this week's plan and are not a weekday template. Copy the fields, not the training.",
     compact_example: {
       intent: {
         why_ko: "이번 주는 월 방향을 유지하고 직전 주 피로에 맞춰 하체 볼륨을 정합니다.",

@@ -183,10 +183,10 @@ export const RULES_VERSION = "programming-6";
 
 export const MONTHLY_PROMPT_VERSION = "monthly-program-v4";
 /**
- * Weekly prompt that plans the week structure first, names the lower-body fatigue rule for
- * squat and deadlift, forbids invented kilograms, and repairs only failing sessions on retry.
+ * Weekly prompt that plans structure_slots before any session, checks fingerprints and
+ * heavy-lower spacing, then writes prescriptions. Retry still repairs only failing sessions.
  */
-export const WEEKLY_PROMPT_VERSION = "weekly-program-v8";
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v9";
 export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";
