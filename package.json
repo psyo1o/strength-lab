@@ -5,7 +5,7 @@
   "description": "Strength-training web app for Synology NAS self-hosting",
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build",
+    "build": "tsx scripts/check-wod-tips.ts && next build",
     "start": "next start --port 3000",
     "test": "vitest run",
     "seed": "tsx scripts/export-seed.ts",

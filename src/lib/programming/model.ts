@@ -53,6 +53,7 @@ const RULES = [
   "Top-level JSON is { intent, sessions }. sessions has exactly mon, tue, wed, thu, fri, sat, and sun. Do not wrap the object in class_week, week, or days.",
   "Warmup, strength, and conditioning together stay within about 60 minutes. Do not put a 30–40 minute piece on a strength day. Saturday is optional and has no main lift.",
   "Return JSON only. Do not pick a candidate_id.",
+  "When conditioning is present, conditioning.purpose is required in that same object. It is one or two Korean sentences on why that metcon is in the day. Write it while writing the metcon. Do not add purpose in a later pass. Do not put coaching sales, payment language, or invented kilograms in purpose.",
 ];
 
 const MONTH_RULES = [
@@ -226,6 +227,7 @@ function weekResponseFormat(): ResponseFormat {
       volume: stringEnum(["low", "moderate", "high"]),
       intensity: stringEnum(["light", "moderate", "heavy"]),
       long_conditioning: { type: "boolean" },
+      purpose: WEEK_STRING,
     },
     [
       "benchmark",
@@ -241,6 +243,7 @@ function weekResponseFormat(): ResponseFormat {
       "volume",
       "intensity",
       "long_conditioning",
+      "purpose",
     ],
   );
   const session = strictObject(
@@ -685,6 +688,7 @@ export function weekPrompt(input: {
             volume: "moderate",
             intensity: "moderate",
             long_conditioning: false,
+            purpose: "로잉을 정해진 시간 동안 반복하는 컨디셔닝이에요. 호흡이 끊기면 페이스를 낮춰요.",
           },
         },
         {
@@ -744,6 +748,7 @@ export function weekPrompt(input: {
         volume: "moderate",
         intensity: "moderate",
         long_conditioning: false,
+        purpose: "로잉을 정해진 시간 동안 반복하는 컨디셔닝이에요. 호흡이 끊기면 페이스를 낮춰요.",
       },
     },
   };

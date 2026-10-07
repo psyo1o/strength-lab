@@ -1,0 +1,20 @@
+{
+  "version": "0.1.0",
+  "owner": "tips",
+  "lang": "ko",
+  "tone": "해요체",
+  "source": "data/wod-templates.ko.json @ cursor/week-wod-model-pick-ac15",
+  "note": "템플릿 purpose. 이름이 없으면 id 사용.",
+  "items": [
+    {
+      "id": "kelly",
+      "name": "Kelly",
+      "purpose": "런·박스점프·월볼을 다섯 라운드 도는 엔진·하체 컨디셔닝 템플릿이에요. 유산소와 점프·스쿼트 지구력을 함께 봐요."
+    },
+    {
+      "id": "emom-engine",
+      "name": "엔진 EMOM",
+      "purpose": "매분 스러스터와 버피를 소화하는 짧은 EMOM 엔진이에요. 분 단위 페이스를 지키며 하체 푸시와 전신 출력을 유지해요."
+    }
+  ]
+}

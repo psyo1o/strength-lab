@@ -15,6 +15,14 @@ export type WodMovement = {
   rxNote: string;
 };
 
+/** Scale target stored on a benchmark or template. Ids match tip exerciseIds. */
+export type WodScale = {
+  fromExerciseId: string;
+  toExerciseIds: string[];
+  note: string;
+  raw?: string;
+};
+
 export type WodScaling = {
   tier: WodTier;
   titleKo: string;
@@ -40,6 +48,10 @@ export type WodTemplate = {
   wallBallTargetMF: number | null;
   movements: WodMovement[];
   scaling: WodScaling[];
+  /** Why this WOD exists. One or two Korean sentences. Not an Rx load. */
+  purpose: string;
+  /** Exercise ids to scale toward. Same ids as tip alternatives when the seed has them. */
+  scale: WodScale[];
 };
 
 export const RX_DISCLAIMER = "참고 처방 · 예상 시간은 참고용.";

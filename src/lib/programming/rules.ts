@@ -1,4 +1,5 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
+import { isWodPurpose } from "../wod/purpose";
 import { completeMonthDirection } from "./month-direction";
 import { strengthIsHeavy } from "./schemes";
 import { legacySchemeForMethod, validateStrengthPrescription } from "./strength-methods";
@@ -191,9 +192,11 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
   const volume = value.volume;
   const intensity = value.intensity;
   const longPiece = asBool(value.long_conditioning);
+  const purpose = asString(value.purpose);
   if (benchmark == null || patterns == null || equipment == null || !rep || !rest || duration == null || longPiece == null) {
     return null;
   }
+  if (!purpose || !isWodPurpose(purpose)) return null;
   if (format !== "amrap" && format !== "for_time" && format !== "emom" && format !== "intervals") return null;
   if (timeDomain !== "short" && timeDomain !== "medium" && timeDomain !== "long") return null;
   if (stimulus !== null && (typeof stimulus !== "string" || !(STIMULI as readonly string[]).includes(stimulus))) return null;
@@ -223,6 +226,7 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     volume,
     intensity,
     long_conditioning: longPiece,
+    purpose,
   };
 }
 
@@ -251,6 +255,7 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
     if (row.strength != null && !strength) return null;
     const conditioning = row.conditioning == null ? null : parseConditioning(row.conditioning);
     if (row.conditioning != null && !conditioning) return null;
+    const metconPurpose = asString(row.metcon_purpose) || conditioning?.purpose || null;
     const equipment = Array.isArray(row.equipment)
       ? parseStringList(row.equipment, EQUIPMENT) ?? []
       : [];
@@ -265,7 +270,7 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
       strength_purpose: asString(row.strength_purpose),
       strength_volume: row.strength_volume === "low" || row.strength_volume === "moderate" || row.strength_volume === "high" ? row.strength_volume : null,
       strength_intensity: row.strength_intensity === "light" || row.strength_intensity === "moderate" || row.strength_intensity === "heavy" ? row.strength_intensity : null,
-      metcon_purpose: asString(row.metcon_purpose),
+      metcon_purpose: metconPurpose,
       metcon_format: row.metcon_format === "amrap" || row.metcon_format === "for_time" || row.metcon_format === "emom" || row.metcon_format === "intervals" ? row.metcon_format : null,
       time_domain: row.time_domain === "short" || row.time_domain === "medium" || row.time_domain === "long" ? row.time_domain : null,
       stimulus: row.stimulus === null ? null : typeof row.stimulus === "string" && (STIMULI as readonly string[]).includes(row.stimulus) ? (row.stimulus as Stimulus) : null,
@@ -333,6 +338,10 @@ function explainWeekShape(raw: Record<string, unknown>): string[] {
     }
     if (isRecord(row.conditioning) && !Array.isArray(row.conditioning.equipment)) {
       errors.push(`${day} conditioning.equipment is missing`);
+    }
+    if (isRecord(row.conditioning)) {
+      const purpose = typeof row.conditioning.purpose === "string" ? row.conditioning.purpose : "";
+      if (!isWodPurpose(purpose)) errors.push(`${day} conditioning.purpose must be 1–2 Korean sentences`);
     }
   }
   if (raw.sessions.length !== 7) errors.push("week needs seven days");
@@ -525,6 +534,9 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if (!session.warmup_ko) errors.push(`${session.day} warmup text is empty`);
     if (!session.strength && !session.conditioning) errors.push(`${session.day} has no work`);
     if (!session.conditioning) continue;
+    if (!isWodPurpose(session.conditioning.purpose)) {
+      errors.push(`${session.day} conditioning.purpose must be 1–2 Korean sentences`);
+    }
     if (session.metcon_format && session.metcon_format !== session.conditioning.format) {
       errors.push(`${session.day} metcon format does not match`);
     }

@@ -80,6 +80,8 @@ export type ConditioningDraft = {
   volume: VolumeBand;
   intensity: IntensityBand;
   long_conditioning: boolean;
+  /** Why this metcon is here. Required when the piece is generated. One or two Korean sentences. */
+  purpose: string;
 };
 
 export type SessionDraft = {

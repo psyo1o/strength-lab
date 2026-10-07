@@ -1,0 +1,583 @@
+{
+  "version": "0.1.0",
+  "owner": "tips",
+  "lang": "ko",
+  "note": "벤치마크·템플릿 스케일 제안. toExerciseIds는 exercise-tips.ko.json에 있는 id만. unmapped 동작은 raw로 표기.",
+  "wods": [
+    {
+      "id": "angie",
+      "name": "Angie",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "ring_row",
+            "kipping_pull_up",
+            "chin_up"
+          ],
+          "note": "풀업이 안 나오면 링 로우·밴드(키핑/친업 팁)로 당김을 이어 주세요.",
+          "fromExerciseId": "pull_up"
+        },
+        {
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎 푸시업·핸드 엘리베이티드는 별도 tip id 없음. 같은 push_up 팁의 손 높이·무릎 스케일을 참고해 주세요.",
+          "fromExerciseId": "push_up"
+        },
+        {
+          "toExerciseIds": [
+            "abs"
+          ],
+          "note": "싯업이 불편하면 abs 팁의 데드버그·할로우 쪽으로 바꿔 주세요.",
+          "fromExerciseId": "sit_up"
+        },
+        {
+          "toExerciseIds": [
+            "lunge",
+            "back_squat"
+          ],
+          "note": "air_squat 팁 없음. 깊이·균형이 어려우면 런지 또는 가벼운 스쿼트 패턴으로 스케일(전용 팁은 gap stub).",
+          "raw": "air-squat"
+        }
+      ]
+    },
+    {
+      "id": "barbara",
+      "name": "Barbara",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "ring_row",
+            "chin_up"
+          ],
+          "note": "라운드마다 풀업이 무거우면 링 로우·친업으로.",
+          "fromExerciseId": "pull_up"
+        },
+        {
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎·핸드 엘리베이티드 스케일은 push_up 팁 alternative 참고.",
+          "fromExerciseId": "push_up"
+        },
+        {
+          "toExerciseIds": [
+            "abs"
+          ],
+          "note": "허리가 불편하면 abs로 대체.",
+          "fromExerciseId": "sit_up"
+        },
+        {
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "air_squat 팁 없음. 런지로 부하를 나눠 주세요.",
+          "raw": "air-squat"
+        }
+      ]
+    },
+    {
+      "id": "chelsea",
+      "name": "Chelsea",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "매분 풀업이 안 되면 링 로우로 페이스를 지켜 주세요.",
+          "fromExerciseId": "pull_up"
+        },
+        {
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎 푸시업으로 분 안에 끝내기.",
+          "fromExerciseId": "push_up"
+        },
+        {
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "air_squat 팁 없음. 필요하면 런지.",
+          "raw": "air-squat"
+        }
+      ]
+    },
+    {
+      "id": "diane",
+      "name": "Diane",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "stiff_leg_deadlift"
+          ],
+          "note": "무게를 내리고, 허리가 예민면 RDL 범위로.",
+          "fromExerciseId": "deadlift"
+        },
+        {
+          "toExerciseIds": [
+            "push_up",
+            "handstand"
+          ],
+          "note": "HSPU tip 없음. 박스 파이크 푸시업·푸시업·핸드스탠드 홀드 진행으로 스케일.",
+          "raw": "handstand-push-up"
+        }
+      ]
+    },
+    {
+      "id": "elizabeth",
+      "name": "Elizabeth",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "power_clean"
+          ],
+          "note": "스쿼트 클린이 무거우면 파워 클린·무게 감소.",
+          "fromExerciseId": "squat_clean"
+        },
+        {
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "ring_dip tip 없음. 푸시업·벤치 딥(딥 tip 없음)으로 밀기 자극만 유지.",
+          "raw": "ring-dip"
+        }
+      ]
+    },
+    {
+      "id": "fran",
+      "name": "Fran",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "front_squat",
+            "ohp"
+          ],
+          "note": "스러스터가 무거우면 무게를 낮추거나 프론트 스쿼트+프레스로 나눠 주세요.",
+          "fromExerciseId": "thruster"
+        },
+        {
+          "toExerciseIds": [
+            "ring_row",
+            "kipping_pull_up"
+          ],
+          "note": "풀업은 링 로우·키핑/밴드로.",
+          "fromExerciseId": "pull_up"
+        }
+      ]
+    },
+    {
+      "id": "grace",
+      "name": "Grace",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "power_clean",
+            "split_jerk",
+            "squat_clean"
+          ],
+          "note": "무게를 낮추거나 파워 클린+스플릿 저크로 나눠 연습.",
+          "fromExerciseId": "clean_jerk"
+        }
+      ]
+    },
+    {
+      "id": "helen",
+      "name": "Helen",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "fan_bike",
+            "row",
+            "ski"
+          ],
+          "note": "무릎·정강이가 불편하면 팬바이크·로우·스키로.",
+          "fromExerciseId": "run"
+        },
+        {
+          "toExerciseIds": [
+            "deadlift"
+          ],
+          "note": "스윙이 버거우면 무게를 낮추거나 힙 힌지(라이트 데드)로.",
+          "fromExerciseId": "kb_swing"
+        },
+        {
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업은 링 로우로.",
+          "fromExerciseId": "pull_up"
+        }
+      ]
+    },
+    {
+      "id": "isabel",
+      "name": "Isabel",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "power_snatch"
+          ],
+          "note": "풀 스네치가 어려우면 파워 스네치·행 스네치·무게 감소.",
+          "fromExerciseId": "squat_snatch"
+        }
+      ]
+    },
+    {
+      "id": "jackie",
+      "name": "Jackie",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "fan_bike",
+            "ski",
+            "run"
+          ],
+          "note": "로워가 없으면 팬바이크·스키·런으로 엔진만 유지.",
+          "fromExerciseId": "row"
+        },
+        {
+          "toExerciseIds": [
+            "front_squat",
+            "wall_ball"
+          ],
+          "note": "스러스터 무게 감소 또는 월볼·고블릿 패턴.",
+          "fromExerciseId": "thruster"
+        },
+        {
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업 → 링 로우.",
+          "fromExerciseId": "pull_up"
+        }
+      ]
+    },
+    {
+      "id": "karen",
+      "name": "Karen",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "front_squat",
+            "thruster"
+          ],
+          "note": "타깃·무게 낮추기. 월볼 대신 프론트/고블릿 스쿼트·라이트 스러스터.",
+          "fromExerciseId": "wall_ball"
+        }
+      ]
+    },
+    {
+      "id": "linda",
+      "name": "Linda",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "stiff_leg_deadlift"
+          ],
+          "note": "체중 비율이 무거우면 %를 낮추세요.",
+          "fromExerciseId": "deadlift"
+        },
+        {
+          "toExerciseIds": [
+            "floor_press",
+            "push_up"
+          ],
+          "note": "벤치가 무거우면 플로어 프레스·푸시업.",
+          "fromExerciseId": "bench_press"
+        },
+        {
+          "toExerciseIds": [
+            "power_clean"
+          ],
+          "note": "클린은 파워 클린·무게 감소.",
+          "fromExerciseId": "squat_clean"
+        }
+      ]
+    },
+    {
+      "id": "mary",
+      "name": "Mary",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "push_up",
+            "handstand"
+          ],
+          "note": "HSPU tip 없음. 파이크·푸시업·핸드스탠드 홀드.",
+          "raw": "handstand-push-up"
+        },
+        {
+          "toExerciseIds": [
+            "lunge",
+            "box_jump"
+          ],
+          "note": "pistol tip 없음. 런지·박스 스텝/스쿼트로 한 다리 부하를 낮춰 주세요.",
+          "raw": "pistol"
+        },
+        {
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업 → 링 로우.",
+          "fromExerciseId": "pull_up"
+        }
+      ]
+    },
+    {
+      "id": "nancy",
+      "name": "Nancy",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "fan_bike",
+            "row"
+          ],
+          "note": "런 대신 머신 엔진.",
+          "fromExerciseId": "run"
+        },
+        {
+          "toExerciseIds": [
+            "front_squat",
+            "squat_snatch"
+          ],
+          "note": "OHS tip 없음. 프론트 스쿼트 또는 라이트 오버헤드 연습(스네치 팁 참고).",
+          "raw": "overhead-squat"
+        }
+      ]
+    },
+    {
+      "id": "annie",
+      "name": "Annie",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "box_jump"
+          ],
+          "note": "싱글언더는 tip id 없음. 줄 리듬이 안 되면 싱글×2(문구만) 또는 가벼운 점프(박스점프 낮게)로.",
+          "fromExerciseId": "double_under"
+        },
+        {
+          "toExerciseIds": [
+            "abs",
+            "knee_raise"
+          ],
+          "note": "싯업 대신 abs·니레이즈.",
+          "fromExerciseId": "sit_up"
+        }
+      ]
+    },
+    {
+      "id": "cindy",
+      "name": "Cindy",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업 → 링 로우.",
+          "fromExerciseId": "pull_up"
+        },
+        {
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎·핸드 엘리베이티드.",
+          "fromExerciseId": "push_up"
+        },
+        {
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "air_squat tip 없음.",
+          "raw": "air-squat"
+        }
+      ]
+    },
+    {
+      "id": "nicole",
+      "name": "Nicole",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "fan_bike",
+            "row"
+          ],
+          "note": "런 스케일 → 머신.",
+          "fromExerciseId": "run"
+        },
+        {
+          "toExerciseIds": [
+            "ring_row",
+            "chin_up"
+          ],
+          "note": "맥스 풀업이 부담이면 링 로우·밴드로 총량만 유지.",
+          "fromExerciseId": "pull_up"
+        }
+      ]
+    },
+    {
+      "id": "murph",
+      "name": "Murph",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "fan_bike",
+            "row",
+            "ski"
+          ],
+          "note": "마일 런이 부담이면 거리 축소 또는 머신.",
+          "fromExerciseId": "run"
+        },
+        {
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업 → 링 로우. 파티션(신디 분할) 허용.",
+          "fromExerciseId": "pull_up"
+        },
+        {
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎 푸시업으로 고반복 유지.",
+          "fromExerciseId": "push_up"
+        },
+        {
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "air_squat tip 없음. 필요 시 런지.",
+          "raw": "air-squat"
+        }
+      ]
+    },
+    {
+      "id": "dt",
+      "name": "DT",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "stiff_leg_deadlift"
+          ],
+          "note": "무게 감소.",
+          "fromExerciseId": "deadlift"
+        },
+        {
+          "toExerciseIds": [
+            "squat_clean"
+          ],
+          "note": "행파워클린(alias→power_clean). 더 어려우면 무게만 낮추고 같은 패턴 유지.",
+          "fromExerciseId": "power_clean"
+        },
+        {
+          "toExerciseIds": [
+            "ohp",
+            "thruster"
+          ],
+          "note": "푸시저크(alias→split_jerk). 어깨가 부담이면 프레스·라이트 스러스터.",
+          "fromExerciseId": "split_jerk"
+        }
+      ]
+    },
+    {
+      "id": "fight-gone-bad",
+      "name": "Fight Gone Bad",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "front_squat",
+            "thruster"
+          ],
+          "note": "월볼 무게·타깃 낮추기.",
+          "fromExerciseId": "wall_ball"
+        },
+        {
+          "toExerciseIds": [
+            "deadlift",
+            "kb_swing",
+            "barbell_row"
+          ],
+          "note": "SDHP tip 없음. 데드·스윙·로우로 힙/당김 자극만 유지.",
+          "raw": "sumo-deadlift-high-pull"
+        },
+        {
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "스텝업 tip id 없음. 낮은 박스·런지로.",
+          "fromExerciseId": "box_jump"
+        },
+        {
+          "toExerciseIds": [
+            "ohp",
+            "thruster"
+          ],
+          "note": "push_press tip 없음. 스트릭트 프레스·라이트 스러스터로.",
+          "raw": "push-press"
+        },
+        {
+          "toExerciseIds": [
+            "fan_bike",
+            "ski"
+          ],
+          "note": "로워 없으면 팬바이크·스키 칼로리.",
+          "fromExerciseId": "row"
+        }
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "id": "kelly",
+      "name": "Kelly",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "fan_bike",
+            "row"
+          ],
+          "note": "런 거리 축소 또는 머신.",
+          "fromExerciseId": "run"
+        },
+        {
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "낮은 박스·스텝(스텝업 tip 없음)·런지.",
+          "fromExerciseId": "box_jump"
+        },
+        {
+          "toExerciseIds": [
+            "front_squat",
+            "thruster"
+          ],
+          "note": "월볼 무게·타깃 낮추기 또는 고블릿/프론트.",
+          "fromExerciseId": "wall_ball"
+        }
+      ]
+    },
+    {
+      "id": "emom-engine",
+      "name": "엔진 EMOM",
+      "scales": [
+        {
+          "toExerciseIds": [
+            "front_squat",
+            "wall_ball"
+          ],
+          "note": "스러스터 무게 감소·덤벨/월볼 패턴.",
+          "fromExerciseId": "thruster"
+        },
+        {
+          "toExerciseIds": [
+            "push_up",
+            "box_jump"
+          ],
+          "note": "스텝 버피·업다운. 부담이면 푸시업+스텝으로 나눠 주세요.",
+          "fromExerciseId": "burpee"
+        }
+      ]
+    }
+  ]
+}

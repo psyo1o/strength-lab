@@ -24,6 +24,41 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "네 동작 각 100회. 쪼개도 OK." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "풀업 → 밴드/링 로우. 푸시업 → 무릎." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "각 50회. 링 로우·무릎 푸시업." }
+      ],
+      "purpose": "풀업·푸시업·싯업·에어스쿼트를 한 번씩 길게 이어 가는 맨몸 지구력 벤치마크예요. 상·하체를 골고루 써서 오래 버티는 힘을 확인해요.",
+      "scale": [
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row",
+            "kipping_pull_up",
+            "chin_up"
+          ],
+          "note": "풀업이 안 나오면 링 로우·밴드(키핑/친업 팁)로 당김을 이어 주세요."
+        },
+        {
+          "fromExerciseId": "push_up",
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎 푸시업·핸드 엘리베이티드는 별도 tip id 없음. 같은 push_up 팁의 손 높이·무릎 스케일을 참고해 주세요."
+        },
+        {
+          "fromExerciseId": "sit_up",
+          "toExerciseIds": [
+            "abs"
+          ],
+          "note": "싯업이 불편하면 abs 팁의 데드버그·할로우 쪽으로 바꿔 주세요."
+        },
+        {
+          "fromExerciseId": "air_squat",
+          "toExerciseIds": [
+            "lunge",
+            "back_squat"
+          ],
+          "note": "air_squat 팁 없음. 깊이·균형이 어려우면 런지 또는 가벼운 스쿼트 패턴으로 스케일(전용 팁은 gap stub).",
+          "raw": "air-squat"
+        }
       ]
     },
     {
@@ -49,6 +84,39 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "휴식 3분을 포함해 전체 시간으로 기록." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "풀업·푸시업 스케일. 3라운드." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "링 로우·무릎 푸시업. 2–3라운드." }
+      ],
+      "purpose": "라운드 사이 휴식이 있는 맨몸 반복 와드예요. 회복을 끼워 넣으면서도 고반복 풀·푸시·코어·스쿼트 체력을 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row",
+            "chin_up"
+          ],
+          "note": "라운드마다 풀업이 무거우면 링 로우·친업으로."
+        },
+        {
+          "fromExerciseId": "push_up",
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎·핸드 엘리베이티드 스케일은 push_up 팁 alternative 참고."
+        },
+        {
+          "fromExerciseId": "sit_up",
+          "toExerciseIds": [
+            "abs"
+          ],
+          "note": "허리가 불편하면 abs로 대체."
+        },
+        {
+          "fromExerciseId": "air_squat",
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "air_squat 팁 없음. 런지로 부하를 나눠 주세요.",
+          "raw": "air-squat"
+        }
       ]
     },
     {
@@ -73,6 +141,31 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "분 안에 30회를 끝내고 나머진 휴식. 최대 30점." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "풀업 → 밴드/링 로우. 푸시업 → 무릎. 또는 20분." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "링 로우 3 · 무릎 푸시업 8 · 스쿼트 10. 12–15분." }
+      ],
+      "purpose": "30분 EMOM으로 매분 같은 맨몸 세트를 소화하는 페이스 관리 와드예요. 긴 시간 동안 리듬을 유지하는 능력을 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "매분 풀업이 안 되면 링 로우로 페이스를 지켜 주세요."
+        },
+        {
+          "fromExerciseId": "push_up",
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎 푸시업으로 분 안에 끝내기."
+        },
+        {
+          "fromExerciseId": "air_squat",
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "air_squat 팁 없음. 필요하면 런지.",
+          "raw": "air-squat"
+        }
       ]
     },
     {
@@ -95,6 +188,25 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "데드 무게와 HSPU 그대로." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "데드 무게 낮춤. HSPU → 파이크/박스 HSPU." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "가벼운 데드. 파이크 푸시업. 횟수 15-12-9." }
+      ],
+      "purpose": "무거운 데드리프트와 HSPU를 21-15-9로 섞은 짧은 파워 와드예요. 하체 당김과 상체 밀기 전환 능력을 확인해요.",
+      "scale": [
+        {
+          "fromExerciseId": "deadlift",
+          "toExerciseIds": [
+            "stiff_leg_deadlift"
+          ],
+          "note": "무게를 내리고, 허리가 예민면 RDL 범위로."
+        },
+        {
+          "fromExerciseId": "handstand_push_up",
+          "toExerciseIds": [
+            "push_up",
+            "handstand"
+          ],
+          "note": "HSPU tip 없음. 박스 파이크 푸시업·푸시업·핸드스탠드 홀드 진행으로 스케일.",
+          "raw": "handstand-push-up"
+        }
       ]
     },
     {
@@ -117,6 +229,24 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "스쿼트클린과 링 딥 그대로." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "무게 낮춤. 딥 → 밴드 딥/벤치 딥." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨 클린. 벤치 딥. 횟수 15-12-9." }
+      ],
+      "purpose": "클린과 링 딥을 21-15-9로 이어 가는 짧은 바벨·체조 콤보예요. 고중량 클린 리듬과 상체 밀기 지구력을 함께 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "squat_clean",
+          "toExerciseIds": [
+            "power_clean"
+          ],
+          "note": "스쿼트 클린이 무거우면 파워 클린·무게 감소."
+        },
+        {
+          "fromExerciseId": "ring_dip",
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "ring_dip tip 없음. 푸시업·벤치 딥(딥 tip 없음)으로 밀기 자극만 유지.",
+          "raw": "ring-dip"
+        }
       ]
     },
     {
@@ -139,6 +269,25 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "처방 무게와 풀업 그대로." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "스러스터 무게를 낮추세요. 풀업 → 밴드 풀업 또는 링 로우." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨·고블릿 스러스터. 풀업 → 점프 풀업/링 로우. 횟수 15-12-9도 OK." }
+      ],
+      "purpose": "스러스터와 풀업을 21-15-9로 빠르게 돌리는 짧은 고출력 와드예요. 하체 푸시와 상체 풀을 섞은 파워 지구력을 확인해요.",
+      "scale": [
+        {
+          "fromExerciseId": "thruster",
+          "toExerciseIds": [
+            "front_squat",
+            "ohp"
+          ],
+          "note": "스러스터가 무거우면 무게를 낮추거나 프론트 스쿼트+프레스로 나눠 주세요."
+        },
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row",
+            "kipping_pull_up"
+          ],
+          "note": "풀업은 링 로우·키핑/밴드로."
+        }
       ]
     },
     {
@@ -160,6 +309,18 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "클래식 135/95lb 30회. 기록에 115/75lb 변형을 썼으면 메모하세요." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "115/75lb (52.5/35kg) 또는 더 낮춤. 파워클린+푸시저크." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨 클린앤저크 또는 행 클린+푸치프레스. 횟수 20회." }
+      ],
+      "purpose": "클린앤저크만 30회 하는 단순·고강도 바벨 와드예요. 바벨을 머리 위로 올리는 사이클 속도와 파워를 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "clean_jerk",
+          "toExerciseIds": [
+            "power_clean",
+            "split_jerk",
+            "squat_clean"
+          ],
+          "note": "무게를 낮추거나 파워 클린+스플릿 저크로 나눠 연습."
+        }
       ]
     },
     {
@@ -184,6 +345,32 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "런·스윙·풀업 그대로 3라운드." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "런 200–300m. 스윙 무게 낮춤. 풀업 → 밴드/링 로우." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "런 대신 행. 러시안 스윙. 풀업 → 링 로우. 2라운드도 OK." }
+      ],
+      "purpose": "런·케틀벨 스윙·풀업을 세 라운드 도는 중간 길이 엔진 와드예요. 유산소와 풀·힙 힌지를 함께 쓰는 컨디셔닝을 확인해요.",
+      "scale": [
+        {
+          "fromExerciseId": "run",
+          "toExerciseIds": [
+            "fan_bike",
+            "row",
+            "ski"
+          ],
+          "note": "무릎·정강이가 불편하면 팬바이크·로우·스키로."
+        },
+        {
+          "fromExerciseId": "kb_swing",
+          "toExerciseIds": [
+            "deadlift"
+          ],
+          "note": "스윙이 버거우면 무게를 낮추거나 힙 힌지(라이트 데드)로."
+        },
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업은 링 로우로."
+        }
       ]
     },
     {
@@ -205,6 +392,16 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "처방 무게 30회. 파워스네치 OK." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "무게를 낮추거나 행 스네치." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨 스네치. 횟수 20회." }
+      ],
+      "purpose": "스네치 30회만 하는 짧은 바벨 파워 와드예요. 한 동작으로 폭발력과 바벨 사이클을 측정해요.",
+      "scale": [
+        {
+          "fromExerciseId": "squat_snatch",
+          "toExerciseIds": [
+            "power_snatch"
+          ],
+          "note": "풀 스네치가 어려우면 파워 스네치·행 스네치·무게 감소."
+        }
       ]
     },
     {
@@ -228,6 +425,33 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "로잉·스러스터·풀업 그대로." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "로잉 750m. 풀업 → 밴드/링 로우." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "로잉 500m. 덤벨 스러스터 30. 링 로우 20." }
+      ],
+      "purpose": "로우로 시작해 가벼운 스러스터와 풀업으로 이어지는 엔진·바벨 혼합 와드예요. 유산소 후 하체·풀 지구력을 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "row",
+          "toExerciseIds": [
+            "fan_bike",
+            "ski",
+            "run"
+          ],
+          "note": "로워가 없으면 팬바이크·스키·런으로 엔진만 유지."
+        },
+        {
+          "fromExerciseId": "thruster",
+          "toExerciseIds": [
+            "front_squat",
+            "wall_ball"
+          ],
+          "note": "스러스터 무게 감소 또는 월볼·고블릿 패턴."
+        },
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업 → 링 로우."
+        }
       ]
     },
     {
@@ -253,6 +477,17 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "무게·타깃 그대로 150회." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "가벼운 볼. 타깃 낮춤. 횟수 100회." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "고블릿 스쿼트 80–100회." }
+      ],
+      "purpose": "월볼만 150회 하는 고반복 하체·어깨 지구력 와드예요. 스쿼트와 오버헤드 동작의 오래 버티는 힘을 확인해요.",
+      "scale": [
+        {
+          "fromExerciseId": "wall_ball",
+          "toExerciseIds": [
+            "front_squat",
+            "thruster"
+          ],
+          "note": "타깃·무게 낮추기. 월볼 대신 프론트/고블릿 스쿼트·라이트 스러스터."
+        }
       ]
     },
     {
@@ -276,6 +511,31 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "체중 비율 그대로. 체중은 1RM의 체중 칸." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "비율을 낮추거나 고정 무게." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "가벼운 고정 무게. 6→1." }
+      ],
+      "purpose": "체중 비율 데드·벤치·클린을 10부터 1까지 내려가는 바벨 사다리예요. 세 가지 바벨 근력과 전환 체력을 함께 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "deadlift",
+          "toExerciseIds": [
+            "stiff_leg_deadlift"
+          ],
+          "note": "체중 비율이 무거우면 %를 낮추세요."
+        },
+        {
+          "fromExerciseId": "bench_press",
+          "toExerciseIds": [
+            "floor_press",
+            "push_up"
+          ],
+          "note": "벤치가 무거우면 플로어 프레스·푸시업."
+        },
+        {
+          "fromExerciseId": "squat_clean",
+          "toExerciseIds": [
+            "power_clean"
+          ],
+          "note": "클린은 파워 클린·무게 감소."
+        }
       ]
     },
     {
@@ -299,6 +559,34 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "HSPU·피스톨·풀업 그대로 20분." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "HSPU → 파이크. 피스톨 → 박스 피스톨/런지." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "12분. 파이크 푸시업 · 런지 · 링 로우." }
+      ],
+      "purpose": "HSPU·피스톨·풀업을 20분 AMRAP로 도는 체조 중심 와드예요. 상체 밀기·한 다리 스쿼트·풀의 기술 지구력을 확인해요.",
+      "scale": [
+        {
+          "fromExerciseId": "handstand_push_up",
+          "toExerciseIds": [
+            "push_up",
+            "handstand"
+          ],
+          "note": "HSPU tip 없음. 파이크·푸시업·핸드스탠드 홀드.",
+          "raw": "handstand-push-up"
+        },
+        {
+          "fromExerciseId": "pistol",
+          "toExerciseIds": [
+            "lunge",
+            "box_jump"
+          ],
+          "note": "pistol tip 없음. 런지·박스 스텝/스쿼트로 한 다리 부하를 낮춰 주세요.",
+          "raw": "pistol"
+        },
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업 → 링 로우."
+        }
       ]
     },
     {
@@ -322,6 +610,26 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "런과 OHS 무게 그대로 5라운드." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "런 200–300m. OHS 무게 낮춤 또는 프론트 스쿼트." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "런 대신 행. 고블릿 스쿼트 15. 3라운드." }
+      ],
+      "purpose": "런과 오버헤드 스쿼트를 다섯 라운드 도는 엔진·안정성 와드예요. 유산소 후 오버헤드 스쿼트 자세를 유지하는 힘을 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "run",
+          "toExerciseIds": [
+            "fan_bike",
+            "row"
+          ],
+          "note": "런 대신 머신 엔진."
+        },
+        {
+          "fromExerciseId": "overhead_squat",
+          "toExerciseIds": [
+            "front_squat",
+            "squat_snatch"
+          ],
+          "note": "OHS tip 없음. 프론트 스쿼트 또는 라이트 오버헤드 연습(스네치 팁 참고).",
+          "raw": "overhead-squat"
+        }
       ]
     },
     {
@@ -344,6 +652,24 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "더블언더와 싯업 그대로." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "더블언더 → 싱글언더 ×2." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "싱글언더. 횟수 40-30-20-10. 크런치도 OK." }
+      ],
+      "purpose": "더블언더와 싯업을 50-40-30-20-10으로 섞은 짧은 스킬·코어 와드예요. 줄넘기 리듬과 코어 지구력을 확인해요.",
+      "scale": [
+        {
+          "fromExerciseId": "double_under",
+          "toExerciseIds": [
+            "box_jump"
+          ],
+          "note": "싱글언더는 tip id 없음. 줄 리듬이 안 되면 싱글×2(문구만) 또는 가벼운 점프(박스점프 낮게)로."
+        },
+        {
+          "fromExerciseId": "sit_up",
+          "toExerciseIds": [
+            "abs",
+            "knee_raise"
+          ],
+          "note": "싯업 대신 abs·니레이즈."
+        }
       ]
     },
     {
@@ -367,6 +693,31 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "풀업·푸시업·스쿼트 그대로 20분." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "풀업 → 밴드/링 로우. 푸시업 → 무릎 푸시업." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "12분 AMRAP. 링 로우 · 무릎 푸시업 · 박스 스쿼트." }
+      ],
+      "purpose": "풀업·푸시업·에어스쿼트를 20분 AMRAP로 도는 기본 맨몸 벤치마크예요. 페이스를 나눠 오래 반복하는 능력을 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업 → 링 로우."
+        },
+        {
+          "fromExerciseId": "push_up",
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎·핸드 엘리베이티드."
+        },
+        {
+          "fromExerciseId": "air_squat",
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "air_squat tip 없음.",
+          "raw": "air-squat"
+        }
       ]
     },
     {
@@ -389,6 +740,25 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "런 후 풀업을 멈추기 직전까지. 총 풀업이 점수인 기록도 있음." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "런 200–300m. 풀업 → 밴드/링 로우." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "12분. 행 + 링 로우." }
+      ],
+      "purpose": "400m 런 뒤 풀업 맥스 반복을 20분간 이어 가는 와드예요. 유산소 회복과 풀업 총량을 함께 측정해요.",
+      "scale": [
+        {
+          "fromExerciseId": "run",
+          "toExerciseIds": [
+            "fan_bike",
+            "row"
+          ],
+          "note": "런 스케일 → 머신."
+        },
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row",
+            "chin_up"
+          ],
+          "note": "맥스 풀업이 부담이면 링 로우·밴드로 총량만 유지."
+        }
       ]
     },
     {
@@ -414,6 +784,40 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "조끼 착용 여부는 기록에 남기세요. 파티션(20라운드 5-10-15) OK." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "조끼 없이. 풀업·푸시업 스케일. 런 800m+800m." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "하프: 800m · 50 · 100 · 150 · 800m. 링 로우·무릎 푸시업." }
+      ],
+      "purpose": "마일 런과 풀업·푸시업·에어스쿼트 칩퍼, 다시 마일 런으로 끝나는 긴 히어로 와드예요. 장거리 지구력과 맨몸 고반복을 확인해요.",
+      "scale": [
+        {
+          "fromExerciseId": "run",
+          "toExerciseIds": [
+            "fan_bike",
+            "row",
+            "ski"
+          ],
+          "note": "마일 런이 부담이면 거리 축소 또는 머신."
+        },
+        {
+          "fromExerciseId": "pull_up",
+          "toExerciseIds": [
+            "ring_row"
+          ],
+          "note": "풀업 → 링 로우. 파티션(신디 분할) 허용."
+        },
+        {
+          "fromExerciseId": "push_up",
+          "toExerciseIds": [
+            "push_up"
+          ],
+          "note": "무릎 푸시업으로 고반복 유지."
+        },
+        {
+          "fromExerciseId": "air_squat",
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "air_squat tip 없음. 필요 시 런지.",
+          "raw": "air-squat"
+        }
       ]
     },
     {
@@ -438,6 +842,31 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "한 바벨로 세 동작. 무게 그대로 5라운드." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "무게를 낮추거나 파워클린+푸치프레스." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "가벼운 바. 3라운드." }
+      ],
+      "purpose": "데드·행파워클린·푸시저크를 같은 바벨로 다섯 라운드 도는 히어로 와드예요. 바벨 콤플렉스 파워와 그립 지구력을 봐요.",
+      "scale": [
+        {
+          "fromExerciseId": "deadlift",
+          "toExerciseIds": [
+            "stiff_leg_deadlift"
+          ],
+          "note": "무게 감소."
+        },
+        {
+          "fromExerciseId": "power_clean",
+          "toExerciseIds": [
+            "squat_clean"
+          ],
+          "note": "행파워클린(alias→power_clean). 더 어려우면 무게만 낮추고 같은 패턴 유지."
+        },
+        {
+          "fromExerciseId": "split_jerk",
+          "toExerciseIds": [
+            "ohp",
+            "thruster"
+          ],
+          "note": "푸시저크(alias→split_jerk). 어깨가 부담이면 프레스·라이트 스러스터."
+        }
       ]
     },
     {
@@ -467,6 +896,51 @@
         { "tier": "rx", "titleKo": "Rx", "bodyKo": "스테이션을 1분씩. 총 횟수+칼로리가 점수." },
         { "tier": "scaled", "titleKo": "Scaled", "bodyKo": "바·월볼 무게 낮춤. 박스 스텝업. 2라운드." },
         { "tier": "beginner", "titleKo": "Beginner", "bodyKo": "덤벨. 스텝업. 1–2라운드." }
+      ],
+      "purpose": "월볼·SDHP·박스점프·푸시프레스·로우를 1분씩 도는 스테이션 와드예요. 짧은 전환으로 전신 출력을 오래 유지하는 능력을 확인해요.",
+      "scale": [
+        {
+          "fromExerciseId": "wall_ball",
+          "toExerciseIds": [
+            "front_squat",
+            "thruster"
+          ],
+          "note": "월볼 무게·타깃 낮추기."
+        },
+        {
+          "fromExerciseId": "sumo_deadlift_high_pull",
+          "toExerciseIds": [
+            "deadlift",
+            "kb_swing",
+            "barbell_row"
+          ],
+          "note": "SDHP tip 없음. 데드·스윙·로우로 힙/당김 자극만 유지.",
+          "raw": "sumo-deadlift-high-pull"
+        },
+        {
+          "fromExerciseId": "box_jump",
+          "toExerciseIds": [
+            "lunge"
+          ],
+          "note": "스텝업 tip id 없음. 낮은 박스·런지로."
+        },
+        {
+          "fromExerciseId": "push_press",
+          "toExerciseIds": [
+            "ohp",
+            "thruster"
+          ],
+          "note": "push_press tip 없음. 스트릭트 프레스·라이트 스러스터로.",
+          "raw": "push-press"
+        },
+        {
+          "fromExerciseId": "row",
+          "toExerciseIds": [
+            "fan_bike",
+            "ski"
+          ],
+          "note": "로워 없으면 팬바이크·스키 칼로리."
+        }
       ]
     }
   ]

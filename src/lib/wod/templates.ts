@@ -7,10 +7,12 @@ import {
   type WodFamily,
   type WodFormat,
   type WodMovement,
+  type WodScale,
   type WodScaling,
   type WodTemplate,
   type WodTier,
 } from "./types";
+import { warnMovementTipGaps } from "./tip-link";
 
 export type { WodCategory, WodFamily, WodFormat, WodMovement, WodScaling, WodTemplate, WodTier } from "./types";
 export { RX_DISCLAIMER, categoryLabel, familyLabel, formatLabel, scoreTypeFor, wodTipKeys } from "./types";
@@ -80,6 +82,28 @@ function parseScaling(raw: unknown): WodScaling[] {
   }));
 }
 
+function parseScale(raw: unknown): WodScale[] {
+  if (!Array.isArray(raw)) return [];
+  const out: WodScale[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const item = row as Record<string, unknown>;
+    const toExerciseIds = Array.isArray(item.toExerciseIds)
+      ? item.toExerciseIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+      : [];
+    if (!toExerciseIds.length) continue;
+    const scale: WodScale = {
+      fromExerciseId: text(item.fromExerciseId),
+      toExerciseIds,
+      note: text(item.note),
+    };
+    const rawKey = text(item.raw);
+    if (rawKey) scale.raw = rawKey;
+    out.push(scale);
+  }
+  return out;
+}
+
 function parseMovement(raw: Record<string, unknown>): WodMovement {
   const rxLb = num(raw.rxLb);
   const rxLbF = num(raw.rxLbF);
@@ -128,6 +152,8 @@ function parseTemplate(raw: Record<string, unknown>, sourceNoteKo: string): WodT
     wallBallTargetMF: num(raw.wallBallTargetMF),
     movements,
     scaling: parseScaling(raw.scaling),
+    purpose: text(raw.purpose),
+    scale: parseScale(raw.scale),
   };
 }
 
@@ -166,6 +192,7 @@ export function loadWodFile() {
     sourceNoteKo,
     templates: [...rxTemplates, ...extras],
   };
+  warnMovementTipGaps(cached.templates);
   return cached;
 }
 

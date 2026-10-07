@@ -76,7 +76,7 @@ export function fillSessionFields(
     strength_purpose: lift ? `${LIFT_KO[lift] ?? lift}를 이 달 블록의 세트로 합니다.` : null,
     strength_volume: lift ? (strengthVolume ?? "moderate") : null,
     strength_intensity: lift ? (heavy ? "heavy" : "moderate") : null,
-    metcon_purpose: metconPurpose(session),
+    metcon_purpose: conditioning.purpose || metconPurpose(session),
     metcon_format: conditioning.format,
     time_domain: conditioning.time_domain,
     stimulus: conditioning.stimulus,
