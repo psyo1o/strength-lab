@@ -1,6 +1,6 @@
 import type { MainLift, WeekIndex } from "../month-plan/types";
 import { fatigueCutSets, schemeSets, setsMatchFatigueCut, setsMatchScheme } from "./schemes";
-import type { Scheme, StrengthSetDraft } from "./types";
+import { isLowerBodyLift, type Scheme, type StrengthSetDraft } from "./types";
 
 /**
  * Strength method is a name, not a closed enum.
@@ -216,8 +216,7 @@ export function exampleSets(method: string, weekIndex: WeekIndex, fatigue: Presc
   const guide = prescriptionGuide(method, weekIndex, fatigue);
   if (!guide) return null;
   if (guide.mode === "exact") {
-    const lower = lift === "squat" || lift === "deadlift";
-    return fatigue === "high" && lower ? guide.fatigue_cut_sets : guide.sets;
+    return fatigue === "high" && isLowerBodyLift(lift) ? guide.fatigue_cut_sets : guide.sets;
   }
   if (method === "ACCUMULATION") {
     if (fatigue === "high") return repeat(62, 8, 3);
@@ -248,8 +247,7 @@ export function validateStrengthPrescription(method: string, sets: StrengthSetDr
   if (!isImplementedStrengthMethod(method)) return `${label}: ${method} is not implemented`;
   if (EXACT_METHODS.has(method)) {
     const scheme = method as Scheme;
-    const lower = context.lift === "squat" || context.lift === "deadlift";
-    if (context.fatigue === "high" && lower) {
+    if (context.fatigue === "high" && isLowerBodyLift(context.lift)) {
       if (!setsMatchFatigueCut(scheme, context.weekIndex, sets)) return `${label}: fatigue cut`;
       return null;
     }
