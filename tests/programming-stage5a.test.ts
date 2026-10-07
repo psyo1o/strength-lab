@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getSqlite, resetDbConnection } from "../src/lib/db/client";
 import { dryRunWeek, presetActual } from "../src/lib/programming/admin-tools";
-import { ensureProgrammingMonth, ensureProgrammingWeek, readOnlyWeekSummary } from "../src/lib/programming/engine";
+import { ensureProgrammingMonth, ensureProgrammingWeek, readOnlyMonthSummary, readOnlyWeekSummary } from "../src/lib/programming/engine";
 import { buildFallbackWeek, fallbackIntent, fallbackMonth } from "../src/lib/programming/fallback";
 import { MONTH_MAX_TOKENS, WEEK_MAX_TOKENS, authorMonth, authorWeek, monthPrompt, weekPrompt } from "../src/lib/programming/model";
 import {
@@ -101,6 +101,79 @@ describe("stage 5A week contract and strength methods", () => {
     expect(authored.ok).toBe(true);
     if (!authored.ok) return;
     expect(authored.trace.responses[0]?.responseFormat).toBe("json_schema");
+  });
+
+  it("uses MONTH_PLAN_MODEL_KEY as the bearer token and keeps gpt-5.4-nano as the model id", async () => {
+    freshDb();
+    const summary = readOnlyMonthSummary(MONTH);
+    const fetchImpl = vi.fn(async () => new Response("network must not run", { status: 500 }));
+
+    const missingMonth = await authorMonth({ summary, fetchImpl });
+    expect(missingMonth.ok).toBe(false);
+    if (missingMonth.ok) return;
+    expect(missingMonth.reason).toBe("no_model");
+    expect(missingMonth.trace.modelName).toBeNull();
+    expect(missingMonth.trace.responses).toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    process.env.MONTH_PLAN_MODEL_KEY = "   ";
+    const blank = await authorMonth({ summary, fetchImpl });
+    expect(blank.ok).toBe(false);
+    if (blank.ok) return;
+    expect(blank.reason).toBe("no_model");
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    const bearer = "sk-programming-bearer-not-a-model-name";
+    process.env.MONTH_PLAN_MODEL_KEY = bearer;
+    const month = {
+      ...fallbackMonth({ summary_ko: "축적 블록", next_scheme: "volume", strength_method: "ACCUMULATION" }),
+      focus_ko: "월초점토큰",
+      monthly_goal: "월목표토큰",
+      primary_block: "축적",
+    };
+    const weekFetch = vi.fn(async () => new Response("no", { status: 500 }));
+    const week = await authorWeek({
+      summary: readOnlyWeekSummary(WEEK),
+      month,
+      weekIndex: 2,
+      recent: [],
+      fetchImpl: weekFetch,
+    });
+    expect(week.ok).toBe(false);
+    if (week.ok) return;
+    expect(week.reason).toBe("http_error");
+    expect(weekFetch).toHaveBeenCalledTimes(2);
+    const init = weekFetch.mock.calls[0]?.[1] as RequestInit;
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBe(`Bearer ${bearer}`);
+    const body = JSON.parse(String(init.body)) as {
+      model: string;
+      messages: Array<{ content: string }>;
+    };
+    expect(body.model).toBe(MONTH_PLAN_OPENAI_MODEL);
+    expect(body.model).toBe("gpt-5.4-nano");
+    expect(body.model).not.toBe(bearer);
+    expect(JSON.stringify(body)).not.toContain(bearer);
+    const user = JSON.parse(body.messages[1]!.content) as {
+      month_summary: { focus_ko: string; primary_block: string; long_conditioning_weeks: number[] };
+      strength_prescription: { method: string };
+      weekly_requirements: { long_conditioning_sessions_min: number };
+    };
+    expect(user.month_summary.focus_ko).toBe("월초점토큰");
+    expect(user.month_summary.primary_block).toBe("축적");
+    expect(user.month_summary.long_conditioning_weeks).toEqual(month.long_conditioning_weeks);
+    expect(user.strength_prescription.method).toBe("ACCUMULATION");
+    expect(user.weekly_requirements.long_conditioning_sessions_min).toBe(1);
+
+    const monthFetch = vi.fn(async () => new Response("no", { status: 500 }));
+    const monthCall = await authorMonth({ summary, fetchImpl: monthFetch });
+    expect(monthCall.ok).toBe(false);
+    const monthInit = monthFetch.mock.calls[0]?.[1] as RequestInit;
+    const monthHeaders = monthInit.headers as Record<string, string>;
+    expect(monthHeaders.Authorization).toBe(`Bearer ${bearer}`);
+    const monthBody = JSON.parse(String(monthInit.body)) as { model: string };
+    expect(monthBody.model).toBe("gpt-5.4-nano");
+    expect(JSON.stringify(monthBody)).not.toContain(bearer);
   });
 
   it("names truncation, wrappers, press, short 14, and a missing Sunday", async () => {
