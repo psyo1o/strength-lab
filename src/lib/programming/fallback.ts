@@ -705,6 +705,13 @@ function syntheticDraft(
     volume: options.volume,
     intensity: recipe.stimulus === "heavy" ? "heavy" : recipe.stimulus === "technical" ? "light" : "moderate",
     long_conditioning: options.longPiece,
+    purpose: classMetconPurpose({
+      names: recipe.movements.map((movement) => movement.nameKo),
+      benchmark: false,
+      longPiece: options.longPiece,
+      format: options.format,
+      stimulus: recipe.stimulus,
+    }),
   };
 }
 
