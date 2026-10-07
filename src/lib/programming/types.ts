@@ -48,6 +48,16 @@ export const EQUIPMENT = [
 
 export type Equipment = (typeof EQUIPMENT)[number];
 
+/**
+ * Lower-body main lifts. One list for the prompt, the validator, the retry brief, and tests.
+ * A fatigue cut applies to every lift here, not to squat alone.
+ */
+export const LOWER_BODY_LIFTS: readonly MainLift[] = ["squat", "deadlift"];
+
+export function isLowerBodyLift(lift: MainLift | null | undefined): boolean {
+  return lift != null && LOWER_BODY_LIFTS.includes(lift);
+}
+
 export type StrengthSetDraft = {
   percent_of_tm: number;
   reps: number;
@@ -159,6 +169,7 @@ export type FallbackReason =
   | "bad_json"
   | "truncated"
   | "schema"
+  | "invented_weight"
   | "language"
   | "rule_break"
   | "feedback"
@@ -171,8 +182,11 @@ export const ENGINE_VERSION = "programming-1";
 export const RULES_VERSION = "programming-6";
 
 export const MONTHLY_PROMPT_VERSION = "monthly-program-v4";
-/** Weekly prompt that separates hard limits, programming space, and weekly requirements. */
-export const WEEKLY_PROMPT_VERSION = "weekly-program-v7";
+/**
+ * Weekly prompt that plans the week structure first, names the lower-body fatigue rule for
+ * squat and deadlift, forbids invented kilograms, and repairs only failing sessions on retry.
+ */
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v8";
 export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";
