@@ -318,7 +318,7 @@ describe("stage 8 weekly pipeline convergence", () => {
       rules: string[];
     };
     expect(prompt.prompt_version).toBe(WEEKLY_PROMPT_VERSION);
-    expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v9");
+    expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v10");
     expect(prompt.generation_phases.phase_1_week_structure).toBeDefined();
     expect(prompt.generation_phases.phase_2_constraint_check).toBeDefined();
     expect(prompt.generation_phases.phase_3_final_json).toBeDefined();

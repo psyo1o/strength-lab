@@ -1462,9 +1462,18 @@ export function structureValidationErrors(errors: readonly string[]): Structured
   });
 }
 
+const INTENT_ONLY_REPAIR_NOTE =
+  " This error is not associated with a session. Do not treat repair_sessions as empty work. Use an intent-only repair: change only the relevant intent text, such as scheme_note, and preserve all sessions unchanged.";
+
 /** One sentence per violation. Retry uses this so the next attempt sees the count it must not repeat. */
 export function constraintFailureBriefs(errors: readonly string[]): string[] {
   return structureValidationErrors(errors).map((error) => {
+    const brief = failureBrief(error);
+    return error.repair_scope === "intent_only" && error.affected_session.length === 0 ? `${brief}${INTENT_ONLY_REPAIR_NOTE}` : brief;
+  });
+}
+
+function failureBrief(error: StructuredValidationError): string {
     if (error.rule === "heavy_lower_sessions_max" && error.current != null && error.maximum != null) {
       return `Previous attempt violated hard constraint: heavy_lower_sessions_max = ${error.maximum}. Previous output contained ${error.current} heavy lower sessions. You MUST produce <= ${error.maximum} heavy lower session. Reduce one of ${error.affected_session.join(", ")}; do not touch other days.`;
     }
@@ -1493,7 +1502,6 @@ export function constraintFailureBriefs(errors: readonly string[]): string[] {
       return `Previous attempt left ${error.affected_session.join(", ")} incomplete: ${error.message}. Fill every session-level field on that day from its own strength and conditioning objects. Do not rewrite other days.`;
     }
     return `Previous attempt violated: ${error.message} Do not repeat this violation. Keep every session that was already valid.`;
-  });
 }
 
 export type RepairPlan = {
@@ -1524,9 +1532,11 @@ export function retryRepairPlan(errors: readonly string[]): RepairPlan {
   }
   const repair = DAY_ORDER.filter((day) => failing.has(day));
   const immutable = DAY_ORDER.filter((day) => !failing.has(day));
+  const intentOnlyEmpty = intentOnly && repair.length === 0;
   return {
-    principle:
-      "Every session that passed validation is immutable. Modify only repair_sessions. A week-level requirement may change exactly one additional session, and you name it.",
+    principle: intentOnlyEmpty
+      ? "This failure is not associated with a session. repair_sessions is empty, and that is not empty work. Repair only the relevant intent text, such as scheme_note, and preserve all sessions unchanged."
+      : "Every session that passed validation is immutable. Modify only repair_sessions. A week-level requirement may change exactly one additional session, and you name it.",
     immutable_sessions: immutable,
     repair_sessions: repair,
     week_level_requirements: [...new Set(weekLevel)],
