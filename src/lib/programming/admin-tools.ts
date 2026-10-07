@@ -1,5 +1,6 @@
 import { getSqlite } from "../db/client";
 import { classWeekToTrain, kstParts } from "../month-plan/calendar";
+import { recomputeWeeklyActual } from "./actual";
 import { buildFallbackWeek, fallbackMonth } from "./fallback";
 import {
   ensureProgrammingMonth,
@@ -15,7 +16,9 @@ import {
   fatigueConstraintInput,
   feedbackViolations,
   judgeWeek,
+  similarityScore,
   similarityViolations,
+  structurallySimilar,
   weekBurden,
 } from "./rules";
 import {
@@ -26,6 +29,7 @@ import {
   scrubGenerationPayload,
 } from "./store";
 import type { WeekActual } from "./summary";
+import type { StoredStructure } from "./types";
 import {
   ENGINE_VERSION,
   MONTHLY_PROMPT_VERSION,
@@ -299,6 +303,228 @@ export async function runValidation(nowMs = Date.now()): Promise<Record<string, 
   }) as Record<string, unknown>;
 }
 
+const PROBE_EMAIL = "engine-probe@example.com";
+const PROBE_ACTUAL_MONTH = "2099-08-01";
+const PROBE_ACTUAL_WEEK = "2099-08-04";
+const PROBE_CYCLE_MONTH = "2099-03-01";
+const PROBE_CYCLE_WEEKS = ["2099-03-02", "2099-03-09", "2099-03-16", "2099-03-23"] as const;
+const PROBE_NEXT_MONTH = "2099-04-01";
+
+function eraseProbe(input: { months: readonly string[]; weeks: readonly string[]; email?: string }): void {
+  const db = getSqlite();
+  const wipe = db.transaction(() => {
+    if (input.email) {
+      const user = db.prepare("SELECT id FROM users WHERE email = ?").get(input.email) as { id: number } | undefined;
+      if (user) {
+        db.prepare("DELETE FROM class_day_scores WHERE user_id = ?").run(user.id);
+        db.prepare("DELETE FROM wod_results WHERE user_id = ?").run(user.id);
+        db.prepare("DELETE FROM users WHERE id = ?").run(user.id);
+      }
+    }
+    const weekIds = new Set<number>();
+    for (const weekStart of input.weeks) {
+      db.prepare("DELETE FROM programming_generation_logs WHERE scope = 'week' AND scope_key = ?").run(weekStart);
+      const rows = db.prepare("SELECT id FROM programming_weeks WHERE week_start = ?").all(weekStart) as { id: number }[];
+      for (const row of rows) weekIds.add(row.id);
+      const classRow = db.prepare("SELECT id FROM class_weeks WHERE week_start = ?").get(weekStart) as { id: number } | undefined;
+      if (classRow) db.prepare("DELETE FROM class_day_scores WHERE class_week_id = ?").run(classRow.id);
+    }
+    for (const monthStart of input.months) {
+      db.prepare("DELETE FROM programming_generation_logs WHERE scope = 'month' AND scope_key = ?").run(monthStart);
+      const months = db.prepare("SELECT id FROM programming_months WHERE month_start = ?").all(monthStart) as { id: number }[];
+      for (const month of months) {
+        const rows = db.prepare("SELECT id FROM programming_weeks WHERE month_id = ?").all(month.id) as { id: number }[];
+        for (const row of rows) weekIds.add(row.id);
+        db.prepare("DELETE FROM programming_month_proposals WHERE month_id = ?").run(month.id);
+        db.prepare("DELETE FROM programming_evaluations WHERE month_id = ?").run(month.id);
+      }
+    }
+    for (const id of weekIds) {
+      db.prepare("DELETE FROM programming_syncs WHERE programming_week_id = ?").run(id);
+      db.prepare("DELETE FROM programming_actuals WHERE week_id = ?").run(id);
+      db.prepare("DELETE FROM wod_structures WHERE week_id = ?").run(id);
+      db.prepare("DELETE FROM programming_weeks WHERE id = ?").run(id);
+    }
+    for (const monthStart of input.months) {
+      db.prepare("DELETE FROM programming_months WHERE month_start = ?").run(monthStart);
+    }
+    for (const weekStart of input.weeks) {
+      db.prepare("DELETE FROM class_weeks WHERE week_start = ?").run(weekStart);
+    }
+  });
+  wipe();
+}
+
+function probeStructure(overrides: Partial<StoredStructure> = {}): StoredStructure {
+  return {
+    day: "mon",
+    format: "amrap",
+    time_domain: "short",
+    stimulus: "high_rep",
+    movement_patterns: ["engine"],
+    movements: [{ key: "row", amount: "12/10cal", name_ko: "로잉" }],
+    equipment: ["rower"],
+    rep_structure: "10분 AMRAP",
+    work_rest_structure: "시간 안에 반복합니다.",
+    duration_min: 10,
+    volume: "low",
+    intensity: "moderate",
+    benchmark: false,
+    long_conditioning: false,
+    ...overrides,
+  };
+}
+
+/** Does not write. Near copy fails, a different structure passes, a benchmark passes. */
+export function probeSimilarity(): Record<string, unknown> {
+  const left = probeStructure();
+  const near = probeStructure({ day: "tue" });
+  const different = probeStructure({
+    day: "wed",
+    format: "for_time",
+    time_domain: "long",
+    stimulus: "heavy",
+    movement_patterns: ["hinge"],
+    equipment: ["barbell"],
+    volume: "high",
+  });
+  const benchmark = probeStructure({ benchmark: true });
+  return {
+    wrote: false,
+    action: "probe-similarity",
+    near_copy: structurallySimilar(left, near) ? "FAIL" : "PASS",
+    near_copy_score: similarityScore(left, near),
+    different: structurallySimilar(left, different) ? "FAIL" : "PASS",
+    different_score: similarityScore(left, different),
+    benchmark: structurallySimilar(left, benchmark) ? "FAIL" : "PASS",
+  };
+}
+
+export async function saveModelWeek(input: {
+  nowMs?: number;
+  key?: string | null;
+  fetchImpl?: FetchLike;
+} = {}): Promise<Record<string, unknown>> {
+  const nowMs = input.nowMs ?? Date.now();
+  const weekStart = classWeekToTrain(nowMs);
+  const week = await regenerateProgrammingWeek(weekStart, { nowMs, key: input.key, fetchImpl: input.fetchImpl });
+  return {
+    wrote: true,
+    action: "save-model-week",
+    week_start: week.weekStart,
+    generation_source: week.generationSource,
+    fallback_reason: week.fallbackReason,
+    generation_attempt: week.generationAttempt,
+    rules_version: week.rulesVersion,
+  };
+}
+
+export async function saveForcedFallback(nowMs = Date.now()): Promise<Record<string, unknown>> {
+  const weekStart = classWeekToTrain(nowMs);
+  const fetchImpl: FetchLike = async () => new Response("forced-failure", { status: 500 });
+  const week = await regenerateProgrammingWeek(weekStart, { nowMs, key: "forced-fallback", fetchImpl });
+  const next = readOnlyWeekSummary(addDays(week.weekStart, 7));
+  return {
+    wrote: true,
+    action: "save-forced-fallback",
+    week_start: week.weekStart,
+    generation_source: week.generationSource,
+    fallback_reason: week.fallbackReason,
+    generation_attempt: week.generationAttempt,
+    strength_method: getProgrammingMonth(monthStartOf(week.weekStart))?.direction.strength_method ?? null,
+    next_week_input: {
+      previous_generation_source: next.previous_week?.generation_source ?? null,
+      fallback_reason: next.previous_week?.fallback_reason ?? null,
+    },
+  };
+}
+
+export async function seedWeekActual(nowMs = Date.now()): Promise<Record<string, unknown>> {
+  const beforeScores = (getSqlite().prepare("SELECT COUNT(*) AS c FROM class_day_scores").get() as { c: number }).c;
+  const beforeWods = (getSqlite().prepare("SELECT COUNT(*) AS c FROM wod_results").get() as { c: number }).c;
+  const beforeUsers = (getSqlite().prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c;
+  let completedCount = 0;
+  let resultKo = "";
+  let hasScore = false;
+  try {
+    await ensureProgrammingMonth(PROBE_ACTUAL_MONTH, { nowMs, key: null });
+    await ensureProgrammingWeek(PROBE_ACTUAL_WEEK, { nowMs, key: null });
+    const classWeek = getSqlite().prepare("SELECT id FROM class_weeks WHERE week_start = ?").get(PROBE_ACTUAL_WEEK) as { id: number };
+    const user = getSqlite()
+      .prepare("INSERT INTO users (email, password_hash, unit, created_at) VALUES (?, 'probe', 'kg', ?)")
+      .run(PROBE_EMAIL, nowMs);
+    const userId = Number(user.lastInsertRowid);
+    getSqlite()
+      .prepare(
+        `INSERT INTO class_day_scores (
+           user_id, class_week_id, day_key, completed_at, time_sec, rounds, extra_reps, scaling, fatigue
+         ) VALUES (?, ?, 'mon', ?, 420, NULL, NULL, 'rx', 2)`,
+      )
+      .run(userId, classWeek.id, Date.parse(`${PROBE_ACTUAL_WEEK}T00:00:00.000Z`));
+    getSqlite()
+      .prepare(
+        `INSERT INTO wod_results (
+           user_id, template_slug, completed_at, tier, score_type, time_sec, notes_ko
+         ) VALUES (?, 'engine-probe', ?, 'rx', 'time', 400, '')`,
+      )
+      .run(userId, Date.parse(`${PROBE_ACTUAL_WEEK}T00:00:00.000Z`));
+    const actual = recomputeWeeklyActual(PROBE_ACTUAL_WEEK, nowMs);
+    const monday = actual?.days.find((day) => day.day === "mon");
+    completedCount = monday?.completed_count ?? 0;
+    resultKo = monday?.result_ko ?? "";
+    hasScore = (monday?.score?.entries ?? 0) > 0;
+  } finally {
+    eraseProbe({ months: [PROBE_ACTUAL_MONTH], weeks: [PROBE_ACTUAL_WEEK], email: PROBE_EMAIL });
+  }
+  const unchanged =
+    (getSqlite().prepare("SELECT COUNT(*) AS c FROM class_day_scores").get() as { c: number }).c === beforeScores &&
+    (getSqlite().prepare("SELECT COUNT(*) AS c FROM wod_results").get() as { c: number }).c === beforeWods &&
+    (getSqlite().prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c === beforeUsers;
+  return {
+    wrote: true,
+    action: "seed-week-actual",
+    cleaned: true,
+    week_start: PROBE_ACTUAL_WEEK,
+    completed_count: completedCount,
+    result_ko: resultKo,
+    has_score: hasScore,
+    member_rows_unchanged: unchanged,
+  };
+}
+
+export async function simulateMonthCycle(input: { nowMs?: number; key?: string | null; fetchImpl?: FetchLike } = {}): Promise<Record<string, unknown>> {
+  const nowMs = input.nowMs ?? Date.now();
+  try {
+    await ensureProgrammingMonth(PROBE_CYCLE_MONTH, { nowMs, key: null });
+    for (const weekStart of PROBE_CYCLE_WEEKS) {
+      await ensureProgrammingWeek(weekStart, { nowMs, key: null });
+      recomputeWeeklyActual(weekStart, nowMs);
+    }
+    const evaluation = evaluateProgrammingMonth(PROBE_CYCLE_MONTH, nowMs);
+    if ("error" in evaluation) return { wrote: true, action: "simulate-month-cycle", cleaned: true, error: evaluation.error };
+    const preview = await dryRunMonth({
+      monthStart: PROBE_NEXT_MONTH,
+      nowMs,
+      key: input.key ?? null,
+      fetchImpl: input.fetchImpl,
+    });
+    const summary = preview.input as { progression?: { last_evaluation?: { month_start?: string; summary_ko?: string } | null } };
+    return {
+      wrote: true,
+      action: "simulate-month-cycle",
+      cleaned: true,
+      evaluation: { id: evaluation.id, summary_ko: evaluation.summary_ko, next_scheme: evaluation.next_scheme },
+      next_month_dry_run: {
+        wrote: preview.wrote,
+        month_start: preview.month_start,
+        last_evaluation: summary.progression?.last_evaluation ?? null,
+      },
+    };
+  } finally {
+    eraseProbe({ months: [PROBE_CYCLE_MONTH, PROBE_NEXT_MONTH], weeks: [...PROBE_CYCLE_WEEKS] });
+  }
+}
+
 export async function runAdminAction(
   action: string,
   input: { nowMs?: number; actualCase?: ActualCase | null; key?: string | null; fetchImpl?: FetchLike } = {},
@@ -306,6 +532,11 @@ export async function runAdminAction(
   const nowMs = input.nowMs ?? Date.now();
   if (action === "dry-run-week") return dryRunWeek({ nowMs, actualCase: input.actualCase, key: input.key, fetchImpl: input.fetchImpl });
   if (action === "dry-run-month") return dryRunMonth({ nowMs, key: input.key, fetchImpl: input.fetchImpl });
+  if (action === "probe-similarity") return probeSimilarity();
+  if (action === "save-model-week") return saveModelWeek({ nowMs, key: input.key, fetchImpl: input.fetchImpl });
+  if (action === "save-forced-fallback") return saveForcedFallback(nowMs);
+  if (action === "seed-week-actual") return seedWeekActual(nowMs);
+  if (action === "simulate-month-cycle") return simulateMonthCycle({ nowMs, key: input.key, fetchImpl: input.fetchImpl });
   if (action === "validate") return runValidation(nowMs);
   if (action === "fallback-test") return runFallbackTest(nowMs);
   if (action === "generate-month") {

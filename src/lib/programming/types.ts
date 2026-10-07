@@ -165,8 +165,8 @@ export type FallbackReason =
 
 export const ENGINE_VERSION = "programming-1";
 
-/** Rule set stamped on each generation. programming-4 checks the week contract, scheme sets, fatigue feedback, weekday pattern, and Korean ratio. */
-export const RULES_VERSION = "programming-4";
+/** Rule set stamped on each generation. programming-5 adds the day-after heavy-lower long-conditioning ban. */
+export const RULES_VERSION = "programming-5";
 
 export const MONTHLY_PROMPT_VERSION = "monthly-program-v4";
 export const WEEKLY_PROMPT_VERSION = "weekly-program-v5";
