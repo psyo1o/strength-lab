@@ -74,7 +74,7 @@ export function EngineAdminConsole() {
         </button>
       ))}
       <p className="text-sm leading-relaxed text-[var(--muted)]">
-        모델 주 저장과 실패 후 폴백 저장은 이번 수업 주를 기록합니다. 수행 집계 시험과 한 달 평가 시험은 2099년 시험 행만 만들고, 끝나면 그 행과 시험 회원 점수를 지웁니다.
+        모델 주 저장은 2099-08-03 시험 주만 기록합니다. 이번 수업 주는 바꾸지 않습니다. 운영 주 저장은 mode=production을 명시했을 때만 됩니다. 실패 후 폴백 저장은 이번 수업 주를 기록합니다. 수행 집계 시험과 한 달 평가 시험은 2099년 시험 행만 만들고, 끝나면 그 행과 시험 회원 점수를 지웁니다.
       </p>
       {error ? <p className="field-error">{error}</p> : null}
       {result ? (

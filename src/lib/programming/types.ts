@@ -171,7 +171,8 @@ export const ENGINE_VERSION = "programming-1";
 export const RULES_VERSION = "programming-6";
 
 export const MONTHLY_PROMPT_VERSION = "monthly-program-v4";
-export const WEEKLY_PROMPT_VERSION = "weekly-program-v6";
+/** Weekly prompt that separates hard limits, programming space, and weekly requirements. */
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v7";
 export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";

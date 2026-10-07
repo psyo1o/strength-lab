@@ -25,12 +25,14 @@ export type GenerationWrite = {
   rulesVersion: string;
   inputSummaryVersion: string;
   generationAttempt: number;
+  logContext?: Record<string, unknown>;
   responses: {
     attempt: number;
     raw: unknown;
     latencyMs?: number;
     responseFormat?: "json_schema" | "json_object" | null;
     normalizations?: string[];
+    diagnostics?: Record<string, unknown> | null;
   }[];
 };
 
@@ -275,6 +277,8 @@ function insertGenerationLogs(
     modelName: string | null;
     responses: GenerationWrite["responses"];
     createdAt: number;
+    generationSource?: string | null;
+    logContext?: Record<string, unknown>;
   },
 ): void {
   if (input.responses.length === 0) return;
@@ -295,6 +299,11 @@ function insertGenerationLogs(
         scrubGenerationPayload({
           response_format: response.responseFormat ?? null,
           normalizations: response.normalizations ?? [],
+          diagnostics: response.diagnostics ?? null,
+          run: {
+            ...(input.logContext ?? {}),
+            generation_source: input.generationSource ?? null,
+          },
           body: response.raw,
         }),
       ),
@@ -388,6 +397,8 @@ function insertMonthRow(
     modelName: input.modelName,
     responses: input.responses,
     createdAt: input.generatedAt,
+    generationSource: input.generationSource,
+    logContext: input.logContext,
   });
   return id;
 }
@@ -556,6 +567,8 @@ function insertWeekRow(
     modelName: input.modelName,
     responses: input.responses,
     createdAt: input.generatedAt,
+    generationSource: input.generationSource,
+    logContext: input.logContext,
   });
   return weekId;
 }

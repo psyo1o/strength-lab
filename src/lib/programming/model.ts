@@ -2,14 +2,20 @@ import { serverModelKey } from "../month-plan/adapter";
 import { DAY_ORDER } from "../month-plan/types";
 import { MONTH_PLAN_OPENAI_MODEL, MONTH_PLAN_OPENAI_URL } from "../month-plan/week-model";
 import {
+  allowedStrengthProgramming,
   englishKoPath,
   hardConstraints,
   judgeWeek,
   MONTH_REQUIRED_KEYS,
   monthSchemaErrors,
   monthShapeDetail,
+  normalizeWeekPayload,
   parseMonthDirection,
+  parseWeekDraft,
+  similarityDiagnostics,
+  structureValidationErrors,
   TIME_DOMAIN_RANGES,
+  weeklyRequirements,
 } from "./rules";
 import { exampleSets, prescriptionGuide } from "./strength-methods";
 import { monthlyTimeoutMs, weeklyTimeoutMs } from "./timeouts";
@@ -108,7 +114,20 @@ export type ModelResponseLog = {
   latencyMs: number;
   responseFormat: "json_schema" | "json_object" | null;
   normalizations: string[];
+  diagnostics?: Record<string, unknown> | null;
 };
+
+const RETRY_INSTRUCTION = [
+  "Preserve valid sessions and the original weekly intent.",
+  "Fix the listed validation errors.",
+  "Do not redesign unrelated days.",
+  "Do not introduce a new strength method.",
+  "Do not change the monthly goal.",
+  "Do not change valid sessions unless necessary to resolve a listed violation.",
+  "All hard constraints remain mandatory.",
+  "Do not repeat these errors.",
+  "Do not discard the week and write a new random week.",
+].join(" ");
 
 /** What the caller stores. modelName is set only when this process called the model. */
 export type AuthorTrace = {
@@ -489,8 +508,15 @@ async function authorWithRetries<T>(input: {
   accept: (
     json: unknown,
   ) =>
-    | { ok: true; value: T; detail?: string | null; normalizations?: string[] }
-    | { ok: false; reason: FallbackReason; detail: string; errors?: string[]; normalizations?: string[] };
+    | { ok: true; value: T; detail?: string | null; normalizations?: string[]; diagnostics?: Record<string, unknown> | null }
+    | {
+        ok: false;
+        reason: FallbackReason;
+        detail: string;
+        errors?: string[];
+        normalizations?: string[];
+        diagnostics?: Record<string, unknown> | null;
+      };
   retryBody?: (errors: string[], previous: unknown) => unknown;
 }): Promise<{ ok: true; value: T; trace: AuthorTrace } | { ok: false; reason: FallbackReason; trace: AuthorTrace }> {
   const responses: ModelResponseLog[] = [];
@@ -521,6 +547,7 @@ async function authorWithRetries<T>(input: {
       latencyMs: completed.latencyMs,
       responseFormat: completed.responseFormat,
       normalizations: attemptNormalizations,
+      diagnostics: accepted?.diagnostics ?? null,
     });
     if (!completed.ok) {
       reason = completed.reason;
@@ -611,18 +638,34 @@ export function weekPrompt(input: {
   previousDraft?: unknown;
 }): unknown {
   const method = input.month.strength_method || input.month.scheme;
-  const guide = prescriptionGuide(method, input.weekIndex);
-  const sets = exampleSets(method, input.weekIndex, "unknown", "squat");
-  const theme = input.month.week_themes.find((row) => row.week_index === input.weekIndex)?.theme_ko ?? "";
   const previous = input.summary.previous_week;
   const limits = hardConstraints(previous?.actual);
+  const allowed = allowedStrengthProgramming(method, input.weekIndex, previous?.actual);
+  const requirements = weeklyRequirements(input.month, input.weekIndex);
+  const guide = prescriptionGuide(method, input.weekIndex, allowed.current_fatigue === "high" || allowed.current_fatigue === "low" ? allowed.current_fatigue : "unknown");
+  const sets = allowed.lower_body_sets ?? exampleSets(method, input.weekIndex, "unknown", "squat");
+  const theme = input.month.week_themes.find((row) => row.week_index === input.weekIndex)?.theme_ko ?? "";
+  const longShape =
+    requirements.long_conditioning_sessions_min === 1
+      ? {
+          note: "Shape only. You choose the day. Do not put this on a heavy squat or deadlift day. The server will not rewrite a shorter piece into this duration.",
+          time_domain: "long" as const,
+          duration_min: TIME_DOMAIN_RANGES.long.min,
+          long_conditioning: true,
+        }
+      : null;
+  const exampleHeavy = (sets ?? []).some((set) => set.percent_of_tm >= 85);
   return {
     task: "Write the whole class week, including why. Do not pick from a catalog.",
     prompt_version: WEEKLY_PROMPT_VERSION,
     decision_order: [
       "monthly strength method",
       "method prescription",
+      "current fatigue and actuals",
       "hard_constraints",
+      "programming_space",
+      "weekly_requirements",
+      "allowed_programming",
       "ai chooses lifts, days, and structure inside those boundaries",
       "program the week",
       "server validation rejects anything outside the limits",
@@ -658,8 +701,17 @@ export function weekPrompt(input: {
       volume: row.volume,
     })),
     strength_prescription: guide,
-    example_sets: sets,
+    example_sets: {
+      upper_body: allowed.upper_body_sets,
+      lower_body: allowed.lower_body_sets,
+      note: "Use lower_body on squat and deadlift. Use upper_body on ohp and bench. Do not copy one onto the other when they differ.",
+    },
     hard_constraints: limits,
+    programming_guidance: limits.guidance,
+    programming_space: limits.programming_space,
+    weekly_requirements: requirements,
+    allowed_programming: allowed,
+    long_conditioning_shape: longShape,
     strength_constraints: {
       note: "Boundaries only. You still choose the lifts, the days, and the session structure.",
       max_heavy_lower_sessions: limits.heavy_lower_sessions_max,
@@ -717,15 +769,38 @@ export function weekPrompt(input: {
       "Follow month_summary.scheme for the whole month. Do not change the block in this week.",
       "Do not copy a recent weekday strength layout. Progression may keep one lift on its day. Two identical previous layouts must not be copied.",
       "why_ko is one to three Korean sentences. Do not restate the whole month.",
-      "Use strength_prescription. Do not invent a percent outside it. Do not copy a 5/3/1 pattern unless the method is 531.",
+      "Use allowed_programming. lower_body_sets are required on squat and deadlift. upper_body_sets are required on ohp and bench. strength_prescription is the method rule. When the two differ, allowed_programming wins. Do not copy a 5/3/1 pattern unless the method is 531.",
+      "weekly_requirements is a hard structural requirement for this week. Satisfy it inside sessions. The server rejects a miss and does not change duration for you.",
+      "programming_space is only a boundary. Choose the day and the lift yourself.",
     ],
     ...(input.retryErrors && input.retryErrors.length
       ? {
           retry: {
-            instruction:
-              "Preserve valid sessions and the original weekly intent. Fix only the listed errors. Do not redesign unrelated days unless a cross-day rule requires it. Do not repeat these errors.",
+            instruction: RETRY_INSTRUCTION,
             errors: [...input.retryErrors],
             ...(input.previousDraft ? { previous_draft: input.previousDraft } : {}),
+          },
+          retry_context: {
+            previous_draft: input.previousDraft ?? null,
+            validation_errors: structureValidationErrors(input.retryErrors),
+            repair: {
+              preserve: "Preserve valid sessions and the original weekly intent.",
+              fix: "Fix the listed validation errors.",
+              may_change: [
+                "the day named in a validation error",
+                "a day that directly conflicts with that error",
+                "the minimum sessions required to meet a hard constraint or weekly requirement",
+              ],
+              must_keep: [
+                "monthly method",
+                "monthly goal",
+                "unrelated valid days",
+                "benchmark requirement",
+                "long conditioning requirement",
+                "a strength method that is already valid",
+              ],
+              hard_constraints: "All hard constraints remain mandatory.",
+            },
           },
         }
       : {}),
@@ -749,7 +824,7 @@ export function weekPrompt(input: {
           warmup_ko: "월요일 10분. 쉬운 로잉 후 빈 바.",
           strength_purpose: "스쿼트를 이번 주 세트로 합니다.",
           strength_volume: "moderate",
-          strength_intensity: "heavy",
+          strength_intensity: exampleHeavy ? "heavy" : "moderate",
           metcon_purpose: "월요일 시간 캡 안에 끝내는 반복입니다.",
           metcon_format: "amrap",
           time_domain: "medium",
@@ -910,6 +985,11 @@ export async function authorWeek(input: {
     retryBody: (errors, previous) => weekPrompt({ ...promptInput, retryErrors: errors, previousDraft: previous }),
     accept: (json) => {
       const judged = judgeWeek(json, input.month, input.weekIndex, input.recent, context);
+      const draft = judged.ok ? judged.draft : parseWeekDraft(normalizeWeekPayload(json).value);
+      const diagnostics = {
+        similarity: draft ? similarityDiagnostics(draft, input.recent) : null,
+        errors: judged.ok ? [] : judged.errors,
+      };
       if (!judged.ok) {
         return {
           ok: false,
@@ -917,9 +997,10 @@ export async function authorWeek(input: {
           detail: judged.detail,
           errors: judged.errors,
           normalizations: judged.normalizations,
+          diagnostics,
         };
       }
-      return { ok: true, value: judged.draft, detail: judged.detail, normalizations: judged.normalizations };
+      return { ok: true, value: judged.draft, detail: judged.detail, normalizations: judged.normalizations, diagnostics };
     },
   });
   return result.ok ? { ok: true, draft: result.value, trace: result.trace } : result;
