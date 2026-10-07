@@ -139,7 +139,7 @@ describe("stage 1 generation guard", () => {
 
     const direction = fallbackMonth(null);
     const draft = draftForScheme(direction, 1, fallbackIntent(direction, 1, "model"));
-    draft.intent.why_ko = "모델이 이번 주 클래스 한 판의 이유를 적습니다. secret@example.com";
+    draft.intent.why_ko = "모델이 이번 주 클래스 한 판의 이유를 적습니다. 하체와 컨디셔닝은 이번 달 방법을 그대로 따릅니다. secret@example.com";
     const monday = draft.sessions[0]!.conditioning!;
     monday.movements = [{ key: "ski", amount: "200m", name_ko: "스키" }];
     monday.equipment = ["ski"];
@@ -154,6 +154,7 @@ describe("stage 1 generation guard", () => {
     const week = await ensureProgrammingWeek(WEEK, { nowMs: NOW + 1, key: KEY, fetchImpl });
     expect(week).toMatchObject({
       generationSource: "model",
+      fallbackReason: null,
       modelName: MONTH_PLAN_OPENAI_MODEL,
       promptVersion: WEEKLY_PROMPT_VERSION,
       rulesVersion: RULES_VERSION,

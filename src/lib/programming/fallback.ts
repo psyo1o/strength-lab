@@ -4,7 +4,8 @@ import type { DayKey, MainLift, MetconPiece, MetconStimulus, PlannedWeek, WeekIn
 import { DAY_ORDER } from "../month-plan/types";
 import { completeMonthDirection } from "./month-direction";
 import { constitutionViolations, similarityScore, structurallySimilar } from "./rules";
-import { fatigueCutSets, schemeSets, strengthIsHeavy } from "./schemes";
+import { schemeSets, strengthIsHeavy } from "./schemes";
+import { exampleSets } from "./strength-methods";
 import { fillSessionFields } from "./session-fields";
 import type { WeekActual } from "./summary";
 import {
@@ -300,12 +301,13 @@ export function highLowerFatigue(actual: WeekActual | null | undefined): boolean
 
 function strengthFor(
   lift: MainLift,
-  scheme: Scheme,
+  month: MonthDirection,
   weekIndex: WeekIndex,
   highLower: boolean,
 ): NonNullable<SessionDraft["strength"]> {
-  const sets =
-    highLower && (lift === "squat" || lift === "deadlift") ? fatigueCutSets(scheme, weekIndex) : schemeSets(scheme, weekIndex);
+  const method = month.strength_method || month.scheme;
+  const fatigue = highLower && (lift === "squat" || lift === "deadlift") ? "high" : "unknown";
+  const sets = exampleSets(method, weekIndex, fatigue, lift) ?? schemeSets(month.scheme, weekIndex);
   return { lift, sets };
 }
 
@@ -381,13 +383,13 @@ function asStructure(conditioning: ConditioningDraft, day: DayKey): StoredStruct
 function bannedKeys(
   day: DayKey,
   lifts: Map<DayKey, MainLift>,
-  scheme: Scheme,
+  month: MonthDirection,
   weekIndex: WeekIndex,
   highLower: boolean,
 ): string[] {
   const previousDay = dayIndex(day) > 0 ? TRAINING[dayIndex(day) - 1] : undefined;
   const previous = previousDay ? lifts.get(previousDay) : undefined;
-  if (!previous || !strengthIsHeavy(strengthFor(previous, scheme, weekIndex, highLower).sets)) return [];
+  if (!previous || !strengthIsHeavy(strengthFor(previous, month, weekIndex, highLower).sets)) return [];
   if (previous === "squat") return ["deadlift", "snatch", "power_snatch", "clean", "power_clean", "hang_power_clean"];
   if (previous === "deadlift") return ["squat", "air_squat", "front_squat", "thruster", "lunge"];
   if (previous === "ohp" || previous === "bench") return ["snatch", "power_snatch"];
@@ -644,7 +646,7 @@ export function buildFallbackWeek(input: {
       benchmark,
       longPiece,
       previousStimulus,
-      bans: bannedKeys(day, lifts, month.scheme, weekIndex, highLower),
+      bans: bannedKeys(day, lifts, month, weekIndex, highLower),
       avoidLower: highLower && (day === "mon" || day === "tue"),
       chosen,
       recent,
@@ -665,7 +667,7 @@ export function buildFallbackWeek(input: {
       optional: day === "sat",
       warmup_min: 10,
       warmup_ko: warmupText(day, barbell, lift),
-      strength: lift ? strengthFor(lift, month.scheme, weekIndex, highLower) : null,
+      strength: lift ? strengthFor(lift, month, weekIndex, highLower) : null,
       conditioning,
     };
   });
@@ -684,20 +686,36 @@ export function draftForScheme(month: MonthDirection, weekIndex: WeekIndex, inte
   return buildFallbackWeek({ month, weekIndex, intent });
 }
 
-export function fallbackIntent(month: MonthDirection, weekIndex: WeekIndex, reason: string): ProgrammingIntent {
+function methodLabel(month: MonthDirection): string {
+  const method = month.strength_method || month.scheme;
+  if (method === "531") return "5/3/1";
+  if (method === "ACCUMULATION" || method === "volume") return "축적";
+  if (method === "INTENSITY_BLOCK" || method === "intensity") return "강도";
+  if (method === "DELOAD_RECOVERY" || method === "deload") return "회복";
+  if (method === "TECHNIQUE_SKILL" || method === "skill") return "기술";
+  return "이번 방법";
+}
+
+export function fallbackIntent(month: MonthDirection, weekIndex: WeekIndex, _reason: string): ProgrammingIntent {
+  const label = methodLabel(month);
   return {
-    why_ko: `${month.scheme} 블록 ${weekIndex}주입니다. 모델 응답을 쓰지 않고 이 달의 방식으로 채웁니다. 이유 코드는 ${reason}입니다.`,
+    why_ko: `${label} 블록 ${weekIndex}주입니다. 모델 응답을 쓰지 않고 이 달의 방식으로 채웁니다.`,
     focus: month.focus_ko,
-    scheme_note: `${month.scheme}는 이번 달 전체의 선택입니다. 주마다 방식을 바꾸지 않습니다.`,
+    scheme_note: `${label}는 이번 달 전체의 선택입니다. 주마다 방식을 바꾸지 않습니다.`,
   };
 }
 
-export function fallbackMonth(prior: { summary_ko: string; next_scheme: MonthDirection["scheme"] } | null): MonthDirection {
-  const scheme = prior?.next_scheme ?? "531";
+export function fallbackMonth(
+  prior: { summary_ko: string; next_scheme: MonthDirection["scheme"]; strength_method?: string } | null,
+): MonthDirection {
+  const scheme = prior?.next_scheme ?? "deload";
+  const strengthMethod = prior?.strength_method ?? (prior ? prior.next_scheme : "DELOAD_RECOVERY");
   return completeMonthDirection({
     scheme,
-    focus_ko: prior ? "지난 달 평가가 고른 한 달" : "저장한 1RM으로 5/3/1 블록을 엽니다",
-    why_ko: prior?.summary_ko || "이전 월 평가가 없어 5/3/1 블록을 한 달 동안 유지합니다.",
+    strength_method: strengthMethod,
+    focus_ko: prior ? "지난 달 평가가 고른 한 달" : "월 계획이 없어 회복 범위로 엽니다",
+    why_ko: prior?.summary_ko || "이전 월 평가가 없습니다. 5/3/1로 바꾸지 않고 회복 범위만 사용합니다.",
+    primary_block: scheme === "531" ? "531" : methodLabel({ scheme, strength_method: strengthMethod } as MonthDirection),
     week_themes: [
       { week_index: 1, theme_ko: "블록을 엽니다" },
       { week_index: 2, theme_ko: "긴 컨디셔닝 한 번" },

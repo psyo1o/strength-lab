@@ -1,9 +1,23 @@
 import { serverModelKey } from "../month-plan/adapter";
+import { DAY_ORDER } from "../month-plan/types";
 import { MONTH_PLAN_OPENAI_MODEL, MONTH_PLAN_OPENAI_URL } from "../month-plan/week-model";
-import { judgeWeek, MONTH_REQUIRED_KEYS, monthSchemaErrors, monthShapeDetail, parseMonthDirection } from "./rules";
+import {
+  englishKoPath,
+  fatigueConstraintInput,
+  judgeWeek,
+  MONTH_REQUIRED_KEYS,
+  monthSchemaErrors,
+  monthShapeDetail,
+  parseMonthDirection,
+  TIME_DOMAIN_RANGES,
+} from "./rules";
+import { exampleSets, prescriptionGuide } from "./strength-methods";
 import { monthlyTimeoutMs, weeklyTimeoutMs } from "./timeouts";
 import {
+  EQUIPMENT,
   MONTHLY_PROMPT_VERSION,
+  MOVEMENT_PATTERNS,
+  STIMULI,
   WEEKLY_PROMPT_VERSION,
   type FallbackReason,
   type MonthDirection,
@@ -12,6 +26,9 @@ import {
   type WeekIndex,
 } from "./types";
 import type { ProgrammingSummary } from "./summary";
+
+export const WEEK_MAX_TOKENS = 8_000;
+export const MONTH_MAX_TOKENS = 2_500;
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
@@ -27,9 +44,13 @@ const RULES = [
   "No heavy snatch the day after a heavy press.",
   "Long conditioning is 30–40 minutes, about twice in the month, and not on a heavy squat or deadlift day.",
   "A repeated benchmark is a measurement, not a duplicate session.",
-  "Use the month scheme for every strength day. Do not swap 5/3/1, volume, intensity, skill, or deload inside the week.",
+  "The monthly strength method is a constraint, not a fixed weekday template. If the method is 531, use the server's exact sets. Otherwise do not force 5/3/1 set or rep patterns.",
   "Each training day carries strength_purpose, strength_volume, strength_intensity, metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration. Those fields match the strength and conditioning objects.",
-  "Rx metcon is 12–20 minutes, except 8–12 minutes the day after squat or deadlift. Long conditioning is 30–40 minutes.",
+  "Rx metcon is 12–20 minutes and hard, so time_domain is medium. Only the day after squat or deadlift is 8–12 minutes and time_domain short. duration_min 14 is medium, never short. Long conditioning is 30–40 minutes and time_domain long.",
+  "Allowed lifts are squat, ohp, bench, and deadlift. The word press means ohp. Do not use lift press.",
+  "Every *_ko field, focus, and scheme_note is Korean. Do not write those fields in English.",
+  "Machine calories are a male/female pair such as 12/10cal. Wall ball is 남 9kg · 여 6kg, kettlebell 남 24kg · 여 16kg, box 남 60cm · 여 50cm.",
+  "Top-level JSON is { intent, sessions }. sessions has exactly mon, tue, wed, thu, fri, sat, and sun. Do not wrap the object in class_week, week, or days.",
   "Warmup, strength, and conditioning together stay within about 60 minutes. Do not put a 30–40 minute piece on a strength day. Saturday is optional and has no main lift.",
   "Return JSON only. Do not pick a candidate_id.",
 ];
@@ -38,9 +59,10 @@ const MONTH_RULES = [
   "Write one month direction for the shared class. Do not write daily workouts, sessions, or movements.",
   "Personalization is empty. Do not ask for a questionnaire and do not invent a paid plan.",
   "Do not invent kilograms.",
-  "Use one scheme for the whole month: 531, volume, intensity, skill, or deload.",
+  "You are not required to use 5/3/1. 5/3/1 is only one strength method. Choose from the previous month, fatigue, strength, volume, intensity, benchmarks, and the long-term block. Do not change the method from week to week. Do not write daily workouts.",
   "long_conditioning_weeks has exactly two week indexes. benchmark_week is one week index.",
   "Return one JSON object. Put every required key at the top level. Do not wrap the object. Do not use a key named month_direction_only.",
+  "Every *_ko field is Korean. Allowed English tokens are only AMRAP, EMOM, Rx, Scaled, Benchmark, Deload, and 5/3/1. The server rejects a low Korean ratio.",
 ];
 
 function messageText(payload: unknown): string | null {
@@ -80,6 +102,7 @@ export type ModelResponseLog = {
   attempt: number;
   raw: unknown;
   latencyMs: number;
+  responseFormat: "json_schema" | "json_object" | null;
 };
 
 /** What the caller stores. modelName is set only when this process called the model. */
@@ -88,10 +111,11 @@ export type AuthorTrace = {
   attempt: number;
   responses: ModelResponseLog[];
   detail: string | null;
+  errors: string[];
 };
 
 function noModelTrace(): AuthorTrace {
-  return { modelName: null, attempt: 1, responses: [], detail: null };
+  return { modelName: null, attempt: 1, responses: [], detail: null, errors: [] };
 }
 
 type ResponseFormat =
@@ -112,6 +136,13 @@ function monthResponseFormat(): ResponseFormat {
         additionalProperties: false,
         properties: {
           scheme: { type: "string", enum: ["531", "volume", "intensity", "skill", "deload"] },
+          strength_method: string,
+          method_rationale: string,
+          method_constraints: string,
+          progression_notes: string,
+          block_type: string,
+          weekly_progression: string,
+          deload_strategy: string,
           focus_ko: string,
           why_ko: string,
           monthly_goal: string,
@@ -146,27 +177,131 @@ function monthResponseFormat(): ResponseFormat {
   };
 }
 
+function strictObject(properties: Record<string, unknown>, required: string[]): Record<string, unknown> {
+  return { type: "object", additionalProperties: false, properties, required };
+}
+
+function nullable(schema: Record<string, unknown>): Record<string, unknown> {
+  return { anyOf: [schema, { type: "null" }] };
+}
+
+function stringEnum(values: readonly string[]): Record<string, unknown> {
+  return { type: "string", enum: [...values] };
+}
+
+const WEEK_STRING = { type: "string" };
+
 function weekResponseFormat(): ResponseFormat {
-  const string = { type: "string" };
+  const set = strictObject(
+    {
+      percent_of_tm: { type: "number" },
+      reps: { type: "integer" },
+      amrap: { type: "boolean" },
+    },
+    ["percent_of_tm", "reps", "amrap"],
+  );
+  const strength = strictObject(
+    {
+      lift: stringEnum(["squat", "ohp", "bench", "deadlift"]),
+      sets: { type: "array", items: set },
+    },
+    ["lift", "sets"],
+  );
+  const movement = strictObject(
+    { key: WEEK_STRING, amount: WEEK_STRING, name_ko: WEEK_STRING },
+    ["key", "amount", "name_ko"],
+  );
+  const conditioning = strictObject(
+    {
+      benchmark: { type: "boolean" },
+      format: stringEnum(["amrap", "for_time", "emom", "intervals"]),
+      time_domain: stringEnum(["short", "medium", "long"]),
+      stimulus: nullable(stringEnum(STIMULI)),
+      movement_patterns: { type: "array", items: stringEnum(MOVEMENT_PATTERNS) },
+      movements: { type: "array", items: movement },
+      equipment: { type: "array", items: stringEnum(EQUIPMENT) },
+      rep_structure: WEEK_STRING,
+      work_rest_structure: WEEK_STRING,
+      duration_min: { type: "integer" },
+      volume: stringEnum(["low", "moderate", "high"]),
+      intensity: stringEnum(["light", "moderate", "heavy"]),
+      long_conditioning: { type: "boolean" },
+    },
+    [
+      "benchmark",
+      "format",
+      "time_domain",
+      "stimulus",
+      "movement_patterns",
+      "movements",
+      "equipment",
+      "rep_structure",
+      "work_rest_structure",
+      "duration_min",
+      "volume",
+      "intensity",
+      "long_conditioning",
+    ],
+  );
+  const session = strictObject(
+    {
+      day: stringEnum(DAY_ORDER),
+      rest: { type: "boolean" },
+      optional: { type: "boolean" },
+      warmup_min: { type: "integer" },
+      warmup_ko: WEEK_STRING,
+      strength_purpose: nullable(WEEK_STRING),
+      strength_volume: nullable(stringEnum(["low", "moderate", "high"])),
+      strength_intensity: nullable(stringEnum(["light", "moderate", "heavy"])),
+      metcon_purpose: nullable(WEEK_STRING),
+      metcon_format: nullable(stringEnum(["amrap", "for_time", "emom", "intervals"])),
+      time_domain: nullable(stringEnum(["short", "medium", "long"])),
+      stimulus: nullable(stringEnum(STIMULI)),
+      movement_combination: nullable(WEEK_STRING),
+      equipment: { type: "array", items: stringEnum(EQUIPMENT) },
+      volume: nullable(stringEnum(["low", "moderate", "high"])),
+      intensity: nullable(stringEnum(["light", "moderate", "heavy"])),
+      expected_duration: nullable({ type: "integer" }),
+      strength: nullable(strength),
+      conditioning: nullable(conditioning),
+    },
+    [
+      "day",
+      "rest",
+      "optional",
+      "warmup_min",
+      "warmup_ko",
+      "strength_purpose",
+      "strength_volume",
+      "strength_intensity",
+      "metcon_purpose",
+      "metcon_format",
+      "time_domain",
+      "stimulus",
+      "movement_combination",
+      "equipment",
+      "volume",
+      "intensity",
+      "expected_duration",
+      "strength",
+      "conditioning",
+    ],
+  );
   return {
     type: "json_schema",
     json_schema: {
       name: "week_draft",
       strict: true,
-      schema: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          intent: {
-            type: "object",
-            additionalProperties: false,
-            properties: { why_ko: string, focus: string, scheme_note: string },
-            required: ["why_ko", "focus", "scheme_note"],
-          },
-          sessions: { type: "array" },
+      schema: strictObject(
+        {
+          intent: strictObject(
+            { why_ko: WEEK_STRING, focus: WEEK_STRING, scheme_note: WEEK_STRING },
+            ["why_ko", "focus", "scheme_note"],
+          ),
+          sessions: { type: "array", items: session },
         },
-        required: ["intent", "sessions"],
-      },
+        ["intent", "sessions"],
+      ),
     },
   };
 }
@@ -208,6 +343,25 @@ async function postModel(input: {
   });
 }
 
+function finishReason(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object" || !("choices" in payload)) return null;
+  const choices = (payload as { choices?: unknown }).choices;
+  if (!Array.isArray(choices) || !choices[0] || typeof choices[0] !== "object") return null;
+  const reason = (choices[0] as { finish_reason?: unknown }).finish_reason;
+  return typeof reason === "string" ? reason : null;
+}
+
+type Completed =
+  | { ok: true; json: unknown; latencyMs: number; responseFormat: "json_schema" | "json_object" }
+  | {
+      ok: false;
+      reason: FallbackReason;
+      raw: unknown;
+      latencyMs: number;
+      detail: string;
+      responseFormat: "json_schema" | "json_object" | null;
+    };
+
 async function complete(input: {
   key: string;
   url: string;
@@ -216,12 +370,10 @@ async function complete(input: {
   timeoutMs: number;
   maxTokens: number;
   format: ResponseFormat;
-}): Promise<
-  | { ok: true; json: unknown; latencyMs: number }
-  | { ok: false; reason: FallbackReason; raw: unknown; latencyMs: number; detail: string }
-> {
+}): Promise<Completed> {
   const started = Date.now();
   const latency = () => Date.now() - started;
+  let used: "json_schema" | "json_object" = input.format.type === "json_schema" ? "json_schema" : "json_object";
   try {
     let response = await postModel({
       key: input.key,
@@ -233,6 +385,7 @@ async function complete(input: {
     if (!response.ok && response.status === 400 && input.format.type === "json_schema") {
       const rejected = await response.text();
       if (/response_format|json_schema/i.test(rejected)) {
+        used = "json_object";
         response = await postModel({
           key: input.key,
           url: input.url,
@@ -247,6 +400,7 @@ async function complete(input: {
           raw: { status: 400, body: rejected.slice(0, 400) },
           latencyMs: latency(),
           detail: "http 400",
+          responseFormat: used,
         };
       }
     }
@@ -258,6 +412,7 @@ async function complete(input: {
         raw: { status: response.status, body: text.slice(0, 400) },
         latencyMs: latency(),
         detail: `http ${response.status}`,
+        responseFormat: used,
       };
     }
     const text = await response.text();
@@ -265,12 +420,25 @@ async function complete(input: {
     try {
       payload = JSON.parse(text);
     } catch {
-      return { ok: false, reason: "bad_json", raw: text.slice(0, 400), latencyMs: latency(), detail: "unreadable JSON" };
+      return { ok: false, reason: "bad_json", raw: text.slice(0, 400), latencyMs: latency(), detail: "unreadable JSON", responseFormat: used };
     }
+    const cut = finishReason(payload) === "length";
     const message = messageText(payload);
+    if (cut) {
+      return {
+        ok: false,
+        reason: "truncated",
+        raw: message ?? payload,
+        latencyMs: latency(),
+        detail: "finish_reason length",
+        responseFormat: used,
+      };
+    }
     const json = parseModelJson(payload);
-    if (!json) return { ok: false, reason: "bad_json", raw: message ?? payload, latencyMs: latency(), detail: "unreadable JSON" };
-    return { ok: true, json, latencyMs: latency() };
+    if (!json) {
+      return { ok: false, reason: "bad_json", raw: message ?? payload, latencyMs: latency(), detail: "unreadable JSON", responseFormat: used };
+    }
+    return { ok: true, json, latencyMs: latency(), responseFormat: used };
   } catch (error) {
     const timeout = isTimeout(error);
     return {
@@ -279,6 +447,7 @@ async function complete(input: {
       raw: timeout ? { timeout: true } : { error: "request_failed" },
       latencyMs: latency(),
       detail: timeout ? "timed out" : "request failed",
+      responseFormat: used,
     };
   }
 }
@@ -290,18 +459,25 @@ async function authorWithRetries<T>(input: {
   timeoutMs: number;
   maxTokens: number;
   format: ResponseFormat;
-  accept: (json: unknown) => { ok: true; value: T } | { ok: false; reason: FallbackReason; detail: string };
+  accept: (
+    json: unknown,
+  ) =>
+    | { ok: true; value: T; detail?: string | null }
+    | { ok: false; reason: FallbackReason; detail: string; errors?: string[] };
+  retryBody?: (errors: string[]) => unknown;
 }): Promise<{ ok: true; value: T; trace: AuthorTrace } | { ok: false; reason: FallbackReason; trace: AuthorTrace }> {
   const responses: ModelResponseLog[] = [];
   let reason: FallbackReason = "http_error";
   let detail: string | null = "request failed";
+  let errors: string[] = ["request failed"];
   let used = 0;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     used = attempt;
+    const body = attempt === 2 && input.retryBody && errors.length ? input.retryBody(errors) : input.body;
     const completed = await complete({
       key: input.key,
       url: MONTH_PLAN_OPENAI_URL,
-      body: input.body,
+      body,
       fetchImpl: input.fetchImpl,
       timeoutMs: input.timeoutMs,
       maxTokens: input.maxTokens,
@@ -311,41 +487,57 @@ async function authorWithRetries<T>(input: {
       attempt,
       raw: completed.ok ? completed.json : completed.raw,
       latencyMs: completed.latencyMs,
+      responseFormat: completed.responseFormat,
     });
     if (!completed.ok) {
       reason = completed.reason;
       detail = completed.detail;
+      errors = [completed.detail];
       continue;
     }
     const accepted = input.accept(completed.json);
     if (!accepted.ok) {
       reason = accepted.reason;
       detail = accepted.detail;
+      errors = accepted.errors?.length ? accepted.errors : [accepted.detail];
       continue;
     }
     return {
       ok: true,
       value: accepted.value,
-      trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt, responses, detail: null },
+      trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt, responses, detail: accepted.detail ?? null, errors: [] },
     };
   }
   return {
     ok: false,
     reason,
-    trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt: used, responses, detail },
+    trace: { modelName: MONTH_PLAN_OPENAI_MODEL, attempt: used, responses, detail, errors },
   };
 }
 
 export function monthPrompt(summary: ProgrammingSummary): unknown {
+  const bootstrap = summary.progression.months_recorded === 0;
   return {
     task: "Return one JSON object for the month. Put every required key at the top level. Do not wrap the object. Do not use a key named month_direction_only. Do not write daily workouts.",
     personalization: null,
+    bootstrap,
+    block_rule: bootstrap
+      ? "Bootstrap month. Choose the strength method. 5/3/1 is allowed and is not the default."
+      : "Follow the stored strength method and the previous evaluation. Do not switch the method inside this month.",
     summary,
     rules: MONTH_RULES,
     required_top_level_keys: [...MONTH_REQUIRED_KEYS],
     prompt_version: MONTHLY_PROMPT_VERSION,
+    implemented_strength_methods: ["531", "ACCUMULATION", "INTENSITY_BLOCK", "DELOAD_RECOVERY"],
     shape: {
-      scheme: "531",
+      scheme: "volume",
+      strength_method: "ACCUMULATION",
+      method_rationale: "한국어",
+      method_constraints: "한국어",
+      progression_notes: "한국어",
+      block_type: "한국어",
+      weekly_progression: "한국어",
+      deload_strategy: "한국어",
       focus_ko: "string",
       why_ko: "string",
       monthly_goal: "string",
@@ -373,26 +565,162 @@ export function weekPrompt(input: {
   summary: ProgrammingSummary;
   month: MonthDirection;
   weekIndex: WeekIndex;
+  recent?: readonly StoredStructure[];
+  retryErrors?: readonly string[];
 }): unknown {
+  const method = input.month.strength_method || input.month.scheme;
+  const guide = prescriptionGuide(method, input.weekIndex);
+  const sets = exampleSets(method, input.weekIndex, "unknown", "squat");
+  const theme = input.month.week_themes.find((row) => row.week_index === input.weekIndex)?.theme_ko ?? "";
+  const previous = input.summary.previous_week;
   return {
     task: "Write the whole class week, including why. Do not pick from a catalog.",
     prompt_version: WEEKLY_PROMPT_VERSION,
     personalization: null,
     week_index: input.weekIndex,
-    month_direction: input.month,
+    month_summary: {
+      scheme: input.month.scheme,
+      primary_block: input.month.primary_block,
+      focus_ko: input.month.focus_ko,
+      week_theme_ko: theme,
+      long_conditioning_weeks: input.month.long_conditioning_weeks,
+      benchmark_week: input.month.benchmark_week,
+      weekly_direction: input.month.weekly_direction,
+    },
     previous_generation_source: input.summary.previous_week?.generation_source ?? null,
     summary: input.summary,
-    rules: [...RULES, "Read the month direction and do not rewrite monthly_goal or the month block."],
+    previous_week: previous
+      ? {
+          week_start: previous.week_start,
+          generation_source: previous.generation_source,
+          intent: previous.programming_intent,
+          class_summary: previous.actual?.class_summary ?? null,
+        }
+      : null,
+    recent_structures: (input.recent ?? []).map((row) => ({
+      day: row.day,
+      format: row.format,
+      time_domain: row.time_domain,
+      stimulus: row.stimulus,
+      movement_patterns: row.movement_patterns,
+      equipment: row.equipment,
+      volume: row.volume,
+    })),
+    strength_prescription: guide,
+    example_sets: sets,
+    fatigue_constraints: fatigueConstraintInput(previous?.actual),
+    similarity_constraints: {
+      threshold: 4,
+      features: ["format", "time_domain", "stimulus", "movement_pattern", "equipment", "volume"],
+      note: "Do not repeat a recent structure. Changing only the movement name is not enough. Benchmarks may repeat.",
+    },
+    enums: {
+      day: [...DAY_ORDER],
+      lift: ["squat", "ohp", "bench", "deadlift"],
+      format: ["amrap", "for_time", "emom", "intervals"],
+      stimulus: [...STIMULI],
+      time_domain: ["short", "medium", "long"],
+      volume: ["low", "moderate", "high"],
+      intensity: ["light", "moderate", "heavy"],
+      equipment: [...EQUIPMENT],
+    },
+    enum_rule: "Do not invent values outside these enums. press is not a lift. Use ohp or bench.",
+    time_domain_rules: {
+      short: `${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} minutes. Only the day after squat or deadlift.`,
+      medium: `${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} minutes. Hard Rx metcon is 12–20 minutes, so 14, 16, and 18 are medium.`,
+      long: `${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes. Not on a heavy squat or deadlift day.`,
+    },
+    rules: [
+      ...RULES,
+      "Follow month_summary.scheme for the whole month. Do not change the block in this week.",
+      "Do not copy a recent weekday strength layout. Progression may keep one lift on its day. Two identical previous layouts must not be copied.",
+      "why_ko is one to three Korean sentences. Do not restate the whole month.",
+      "Use strength_prescription. Do not invent a percent outside it. Do not copy a 5/3/1 pattern unless the method is 531.",
+    ],
+    ...(input.retryErrors && input.retryErrors.length
+      ? { retry: { instruction: "Do not repeat these errors", errors: [...input.retryErrors] } }
+      : {}),
+    output_shape: {
+      top_level_keys: ["intent", "sessions"],
+      intent: { why_ko: "한국어", focus: "한국어", scheme_note: "한국어" },
+      sessions: "exactly 7 objects, one per day mon through sun",
+    },
+    compact_example: {
+      intent: {
+        why_ko: "이번 주는 월 방향을 유지하고 직전 주 피로에 맞춰 하체 볼륨을 정합니다.",
+        focus: "공유 클래스",
+        scheme_note: `${input.month.scheme} 세트를 이번 주 전체에 씁니다.`,
+      },
+      sessions: [
+        {
+          day: "mon",
+          rest: false,
+          optional: false,
+          warmup_min: 10,
+          warmup_ko: "월요일 10분. 쉬운 로잉 후 빈 바.",
+          strength_purpose: "스쿼트를 이번 주 세트로 합니다.",
+          strength_volume: "moderate",
+          strength_intensity: "heavy",
+          metcon_purpose: "월요일 시간 캡 안에 끝내는 반복입니다.",
+          metcon_format: "amrap",
+          time_domain: "medium",
+          stimulus: "high_rep",
+          movement_combination: "row+burpee",
+          equipment: ["rower", "bodyweight"],
+          volume: "moderate",
+          intensity: "moderate",
+          expected_duration: 16,
+          strength: { lift: "squat", sets },
+          conditioning: {
+            benchmark: false,
+            format: "amrap",
+            time_domain: "medium",
+            stimulus: "high_rep",
+            movement_patterns: ["engine"],
+            movements: [{ key: "row", amount: "12/10cal", name_ko: "로잉" }],
+            equipment: ["rower"],
+            rep_structure: "16분 AMRAP. 캡 16분.",
+            work_rest_structure: "시간 안에 반복합니다. 캡 16분.",
+            duration_min: 16,
+            volume: "moderate",
+            intensity: "moderate",
+            long_conditioning: false,
+          },
+        },
+        {
+          day: "sun",
+          rest: true,
+          optional: false,
+          warmup_min: 0,
+          warmup_ko: "",
+          strength_purpose: null,
+          strength_volume: null,
+          strength_intensity: null,
+          metcon_purpose: null,
+          metcon_format: null,
+          time_domain: null,
+          stimulus: null,
+          movement_combination: null,
+          equipment: [],
+          volume: null,
+          intensity: null,
+          expected_duration: null,
+          strength: null,
+          conditioning: null,
+        },
+      ],
+      sessions_must_also_include: ["tue", "wed", "thu", "fri", "sat"],
+    },
     session_shape: {
       day: "mon",
       rest: false,
       optional: false,
       warmup_min: 10,
-      warmup_ko: "string",
-      strength_purpose: "string or null",
+      warmup_ko: "한국어",
+      strength_purpose: "한국어 또는 null",
       strength_volume: "low | moderate | high | null",
       strength_intensity: "light | moderate | heavy | null",
-      metcon_purpose: "string",
+      metcon_purpose: "한국어",
       metcon_format: "amrap | for_time | emom | intervals",
       time_domain: "short | medium | long",
       stimulus: "heavy | high_rep | technical | null",
@@ -400,19 +728,19 @@ export function weekPrompt(input: {
       equipment: ["barbell"],
       volume: "low | moderate | high",
       intensity: "light | moderate | heavy",
-      expected_duration: 14,
-      strength: { lift: "squat", sets: [{ percent_of_tm: 65, reps: 5, amrap: false }] },
+      expected_duration: 16,
+      strength: { lift: "squat", sets },
       conditioning: {
         benchmark: false,
         format: "amrap",
         time_domain: "medium",
         stimulus: "high_rep",
         movement_patterns: ["engine"],
-        movements: [{ key: "row", amount: "250m", name_ko: "로잉" }],
+        movements: [{ key: "row", amount: "12/10cal", name_ko: "로잉" }],
         equipment: ["rower"],
-        rep_structure: "string",
-        work_rest_structure: "string",
-        duration_min: 14,
+        rep_structure: "16분 AMRAP. 캡 16분.",
+        work_rest_structure: "시간 안에 반복합니다. 캡 16분.",
+        duration_min: 16,
         volume: "moderate",
         intensity: "moderate",
         long_conditioning: false,
@@ -438,14 +766,19 @@ export async function authorMonth(input: {
     body: monthPrompt(input.summary),
     fetchImpl,
     timeoutMs,
-    maxTokens: 1200,
+    maxTokens: MONTH_MAX_TOKENS,
     format: monthResponseFormat(),
     accept: (json) => {
       if (!json || typeof json !== "object") return { ok: false, reason: "bad_json", detail: "unreadable JSON" };
       const direction = parseMonthDirection(json);
-      if (!direction) return { ok: false, reason: "schema", detail: monthShapeDetail(json) };
-      const errors = monthSchemaErrors(direction, json);
-      if (errors.length) return { ok: false, reason: "schema", detail: errors[0]! };
+      if (!direction) {
+        const detail = monthShapeDetail(json);
+        return { ok: false, reason: "schema", detail, errors: [detail] };
+      }
+      const schemaErrors = monthSchemaErrors(direction, json);
+      if (schemaErrors.length) return { ok: false, reason: "schema", detail: schemaErrors[0]!, errors: schemaErrors };
+      const english = englishKoPath(direction);
+      if (english) return { ok: false, reason: "language", detail: english, errors: [english] };
       return { ok: true, value: direction };
     },
   });
@@ -457,6 +790,7 @@ export async function authorWeek(input: {
   month: MonthDirection;
   weekIndex: WeekIndex;
   recent: readonly StoredStructure[];
+  recentLiftMaps?: readonly string[];
   key?: string | null;
   fetchImpl?: FetchLike;
   timeoutMs?: number;
@@ -465,17 +799,28 @@ export async function authorWeek(input: {
   if (!key) return { ok: false, reason: "no_model", trace: noModelTrace() };
   const fetchImpl = input.fetchImpl ?? fetch;
   const timeoutMs = input.timeoutMs ?? weeklyTimeoutMs();
+  const context = {
+    previousActual: input.summary.previous_week?.actual ?? null,
+    recentLiftMaps: input.recentLiftMaps ?? [],
+  };
+  const promptInput = {
+    summary: input.summary,
+    month: input.month,
+    weekIndex: input.weekIndex,
+    recent: input.recent,
+  };
   const result = await authorWithRetries({
     key,
-    body: weekPrompt({ summary: input.summary, month: input.month, weekIndex: input.weekIndex }),
+    body: weekPrompt(promptInput),
     fetchImpl,
     timeoutMs,
-    maxTokens: 4000,
+    maxTokens: WEEK_MAX_TOKENS,
     format: weekResponseFormat(),
+    retryBody: (errors) => weekPrompt({ ...promptInput, retryErrors: errors }),
     accept: (json) => {
-      const judged = judgeWeek(json, input.month, input.weekIndex, input.recent);
-      if (!judged.ok) return { ok: false, reason: judged.reason, detail: judged.detail };
-      return { ok: true, value: judged.draft };
+      const judged = judgeWeek(json, input.month, input.weekIndex, input.recent, context);
+      if (!judged.ok) return { ok: false, reason: judged.reason, detail: judged.detail, errors: judged.errors };
+      return { ok: true, value: judged.draft, detail: judged.detail };
     },
   });
   return result.ok ? { ok: true, draft: result.value, trace: result.trace } : result;

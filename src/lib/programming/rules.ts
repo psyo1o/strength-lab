@@ -1,6 +1,8 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { completeMonthDirection } from "./month-direction";
-import { setsMatchFatigueCut, setsMatchScheme, strengthIsHeavy } from "./schemes";
+import { strengthIsHeavy } from "./schemes";
+import { legacySchemeForMethod, validateStrengthPrescription } from "./strength-methods";
+import type { WeekActual } from "./summary";
 import {
   EQUIPMENT,
   MOVEMENT_PATTERNS,
@@ -44,8 +46,49 @@ const PULL_KEYS: Record<"snatch" | "clean" | "deadlift", string[]> = {
 };
 
 export type Judge =
-  | { ok: true; draft: WeekDraft }
-  | { ok: false; reason: "schema" | "rule_break" | "too_similar"; detail: string };
+  | { ok: true; draft: WeekDraft; detail: string | null; errors: string[] }
+  | {
+      ok: false;
+      reason: "schema" | "language" | "rule_break" | "feedback" | "weekday_pattern" | "too_similar";
+      detail: string;
+      errors: string[];
+    };
+
+const ALLOWED_LATIN = /\b(?:AMRAP|EMOM|Rx|Scaled|Benchmark|Deload|5\/3\/1|531)\b/gi;
+
+/** Share of Hangul among Hangul and Latin letters. Allowed workout tokens are removed first. */
+export const KOREAN_RATIO_MIN = 0.7;
+
+export function koreanRatio(text: string): number {
+  const stripped = text.replace(ALLOWED_LATIN, " ");
+  const hangul = stripped.match(/[\uac00-\ud7a3]/g)?.length ?? 0;
+  const latin = stripped.match(/[A-Za-z]/g)?.length ?? 0;
+  if (latin === 0) return 1;
+  return hangul / (hangul + latin);
+}
+
+/** A *_ko, focus, or scheme_note string whose Korean ratio is below the server minimum. */
+export function englishKoPath(value: unknown, path = ""): string | null {
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const found = englishKoPath(value[index], `${path}[${index}]`);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (!value || typeof value !== "object") return null;
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    const next = path ? `${path}.${key}` : key;
+    if (typeof child === "string" && (key.endsWith("_ko") || key === "focus" || key === "scheme_note")) {
+      const ratio = koreanRatio(child);
+      if (ratio < KOREAN_RATIO_MIN) return ratio === 0 ? `${next} is English` : `${next} korean ratio ${ratio.toFixed(2)}`;
+      continue;
+    }
+    const found = englishKoPath(child, next);
+    if (found) return found;
+  }
+  return null;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -183,6 +226,8 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
   };
 }
 
+const LIFT_VALUES = ["squat", "ohp", "bench", "deadlift"] as const;
+
 export function parseWeekDraft(value: unknown): WeekDraft | null {
   if (!isRecord(value)) return null;
   const intentRaw = value.intent;
@@ -234,6 +279,70 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
   return { intent: { why_ko: why, focus, scheme_note: note }, sessions };
 }
 
+/** Keys the generation log already drops. They are not a week shape. */
+const PRIVATE_TOP_LEVEL = new Set([
+  "email",
+  "e-mail",
+  "name",
+  "user_name",
+  "username",
+  "member_name",
+  "member",
+  "password",
+  "password_hash",
+  "phone",
+]);
+
+/** Top-level contract check. Wrappers such as class_week, week, and days are rejected here. */
+export function describeWeekParse(raw: unknown): { ok: boolean; top_level_keys: string[]; errors: string[] } {
+  if (!isRecord(raw)) return { ok: false, top_level_keys: [], errors: ["unreadable week"] };
+  const keys = Object.keys(raw);
+  const extra = keys.filter((key) => key !== "intent" && key !== "sessions" && !PRIVATE_TOP_LEVEL.has(key.toLowerCase()));
+  const missing = (["intent", "sessions"] as const).filter((key) => !(key in raw));
+  if (extra.length || missing.length) {
+    return {
+      ok: false,
+      top_level_keys: keys,
+      errors: [`top-level keys must be intent and sessions; found ${keys.join(", ") || "(empty)"}`],
+    };
+  }
+  if (parseWeekDraft(raw)) return { ok: true, top_level_keys: keys, errors: [] };
+  return { ok: false, top_level_keys: keys, errors: explainWeekShape(raw) };
+}
+
+function explainWeekShape(raw: Record<string, unknown>): string[] {
+  const errors: string[] = [];
+  if (!isRecord(raw.intent)) errors.push("intent must include why_ko, focus, and scheme_note");
+  else if (!asString(raw.intent.why_ko) || !asString(raw.intent.focus) || !asString(raw.intent.scheme_note)) {
+    errors.push("intent must include why_ko, focus, and scheme_note");
+  }
+  if (!Array.isArray(raw.sessions)) {
+    errors.push("sessions must be an array");
+    return errors.length ? errors : ["unreadable week"];
+  }
+  const days = new Set<string>();
+  for (const row of raw.sessions) {
+    if (!isRecord(row)) {
+      errors.push("a session is not an object");
+      continue;
+    }
+    const day = typeof row.day === "string" ? row.day : "session";
+    if (typeof row.day === "string") days.add(row.day);
+    if (isRecord(row.strength) && typeof row.strength.lift === "string" && !(LIFT_VALUES as readonly string[]).includes(row.strength.lift)) {
+      errors.push(`${day} lift ${row.strength.lift} is not allowed`);
+    }
+    if (isRecord(row.conditioning) && !Array.isArray(row.conditioning.equipment)) {
+      errors.push(`${day} conditioning.equipment is missing`);
+    }
+  }
+  if (raw.sessions.length !== 7) errors.push("week needs seven days");
+  for (const day of DAY_ORDER) {
+    if (!days.has(day)) errors.push(`${day} is missing`);
+  }
+  if (!errors.length) errors.push("unreadable week");
+  return errors;
+}
+
 const MONTH_WRAPPERS = ["month_direction_only", "month_direction", "direction", "month"] as const;
 
 export const MONTH_REQUIRED_KEYS = [
@@ -257,6 +366,13 @@ export const MONTH_REQUIRED_KEYS = [
   "long_conditioning_weeks",
   "benchmark_week",
   "constraints",
+  "strength_method",
+  "method_rationale",
+  "method_constraints",
+  "progression_notes",
+  "block_type",
+  "weekly_progression",
+  "deload_strategy",
 ] as const;
 
 /** Pull a wrapped month object up to the top level. A real month object is left as-is. */
@@ -284,6 +400,7 @@ export function parseMonthDirection(value: unknown): MonthDirection | null {
   if (!isRecord(unwrapped)) return null;
   const body = unwrapped;
   if (!isScheme(body.scheme)) return null;
+  if (typeof body.strength_method !== "string" || !body.strength_method.trim()) return null;
   const focus = asString(body.focus_ko);
   const why = asString(body.why_ko);
   if (!focus || !why) return null;
@@ -333,6 +450,13 @@ export function parseMonthDirection(value: unknown): MonthDirection | null {
     fatigue_direction: typeof body.fatigue_direction === "string" ? body.fatigue_direction : undefined,
     weekly_direction: typeof body.weekly_direction === "string" ? body.weekly_direction : undefined,
     evaluation_targets: targets,
+    strength_method: typeof body.strength_method === "string" ? body.strength_method : undefined,
+    method_rationale: typeof body.method_rationale === "string" ? body.method_rationale : undefined,
+    method_constraints: typeof body.method_constraints === "string" ? body.method_constraints : undefined,
+    progression_notes: typeof body.progression_notes === "string" ? body.progression_notes : undefined,
+    block_type: typeof body.block_type === "string" ? body.block_type : undefined,
+    weekly_progression: typeof body.weekly_progression === "string" ? body.weekly_progression : undefined,
+    deload_strategy: typeof body.deload_strategy === "string" ? body.deload_strategy : undefined,
   });
 }
 
@@ -341,6 +465,10 @@ export function monthSchemaErrors(direction: MonthDirection, raw: unknown): stri
   const banned = bannedKey(raw, new Set([...BANNED_KEYS, ...MONTH_BANNED_KEYS]));
   if (banned) errors.push(`month contains ${banned}`);
   if (textHasInventedKg(raw)) errors.push("month invents kg");
+  const expectedScheme = legacySchemeForMethod(direction.strength_method);
+  if (!direction.strength_method) errors.push("missing strength_method");
+  else if (!expectedScheme) errors.push(`${direction.strength_method} is not an implemented strength method`);
+  else if (expectedScheme !== direction.scheme) errors.push("scheme does not match strength_method");
   if (direction.long_conditioning_weeks.length !== 2) errors.push("long conditioning must be two weeks");
   if (new Set(direction.long_conditioning_weeks).size !== 2) errors.push("long conditioning weeks repeat");
   const weeks = new Set(direction.week_themes.map((row) => row.week_index));
@@ -348,11 +476,17 @@ export function monthSchemaErrors(direction: MonthDirection, raw: unknown): stri
   return errors;
 }
 
+/** Minute bounds for time_domain. The prompt copies these numbers. */
+export const TIME_DOMAIN_RANGES = {
+  short: { min: 1, max: 12 },
+  medium: { min: 13, max: 29 },
+  long: { min: 30, max: 40 },
+} as const;
+
 function timeDomainFits(conditioning: ConditioningDraft): boolean {
   const minutes = conditioning.duration_min;
-  if (conditioning.time_domain === "short") return minutes >= 1 && minutes <= 12;
-  if (conditioning.time_domain === "medium") return minutes >= 13 && minutes <= 29;
-  return minutes >= 30 && minutes <= 40;
+  const range = TIME_DOMAIN_RANGES[conditioning.time_domain];
+  return minutes >= range.min && minutes <= range.max;
 }
 
 export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
@@ -471,12 +605,16 @@ export function constitutionViolations(draft: WeekDraft, month: MonthDirection, 
     const session = sessions.get(day);
     if (!session) continue;
     exposures.set(day, exposure(session));
-    if (session.strength && !setsMatchScheme(month.scheme, weekIndex, session.strength.sets)) {
-      const lowerCut =
-        session.strength_volume === "low" &&
-        (session.strength.lift === "squat" || session.strength.lift === "deadlift") &&
-        setsMatchFatigueCut(month.scheme, weekIndex, session.strength.sets);
-      if (!lowerCut) errors.push(`${day} sets do not match the month scheme`);
+    if (session.strength) {
+      const lower = session.strength.lift === "squat" || session.strength.lift === "deadlift";
+      const voluntaryCut = session.strength_volume === "low" && lower;
+      const problem = validateStrengthPrescription(month.strength_method || month.scheme, session.strength.sets, {
+        day,
+        weekIndex,
+        lift: session.strength.lift,
+        fatigue: voluntaryCut ? "high" : "unknown",
+      });
+      if (problem) errors.push(problem);
     }
   }
   for (let index = 0; index < DAY_ORDER.length - 1; index += 1) {
@@ -598,21 +736,217 @@ export function similarityViolations(draft: WeekDraft, recent: readonly StoredSt
   return errors;
 }
 
+export type WeekBurden = {
+  lower_strength_sessions: number;
+  lower_strength_volume: number;
+  heavy_lower_sessions: number;
+  lower_body_metcon_exposure: number;
+  strength_intensity_sum: number;
+};
+
+export type WeekCheckContext = {
+  previousActual?: WeekActual | null;
+  recentLiftMaps?: readonly string[];
+};
+
+const LOWER_LIFTS = new Set<MainLift>(["squat", "deadlift"]);
+const REDUCED_INTENT = /하체.{0,16}(줄|낮|적)|볼륨을 줄|세트를 줄|부담을 줄|줄였|낮췄/;
+
+export function previousLowerFatigue(actual: WeekActual | null | undefined): "high" | "moderate" | "low" | "unknown" {
+  const signal = actual?.class_summary?.fatigue_signal;
+  const volume = actual?.class_summary?.actual_volume;
+  if (signal === "high" || volume === "high") return "high";
+  if (signal === "low") return "low";
+  if (signal === "moderate") return "moderate";
+  return "unknown";
+}
+
+/** Constraints the prompt shows and the feedback check enforces. */
+export function fatigueConstraintInput(actual: WeekActual | null | undefined) {
+  const level = previousLowerFatigue(actual);
+  return {
+    previous_lower_fatigue: level,
+    previous_volume: actual?.class_summary?.actual_volume ?? null,
+    previous_intensity: actual?.class_summary?.actual_intensity ?? null,
+    allowed_strength_sets: level === "high" ? "method_fatigue_limit" : "method_prescription",
+    heavy_lower_sessions_max: level === "high" ? 1 : null,
+    heavy_lower_metcon: level === "high" ? "avoid" : "allowed",
+    note:
+      level === "high"
+        ? "Previous lower fatigue is high. Use the method's reduced lower prescription, keep at most one heavy lower session, and do not program a heavy lower metcon."
+        : level === "low"
+          ? "Previous fatigue is low. Use the method's normal prescription. Do not drop squat or deadlift below that method, and do not switch methods."
+          : "No high or low fatigue signal. Use the selected method's prescription.",
+  };
+}
+
+function isLowerMetcon(session: SessionDraft): boolean {
+  const conditioning = session.conditioning;
+  if (!conditioning) return false;
+  return conditioning.movement_patterns.some((pattern) => pattern === "squat" || pattern === "hinge");
+}
+
+function heavyLowerMetcon(session: SessionDraft): boolean {
+  const conditioning = session.conditioning;
+  if (!conditioning || !isLowerMetcon(session)) return false;
+  return conditioning.stimulus === "heavy" || conditioning.intensity === "heavy";
+}
+
+export function weekBurden(draft: WeekDraft): WeekBurden {
+  let lowerSessions = 0;
+  let lowerVolume = 0;
+  let heavyLower = 0;
+  let lowerMetcon = 0;
+  let intensity = 0;
+  for (const session of draft.sessions) {
+    const lift = session.strength?.lift;
+    if (lift && LOWER_LIFTS.has(lift)) {
+      lowerSessions += 1;
+      lowerVolume += session.strength?.sets.length ?? 0;
+      if (session.strength && strengthIsHeavy(session.strength.sets)) heavyLower += 1;
+    }
+    for (const set of session.strength?.sets ?? []) intensity += set.percent_of_tm;
+    if (isLowerMetcon(session)) lowerMetcon += 1;
+  }
+  return {
+    lower_strength_sessions: lowerSessions,
+    lower_strength_volume: lowerVolume,
+    heavy_lower_sessions: heavyLower,
+    lower_body_metcon_exposure: lowerMetcon,
+    strength_intensity_sum: intensity,
+  };
+}
+
+/** Metrics where the first week is strictly heavier than the second. */
+export function heavierThan(left: WeekBurden, right: WeekBurden): string[] {
+  const keys = [
+    "lower_strength_sessions",
+    "lower_strength_volume",
+    "heavy_lower_sessions",
+    "lower_body_metcon_exposure",
+    "strength_intensity_sum",
+  ] as const;
+  return keys.filter((key) => left[key] > right[key]);
+}
+
+export function feedbackViolations(
+  draft: WeekDraft,
+  month: MonthDirection,
+  weekIndex: 1 | 2 | 3 | 4,
+  actual: WeekActual | null | undefined,
+): string[] {
+  const level = previousLowerFatigue(actual);
+  const method = month.strength_method || month.scheme;
+  const errors: string[] = [];
+  const lower = draft.sessions.filter((session) => session.strength && LOWER_LIFTS.has(session.strength.lift));
+  if (level === "high" || level === "low") {
+    for (const session of lower) {
+      if (!session.strength) continue;
+      const problem = validateStrengthPrescription(method, session.strength.sets, {
+        day: session.day,
+        weekIndex,
+        lift: session.strength.lift,
+        fatigue: level,
+      });
+      if (problem) errors.push(problem);
+    }
+  }
+  if (level === "high") {
+    const heavy = lower.filter((session) => session.strength && strengthIsHeavy(session.strength.sets));
+    if (heavy.length > 1) errors.push("heavy lower sessions exceed 1 while previous lower fatigue is high");
+    for (const session of draft.sessions) {
+      if (heavyLowerMetcon(session)) errors.push(`${session.day} heavy lower metcon while previous lower fatigue is high`);
+    }
+  }
+  const text = `${draft.intent.why_ko}\n${draft.intent.focus}\n${draft.intent.scheme_note}`;
+  const keptHeavy = lower.some((session) => {
+    if (!session.strength) return false;
+    return (
+      validateStrengthPrescription(method, session.strength.sets, {
+        day: session.day,
+        weekIndex,
+        lift: session.strength.lift,
+        fatigue: "high",
+      }) != null
+    );
+  });
+  if (REDUCED_INTENT.test(text) && keptHeavy) {
+    errors.push("intent says lower load was reduced but the prescription is heavier than the fatigue limit");
+  }
+  return errors;
+}
+
+/** Day to primary lift. Same string is used for the fixed-weekday check. */
+export function liftMapKey(draft: WeekDraft): string {
+  return DAY_ORDER.map((day) => {
+    const lift = draft.sessions.find((session) => session.day === day)?.strength?.lift ?? "-";
+    return `${day}:${lift}`;
+  }).join(",");
+}
+
+export function monthAllowsSameLiftDays(month: MonthDirection): boolean {
+  const text = [
+    month.weekly_direction,
+    month.strength_direction,
+    month.weekly_progression,
+    month.progression_notes,
+    month.constraints.join("\n"),
+  ].join("\n");
+  return /같은 요일|요일별 배치를 유지|주차.*진행|same weekday/i.test(text);
+}
+
+export function weekdayPatternViolations(draft: WeekDraft, recentMaps: readonly string[], allowRepeat: boolean): string[] {
+  if (allowRepeat || recentMaps.length < 2) return [];
+  const current = liftMapKey(draft);
+  const lastTwo = recentMaps.slice(-2);
+  if (lastTwo.every((map) => map === current)) return ["weekday strength layout repeats the previous two weeks"];
+  return [];
+}
+
+function koreanErrors(value: unknown): string[] {
+  const found = englishKoPath(value);
+  return found ? [found] : [];
+}
+
+function failed(reason: Extract<Judge, { ok: false }>["reason"], errors: string[]): Judge {
+  return { ok: false, reason, detail: errors[0] ?? "validation failed", errors };
+}
+
+/**
+ * Parse → schema → strength scheme → fatigue/feedback → fixed weekday
+ * → same-week conflict → similarity → Korean.
+ */
 export function judgeWeek(
   raw: unknown,
   month: MonthDirection,
   weekIndex: 1 | 2 | 3 | 4,
   recent: readonly StoredStructure[],
+  context: WeekCheckContext = {},
 ): Judge {
+  const parsed = describeWeekParse(raw);
+  if (!parsed.ok) return failed("schema", parsed.errors);
   const draft = parseWeekDraft(raw);
-  if (!draft) return { ok: false, reason: "schema", detail: "unreadable week" };
+  if (!draft) return failed("schema", ["unreadable week"]);
   const schema = weekSchemaErrors(draft, raw);
-  if (schema.length) return { ok: false, reason: "schema", detail: schema[0]! };
-  const rules = constitutionViolations(draft, month, weekIndex);
-  if (rules.length) return { ok: false, reason: "rule_break", detail: rules[0]! };
-  const similar = similarityViolations(draft, recent);
-  if (similar.length) return { ok: false, reason: "too_similar", detail: similar[0]! };
-  return { ok: true, draft };
+  if (schema.length) return failed("schema", schema);
+  const constitution = constitutionViolations(draft, month, weekIndex);
+  const scheme = constitution.filter((error) => error.includes("sets do not match"));
+  const sameWeek = constitution.filter((error) => !schema.includes(error) && !error.includes("sets do not match"));
+  const stages: Array<{ reason: "rule_break" | "feedback" | "weekday_pattern" | "too_similar" | "language"; errors: string[] }> = [
+    { reason: "rule_break", errors: scheme },
+    { reason: "feedback", errors: feedbackViolations(draft, month, weekIndex, context.previousActual) },
+    {
+      reason: "weekday_pattern",
+      errors: weekdayPatternViolations(draft, context.recentLiftMaps ?? [], monthAllowsSameLiftDays(month)),
+    },
+    { reason: "rule_break", errors: sameWeek },
+    { reason: "too_similar", errors: similarityViolations(draft, recent) },
+    { reason: "language", errors: koreanErrors(draft) },
+  ];
+  const hit = stages.filter((stage) => stage.errors.length > 0);
+  if (!hit.length) return { ok: true, draft, detail: null, errors: [] };
+  const errors = hit.flatMap((stage) => stage.errors);
+  return failed(hit[0]!.reason, errors);
 }
 
 export function liftOf(session: SessionDraft): MainLift | null {

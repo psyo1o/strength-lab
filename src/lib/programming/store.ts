@@ -2,7 +2,7 @@ import { getSqlite } from "../db/client";
 import { completeEvaluation } from "./evaluate";
 import { completeMonthDirection } from "./month-direction";
 import { addDays } from "./types";
-import { toStructure } from "./rules";
+import { liftMapKey, toStructure } from "./rules";
 import type { MonthEvaluation, WeekActual } from "./summary";
 import {
   ENGINE_VERSION,
@@ -25,7 +25,7 @@ export type GenerationWrite = {
   rulesVersion: string;
   inputSummaryVersion: string;
   generationAttempt: number;
-  responses: { attempt: number; raw: unknown; latencyMs?: number }[];
+  responses: { attempt: number; raw: unknown; latencyMs?: number; responseFormat?: "json_schema" | "json_object" | null }[];
 };
 
 export type WriteMode = "create" | "regenerate";
@@ -285,7 +285,12 @@ function insertGenerationLogs(
       response.attempt,
       input.promptVersion,
       input.modelName,
-      JSON.stringify(scrubGenerationPayload(response.raw)),
+      JSON.stringify(
+        scrubGenerationPayload({
+          response_format: response.responseFormat ?? null,
+          body: response.raw,
+        }),
+      ),
       input.createdAt,
       response.latencyMs ?? null,
     );
@@ -565,6 +570,12 @@ export function listProgrammingWeeksBefore(weekStart: string): WeekRow[] {
     )
     .all(weekStart) as WeekSql[];
   return rows.map(toWeek);
+}
+
+export function listRecentLiftMaps(weekStart: string): string[] {
+  return listProgrammingWeeksBefore(weekStart)
+    .slice(-2)
+    .map((week) => liftMapKey(week.draft));
 }
 
 export function listRecentStructures(weekStart: string): StoredStructure[] {

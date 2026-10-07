@@ -24,6 +24,7 @@ import {
   listProgrammingMonths,
   listProgrammingWeeksBefore,
   listProgrammingWeeksForMonth,
+  listRecentLiftMaps,
   listRecentStructures,
   previousProgrammingMonth,
   previousProgrammingWeek,
@@ -247,7 +248,7 @@ function fallbackWeek(
     previousActual,
   });
   assertFallbackLegal(draft, month, weekIndex);
-  return { draft, display: projectWeek(draft, weekIndex, "rules") };
+  return { draft, display: projectWeek(draft, weekIndex, "rules", month.strength_method) };
 }
 
 export async function ensureProgrammingWeek(weekStart: string, options: EngineOptions = {}): Promise<WeekRow> {
@@ -276,12 +277,13 @@ async function writeProgrammingWeek(
     month: month.direction,
     weekIndex,
     recent,
+    recentLiftMaps: listRecentLiftMaps(weekStart),
     key: options.key,
     fetchImpl: options.fetchImpl,
     timeoutMs: options.timeoutMs,
   });
   const built = authored.ok
-    ? { draft: authored.draft, display: projectWeek(authored.draft, weekIndex, "model") }
+    ? { draft: authored.draft, display: projectWeek(authored.draft, weekIndex, "model", month.direction.strength_method) }
     : fallbackWeek(month.direction, weekIndex, authored.reason, recent, summary.previous_week?.actual ?? null);
   const saved = insertProgrammingWeek({
     monthId: month.id,

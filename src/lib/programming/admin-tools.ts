@@ -10,8 +10,21 @@ import {
   regenerateProgrammingWeek,
 } from "./engine";
 import { authorMonth, authorWeek, type FetchLike } from "./model";
-import { judgeWeek, similarityViolations } from "./rules";
-import { getProgrammingMonth, getProgrammingWeek, listRecentStructures, scrubGenerationPayload } from "./store";
+import {
+  describeWeekParse,
+  fatigueConstraintInput,
+  feedbackViolations,
+  judgeWeek,
+  similarityViolations,
+  weekBurden,
+} from "./rules";
+import {
+  getProgrammingMonth,
+  getProgrammingWeek,
+  listRecentLiftMaps,
+  listRecentStructures,
+  scrubGenerationPayload,
+} from "./store";
 import type { WeekActual } from "./summary";
 import {
   ENGINE_VERSION,
@@ -157,17 +170,24 @@ export async function dryRunWeek(input: {
   const promptSummary = { ...summary, previous_week: previous };
   const weekIndex = weekIndexFromStart(weekStart);
   const recent = listRecentStructures(weekStart);
+  const recentLiftMaps = listRecentLiftMaps(weekStart);
   const authored = await authorWeek({
     summary: promptSummary,
     month: direction,
     weekIndex,
     recent,
+    recentLiftMaps,
     key: input.key,
     fetchImpl: input.fetchImpl,
   });
+  const rawOutput = authored.ok ? authored.draft : (authored.trace.responses.at(-1)?.raw ?? null);
+  const parsed = describeWeekParse(rawOutput);
   const judged = authored.ok
-    ? { ok: true as const, draft: authored.draft }
-    : judgeWeek(authored.trace.responses.at(-1)?.raw ?? null, direction, weekIndex, recent);
+    ? { ok: true as const, draft: authored.draft, errors: [] as string[] }
+    : judgeWeek(rawOutput, direction, weekIndex, recent, {
+        previousActual: previous?.actual ?? null,
+        recentLiftMaps,
+      });
   const draft = authored.ok ? authored.draft : "draft" in judged && judged.ok ? judged.draft : null;
   const fallback = buildFallbackWeek({
     month: direction,
@@ -190,13 +210,24 @@ export async function dryRunWeek(input: {
     rules_version: RULES_VERSION,
     actual_case: input.actualCase ?? null,
     input: { summary: promptSummary, month_direction: direction, recent_structures: recent.length },
-    ai_output: authored.ok ? authored.draft : { error: authored.reason },
+    ai_output: authored.ok ? authored.draft : { error: authored.reason, raw: rawOutput },
     raw_responses: authored.trace.responses,
+    parse_result: parsed,
     validation: authored.ok
-      ? { ok: true, detail: null }
+      ? { ok: true, detail: authored.trace.detail }
       : { ok: false, reason: authored.reason, detail: authored.trace.detail },
+    validation_errors: authored.ok ? [] : authored.trace.errors,
     similarity: draft ? similarityViolations(draft, recent) : [],
+    feedback: {
+      metrics: draft ? weekBurden(draft) : null,
+      constraints: fatigueConstraintInput(previous?.actual ?? null),
+      errors: draft ? feedbackViolations(draft, direction, weekIndex, previous?.actual ?? null) : [],
+    },
     fallback: { generation_source: "fallback", rules_version: RULES_VERSION, draft: fallback },
+    final_result: {
+      generation_source: authored.ok ? "model" : "fallback",
+      draft: authored.ok ? authored.draft : fallback,
+    },
   }) as Record<string, unknown>;
 }
 
@@ -212,7 +243,7 @@ export async function dryRunMonth(input: {
   const summary = readOnlyMonthSummary(monthStart);
   const authored = await authorMonth({ summary, key: input.key, fetchImpl: input.fetchImpl });
   const validation = authored.ok
-    ? { ok: true, detail: null }
+    ? { ok: true, detail: authored.trace.detail }
     : { ok: false, reason: authored.reason, detail: authored.trace.detail };
   const after = counts();
   if (!sameCounts(before, after)) throw new Error("dry run wrote to the database");
@@ -225,9 +256,16 @@ export async function dryRunMonth(input: {
     input: summary,
     ai_output: authored.ok ? authored.direction : { error: authored.reason },
     raw_responses: authored.trace.responses,
+    parse_result: authored.ok ? { ok: true, errors: [] } : { ok: false, errors: authored.trace.errors },
     validation,
+    validation_errors: authored.ok ? [] : authored.trace.errors,
     similarity: [],
+    feedback: { metrics: null, constraints: null, errors: [] },
     fallback: { generation_source: "fallback", direction: fallbackMonth(null) },
+    final_result: {
+      generation_source: authored.ok ? "model" : "fallback",
+      direction: authored.ok ? authored.direction : fallbackMonth(null),
+    },
   }) as Record<string, unknown>;
 }
 

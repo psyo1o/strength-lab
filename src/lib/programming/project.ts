@@ -15,6 +15,7 @@ import {
   type StrengthPrescription,
   type WeekIndex,
 } from "../month-plan/types";
+import { loadBasisForMethod } from "./strength-methods";
 import type { ConditioningDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
 
 const STIMULUS_KO: Record<Stimulus, MetconStimulus> = {
@@ -76,13 +77,14 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
   };
 }
 
-function strengthFrom(session: SessionDraft): StrengthPrescription | null {
+function strengthFrom(session: SessionDraft, strengthMethod: string): StrengthPrescription | null {
   if (!session.strength) return null;
   return {
     exerciseKey: session.strength.lift,
     nameKo: liftName(session.strength.lift),
     oneRmKg: null,
     trainingMaxKg: null,
+    loadBasis: loadBasisForMethod(strengthMethod),
     missingOneRm: true,
     noteKo: "1RM이 없습니다. 무거운 단수를 1RM에 저장하세요. 무게는 만들지 않습니다.",
     sets: session.strength.sets.map((set, index) => ({
@@ -106,7 +108,7 @@ function warmupBlock(session: SessionDraft): SessionBlock {
   };
 }
 
-function dayFrom(session: SessionDraft): PlannedDay {
+function dayFrom(session: SessionDraft, strengthMethod: string): PlannedDay {
   if (session.rest) {
     return {
       day: session.day,
@@ -129,7 +131,7 @@ function dayFrom(session: SessionDraft): PlannedDay {
       ],
     };
   }
-  const lift = strengthFrom(session);
+  const lift = strengthFrom(session, strengthMethod);
   const piece = pieceFrom(session);
   const blocks: SessionBlock[] = [warmupBlock(session)];
   if (lift) {
@@ -168,13 +170,18 @@ function dayFrom(session: SessionDraft): PlannedDay {
 }
 
 /** Maps a model week onto the screen shape. It does not choose the sessions. */
-export function projectWeek(draft: WeekDraft, weekIndex: WeekIndex, adapterId: "model" | "rules"): PlannedWeek {
+export function projectWeek(
+  draft: WeekDraft,
+  weekIndex: WeekIndex,
+  adapterId: "model" | "rules",
+  strengthMethod = "531",
+): PlannedWeek {
   return {
     weekIndex,
     source: "rules",
     adapterId,
     bodyBudgetMin: BODY_BUDGET_MIN,
-    days: draft.sessions.map(dayFrom),
+    days: draft.sessions.map((session) => dayFrom(session, strengthMethod)),
   };
 }
 
@@ -193,16 +200,17 @@ export function applyStoredStrength(
       sets: lift.sets.map((set) => ({ ...set, weightKg: null })),
     };
   }
-  const tm = trainingMaxKg(oneRm);
+  const basis = lift.loadBasis ?? "tm";
+  const base = basis === "one_rm" ? oneRm : trainingMaxKg(oneRm);
   return {
     ...lift,
     oneRmKg: oneRm,
-    trainingMaxKg: tm,
+    trainingMaxKg: basis === "tm" ? trainingMaxKg(oneRm) : null,
     missingOneRm: false,
     noteKo: "",
     sets: lift.sets.map((set) => ({
       ...set,
-      weightKg: roundLoad(tm * (set.percentOfTm / 100), "kg"),
+      weightKg: roundLoad(base * (set.percentOfTm / 100), "kg"),
     })),
   };
 }
