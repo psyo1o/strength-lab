@@ -12,6 +12,7 @@ import {
   normalizeWeekPayload,
   parseMonthDirection,
   parseWeekDraft,
+  constraintFailureBriefs,
   similarityDiagnostics,
   structureValidationErrors,
   TIME_DOMAIN_RANGES,
@@ -783,6 +784,7 @@ export function weekPrompt(input: {
           retry_context: {
             previous_draft: input.previousDraft ?? null,
             validation_errors: structureValidationErrors(input.retryErrors),
+            failure_briefs: constraintFailureBriefs(input.retryErrors),
             repair: {
               preserve: "Preserve valid sessions and the original weekly intent.",
               fix: "Fix the listed validation errors.",
@@ -989,6 +991,8 @@ export async function authorWeek(input: {
       const diagnostics = {
         similarity: draft ? similarityDiagnostics(draft, input.recent) : null,
         errors: judged.ok ? [] : judged.errors,
+        failed_constraints: judged.ok ? [] : structureValidationErrors(judged.errors),
+        failure_briefs: judged.ok ? [] : constraintFailureBriefs(judged.errors),
       };
       if (!judged.ok) {
         return {

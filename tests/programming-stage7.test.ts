@@ -177,6 +177,7 @@ describe("stage 7 constraint delivery and probe isolation", () => {
       retry: { instruction: string; previous_draft: { intent: { why_ko: string } } };
       retry_context: {
         validation_errors: Array<{ rule: string; current: number | null; maximum: number | null; severity: string }>;
+        failure_briefs: string[];
         repair: { must_keep: string[] };
         previous_draft: { intent: { why_ko: string } };
       };
@@ -187,6 +188,8 @@ describe("stage 7 constraint delivery and probe isolation", () => {
     expect(user.retry.previous_draft.intent.why_ko).toBe(bad.intent.why_ko);
     expect(user.retry_context.previous_draft.intent.why_ko).toBe(bad.intent.why_ko);
     expect(user.retry_context.validation_errors.some((error) => error.rule === "heavy_lower_sessions_max" && error.current === 2 && error.maximum === 1)).toBe(true);
+    expect(user.retry_context.failure_briefs.join(" ")).toContain("Previous attempt violated hard constraint: heavy_lower_sessions_max = 1");
+    expect(user.retry_context.failure_briefs.join(" ")).toContain("You MUST produce <= 1 heavy lower session");
     expect(user.retry_context.repair.must_keep).toContain("monthly method");
     expect(user.retry_context.repair.must_keep).toContain("long conditioning requirement");
   });

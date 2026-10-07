@@ -1018,6 +1018,22 @@ function labelToDay(label: string): string {
     .join(",");
 }
 
+/** One sentence per violation. Retry uses this so the next attempt sees the count it must not repeat. */
+export function constraintFailureBriefs(errors: readonly string[]): string[] {
+  return structureValidationErrors(errors).map((error) => {
+    if (error.rule === "heavy_lower_sessions_max" && error.current != null && error.maximum != null) {
+      return `Previous attempt violated hard constraint: heavy_lower_sessions_max = ${error.maximum}. Previous output contained ${error.current} heavy lower sessions. You MUST produce <= ${error.maximum} heavy lower session.`;
+    }
+    if (error.rule === "heavy_lower_metcon") {
+      return "Previous attempt violated hard constraint: heavy_lower_metcon = avoid. Previous output contained a heavy lower metcon. You MUST produce 0 heavy lower metcons.";
+    }
+    if (error.rule === "long_conditioning_sessions_min") {
+      return `Previous attempt violated weekly requirement: long conditioning required = 1. Previous output contained ${error.current ?? 0}. At least one conditioning session must satisfy the long-duration requirement of 30–40 minutes. You MUST produce exactly 1 long conditioning session. Do not expect the server to change duration.`;
+    }
+    return `Previous attempt violated: ${error.message} Do not repeat this violation. Keep every session that was already valid.`;
+  });
+}
+
 /** Turns a judge error into the retry object. The original sentence stays on `message`. */
 export function structureValidationErrors(errors: readonly string[]): StructuredValidationError[] {
   return errors.map((message) => {
