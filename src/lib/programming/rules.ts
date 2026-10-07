@@ -1,14 +1,17 @@
+import { OFFICIAL_LOAD_PAIRS } from "../month-plan/shared-line";
 import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { isWodPurpose } from "../wod/purpose";
 import { completeMonthDirection } from "./month-direction";
 import { strengthIsHeavy } from "./schemes";
-import { exampleSets, legacySchemeForMethod, validateStrengthPrescription } from "./strength-methods";
+import { exampleSets, legacySchemeForMethod, prescriptionGuide, validateStrengthPrescription } from "./strength-methods";
 import type { WeekActual } from "./summary";
 import {
   EQUIPMENT,
+  LOWER_BODY_LIFTS,
   MOVEMENT_PATTERNS,
   SIMILARITY_CONFIG,
   STIMULI,
+  isLowerBodyLift,
   isScheme,
   isWeekIndex,
   type ConditioningDraft,
@@ -50,11 +53,13 @@ export type Judge =
   | { ok: true; draft: WeekDraft; detail: string | null; errors: string[]; normalizations: string[] }
   | {
       ok: false;
-      reason: "schema" | "language" | "rule_break" | "feedback" | "weekday_pattern" | "too_similar";
+      reason: JudgeFailure;
       detail: string;
       errors: string[];
       normalizations: string[];
     };
+
+export type JudgeFailure = "schema" | "invented_weight" | "language" | "rule_break" | "feedback" | "weekday_pattern" | "too_similar";
 
 const ALLOWED_LATIN = /\b(?:AMRAP|EMOM|Rx|Scaled|Benchmark|Deload|5\/3\/1|531)\b/gi;
 
@@ -534,17 +539,124 @@ export function normalizeWeekPayload(raw: unknown): { value: unknown; normalizat
   return { value: clone, normalizations };
 }
 
+/** Session-level copies of the strength and conditioning objects. Null on a training day is a reject. */
+export const SESSION_LEVEL_FIELDS = [
+  "metcon_purpose",
+  "metcon_format",
+  "time_domain",
+  "stimulus",
+  "movement_combination",
+  "equipment",
+  "volume",
+  "intensity",
+  "expected_duration",
+] as const;
+
+export type SessionFieldTrace = {
+  day: string;
+  missing_in_raw: string[];
+  null_in_raw: string[];
+  null_after_parse: string[];
+  origin: "rest" | "complete" | "model_output" | "parser";
+};
+
+/**
+ * Where a missing session field came from. The model wrote null or no key (model_output),
+ * or the raw value existed and the parser dropped it (parser). Tells a prompt problem from a code problem.
+ */
+export function sessionFieldTrace(raw: unknown, draft: WeekDraft | null): SessionFieldTrace[] {
+  const body = normalizeWeekPayload(raw).value;
+  if (!isRecord(body) || !Array.isArray(body.sessions)) return [];
+  const parsedByDay = new Map(draft?.sessions.map((session) => [session.day as string, session]) ?? []);
+  const out: SessionFieldTrace[] = [];
+  for (const row of body.sessions) {
+    if (!isRecord(row) || typeof row.day !== "string") continue;
+    const day = row.day;
+    const missing: string[] = [];
+    const nulls: string[] = [];
+    for (const field of SESSION_LEVEL_FIELDS) {
+      if (!(field in row)) missing.push(field);
+      else if (row[field] == null || (Array.isArray(row[field]) && (row[field] as unknown[]).length === 0)) nulls.push(field);
+    }
+    const parsed = parsedByDay.get(day) ?? null;
+    const afterParse: string[] = [];
+    if (parsed) {
+      for (const field of SESSION_LEVEL_FIELDS) {
+        const value = parsed[field];
+        if (value == null || (Array.isArray(value) && value.length === 0)) afterParse.push(field);
+      }
+    }
+    const droppedByParser = afterParse.filter((field) => !missing.includes(field) && !nulls.includes(field));
+    const origin: SessionFieldTrace["origin"] =
+      row.rest === true ? "rest" : droppedByParser.length ? "parser" : missing.length || nulls.length ? "model_output" : "complete";
+    out.push({ day, missing_in_raw: missing, null_in_raw: nulls, null_after_parse: afterParse, origin });
+  }
+  return out;
+}
+
 function timeDomainFits(conditioning: ConditioningDraft): boolean {
   const minutes = conditioning.duration_min;
   const range = TIME_DOMAIN_RANGES[conditioning.time_domain];
   return minutes >= range.min && minutes <= range.max;
 }
 
+const KG_MATCHES = /\d+(?:\.\d+)?\s*kg/gi;
+
+/** The official pair for a movement, or null when the app defines no load for it. */
+function officialKilograms(movementKey: string): string[] {
+  const pair = OFFICIAL_LOAD_PAIRS[movementKey];
+  if (!pair) return [];
+  return [pair.male, pair.female].filter((value) => value.endsWith("kg")).map((value) => value.replace("kg", ""));
+}
+
+function inventedKgIn(text: string, allowed: readonly string[]): string[] {
+  const found = text.match(KG_MATCHES) ?? [];
+  return found.filter((token) => !allowed.includes(token.replace(/\s*kg$/i, "")));
+}
+
+export const INVENTED_WEIGHT_RETRY =
+  "Do not invent prescribed kilogram values. Use the movement name without a weight unless the weight is explicitly provided by the allowed source.";
+
+/**
+ * A generated week never carries kilograms. The server adds the class wall ball, kettlebell,
+ * and box loads on the screen. The one exception is a movement amount that repeats the
+ * official pair for that same movement, which the rules week already writes.
+ */
+export function inventedWeightErrors(draft: WeekDraft): string[] {
+  const errors: string[] = [];
+  const report = (day: DayKey | null, path: string, tokens: string[]) => {
+    if (!tokens.length) return;
+    const where = day ? `${dayLabel(day)}: ` : "";
+    errors.push(`${where}invented prescribed weight "${tokens[0]}" in ${path}. ${INVENTED_WEIGHT_RETRY}`);
+  };
+  for (const [key, value] of Object.entries(draft.intent)) report(null, `intent.${key}`, inventedKgIn(value, []));
+  draft.sessions.forEach((session, index) => {
+    const base = `sessions[${index}]`;
+    const strings: Array<[string, string | null]> = [
+      ["warmup_ko", session.warmup_ko],
+      ["strength_purpose", session.strength_purpose],
+      ["metcon_purpose", session.metcon_purpose],
+      ["movement_combination", session.movement_combination],
+    ];
+    for (const [field, text] of strings) if (text) report(session.day, `${base}.${field}`, inventedKgIn(text, []));
+    const conditioning = session.conditioning;
+    if (!conditioning) return;
+    for (const field of ["rep_structure", "work_rest_structure", "purpose"] as const) {
+      report(session.day, `${base}.conditioning.${field}`, inventedKgIn(conditioning[field], []));
+    }
+    conditioning.movements.forEach((movement, movementIndex) => {
+      const path = `${base}.conditioning.movements[${movementIndex}]`;
+      report(session.day, `${path}.name_ko`, inventedKgIn(movement.name_ko, []));
+      report(session.day, `${path}.amount`, inventedKgIn(movement.amount, officialKilograms(movement.key)));
+    });
+  });
+  return errors;
+}
+
 export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
   const errors: string[] = [];
   const banned = bannedKey(raw, BANNED_KEYS);
   if (banned) errors.push(`week contains ${banned}`);
-  if (textHasInventedKg(draft)) errors.push("week invents kg");
   if (draft.sessions.length !== 7) errors.push("week needs seven days");
   const seen = new Set<string>();
   for (const session of draft.sessions) {
@@ -669,8 +781,7 @@ export function constitutionViolations(draft: WeekDraft, month: MonthDirection, 
     if (!session) continue;
     exposures.set(day, exposure(session));
     if (session.strength) {
-      const lower = session.strength.lift === "squat" || session.strength.lift === "deadlift";
-      const voluntaryCut = session.strength_volume === "low" && lower;
+      const voluntaryCut = session.strength_volume === "low" && isLowerBodyLift(session.strength.lift);
       const problem = validateStrengthPrescription(month.strength_method || month.scheme, session.strength.sets, {
         day,
         weekIndex,
@@ -874,7 +985,7 @@ export type WeekCheckContext = {
   recentLiftMaps?: readonly string[];
 };
 
-const LOWER_LIFTS = new Set<MainLift>(["squat", "deadlift"]);
+const LOWER_LIFTS = new Set<MainLift>(LOWER_BODY_LIFTS);
 const REDUCED_INTENT = /하체.{0,16}(줄|낮|적)|볼륨을 줄|세트를 줄|부담을 줄|줄였|낮췄/;
 
 export function previousLowerFatigue(actual: WeekActual | null | undefined): "high" | "moderate" | "low" | "unknown" {
@@ -959,6 +1070,41 @@ export function weeklyRequirements(month: MonthDirection, weekIndex: 1 | 2 | 3 |
   };
 }
 
+function sameSetList(left: readonly { percent_of_tm: number; reps: number; amrap: boolean }[] | null, right: typeof left): boolean {
+  if (!left || !right || left.length !== right.length) return false;
+  return left.every((set, index) => {
+    const other = right[index]!;
+    return set.percent_of_tm === other.percent_of_tm && set.reps === other.reps && set.amrap === other.amrap;
+  });
+}
+
+/**
+ * The one lower-body fatigue rule. The prompt, the validator, the retry brief, and tests read this.
+ * applies_to is every lower-body main lift. A deadlift is not a separate interpretation.
+ */
+export function lowerBodyFatigueRule(method: string, weekIndex: 1 | 2 | 3 | 4, actual: WeekActual | null | undefined) {
+  const level = previousLowerFatigue(actual);
+  const fatigue = level === "high" || level === "low" ? level : "unknown";
+  const sets = exampleSets(method, weekIndex, fatigue, "squat");
+  const unrestricted = exampleSets(method, weekIndex, "unknown", "squat");
+  const guide = prescriptionGuide(method, weekIndex, fatigue);
+  const active = level === "high";
+  const lifts = LOWER_BODY_LIFTS.join(" and ");
+  return {
+    name: "LOWER_BODY_FATIGUE_RULE" as const,
+    applies_to: [...LOWER_BODY_LIFTS],
+    mode: active ? ("fatigue_cut" as const) : ("method_prescription" as const),
+    active,
+    previous_lower_fatigue: level,
+    sets,
+    range: guide?.mode === "range" ? { percent: guide.percent, reps: guide.reps, set_count: guide.set_count } : null,
+    forbidden_sets: active && unrestricted && !sameSetList(sets, unrestricted) ? unrestricted : null,
+    statement: active
+      ? `Previous lower-body fatigue is HIGH. lower_body_sets applies to ALL lower-body strength lifts: ${lifts}. Do not read the fatigue cut as squat-only. If deadlift is the lower session, deadlift uses these same sets. The unrestricted method sets are rejected on ${lifts} this week.`
+      : `Previous lower-body fatigue is not high. ${lifts} use the method prescription. Do not drop a lower lift below the method.`,
+  };
+}
+
 /**
  * Method rule plus the current fatigue limit.
  * Upper-body sets stay on the method. Lower-body sets use the fatigue limit when fatigue is high.
@@ -969,9 +1115,9 @@ export function allowedStrengthProgramming(
   actual: WeekActual | null | undefined,
 ) {
   const level = previousLowerFatigue(actual);
-  const fatigue = level === "high" || level === "low" ? level : "unknown";
+  const rule = lowerBodyFatigueRule(method, weekIndex, actual);
   const upper = exampleSets(method, weekIndex, "unknown", "bench");
-  const lower = exampleSets(method, weekIndex, fatigue, "squat");
+  const lower = rule.sets;
   const lowerHeavy = (lower ?? []).some((set) => set.percent_of_tm >= 85);
   const limits = hardConstraints(actual);
   return {
@@ -979,6 +1125,7 @@ export function allowedStrengthProgramming(
     current_fatigue: level,
     upper_body_sets: upper,
     lower_body_sets: lower,
+    lower_body_rule: rule,
     heavy_lower_slots_available: limits.programming_space.heavy_lower_slots_available,
     lower_lift_count_max: level === "high" && lowerHeavy ? 1 : null,
     rule:
@@ -992,13 +1139,24 @@ export function allowedStrengthProgramming(
   };
 }
 
+export type ErrorSeverity = "hard" | "weekly_requirement" | "quality";
+
+/**
+ * One judge error as the retry sees it. `day` keeps the older comma-joined label form.
+ * `affected_session` is the day list the repair may touch. `repair_scope` says how narrow that is.
+ */
 export type StructuredValidationError = {
   day: string | null;
   rule: string;
   current: number | null;
   maximum: number | null;
-  severity: "hard" | "weekly_requirement";
+  severity: ErrorSeverity;
   message: string;
+  constraint: string;
+  priority: number;
+  affected_session: DayKey[];
+  affected_features: string[];
+  repair_scope: string;
 };
 
 const LABEL_TO_DAY: Record<string, string> = {
@@ -1011,6 +1169,16 @@ const LABEL_TO_DAY: Record<string, string> = {
   Sunday: "sunday",
 };
 
+const LABEL_TO_KEY: Record<string, DayKey> = {
+  Monday: "mon",
+  Tuesday: "tue",
+  Wednesday: "wed",
+  Thursday: "thu",
+  Friday: "fri",
+  Saturday: "sat",
+  Sunday: "sun",
+};
+
 function labelToDay(label: string): string {
   return label
     .split(",")
@@ -1018,20 +1186,62 @@ function labelToDay(label: string): string {
     .join(",");
 }
 
-/** One sentence per violation. Retry uses this so the next attempt sees the count it must not repeat. */
-export function constraintFailureBriefs(errors: readonly string[]): string[] {
-  return structureValidationErrors(errors).map((error) => {
-    if (error.rule === "heavy_lower_sessions_max" && error.current != null && error.maximum != null) {
-      return `Previous attempt violated hard constraint: heavy_lower_sessions_max = ${error.maximum}. Previous output contained ${error.current} heavy lower sessions. You MUST produce <= ${error.maximum} heavy lower session.`;
-    }
-    if (error.rule === "heavy_lower_metcon") {
-      return "Previous attempt violated hard constraint: heavy_lower_metcon = avoid. Previous output contained a heavy lower metcon. You MUST produce 0 heavy lower metcons.";
-    }
-    if (error.rule === "long_conditioning_sessions_min") {
-      return `Previous attempt violated weekly requirement: long conditioning required = 1. Previous output contained ${error.current ?? 0}. At least one conditioning session must satisfy the long-duration requirement of 30–40 minutes. You MUST produce exactly 1 long conditioning session. Do not expect the server to change duration.`;
-    }
-    return `Previous attempt violated: ${error.message} Do not repeat this violation. Keep every session that was already valid.`;
-  });
+function keysFromLabels(label: string): DayKey[] {
+  const out: DayKey[] = [];
+  for (const part of label.split(",")) {
+    const trimmed = part.trim();
+    const key = LABEL_TO_KEY[trimmed] ?? ((DAY_ORDER as readonly string[]).includes(trimmed) ? (trimmed as DayKey) : null);
+    if (key && !out.includes(key)) out.push(key);
+  }
+  return out;
+}
+
+function dayAfter(day: DayKey): DayKey | null {
+  const index = DAY_ORDER.indexOf(day);
+  return index >= 0 && index < DAY_ORDER.length - 1 ? DAY_ORDER[index + 1]! : null;
+}
+
+/**
+ * Repair order for the retry. Every check still runs; this only orders the list the model reads.
+ * 1 schema, 2 hard constraints, 3 weekly requirements, 4 prescription or invented weight,
+ * 5 fatigue prescription, 6 same-week similarity, 7 recent similarity, 8 Korean naming.
+ */
+export const REPAIR_PRIORITY = {
+  schema: 1,
+  hard_constraint: 2,
+  weekly_requirement: 3,
+  prescription: 4,
+  invented_weight: 4,
+  lower_body_fatigue: 5,
+  similarity_same_week: 6,
+  similarity_recent: 7,
+  korean_naming: 8,
+} as const;
+
+function scopeFor(days: DayKey[], mode: "only" | "one_of"): string {
+  if (!days.length) return "all_sessions";
+  if (days.length === 1) return `${days[0]}_only`;
+  return mode === "one_of" ? `one_of:${days.join(",")}` : `only:${days.join(",")}`;
+}
+
+function structured(
+  message: string,
+  partial: Partial<StructuredValidationError> & Pick<StructuredValidationError, "rule" | "constraint" | "priority" | "severity">,
+): StructuredValidationError {
+  const affected = partial.affected_session ?? [];
+  return {
+    day: partial.day ?? (affected.length ? affected.map((key) => LABEL_TO_DAY[dayLabel(key)] ?? key).join(",") : null),
+    rule: partial.rule,
+    current: partial.current ?? null,
+    maximum: partial.maximum ?? null,
+    severity: partial.severity,
+    message,
+    constraint: partial.constraint,
+    priority: partial.priority,
+    affected_session: affected,
+    affected_features: partial.affected_features ?? [],
+    repair_scope: partial.repair_scope ?? scopeFor(affected, "only"),
+  };
 }
 
 /** Turns a judge error into the retry object. The original sentence stays on `message`. */
@@ -1039,47 +1249,282 @@ export function structureValidationErrors(errors: readonly string[]): Structured
   return errors.map((message) => {
     const heavy = message.match(/heavy lower sessions (\d+) exceed hard_constraints\.heavy_lower_sessions_max=(\d+)/);
     if (heavy) {
-      return {
-        day: labelToDay(message.split(":")[0] ?? ""),
+      const days = keysFromLabels(message.split(":")[0] ?? "");
+      return structured(message, {
         rule: "heavy_lower_sessions_max",
+        constraint: "heavy_lower",
+        priority: REPAIR_PRIORITY.hard_constraint,
+        severity: "hard",
         current: Number(heavy[1]),
         maximum: Number(heavy[2]),
-        severity: "hard" as const,
-        message,
-      };
+        affected_session: days,
+        affected_features: ["strength.sets", "strength.lift"],
+        repair_scope: scopeFor(days, "one_of"),
+      });
     }
     const metcon = message.match(/^([^:]+): heavy lower metcon exceeds/);
     if (metcon) {
-      return {
-        day: labelToDay(metcon[1] ?? ""),
+      return structured(message, {
         rule: "heavy_lower_metcon",
+        constraint: "heavy_lower",
+        priority: REPAIR_PRIORITY.hard_constraint,
+        severity: "hard",
         current: 1,
         maximum: 0,
-        severity: "hard" as const,
-        message,
-      };
+        affected_session: keysFromLabels(metcon[1] ?? ""),
+        affected_features: ["conditioning.stimulus", "conditioning.intensity", "conditioning.movement_patterns"],
+      });
     }
     if (message.includes("long conditioning") || message.includes("long_conditioning_sessions")) {
       const current = message.match(/current=(\d+)/);
-      return {
-        day: null,
+      const named = keysFromLabels(message.match(/^(mon|tue|wed|thu|fri|sat|sun)\b/)?.[1] ?? "");
+      return structured(message, {
         rule: "long_conditioning_sessions_min",
-        current: current ? Number(current[1]) : 0,
+        constraint: "long_conditioning",
+        priority: REPAIR_PRIORITY.weekly_requirement,
+        severity: "weekly_requirement",
+        current: current ? Number(current[1]) : named.length ? 1 : 0,
         maximum: 1,
-        severity: "weekly_requirement" as const,
-        message,
-      };
+        affected_session: named,
+        affected_features: ["conditioning.duration_min", "conditioning.time_domain", "conditioning.long_conditioning"],
+        repair_scope: named.length ? scopeFor(named, "only") : "week:change_exactly_one_session_to_long",
+      });
     }
+    const fatigueCut = message.match(/^(mon|tue|wed|thu|fri|sat|sun) sets do not match the strength method: fatigue cut/);
+    if (fatigueCut) {
+      return structured(message, {
+        rule: "lower_body_fatigue_cut",
+        constraint: "lower_body_fatigue",
+        priority: REPAIR_PRIORITY.lower_body_fatigue,
+        severity: "hard",
+        affected_session: keysFromLabels(fatigueCut[1]!),
+        affected_features: ["strength.sets"],
+      });
+    }
+    const prescription = message.match(/^(mon|tue|wed|thu|fri|sat|sun) sets do not match/);
+    if (prescription) {
+      return structured(message, {
+        rule: "strength_prescription",
+        constraint: "prescription",
+        priority: REPAIR_PRIORITY.prescription,
+        severity: "hard",
+        affected_session: keysFromLabels(prescription[1]!),
+        affected_features: ["strength.sets"],
+      });
+    }
+    const invented = message.match(/^(?:(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday): )?invented prescribed weight "[^"]*" in (\S+)\./);
+    if (invented) {
+      const days = invented[1] ? keysFromLabels(invented[1]) : [];
+      return structured(message, {
+        rule: "invented_weight",
+        constraint: "invented_weight",
+        priority: REPAIR_PRIORITY.invented_weight,
+        severity: "hard",
+        affected_session: days,
+        affected_features: [invented[2] ?? "text"],
+        repair_scope: days.length ? scopeFor(days, "only") : "intent_only",
+      });
+    }
+    const sameWeek = message.match(/^(mon|tue|wed|thu|fri|sat|sun) and (mon|tue|wed|thu|fri|sat|sun) are structurally similar score=(\d+) matched=([a-z_,]*)/);
+    if (sameWeek) {
+      const first = sameWeek[1] as DayKey;
+      const second = sameWeek[2] as DayKey;
+      const later = DAY_ORDER.indexOf(second) > DAY_ORDER.indexOf(first) ? second : first;
+      return structured(message, {
+        rule: "similarity_same_week",
+        constraint: "similarity",
+        priority: REPAIR_PRIORITY.similarity_same_week,
+        severity: "hard",
+        current: Number(sameWeek[3]),
+        maximum: SIMILARITY_CONFIG.threshold - 1,
+        affected_session: [later],
+        affected_features: (sameWeek[4] ?? "").split(",").filter(Boolean),
+        repair_scope: `${later}_only`,
+      });
+    }
+    const recent = message.match(/^(mon|tue|wed|thu|fri|sat|sun) matches a recent structure score=(\d+) matched=([a-z_,]*)/);
+    if (recent) {
+      return structured(message, {
+        rule: "similarity_recent",
+        constraint: "similarity",
+        priority: REPAIR_PRIORITY.similarity_recent,
+        severity: "hard",
+        current: Number(recent[2]),
+        maximum: SIMILARITY_CONFIG.threshold - 1,
+        affected_session: [recent[1] as DayKey],
+        affected_features: (recent[3] ?? "").split(",").filter(Boolean),
+      });
+    }
+    const korean = message.match(/^(?:(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday): )?(\S+) (?:korean ratio|is English)/);
+    if (korean) {
+      return structured(message, {
+        rule: "korean_naming",
+        constraint: "korean_naming",
+        priority: REPAIR_PRIORITY.korean_naming,
+        severity: "quality",
+        affected_session: korean[1] ? keysFromLabels(korean[1]) : [],
+        affected_features: [korean[2] ?? "text"],
+        repair_scope: korean[1] ? undefined : "intent_only",
+      });
+    }
+    const sequence = message.match(/^heavy (?:pull|squat|snatch) the day after \w+ \((mon|tue|wed|thu|fri|sat|sun)\)/);
+    if (sequence) {
+      const day = sequence[1] as DayKey;
+      const next = dayAfter(day);
+      const days = next ? [day, next] : [day];
+      return structured(message, {
+        rule: "heavy_sequence",
+        constraint: "hard_constraint",
+        priority: REPAIR_PRIORITY.hard_constraint,
+        severity: "hard",
+        affected_session: days,
+        affected_features: ["strength.lift", "strength.sets", "conditioning.movements"],
+        repair_scope: scopeFor(days, "one_of"),
+      });
+    }
+    const repeats = message.match(/^stimulus \w+ repeats on (mon|tue|wed|thu|fri|sat|sun)/);
+    if (repeats) {
+      return structured(message, {
+        rule: "stimulus_repeat",
+        constraint: "hard_constraint",
+        priority: REPAIR_PRIORITY.hard_constraint,
+        severity: "hard",
+        affected_session: [repeats[1] as DayKey],
+        affected_features: ["conditioning.stimulus", "stimulus"],
+      });
+    }
+    if (message.includes("benchmark")) {
+      return structured(message, {
+        rule: "benchmark_sessions",
+        constraint: "weekly_requirement",
+        priority: REPAIR_PRIORITY.weekly_requirement,
+        severity: "weekly_requirement",
+        repair_scope: "week:change_exactly_one_session",
+      });
+    }
+    if (message.startsWith("weekday strength layout")) {
+      return structured(message, {
+        rule: "weekday_pattern",
+        constraint: "weekly_requirement",
+        priority: REPAIR_PRIORITY.weekly_requirement,
+        severity: "weekly_requirement",
+        affected_features: ["strength.lift"],
+        repair_scope: "week:move_one_lift_to_another_day",
+      });
+    }
+    if (message.startsWith("intent says")) {
+      return structured(message, {
+        rule: "intent_prescription_mismatch",
+        constraint: "lower_body_fatigue",
+        priority: REPAIR_PRIORITY.lower_body_fatigue,
+        severity: "hard",
+        repair_scope: "intent_only",
+      });
+    }
+    const keyed = message.match(/^(mon|tue|wed|thu|fri|sat|sun) /);
     const named = message.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/);
-    return {
-      day: named ? labelToDay(named[1] ?? "") : null,
-      rule: "validation",
-      current: null,
-      maximum: null,
-      severity: "hard" as const,
-      message,
-    };
+    const days = keysFromLabels(keyed?.[1] ?? message.split(":")[0] ?? "");
+    const affected = days.length ? days : named ? keysFromLabels(named[1]!) : [];
+    return structured(message, {
+      day: named ? labelToDay(named[1] ?? "") : affected.length ? affected.map((key) => LABEL_TO_DAY[dayLabel(key)] ?? key).join(",") : null,
+      rule: "schema",
+      constraint: "schema",
+      priority: REPAIR_PRIORITY.schema,
+      severity: "hard",
+      affected_session: affected,
+      affected_features: ["session fields"],
+    });
   });
+}
+
+/** One sentence per violation. Retry uses this so the next attempt sees the count it must not repeat. */
+export function constraintFailureBriefs(errors: readonly string[]): string[] {
+  return structureValidationErrors(errors).map((error) => {
+    if (error.rule === "heavy_lower_sessions_max" && error.current != null && error.maximum != null) {
+      return `Previous attempt violated hard constraint: heavy_lower_sessions_max = ${error.maximum}. Previous output contained ${error.current} heavy lower sessions. You MUST produce <= ${error.maximum} heavy lower session. Reduce one of ${error.affected_session.join(", ")}; do not touch other days.`;
+    }
+    if (error.rule === "heavy_lower_metcon") {
+      return "Previous attempt violated hard constraint: heavy_lower_metcon = avoid. Previous output contained a heavy lower metcon. You MUST produce 0 heavy lower metcons.";
+    }
+    if (error.rule === "long_conditioning_sessions_min") {
+      return `Previous attempt violated weekly requirement: long conditioning required = 1. Previous output contained ${error.current ?? 0}. At least one conditioning session must satisfy the long-duration requirement of 30–40 minutes. You MUST produce exactly 1 long conditioning session. Do not expect the server to change duration.`;
+    }
+    if (error.rule === "lower_body_fatigue_cut") {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt violated LOWER_BODY_FATIGUE_RULE on ${day}. The fatigue cut applies to squat AND deadlift. Rewrite only ${day} strength.sets to lower_body_sets exactly. A 90% AMRAP set is not allowed on a lower lift this week.`;
+    }
+    if (error.rule === "invented_weight") {
+      return `Previous attempt invented a prescribed weight in ${error.affected_features[0] ?? "text"}. ${INVENTED_WEIGHT_RETRY}`;
+    }
+    if (error.rule === "similarity_same_week" || error.rule === "similarity_recent") {
+      const day = error.affected_session[0] ?? "that day";
+      const features = error.affected_features.join(", ");
+      return `Previous attempt failed similarity on ${day}: score ${error.current} >= ${SIMILARITY_CONFIG.threshold}, matched ${features}. Change ${day} only. Change at least ${Math.max(1, (error.current ?? SIMILARITY_CONFIG.threshold) - SIMILARITY_CONFIG.threshold + 1)} of those matched features (format, time_domain, stimulus, movement_pattern, equipment, volume). Renaming a movement does not change a feature. Do not rewrite the other days.`;
+    }
+    if (error.rule === "korean_naming") {
+      return `Previous attempt wrote ${error.affected_features[0] ?? "a Korean field"} with too little Korean. name_ko and every *_ko field are natural Korean names and sentences without kilograms or English abbreviations. Keep the English identity in key.`;
+    }
+    if (error.rule === "schema" && error.affected_session.length) {
+      return `Previous attempt left ${error.affected_session.join(", ")} incomplete: ${error.message}. Fill every session-level field on that day from its own strength and conditioning objects. Do not rewrite other days.`;
+    }
+    return `Previous attempt violated: ${error.message} Do not repeat this violation. Keep every session that was already valid.`;
+  });
+}
+
+export type RepairPlan = {
+  principle: string;
+  immutable_sessions: DayKey[];
+  repair_sessions: DayKey[];
+  week_level_requirements: string[];
+  intent_only: boolean;
+  errors: StructuredValidationError[];
+  priority_order: string[];
+};
+
+/**
+ * Attempt-two scope. Sessions that passed every check are immutable.
+ * Only the days named by an error change, plus at most one session a week-level requirement needs.
+ */
+export function retryRepairPlan(errors: readonly string[]): RepairPlan {
+  const structuredErrors = structureValidationErrors(errors).sort((left, right) => left.priority - right.priority);
+  const failing = new Set<DayKey>();
+  const weekLevel: string[] = [];
+  let intentOnly = false;
+  for (const error of structuredErrors) {
+    for (const day of error.affected_session) failing.add(day);
+    if (!error.affected_session.length) {
+      if (error.repair_scope === "intent_only") intentOnly = true;
+      else weekLevel.push(error.repair_scope);
+    }
+  }
+  const repair = DAY_ORDER.filter((day) => failing.has(day));
+  const immutable = DAY_ORDER.filter((day) => !failing.has(day));
+  return {
+    principle:
+      "Every session that passed validation is immutable. Modify only repair_sessions. A week-level requirement may change exactly one additional session, and you name it.",
+    immutable_sessions: immutable,
+    repair_sessions: repair,
+    week_level_requirements: [...new Set(weekLevel)],
+    intent_only: intentOnly,
+    errors: structuredErrors,
+    priority_order: [
+      "1 schema / missing required fields",
+      "2 hard constraints",
+      "3 weekly requirements",
+      "4 invalid prescription / invented weight",
+      "5 fatigue prescription",
+      "6 same-week similarity",
+      "7 recent-week similarity",
+      "8 Korean naming quality",
+    ],
+  };
+}
+
+/** Days whose session JSON changed between two drafts. Rest days count too. */
+export function changedSessions(previous: WeekDraft | null, next: WeekDraft): DayKey[] {
+  if (!previous) return [];
+  const before = new Map(previous.sessions.map((session) => [session.day, JSON.stringify(session)]));
+  return next.sessions.filter((session) => before.get(session.day) !== JSON.stringify(session)).map((session) => session.day);
 }
 
 /** Same object the prompt sends as hard_constraints. */
@@ -1216,13 +1661,24 @@ export function weekdayPatternViolations(draft: WeekDraft, recentMaps: readonly 
   return [];
 }
 
-function koreanErrors(value: unknown): string[] {
-  const found = englishKoPath(value);
-  return found ? [found] : [];
+/** Korean checks per session so the retry knows which day to fix. The intent is checked on its own. */
+function koreanErrors(draft: WeekDraft): string[] {
+  const errors: string[] = [];
+  const intent = englishKoPath(draft.intent, "intent");
+  if (intent) errors.push(intent);
+  draft.sessions.forEach((session, index) => {
+    const found = englishKoPath(session, `sessions[${index}]`);
+    if (found) errors.push(`${dayLabel(session.day)}: ${found}`);
+  });
+  return errors;
+}
+
+function dedupe(errors: string[]): string[] {
+  return [...new Set(errors)];
 }
 
 function failed(
-  reason: Extract<Judge, { ok: false }>["reason"],
+  reason: JudgeFailure,
   errors: string[],
   normalizations: string[] = [],
 ): Judge {
@@ -1250,8 +1706,9 @@ export function judgeWeek(
   const constitution = constitutionViolations(draft, month, weekIndex);
   const scheme = constitution.filter((error) => error.includes("sets do not match"));
   const sameWeek = constitution.filter((error) => !schema.includes(error) && !error.includes("sets do not match"));
-  const stages: Array<{ reason: "schema" | "rule_break" | "feedback" | "weekday_pattern" | "too_similar" | "language"; errors: string[] }> = [
+  const stages: Array<{ reason: JudgeFailure; errors: string[] }> = [
     { reason: "schema", errors: schema },
+    { reason: "invented_weight", errors: inventedWeightErrors(draft) },
     { reason: "rule_break", errors: scheme },
     { reason: "feedback", errors: feedbackViolations(draft, month, weekIndex, context.previousActual) },
     {
@@ -1264,7 +1721,7 @@ export function judgeWeek(
   ];
   const hit = stages.filter((stage) => stage.errors.length > 0);
   if (!hit.length) return { ok: true, draft, detail: null, errors: [], normalizations: normalized.normalizations };
-  const errors = hit.flatMap((stage) => stage.errors);
+  const errors = dedupe(hit.flatMap((stage) => stage.errors));
   return failed(hit[0]!.reason, errors, normalized.normalizations);
 }
 

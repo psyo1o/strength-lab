@@ -1,12 +1,18 @@
 import { formatMovementLine } from "./pieces";
 import type { PieceMovement } from "./types";
 
-/** Existing app Rx. Wall ball 9/6, kettlebell 24/16, box 60/50. Not invented. */
-const LOAD_PAIR: Record<string, { male: string; female: string }> = {
+/**
+ * Existing app Rx. Wall ball 9/6, kettlebell 24/16, box 60/50. Not invented.
+ * This is the only prescribed-load source. The server adds these on the screen;
+ * a generated week must not write them, and any other kilogram value is invented.
+ */
+export const OFFICIAL_LOAD_PAIRS: Readonly<Record<string, { male: string; female: string }>> = {
   wall_ball: { male: "9kg", female: "6kg" },
   kb_swing: { male: "24kg", female: "16kg" },
   box_jump: { male: "60cm", female: "50cm" },
 };
+
+const LOAD_PAIR = OFFICIAL_LOAD_PAIRS;
 
 const CALORIE_KEYS = new Set(["row", "fan_bike", "bike", "assault_bike", "echo_bike", "ski", "ski_erg"]);
 
