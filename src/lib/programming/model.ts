@@ -367,7 +367,6 @@ function weekResponseFormat(): ResponseFormat {
   ];
   const sharedSession = {
     day: stringEnum(DAY_ORDER),
-    rest: { type: "boolean" },
     optional: { type: "boolean" },
     warmup_min: { type: "integer" },
     warmup_ko: WEEK_STRING,
@@ -375,37 +374,47 @@ function weekResponseFormat(): ResponseFormat {
     metcon_format: nullable(stringEnum(["amrap", "for_time", "emom", "intervals"])),
     time_domain: nullable(stringEnum(["short", "medium", "long"])),
     stimulus: nullable(stringEnum(STIMULI)),
-    movement_combination: nullable(WEEK_STRING),
     equipment: { type: "array", items: stringEnum(EQUIPMENT) },
     volume: nullable(stringEnum(["low", "moderate", "high"])),
     intensity: nullable(stringEnum(["light", "moderate", "heavy"])),
     expected_duration: nullable({ type: "integer" }),
     conditioning: nullable(conditioning),
   };
-  // OpenAI strict allows anyOf and rejects if/then. Two branches couple strength to its metadata.
+  const strengthPresent = {
+    strength_purpose: WEEK_STRING,
+    strength_volume: stringEnum(["low", "moderate", "high"]),
+    strength_intensity: stringEnum(["light", "moderate", "heavy"]),
+    strength,
+  };
+  const strengthAbsent = {
+    strength_purpose: { type: "null" },
+    strength_volume: { type: "null" },
+    strength_intensity: { type: "null" },
+    strength: { type: "null" },
+  };
+  // OpenAI strict allows anyOf and rejects if/then.
+  // Training days require movement_combination. Rest days keep it nullable.
+  const trainingSession = (strengthFields: Record<string, unknown>) =>
+    strictObject(
+      {
+        ...sharedSession,
+        rest: { type: "boolean", enum: [false] },
+        movement_combination: WEEK_STRING,
+        ...strengthFields,
+      },
+      sessionKeys,
+    );
+  const restSession = strictObject(
+    {
+      ...sharedSession,
+      rest: { type: "boolean", enum: [true] },
+      movement_combination: nullable(WEEK_STRING),
+      ...strengthAbsent,
+    },
+    sessionKeys,
+  );
   const session = {
-    anyOf: [
-      strictObject(
-        {
-          ...sharedSession,
-          strength_purpose: WEEK_STRING,
-          strength_volume: stringEnum(["low", "moderate", "high"]),
-          strength_intensity: stringEnum(["light", "moderate", "heavy"]),
-          strength,
-        },
-        sessionKeys,
-      ),
-      strictObject(
-        {
-          ...sharedSession,
-          strength_purpose: { type: "null" },
-          strength_volume: { type: "null" },
-          strength_intensity: { type: "null" },
-          strength: { type: "null" },
-        },
-        sessionKeys,
-      ),
-    ],
+    anyOf: [trainingSession(strengthPresent), trainingSession(strengthAbsent), restSession],
   };
   return {
     type: "json_schema",
@@ -424,6 +433,13 @@ function weekResponseFormat(): ResponseFormat {
       ),
     },
   };
+}
+
+/** JSON schema sent as the week response format. Training days cannot omit movement_combination. */
+export function weekDraftJsonSchema(): Record<string, unknown> {
+  const format = weekResponseFormat();
+  if (format.type !== "json_schema") return {};
+  return format.json_schema.schema;
 }
 
 function requestBody(userBody: unknown, maxTokens: number, format: ResponseFormat): string {

@@ -236,7 +236,7 @@ describe("stage 4 model wait, schema, and fallback quality", () => {
             intent: fallbackIntent(block, weekIndex, "stage4"),
             previousActual: presetActual(actual),
           });
-          expect(constitutionViolations(draft, block, weekIndex)).toEqual([]);
+          expect(constitutionViolations(draft, block, weekIndex, presetActual(actual))).toEqual([]);
           const combos = new Set<string>();
           const warmups = new Set<string>();
           const purposes = new Set<string>();
