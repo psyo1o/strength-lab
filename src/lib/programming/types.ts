@@ -183,10 +183,11 @@ export const RULES_VERSION = "programming-6";
 
 export const MONTHLY_PROMPT_VERSION = "monthly-program-v4";
 /**
- * Weekly prompt that plans structure_slots before any session, checks fingerprints and
- * heavy-lower spacing, then writes prescriptions. Retry still repairs only failing sessions.
+ * Weekly prompt that plans structure_slots, then a structural fingerprint, then a
+ * same-week and recent-week conflict check, before any session is written.
+ * Retry still repairs only failing sessions, and an intent-only error repairs text.
  */
-export const WEEKLY_PROMPT_VERSION = "weekly-program-v9";
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v10";
 export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";

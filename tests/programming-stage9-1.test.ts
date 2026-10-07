@@ -79,7 +79,7 @@ function promptFor(weekIndex: 1 | 2, which: "a" | "b", retry = false): Prompt {
 describe("stage 9.1 weekly structure planning", () => {
   it("keeps the checker, the model, and the prompt contract that Stage 9 already locked", () => {
     expect(RULES_VERSION).toBe("programming-6");
-    expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v9");
+    expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v10");
     expect(MONTH_PLAN_OPENAI_MODEL).toBe("gpt-5.4-nano");
     expect(SIMILARITY_CONFIG).toEqual({
       threshold: 4,
@@ -101,7 +101,7 @@ describe("stage 9.1 weekly structure planning", () => {
 
   it("plans structure before prescriptions and does not assign a lift to a weekday", () => {
     const prompt = promptFor(2, "a");
-    expect(prompt.prompt_version).toBe("weekly-program-v9");
+    expect(prompt.prompt_version).toBe("weekly-program-v10");
     expect(prompt.output_shape.top_level_keys).toEqual(["intent", "sessions"]);
     expect(prompt.decision_order[0]).toContain("method");
     expect(prompt.decision_order.join(" ")).toContain("structure_slots");
