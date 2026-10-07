@@ -212,7 +212,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       generatedAt: NOW,
     });
     expect(RULES_VERSION).toBe("programming-6");
-    expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v8");
+    expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v9");
     const nextFetch = vi.fn(async () => new Response("still-down", { status: 500 }));
     await ensureProgrammingWeek("2026-10-12", { nowMs: NOW + 5, key: KEY, fetchImpl: nextFetch });
     const init = nextFetch.mock.calls[0]?.[1] as RequestInit;
@@ -340,7 +340,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       month,
       weekIndex: 1,
     }) as { prompt_version: string; session_shape: Record<string, unknown> };
-    expect(prompt.prompt_version).toBe("weekly-program-v8");
+    expect(prompt.prompt_version).toBe("weekly-program-v9");
     for (const field of [
       "strength_purpose",
       "strength_volume",
@@ -382,7 +382,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(high.wrote).toBe(false);
     expect(high.actual_case).toBe("a");
-    expect(high.prompt_version).toBe("weekly-program-v8");
+    expect(high.prompt_version).toBe("weekly-program-v9");
     expect(high).toHaveProperty("input");
     expect(high).toHaveProperty("ai_output");
     expect(high).toHaveProperty("validation");
