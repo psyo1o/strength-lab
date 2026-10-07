@@ -3,8 +3,16 @@ import { listPieceMaterial } from "../month-plan/pieces";
 import type { DayKey, MainLift, MetconPiece, MetconStimulus, PlannedWeek, WeekIndex } from "../month-plan/types";
 import { DAY_ORDER } from "../month-plan/types";
 import { completeMonthDirection } from "./month-direction";
-import { constitutionViolations, similarityScore, structurallySimilar } from "./rules";
-import { fatigueCutSets, schemeSets, strengthIsHeavy } from "./schemes";
+import {
+  judgeWeek,
+  monthAllowsSameLiftDays,
+  previousLowerFatigue,
+  structurallySimilar,
+  weekdayPatternViolations,
+  type WeekCheckContext,
+} from "./rules";
+import { schemeSets, strengthIsHeavy } from "./schemes";
+import { exampleSets } from "./strength-methods";
 import { fillSessionFields } from "./session-fields";
 import type { WeekActual } from "./summary";
 import {
@@ -80,7 +88,7 @@ function stationFitsMinute(key: string, amount: string): boolean {
   const compact = amount.replace(/\s/g, "").toLowerCase();
   const meters = compact.match(/^(\d+)m/);
   if (meters && (key === "run" || key === "ski" || key === "row" || key === "ski_erg")) return Number(meters[1]) <= 200;
-  const calories = compact.match(/^(\d+)cal/);
+  const calories = compact.match(/^(\d+)(?:\/\d+)?cal/);
   if (calories) return Number(calories[1]) <= 12;
   const seconds = compact.match(/^(\d+)초/);
   if (seconds) return Number(seconds[1]) <= 40;
@@ -159,6 +167,19 @@ function volumeFor(minutes: number): VolumeBand {
   if (minutes >= 30) return "high";
   if (minutes >= 13) return "moderate";
   return "low";
+}
+
+const CALORIE_KEYS = new Set(["row", "fan_bike", "bike", "assault_bike", "echo_bike", "ski", "ski_erg"]);
+
+/** Male calories stay. Female calories are two lower. A bare "15cal" is not a class prescription. */
+function pairedAmount(key: string, amount: string): string {
+  if (!CALORIE_KEYS.has(key)) return amount;
+  const compact = amount.replace(/\s+/g, "");
+  if (/^\d+\/\d+cal$/i.test(compact)) return compact.toLowerCase();
+  const one = compact.match(/^(\d+)cal$/i);
+  if (!one) return amount;
+  const male = Number(one[1]);
+  return `${male}/${Math.max(1, male - 2)}cal`;
 }
 
 function equipmentFor(key: string): Equipment {
@@ -291,21 +312,18 @@ export function knownFallbackMovements(): Array<{ key: string; amount: string; n
 }
 
 export function highLowerFatigue(actual: WeekActual | null | undefined): boolean {
-  if (!actual) return false;
-  const signal = actual.class_summary?.fatigue_signal;
-  const volume = actual.class_summary?.actual_volume;
-  if (signal === "high" && volume === "high") return true;
-  return actual.days.some((day) => day.lower_body && day.completed && (day.fatigue === "high" || signal === "high"));
+  return previousLowerFatigue(actual) === "high";
 }
 
 function strengthFor(
   lift: MainLift,
-  scheme: Scheme,
+  month: MonthDirection,
   weekIndex: WeekIndex,
   highLower: boolean,
 ): NonNullable<SessionDraft["strength"]> {
-  const sets =
-    highLower && (lift === "squat" || lift === "deadlift") ? fatigueCutSets(scheme, weekIndex) : schemeSets(scheme, weekIndex);
+  const method = month.strength_method || month.scheme;
+  const fatigue = highLower && (lift === "squat" || lift === "deadlift") ? "high" : "unknown";
+  const sets = exampleSets(method, weekIndex, fatigue, lift) ?? schemeSets(month.scheme, weekIndex);
   return { lift, sets };
 }
 
@@ -346,7 +364,7 @@ function pieceConditioning(
     movement_patterns: patternsFor(keys),
     movements: piece.movements.map((movement) => ({
       key: movement.key,
-      amount: movement.amount,
+      amount: pairedAmount(movement.key, movement.amount),
       name_ko: movement.nameKo,
     })),
     equipment: uniqueEquipment(keys),
@@ -381,13 +399,13 @@ function asStructure(conditioning: ConditioningDraft, day: DayKey): StoredStruct
 function bannedKeys(
   day: DayKey,
   lifts: Map<DayKey, MainLift>,
-  scheme: Scheme,
+  month: MonthDirection,
   weekIndex: WeekIndex,
   highLower: boolean,
 ): string[] {
   const previousDay = dayIndex(day) > 0 ? TRAINING[dayIndex(day) - 1] : undefined;
   const previous = previousDay ? lifts.get(previousDay) : undefined;
-  if (!previous || !strengthIsHeavy(strengthFor(previous, scheme, weekIndex, highLower).sets)) return [];
+  if (!previous || !strengthIsHeavy(strengthFor(previous, month, weekIndex, highLower).sets)) return [];
   if (previous === "squat") return ["deadlift", "snatch", "power_snatch", "clean", "power_clean", "hang_power_clean"];
   if (previous === "deadlift") return ["squat", "air_squat", "front_squat", "thruster", "lunge"];
   if (previous === "ohp" || previous === "bench") return ["snatch", "power_snatch"];
@@ -401,78 +419,268 @@ function pieceAllowed(piece: MetconPiece, bans: string[], avoidLower: boolean): 
   return !bans.some((ban) => keys.includes(ban));
 }
 
-function retuneStimulus(conditioning: ConditioningDraft, previous: Stimulus | null): ConditioningDraft {
-  if (!conditioning.stimulus || conditioning.stimulus !== previous) return conditioning;
-  const loaded = conditioning.movements.some((movement) => LOADED_KEYS.has(movement.key));
-  const stimulus: Stimulus = loaded
-    ? previous === "heavy"
-      ? "high_rep"
-      : "heavy"
-    : previous === "technical"
-      ? "high_rep"
-      : "technical";
+function stubPiece(
+  id: string,
+  pattern: MetconPiece["pattern"],
+  movements: Array<{ key: string; amount: string; nameKo: string }>,
+): MetconPiece {
   return {
-    ...conditioning,
-    stimulus,
-    intensity: stimulus === "heavy" ? "heavy" : stimulus === "technical" ? "light" : "moderate",
+    id,
+    named: false,
+    nameKo: "폴백 재료",
+    format: "amrap",
+    minutes: 12,
+    pattern,
+    movements,
+    signature: id,
+    bodyKo: "폴백 재료",
+    stimulus: null,
   };
 }
 
-function pickConditioning(input: {
+const STIMULI: Stimulus[] = ["heavy", "high_rep", "technical"];
+
+/**
+ * Four structures per stimulus. Pattern sets and equipment sets differ so two of them
+ * can share a time bucket when the format or the stimulus differs.
+ */
+const EXTRA_PIECES: MetconPiece[] = [
+  stubPiece("fb-heavy-clean", "olympic", [
+    { key: "power_clean", amount: "5", nameKo: "파워 클린" },
+    { key: "push_up", amount: "8", nameKo: "푸시업" },
+  ]),
+  stubPiece("fb-heavy-hang", "olympic", [{ key: "hang_power_clean", amount: "5", nameKo: "행 파워 클린" }]),
+  stubPiece("fb-heavy-thruster", "squat", [
+    { key: "thruster", amount: "6", nameKo: "스러스터" },
+    { key: "box_jump", amount: "8", nameKo: "박스 점프" },
+  ]),
+  stubPiece("fb-heavy-snatch", "olympic", [
+    { key: "power_snatch", amount: "3", nameKo: "파워 스내치" },
+    { key: "ring_row", amount: "6", nameKo: "링 로우" },
+  ]),
+  stubPiece("fb-heavy-clean-box", "olympic", [
+    { key: "power_clean", amount: "3", nameKo: "파워 클린" },
+    { key: "box_jump", amount: "6", nameKo: "박스 점프" },
+  ]),
+  stubPiece("fb-reps-row", "engine", [
+    { key: "row", amount: "12/10cal", nameKo: "로잉" },
+    { key: "burpee", amount: "8", nameKo: "버피" },
+    { key: "push_up", amount: "8", nameKo: "푸시업" },
+  ]),
+  stubPiece("fb-reps-bike", "engine", [
+    { key: "fan_bike", amount: "10cal", nameKo: "팬바이크" },
+    { key: "ski", amount: "200m", nameKo: "스키" },
+  ]),
+  stubPiece("fb-reps-burpee", "gymnastic", [
+    { key: "burpee", amount: "8", nameKo: "버피" },
+    { key: "push_up", amount: "8", nameKo: "푸시업" },
+    { key: "sit_up", amount: "12", nameKo: "싯업" },
+  ]),
+  stubPiece("fb-reps-ski", "engine", [
+    { key: "ski", amount: "200m", nameKo: "스키" },
+    { key: "push_up", amount: "8", nameKo: "푸시업" },
+  ]),
+  stubPiece("fb-skill-muscle", "gymnastic", [
+    { key: "muscle_up", amount: "3", nameKo: "머슬업" },
+    { key: "ring_row", amount: "6", nameKo: "링 로우" },
+  ]),
+  stubPiece("fb-skill-du", "engine", [
+    { key: "double_under", amount: "30", nameKo: "더블언더" },
+    { key: "handstand", amount: "20초", nameKo: "핸드스탠드 홀드" },
+  ]),
+  stubPiece("fb-skill-pistol", "squat", [
+    { key: "pistol", amount: "5", nameKo: "피스톨" },
+    { key: "kb_swing", amount: "8", nameKo: "케틀벨 스윙" },
+  ]),
+  stubPiece("fb-skill-box", "gymnastic", [
+    { key: "muscle_up", amount: "2", nameKo: "머슬업" },
+    { key: "box_jump", amount: "6", nameKo: "박스 점프" },
+  ]),
+  stubPiece("fb-skill-toes", "gymnastic", [
+    { key: "ski", amount: "200m", nameKo: "스키" },
+    { key: "toes_to_bar", amount: "6", nameKo: "토즈 투 바" },
+    { key: "handstand", amount: "15초", nameKo: "핸드스탠드 홀드" },
+  ]),
+];
+
+const LONG_EXTRA: MetconPiece = stubPiece("fb-long-row", "engine", [
+  { key: "row", amount: "500m", nameKo: "로잉" },
+  { key: "burpee", amount: "10", nameKo: "버피" },
+  { key: "sit_up", amount: "12", nameKo: "싯업" },
+]);
+
+export function fallbackConditioningShapes(): Array<{ stimulus: Stimulus; keys: string }> {
+  const catalog = listPieceMaterial("m").filter((piece) => piece.id !== "sl-month-benchmark" && piece.id !== "wed-long");
+  return [...catalog, ...EXTRA_PIECES].map((piece) => ({
+    stimulus: stimulusFor(piece.movements.map((movement) => movement.key)),
+    keys: comboKey(piece.movements.map((movement) => movement.key)),
+  }));
+}
+
+type DaySlot = {
   day: DayKey;
-  minutes: number;
-  benchmark: boolean;
-  longPiece: boolean;
-  previousStimulus: Stimulus | null;
+  lift: MainLift | null;
+  role: "long" | "benchmark" | "short" | "open";
   bans: string[];
   avoidLower: boolean;
-  chosen: StoredStructure[];
-  recent: readonly StoredStructure[];
-  usedCombos: Set<string>;
-  seed: number;
-}): ConditioningDraft {
+};
+
+function pieceStimulus(piece: MetconPiece): Stimulus {
+  return stimulusFor(piece.movements.map((movement) => movement.key));
+}
+
+function piecesForStimulus(stimulus: Stimulus): MetconPiece[] {
+  return EXTRA_PIECES.filter((piece) => pieceStimulus(piece) === stimulus);
+}
+
+function longPieces(): MetconPiece[] {
+  const catalog = listPieceMaterial("m").find((piece) => piece.id === "wed-long");
+  return catalog ? [catalog, LONG_EXTRA] : [LONG_EXTRA];
+}
+
+function preferredFormat(weekIndex: WeekIndex, short: boolean): WodFormat {
+  return FORMATS[(weekIndex - 1 + (short ? 0 : 1)) % FORMATS.length]!;
+}
+
+function preferredPiece(stimulus: Stimulus, weekIndex: WeekIndex, short: boolean): MetconPiece {
+  const pieces = piecesForStimulus(stimulus);
+  return pieces[(weekIndex - 1 + (short ? 0 : 2)) % pieces.length]!;
+}
+
+function draftOptions(slot: DaySlot, weekIndex: WeekIndex, shift: number): ConditioningDraft[] {
   const material = listPieceMaterial("m");
-  const benchmarkPiece = material.find((piece) => piece.id === "sl-month-benchmark");
-  const longPieceRow = material.find((piece) => piece.id === "wed-long");
-  if (input.benchmark && benchmarkPiece) {
-    return pieceConditioning(benchmarkPiece, { format: "for_time", minutes: 20, benchmark: true, longPiece: false });
+  if (slot.role === "benchmark") {
+    const benchmark = material.find((piece) => piece.id === "sl-month-benchmark");
+    if (!benchmark) return [];
+    return [pieceConditioning(benchmark, { format: "for_time", minutes: 20, benchmark: true, longPiece: false })];
   }
-  if (input.longPiece && longPieceRow) {
-    return pieceConditioning(longPieceRow, { format: "for_time", minutes: 35, benchmark: false, longPiece: true });
+  const ordinal = dayIndex(slot.day);
+  const short = slot.role === "short";
+  const preferredStimulus = STIMULI[(ordinal + shift + weekIndex) % STIMULI.length]!;
+  const stimuli = [preferredStimulus, ...STIMULI.filter((stimulus) => stimulus !== preferredStimulus)];
+  const minutes = slot.role === "long" ? [35] : slot.role === "short" ? [10, 12] : [16, 14, 18, 12];
+  const formatStart = slot.role === "long" ? (weekIndex % 4 === 2 ? "for_time" : "intervals") : preferredFormat(weekIndex, short);
+  const formats = [formatStart, ...FORMATS.filter((format) => format !== formatStart)];
+  const pool = slot.role === "long" ? longPieces() : EXTRA_PIECES;
+  const preferred =
+    slot.role === "long"
+      ? pool[Math.floor(weekIndex / 2) % pool.length]!
+      : preferredPiece(preferredStimulus, weekIndex, short);
+  const ordered = [preferred, ...pool.filter((piece) => piece.id !== preferred.id)];
+  const drafts: ConditioningDraft[] = [];
+  const seen = new Set<string>();
+  const push = (piece: MetconPiece, format: WodFormat, minute: number) => {
+    if (slot.role !== "long" && slot.role !== "benchmark" && !pieceAllowed(piece, slot.bans, slot.avoidLower)) return;
+    if (!formatAllowed(piece, format)) return;
+    const id = `${piece.id}|${format}|${minute}`;
+    if (seen.has(id)) return;
+    seen.add(id);
+    drafts.push(
+      pieceConditioning(piece, {
+        format,
+        minutes: minute,
+        benchmark: false,
+        longPiece: slot.role === "long",
+      }),
+    );
+  };
+  for (const stimulus of stimuli) {
+    for (const piece of ordered) {
+      if (slot.role !== "long" && pieceStimulus(piece) !== stimulus) continue;
+      for (const format of formats) {
+        for (const minute of minutes) push(piece, format, minute);
+      }
+    }
   }
-  const pool = material.filter((piece) => {
-    if (!pieceAllowed(piece, input.bans, input.avoidLower)) return false;
-    return !input.usedCombos.has(comboKey(piece.movements.map((movement) => movement.key)));
-  });
-  const priors = [...input.chosen, ...input.recent];
-  let relaxed: ConditioningDraft | null = null;
-  const span = Math.max(pool.length, 1) * FORMATS.length;
-  for (let step = 0; step < span; step += 1) {
-    const piece = pool[(input.seed + step) % Math.max(pool.length, 1)];
-    if (!piece) break;
-    const format = FORMATS[(input.seed + step) % FORMATS.length]!;
-    if (!formatAllowed(piece, format)) continue;
-    const candidate = pieceConditioning(piece, { format, minutes: input.minutes, benchmark: false, longPiece: false });
-    if (candidate.stimulus === input.previousStimulus) continue;
-    const structure = asStructure(candidate, input.day);
-    if (!relaxed) relaxed = candidate;
-    if (!priors.some((prior) => structurallySimilar(structure, prior))) return candidate;
-  }
-  if (relaxed) return retuneStimulus(relaxed, input.previousStimulus);
-  const unused = material.find(
-    (piece) =>
-      piece.id !== "sl-month-benchmark" &&
-      piece.id !== "wed-long" &&
-      pieceAllowed(piece, input.bans, input.avoidLower) &&
-      !input.usedCombos.has(comboKey(piece.movements.map((movement) => movement.key))),
-  );
-  const fallbackPiece =
-    unused ?? pool[0] ?? material.find((piece) => piece.id !== "sl-month-benchmark" && piece.id !== "wed-long") ?? material[0]!;
-  const format = FORMATS.find((item) => formatAllowed(fallbackPiece, item)) ?? "amrap";
-  return retuneStimulus(
-    pieceConditioning(fallbackPiece, { format, minutes: input.minutes, benchmark: false, longPiece: false }),
-    input.previousStimulus,
-  );
+  return drafts;
+}
+
+function exposureOf(
+  lift: MainLift | null,
+  draft: ConditioningDraft | null,
+  month: MonthDirection,
+  weekIndex: WeekIndex,
+  highLower: boolean,
+): { heavySquat: boolean; heavyDeadlift: boolean; heavyPress: boolean; heavySnatch: boolean; heavyClean: boolean } {
+  const strengthHeavy = lift != null && strengthIsHeavy(strengthFor(lift, month, weekIndex, highLower).sets);
+  const keys = draft?.movements.map((movement) => movement.key) ?? [];
+  const metconHeavy = Boolean(draft && (draft.stimulus === "heavy" || draft.intensity === "heavy"));
+  const has = (group: string[]) => keys.some((key) => group.includes(key));
+  return {
+    heavySquat: strengthHeavy && lift === "squat",
+    heavyDeadlift: (strengthHeavy && lift === "deadlift") || (metconHeavy && has(["deadlift"])),
+    heavyPress: strengthHeavy && (lift === "ohp" || lift === "bench"),
+    heavySnatch: metconHeavy && has(["snatch", "power_snatch"]),
+    heavyClean: metconHeavy && has(["clean", "power_clean", "hang_power_clean"]),
+  };
+}
+
+function breaksChain(
+  today: ReturnType<typeof exposureOf>,
+  next: ReturnType<typeof exposureOf>,
+): boolean {
+  if (today.heavySquat && (next.heavySnatch || next.heavyClean || next.heavyDeadlift)) return true;
+  if (today.heavyDeadlift && next.heavySquat) return true;
+  if (today.heavyPress && next.heavySnatch) return true;
+  return false;
+}
+
+function assignConditioning(
+  slots: DaySlot[],
+  weekIndex: WeekIndex,
+  shift: number,
+  month: MonthDirection,
+  highLower: boolean,
+  lifts: Map<DayKey, MainLift>,
+  recent: readonly StoredStructure[],
+): Map<DayKey, ConditioningDraft> {
+  const chosen: StoredStructure[] = [];
+  const usedCombos = new Set<string>();
+  const assigned = new Map<DayKey, ConditioningDraft>();
+
+  const visit = (index: number, previousStimulus: Stimulus | null): boolean => {
+    if (index >= slots.length) return true;
+    const slot = slots[index]!;
+    const priors = [...chosen, ...recent];
+    const nextDay = slots[index + 1];
+    const nextLocked = nextDay && (nextDay.role === "long" || nextDay.role === "benchmark") ? "high_rep" : null;
+    const kept: ConditioningDraft[] = [];
+    const seenCombos = new Set<string>();
+    for (const draft of draftOptions(slot, weekIndex, shift)) {
+      if (draft.stimulus && (draft.stimulus === previousStimulus || draft.stimulus === nextLocked)) continue;
+      const combo = comboKey(draft.movements.map((movement) => movement.key));
+      if (usedCombos.has(combo) || seenCombos.has(combo)) continue;
+      if (!draft.benchmark && priors.some((prior) => structurallySimilar(asStructure(draft, slot.day), prior))) continue;
+      const today = exposureOf(slot.lift, draft, month, weekIndex, highLower);
+      const previousDay = index > 0 ? slots[index - 1] : undefined;
+      if (previousDay) {
+        const previous = exposureOf(previousDay.lift, assigned.get(previousDay.day) ?? null, month, weekIndex, highLower);
+        if (breaksChain(previous, today)) continue;
+      }
+      if (nextDay) {
+        const nextLift = lifts.get(nextDay.day) ?? null;
+        if (breaksChain(today, exposureOf(nextLift, null, month, weekIndex, highLower))) continue;
+        if ((today.heavySquat || today.heavyDeadlift) && nextDay.role === "long") continue;
+      }
+      seenCombos.add(combo);
+      kept.push(draft);
+      if (kept.length === 8) break;
+    }
+    for (const draft of kept) {
+      const combo = comboKey(draft.movements.map((movement) => movement.key));
+      assigned.set(slot.day, draft);
+      usedCombos.add(combo);
+      if (!draft.benchmark) chosen.push(asStructure(draft, slot.day));
+      if (visit(index + 1, draft.stimulus)) return true;
+      assigned.delete(slot.day);
+      usedCombos.delete(combo);
+      if (!draft.benchmark) chosen.pop();
+    }
+    return false;
+  };
+
+  if (!visit(0, null)) throw new Error("no legal fallback conditioning");
+  return assigned;
 }
 
 type FallbackCore = {
@@ -485,99 +693,6 @@ type FallbackCore = {
   conditioning: ConditioningDraft | null;
 };
 
-function flexibleCore(core: FallbackCore): boolean {
-  return Boolean(core.conditioning && !core.conditioning.long_conditioning && !core.conditioning.benchmark);
-}
-
-function applyFormat(conditioning: ConditioningDraft, format: WodFormat): ConditioningDraft {
-  const names = conditioning.movements.map((movement) => movement.name_ko).join(", ");
-  const text = workText(format, conditioning.duration_min, names, conditioning.long_conditioning);
-  return {
-    ...conditioning,
-    format,
-    time_domain: domain(conditioning.duration_min),
-    rep_structure: text.rep,
-    work_rest_structure: text.rest,
-  };
-}
-
-/** Two labels cannot alternate when the same stimulus sits an odd number of days apart. */
-function relaxProtectedPairs(training: FallbackCore[]): void {
-  const locked = training
-    .map((core, index) => ({ core, index }))
-    .filter((row) => !flexibleCore(row.core) && row.core.conditioning?.stimulus);
-  for (let left = 0; left < locked.length; left += 1) {
-    for (let right = left + 1; right < locked.length; right += 1) {
-      const earlier = locked[left]!;
-      const later = locked[right]!;
-      const gap = later.index - earlier.index;
-      const leftStimulus = earlier.core.conditioning?.stimulus;
-      const rightStimulus = later.core.conditioning?.stimulus;
-      if (gap % 2 === 0 || !leftStimulus || leftStimulus !== rightStimulus || !later.core.conditioning) continue;
-      const target = later.core.conditioning.benchmark ? later.core : earlier.core;
-      if (!target.conditioning?.stimulus) continue;
-      target.conditioning = retuneStimulus(target.conditioning, target.conditioning.stimulus);
-    }
-  }
-}
-
-function separateStimuli(cores: FallbackCore[]): void {
-  const training = cores.filter((core) => !core.rest && core.conditioning);
-  relaxProtectedPairs(training);
-  for (let index = 1; index < training.length; index += 1) {
-    const previous = training[index - 1]!;
-    const current = training[index]!;
-    if (!previous.conditioning?.stimulus || !current.conditioning?.stimulus) continue;
-    if (previous.conditioning.stimulus !== current.conditioning.stimulus) continue;
-    if (flexibleCore(current)) {
-      current.conditioning = retuneStimulus(current.conditioning, previous.conditioning.stimulus);
-      continue;
-    }
-    if (flexibleCore(previous)) {
-      previous.conditioning = retuneStimulus(previous.conditioning, current.conditioning.stimulus);
-      for (let back = index - 1; back >= 1; back -= 1) {
-        const day = training[back]!;
-        const before = training[back - 1]!;
-        if (!day.conditioning?.stimulus || !before.conditioning?.stimulus) break;
-        if (day.conditioning.stimulus !== before.conditioning.stimulus) break;
-        if (!flexibleCore(before)) break;
-        before.conditioning = retuneStimulus(before.conditioning, day.conditioning.stimulus);
-      }
-      continue;
-    }
-    current.conditioning = retuneStimulus(current.conditioning, previous.conditioning.stimulus);
-  }
-}
-
-function repairSimilarity(cores: FallbackCore[], recent: readonly StoredStructure[]): void {
-  const chosen: StoredStructure[] = [];
-  for (const core of cores) {
-    if (core.rest || !core.conditioning) continue;
-    if (!flexibleCore(core)) {
-      chosen.push(asStructure(core.conditioning, core.day));
-      continue;
-    }
-    let current = core.conditioning;
-    const priors = [...chosen, ...recent];
-    const clashes = (draft: ConditioningDraft) =>
-      priors.some((prior) => structurallySimilar(asStructure(draft, core.day), prior));
-    if (clashes(current)) {
-      for (const format of FORMATS) {
-        if (format === current.format) continue;
-        if (format === "emom" && !current.movements.every((movement) => stationFitsMinute(movement.key, movement.amount))) {
-          continue;
-        }
-        const trial = applyFormat(current, format);
-        if (!clashes(trial)) {
-          current = trial;
-          break;
-        }
-      }
-    }
-    core.conditioning = current;
-    chosen.push(asStructure(current, core.day));
-  }
-}
 
 export function buildFallbackWeek(input: {
   month: MonthDirection;
@@ -585,7 +700,35 @@ export function buildFallbackWeek(input: {
   intent: ProgrammingIntent;
   recent?: readonly StoredStructure[];
   previousActual?: WeekActual | null;
+  recentLiftMaps?: readonly string[];
 }): WeekDraft {
+  const allow = monthAllowsSameLiftDays(input.month);
+  const maps = input.recentLiftMaps ?? [];
+  let lastError: Error | null = null;
+  let last: WeekDraft | null = null;
+  for (let placement = 0; placement < 6; placement += 1) {
+    try {
+      const draft = assembleFallbackWeek(input, placement);
+      if (!weekdayPatternViolations(draft, maps, allow).length) return draft;
+      last = draft;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+  if (last) return last;
+  throw lastError ?? new Error("no legal fallback week");
+}
+
+function assembleFallbackWeek(
+  input: {
+    month: MonthDirection;
+    weekIndex: WeekIndex;
+    intent: ProgrammingIntent;
+    recent?: readonly StoredStructure[];
+    previousActual?: WeekActual | null;
+  },
+  placement: number,
+): WeekDraft {
   const month = input.month;
   const weekIndex = input.weekIndex;
   const recent = input.recent ?? [];
@@ -593,84 +736,88 @@ export function buildFallbackWeek(input: {
   const shift = SCHEME_SHIFT[month.scheme];
   const lowerPool = highLower ? WEEKDAYS.filter((day) => day !== "mon" && day !== "tue") : WEEKDAYS;
   const pairs = lowerPairs(lowerPool);
-  const pair = pairs[(weekIndex - 1 + shift + 5) % pairs.length]!;
-  const lowerLifts: MainLift[] = (weekIndex + shift) % 2 === 0 ? ["squat", "deadlift"] : ["deadlift", "squat"];
-  const lifts = new Map<DayKey, MainLift>([
-    [pair[0], lowerLifts[0]!],
-    [pair[1], lowerLifts[1]!],
-  ]);
+  const pair = pairs[(weekIndex - 1 + shift + 5 + placement) % pairs.length]!;
+  const lowerLifts: MainLift[] = (weekIndex + shift + placement) % 2 === 0 ? ["squat", "deadlift"] : ["deadlift", "squat"];
+  const method = month.strength_method || month.scheme;
+  const cut = exampleSets(method, weekIndex, "high", "squat");
+  const oneLower = highLower && cut != null && strengthIsHeavy(cut);
+  const lifts = new Map<DayKey, MainLift>();
+  if (oneLower) lifts.set(pair[1]!, lowerLifts[0]!);
+  else {
+    lifts.set(pair[0]!, lowerLifts[0]!);
+    lifts.set(pair[1]!, lowerLifts[1]!);
+  }
   const lowerDays = new Set(lifts.keys());
+  const afterHeavy = new Set<DayKey>();
+  for (const [day, lift] of lifts) {
+    if (lift !== "squat" && lift !== "deadlift") continue;
+    if (!strengthIsHeavy(strengthFor(lift, month, weekIndex, highLower).sets)) continue;
+    const next = TRAINING[dayIndex(day) + 1];
+    if (next) afterHeavy.add(next);
+  }
   const dayAfterLower = new Set(
     [...lowerDays].map((day) => TRAINING[dayIndex(day) + 1]).filter((day): day is DayKey => day != null),
   );
   const open = WEEKDAYS.filter((day) => !lifts.has(day));
-  const freeDay = open.find((day) => day !== "wed") ?? open[0]!;
+  const longBlocked = new Set<DayKey>(["wed"]);
+  if (month.benchmark_week === weekIndex) longBlocked.add("sat");
+  const longCandidates = TRAINING.filter((day) => !lifts.has(day) && !longBlocked.has(day));
+  const freeDay =
+    longCandidates.find((day) => !afterHeavy.has(day)) ??
+    longCandidates[0] ??
+    open.find((day) => day !== "wed") ??
+    "fri";
   const upper: MainLift[] = (weekIndex + shift) % 2 === 0 ? ["ohp", "bench"] : ["bench", "ohp"];
   open
     .filter((day) => day !== freeDay)
     .slice(0, 2)
     .forEach((day, index) => lifts.set(day, upper[index]!));
   const longDay = month.long_conditioning_weeks.includes(weekIndex) ? freeDay : null;
-  const benchmarkPool = WEEKDAYS.filter((day) => day !== longDay && !dayAfterLower.has(day) && day !== "thu");
-  const benchmarkDay =
-    month.benchmark_week === weekIndex
-      ? (benchmarkPool[(weekIndex + shift) % Math.max(benchmarkPool.length, 1)] ??
-        WEEKDAYS.find((day) => day !== longDay && day !== "thu") ??
-        "fri")
-      : null;
+  const benchmarkDay = month.benchmark_week === weekIndex && longDay !== "sat" ? "sat" : null;
 
-  const chosen: StoredStructure[] = [];
-  const usedCombos = new Set<string>();
-  let previousStimulus: Stimulus | null = null;
+  const slots: DaySlot[] = TRAINING.map((day) => {
+    const longPiece = day === longDay;
+    const benchmark = day === benchmarkDay;
+    const lift = day === "sat" || longPiece ? null : (lifts.get(day) ?? null);
+    const role = longPiece ? "long" : benchmark ? "benchmark" : dayAfterLower.has(day) ? "short" : "open";
+    return {
+      day,
+      lift,
+      role,
+      bans: bannedKeys(day, lifts, month, weekIndex, highLower),
+      avoidLower: highLower,
+    };
+  });
+  const conditioningByDay = assignConditioning(slots, weekIndex, shift, month, highLower, lifts, recent);
   const cores: FallbackCore[] = DAY_ORDER.map((day) => {
     if (day === "sun") {
       return { day, rest: true, optional: false, warmup_min: 0, warmup_ko: "", strength: null, conditioning: null };
     }
-    const longPiece = day === longDay;
-    const benchmark = day === benchmarkDay;
-    const lift = day === "sat" || longPiece ? null : (lifts.get(day) ?? null);
-    const minutes = longPiece
-      ? 35
-      : benchmark
-        ? 20
-        : dayAfterLower.has(day)
-          ? 10
-          : day === "sat"
-            ? 12
-            : 14 + ((dayIndex(day) + shift) % 3) * 2;
-    const conditioning = pickConditioning({
-      day,
-      minutes,
-      benchmark,
-      longPiece,
-      previousStimulus,
-      bans: bannedKeys(day, lifts, month.scheme, weekIndex, highLower),
-      avoidLower: highLower && (day === "mon" || day === "tue"),
-      chosen,
-      recent,
-      usedCombos,
-      seed: dayIndex(day) + weekIndex * 3 + shift,
-    });
-    usedCombos.add(comboKey(conditioning.movements.map((movement) => movement.key)));
-    const structure = asStructure(conditioning, day);
-    if (!structure.benchmark) chosen.push(structure);
-    previousStimulus = conditioning.stimulus;
+    const slot = slots.find((row) => row.day === day);
+    const conditioning = conditioningByDay.get(day) ?? null;
+    const lift = slot?.lift ?? null;
     const barbell =
       Boolean(lift) ||
-      conditioning.equipment.includes("barbell") ||
-      conditioning.movements.some((movement) => LOADED_KEYS.has(movement.key));
+      Boolean(conditioning?.equipment.includes("barbell")) ||
+      Boolean(conditioning?.movements.some((movement) => LOADED_KEYS.has(movement.key)));
     return {
       day,
       rest: false,
       optional: day === "sat",
       warmup_min: 10,
       warmup_ko: warmupText(day, barbell, lift),
-      strength: lift ? strengthFor(lift, month.scheme, weekIndex, highLower) : null,
+      strength: lift ? strengthFor(lift, month, weekIndex, highLower) : null,
       conditioning,
     };
   });
-  separateStimuli(cores);
-  repairSimilarity(cores, recent);
+  for (const core of cores) {
+    if (core.rest || !core.conditioning) continue;
+    const barbell =
+      Boolean(core.strength) ||
+      core.conditioning.equipment.includes("barbell") ||
+      core.conditioning.movements.some((movement) => LOADED_KEYS.has(movement.key));
+    core.warmup_ko = warmupText(core.day, barbell, core.strength?.lift ?? null);
+  }
   const sessions = cores.map((core) =>
     fillSessionFields(core, core.strength ? lowerVolume(highLower, core.strength.lift, month.scheme) : null),
   );
@@ -684,20 +831,36 @@ export function draftForScheme(month: MonthDirection, weekIndex: WeekIndex, inte
   return buildFallbackWeek({ month, weekIndex, intent });
 }
 
-export function fallbackIntent(month: MonthDirection, weekIndex: WeekIndex, reason: string): ProgrammingIntent {
+function methodLabel(month: MonthDirection): string {
+  const method = month.strength_method || month.scheme;
+  if (method === "531") return "5/3/1";
+  if (method === "ACCUMULATION" || method === "volume") return "축적";
+  if (method === "INTENSITY_BLOCK" || method === "intensity") return "강도";
+  if (method === "DELOAD_RECOVERY" || method === "deload") return "회복";
+  if (method === "TECHNIQUE_SKILL" || method === "skill") return "기술";
+  return "이번 방법";
+}
+
+export function fallbackIntent(month: MonthDirection, weekIndex: WeekIndex, _reason: string): ProgrammingIntent {
+  const label = methodLabel(month);
   return {
-    why_ko: `${month.scheme} 블록 ${weekIndex}주입니다. 모델 응답을 쓰지 않고 이 달의 방식으로 채웁니다. 이유 코드는 ${reason}입니다.`,
+    why_ko: `${label} 블록 ${weekIndex}주입니다. 모델 응답을 쓰지 않고 이 달의 방식으로 채웁니다.`,
     focus: month.focus_ko,
-    scheme_note: `${month.scheme}는 이번 달 전체의 선택입니다. 주마다 방식을 바꾸지 않습니다.`,
+    scheme_note: `${label}는 이번 달 전체의 선택입니다. 주마다 방식을 바꾸지 않습니다.`,
   };
 }
 
-export function fallbackMonth(prior: { summary_ko: string; next_scheme: MonthDirection["scheme"] } | null): MonthDirection {
-  const scheme = prior?.next_scheme ?? "531";
+export function fallbackMonth(
+  prior: { summary_ko: string; next_scheme: MonthDirection["scheme"]; strength_method?: string } | null,
+): MonthDirection {
+  const scheme = prior?.next_scheme ?? "deload";
+  const strengthMethod = prior?.strength_method ?? (prior ? prior.next_scheme : "DELOAD_RECOVERY");
   return completeMonthDirection({
     scheme,
-    focus_ko: prior ? "지난 달 평가가 고른 한 달" : "저장한 1RM으로 5/3/1 블록을 엽니다",
-    why_ko: prior?.summary_ko || "이전 월 평가가 없어 5/3/1 블록을 한 달 동안 유지합니다.",
+    strength_method: strengthMethod,
+    focus_ko: prior ? "지난 달 평가가 고른 한 달" : "월 계획이 없어 회복 범위로 엽니다",
+    why_ko: prior?.summary_ko || "이전 월 평가가 없습니다. 5/3/1로 바꾸지 않고 회복 범위만 사용합니다.",
+    primary_block: scheme === "531" ? "531" : methodLabel({ scheme, strength_method: strengthMethod } as MonthDirection),
     week_themes: [
       { week_index: 1, theme_ko: "블록을 엽니다" },
       { week_index: 2, theme_ko: "긴 컨디셔닝 한 번" },
@@ -710,7 +873,12 @@ export function fallbackMonth(prior: { summary_ko: string; next_scheme: MonthDir
   });
 }
 
-export function assertFallbackLegal(draft: WeekDraft, month: MonthDirection, weekIndex: WeekIndex): void {
-  const errors = constitutionViolations(draft, month, weekIndex);
-  if (errors.length) throw new Error(`fallback broke a rule: ${errors[0]}`);
+export function assertFallbackLegal(
+  draft: WeekDraft,
+  month: MonthDirection,
+  weekIndex: WeekIndex,
+  context: WeekCheckContext & { recent?: readonly StoredStructure[] } = {},
+): void {
+  const judged = judgeWeek(draft, month, weekIndex, context.recent ?? [], context);
+  if (!judged.ok) throw new Error(`fallback broke a rule: ${judged.detail}`);
 }

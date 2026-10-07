@@ -64,7 +64,8 @@ describe("long-term programming engine", () => {
   it("creates a month direction with no daily workouts", async () => {
     const month = await ensureProgrammingMonth("2026-09-01", { nowMs: NOW, key: null });
     expect(month.generationSource).toBe("fallback");
-    expect(month.direction.scheme).toBe("531");
+    expect(month.direction.scheme).toBe("deload");
+    expect(month.direction.strength_method).toBe("DELOAD_RECOVERY");
     expect(month.direction.week_themes.map((theme) => theme.week_index)).toEqual([1, 2, 3, 4]);
     expect(month.direction.long_conditioning_weeks).toEqual([2, 4]);
     const raw = JSON.stringify(month.direction);
@@ -85,7 +86,8 @@ describe("long-term programming engine", () => {
     expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM wod_structures").get()).toEqual({ c: 6 });
     const lifts = week.draft.sessions.filter((session) => session.strength).map((session) => `${session.day}:${session.strength?.lift}`);
     expect(lifts).not.toEqual(["mon:squat", "tue:ohp", "thu:bench", "fri:deadlift"]);
-    expect(week.draft.sessions.some((session) => session.strength?.sets.some((set) => set.percent_of_tm === 85))).toBe(true);
+    expect(week.draft.sessions.some((session) => session.strength?.sets.some((set) => set.percent_of_tm === 85))).toBe(false);
+    expect(week.draft.sessions.some((session) => session.strength?.sets.some((set) => set.percent_of_tm <= 70))).toBe(true);
     expect(JSON.stringify(week.display)).not.toMatch(/"weightKg":\s*\d/);
 
     const shared = await ensureClassWeek(NOW);
@@ -246,23 +248,22 @@ describe("long-term programming engine", () => {
     recordWeeklyActual(WEEK1, { note_ko: "", days: [{ day: "mon", completed: true, result_ko: "마침" }] }, NOW);
     const evaluation = evaluateProgrammingMonth("2026-09-01", NOW + 3);
     if ("error" in evaluation) throw new Error(evaluation.error);
-    expect(evaluation.summary_ko).toContain("531");
-    expect(evaluation.next_scheme).toBe("volume");
+    expect(evaluation.summary_ko).toContain("deload");
+    expect(evaluation.next_scheme).toBe("531");
 
     const fetchImpl = vi.fn(async () => new Response("no", { status: 500 }));
     const next = await ensureProgrammingMonth("2026-10-01", { nowMs: NOW + 4, key: KEY, fetchImpl });
     expect(next.priorEvaluationId).toBe(evaluation.id);
     expect(next.generationSource).toBe("fallback");
-    expect(next.direction.scheme).toBe("volume");
+    expect(next.direction.scheme).toBe("531");
     expect(next.direction.why_ko).toContain(evaluation.summary_ko);
     const sent = promptOf(fetchImpl);
     expect(JSON.stringify(sent)).toContain(evaluation.summary_ko);
-    expect(JSON.stringify(sent.summary)).toContain("volume");
+    expect(JSON.stringify(sent.summary)).toContain("531");
     const again = getProgrammingMonth("2026-10-01");
     expect(again?.priorEvaluationId).toBe(evaluation.id);
     const volumeWeek = await ensureProgrammingWeek("2026-10-05", { nowMs: NOW + 6, key: null });
-    expect(volumeWeek.draft.sessions.some((session) => session.strength?.sets.every((set) => set.percent_of_tm === 70))).toBe(true);
-    expect(volumeWeek.draft.sessions.some((session) => session.strength?.sets.some((set) => set.percent_of_tm >= 85))).toBe(false);
+    expect(volumeWeek.draft.sessions.some((session) => session.strength?.sets.some((set) => set.percent_of_tm >= 85))).toBe(true);
   });
 
   it("keeps stored users, 1RMs, WOD scores, and class scores", async () => {
@@ -301,7 +302,7 @@ describe("long-term programming engine", () => {
 
 describe("fallback obeys the constitution for every scheme", () => {
   it("accepts the 5/3/1 screen week and the other month schemes", () => {
-    const month = fallbackMonth(null);
+    const month = fallbackMonth({ summary_ko: "5/3/1 한 달", next_scheme: "531" });
     for (const weekIndex of [1, 2, 3, 4] as const) {
       const draft = extractDraft(rulesDisplayWeek(weekIndex), fallbackIntent(month, weekIndex, "no_model"));
       expect(constitutionViolations(draft, month, weekIndex)).toEqual([]);

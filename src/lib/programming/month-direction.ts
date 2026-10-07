@@ -1,7 +1,12 @@
-import type { MonthDirection } from "./types";
+import { canonicalStrengthMethod } from "./strength-methods";
+import type { MonthDirection, Scheme } from "./types";
 
 function text(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function legacyMethod(scheme: Scheme): string {
+  return scheme;
 }
 
 /** Fills spec fields the model or an older row left blank. Does not invent a new scheme. */
@@ -26,6 +31,13 @@ export function completeMonthDirection(direction: Omit<MonthDirection, keyof Mon
       Array.isArray(direction.evaluation_targets) && direction.evaluation_targets.length
         ? direction.evaluation_targets.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim())
         : ["출석", "벤치마크", "볼륨", "강도"],
+    strength_method: canonicalStrengthMethod(text(direction.strength_method, legacyMethod(direction.scheme))),
+    method_rationale: text(direction.method_rationale, "이번 달 방법은 이전 결과와 피로를 보고 고릅니다. 5/3/1만 쓰지 않습니다."),
+    method_constraints: text(direction.method_constraints, "주 안에서 방법을 바꾸지 않습니다. 하루 운동은 이 방향에 없습니다."),
+    progression_notes: text(direction.progression_notes, "네 주는 같은 방법 안에서 이어집니다."),
+    block_type: text(direction.block_type, text(direction.primary_block, direction.scheme)),
+    weekly_progression: text(direction.weekly_progression, weekly),
+    deload_strategy: text(direction.deload_strategy, "넷째 주는 방법을 유지한 채 볼륨을 낮춥니다."),
   };
 }
 
@@ -44,4 +56,11 @@ type MonthFieldDefaults = Pick<
   | "fatigue_direction"
   | "weekly_direction"
   | "evaluation_targets"
+  | "strength_method"
+  | "method_rationale"
+  | "method_constraints"
+  | "progression_notes"
+  | "block_type"
+  | "weekly_progression"
+  | "deload_strategy"
 >;

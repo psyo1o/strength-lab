@@ -224,7 +224,7 @@ describe("stage 4 model wait, schema, and fallback quality", () => {
   });
 
   it("builds a class-sized fallback whose labels, sets, and clock match the movements", () => {
-    const month = fallbackMonth(null);
+    const month = fallbackMonth({ summary_ko: "5/3/1 한 달", next_scheme: "531" });
     let skillHits = 0;
     for (const scheme of SCHEMES) {
       const block = scheme === "531" ? month : fallbackMonth({ summary_ko: `${scheme} 블록`, next_scheme: scheme });

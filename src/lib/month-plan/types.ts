@@ -45,6 +45,8 @@ export type StrengthPrescription = {
   nameKo: string;
   oneRmKg: number | null;
   trainingMaxKg: number | null;
+  /** tm is the 5/3/1 training max. one_rm is the stored 1RM. Omitted means tm. */
+  loadBasis?: "tm" | "one_rm";
   sets: StrengthSet[];
   missingOneRm: boolean;
   noteKo: string;

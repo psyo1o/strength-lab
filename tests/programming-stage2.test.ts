@@ -15,7 +15,7 @@ import {
   proposeMonthlyPlanChange,
   regenerateProgrammingWeek,
 } from "../src/lib/programming/engine";
-import { draftForScheme, fallbackIntent } from "../src/lib/programming/fallback";
+import { draftForScheme, fallbackIntent, fallbackMonth } from "../src/lib/programming/fallback";
 import { getProgrammingMonth, getProgrammingWeek } from "../src/lib/programming/store";
 import { INPUT_SUMMARY_VERSION, MONTHLY_PROMPT_VERSION, WEEKLY_PROMPT_VERSION } from "../src/lib/programming/types";
 import type { DayKey } from "../src/lib/month-plan/types";
@@ -146,6 +146,16 @@ describe("stage 2 actuals and screen sync", () => {
   it("test 4 puts week 1 actual, intent, and generation source into the week 2 payload", async () => {
     const created = registerUser(SECRET_EMAIL, "password123");
     if ("error" in created) throw new Error(created.error);
+    const opening = fallbackMonth({ summary_ko: "5/3/1 한 달", next_scheme: "531" });
+    await ensureProgrammingMonth("2026-09-01", {
+      nowMs: NOW,
+      key: KEY,
+      fetchImpl: async () =>
+        new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(opening) } }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    });
     const first = await ensureProgrammingWeek(WEEK1, { nowMs: NOW, key: null });
     const squatDay = first.draft.sessions.find((session) => session.strength?.lift === "squat")?.day ?? "fri";
     seedScore({
@@ -287,7 +297,7 @@ describe("stage 2 actuals and screen sync", () => {
     expect(packed).toContain(evaluation.fatigue);
     expect(sent.prompt_version).toBe(MONTHLY_PROMPT_VERSION);
     const monthSummary = sent.summary as { long_term: { block_history: string[] } };
-    expect(monthSummary.long_term.block_history).toContain("531");
+    expect(monthSummary.long_term.block_history).toContain("deload");
   });
 
   it("syncs a regenerated week onto future unscored days and leaves past, scored, and admin days", async () => {

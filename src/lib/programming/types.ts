@@ -138,6 +138,14 @@ export type MonthDirection = {
   fatigue_direction: string;
   weekly_direction: string;
   evaluation_targets: string[];
+  /** Selected strength method. A name, not a closed list. 5/3/1 is one value. */
+  strength_method: string;
+  method_rationale: string;
+  method_constraints: string;
+  progression_notes: string;
+  block_type: string;
+  weekly_progression: string;
+  deload_strategy: string;
 };
 
 export type GenerationSource = "model" | "fallback";
@@ -147,17 +155,21 @@ export type FallbackReason =
   | "timeout"
   | "http_error"
   | "bad_json"
+  | "truncated"
   | "schema"
+  | "language"
   | "rule_break"
+  | "feedback"
+  | "weekday_pattern"
   | "too_similar";
 
 export const ENGINE_VERSION = "programming-1";
 
-/** Rule set stamped on each generation. programming-3 is the fallback whose labels, volume, and clock match the class. */
-export const RULES_VERSION = "programming-3";
+/** Rule set stamped on each generation. programming-5 adds the day-after heavy-lower long-conditioning ban. */
+export const RULES_VERSION = "programming-5";
 
-export const MONTHLY_PROMPT_VERSION = "monthly-program-v3";
-export const WEEKLY_PROMPT_VERSION = "weekly-program-v4";
+export const MONTHLY_PROMPT_VERSION = "monthly-program-v4";
+export const WEEKLY_PROMPT_VERSION = "weekly-program-v5";
 export const INPUT_SUMMARY_VERSION = "summary-v2";
 
 export type PlanStatus = "active" | "superseded" | "failed";

@@ -50,7 +50,7 @@ vi.mock("@/lib/auth", async (importOriginal) => {
 import { getCurrentUser } from "@/lib/auth";
 import { POST as metconPost } from "@/app/api/admin/metcon/route";
 
-/** Noon KST, Friday 2026-10-02. Week starts Monday 2026-09-28. Week-4 fallback puts the deadlift on this day. */
+/** Noon KST, Friday 2026-10-02. Week starts Monday 2026-09-28. A missing month opens a recovery block, and week 4 puts the squat on Friday. Saturday has no main lift. */
 const FRIDAY = Date.parse("2026-10-02T03:00:00.000Z");
 /** Noon KST, Sunday 2026-10-04. Next class week starts Monday 2026-10-05. */
 const SUNDAY = Date.parse("2026-10-04T03:00:00.000Z");
@@ -107,7 +107,7 @@ describe("shared class wod", () => {
     );
     expect(a.day.blocks.map((block) => block.role)).toEqual(b.day.blocks.map((block) => block.role));
     expect(a.day.blocks.map((block) => block.role).slice(0, 3)).toEqual(["warmup", "main", "metcon"]);
-    expect(a.day.lift?.exerciseKey).toBe("deadlift");
+    expect(a.day.lift?.exerciseKey).toBe("squat");
     expect(JSON.stringify(getClassPlanByStart(a.weekStart)?.week)).not.toMatch(/"weightKg":\s*\d/);
 
     const again = await ensureClassWeek(FRIDAY);
@@ -119,8 +119,8 @@ describe("shared class wod", () => {
     const heavy = registerUser("heavy@example.com", "password123");
     const light = registerUser("light@example.com", "password123");
     if ("error" in heavy || "error" in light) throw new Error("register failed");
-    saveUserMaxes(heavy.user.id, [{ exerciseKey: "deadlift", value: 220, unit: "kg" }]);
-    saveUserMaxes(light.user.id, [{ exerciseKey: "deadlift", value: 110, unit: "kg" }]);
+    saveUserMaxes(heavy.user.id, [{ exerciseKey: "squat", value: 220, unit: "kg" }]);
+    saveUserMaxes(light.user.id, [{ exerciseKey: "squat", value: 110, unit: "kg" }]);
 
     const a = await sharedToday(heavy.user.id, FRIDAY);
     const b = await sharedToday(light.user.id, FRIDAY);
@@ -142,7 +142,7 @@ describe("shared class wod", () => {
   it("renders a fractional training load as a whole kilogram or whole pounds and keeps plates on that number", async () => {
     const created = registerUser("loads@example.com", "password123");
     if ("error" in created) throw new Error("register failed");
-    saveUserMaxes(created.user.id, [{ exerciseKey: "deadlift", value: 220, unit: "kg" }]);
+    saveUserMaxes(created.user.id, [{ exerciseKey: "squat", value: 220, unit: "kg" }]);
 
     const missing = prescribeMainLift("squat", 1, {});
     expect(missing.sets.map((set) => set.weightKg)).toEqual([null, null, null]);
@@ -323,7 +323,7 @@ describe("shared class wod", () => {
     expect(seen.day.piece?.movements.map((movement) => movement.key)).toEqual(["sit_up", "ring_row"]);
     expect(seen.day.piece?.movements.map((movement) => movement.amount)).toEqual(["20", "8"]);
     expect(seen.day.blocks.map((block) => block.role).slice(0, 3)).toEqual(["warmup", "main", "metcon"]);
-    expect(seen.day.lift?.exerciseKey).toBe("deadlift");
+    expect(seen.day.lift?.exerciseKey).toBe("squat");
     expect(seen.day.blocks.find((block) => block.role === "metcon")?.bodyKo).toMatch(/싯업 20회/);
     expect(JSON.stringify(getClassPlanByStart(weekStart)?.week.days.find((day) => day.day === "fri")?.lift)).not.toMatch(
       /"weightKg":\s*\d/,
