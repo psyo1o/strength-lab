@@ -12,7 +12,11 @@ import {
   normalizeWeekPayload,
   parseMonthDirection,
   parseWeekDraft,
+  changedSessions,
   constraintFailureBriefs,
+  lowerBodyFatigueRule,
+  retryRepairPlan,
+  sessionFieldTrace,
   similarityDiagnostics,
   structureValidationErrors,
   TIME_DOMAIN_RANGES,
@@ -24,6 +28,7 @@ import {
   EQUIPMENT,
   MONTHLY_PROMPT_VERSION,
   MOVEMENT_PATTERNS,
+  SIMILARITY_CONFIG,
   STIMULI,
   WEEKLY_PROMPT_VERSION,
   type FallbackReason,
@@ -59,7 +64,8 @@ const RULES = [
   "Rx metcon is 12–20 minutes, so time_domain is medium. Only the day after squat or deadlift is 8–12 minutes and time_domain short. duration_min 14 is medium, never short. Long conditioning is 30–40 minutes and time_domain long.",
   "Allowed lifts are squat, ohp, bench, and deadlift. The word press means ohp. Do not use lift press.",
   "Every *_ko field, focus, and scheme_note is Korean. Do not write those fields in English.",
-  "Machine calories are a male/female pair such as 12/10cal. Wall ball is 남 9kg · 여 6kg, kettlebell 남 24kg · 여 16kg, box 남 60cm · 여 50cm.",
+  "Machine calories are a male/female pair such as 12/10cal. Never write kilograms, male/female loads, box heights, or benchmark loads anywhere in the week. The server adds the class wall ball, kettlebell, and box loads on the screen later. A movement is its name only: 월볼, never 월볼 plus a kilogram number.",
+  "Every training day (rest=false) has a conditioning object, and the session-level copies metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration are filled from it. Null in any of those on a training day is rejected as missing session fields. A strength-only training day is not valid in this contract.",
   "Top-level JSON is { intent, sessions }. sessions has exactly mon, tue, wed, thu, fri, sat, and sun. Do not wrap the object in class_week, week, or days.",
   "Warmup, strength, and conditioning together stay within about 60 minutes. Do not put a 30–40 minute piece on a strength day. Saturday is optional and has no main lift.",
   "Return JSON only. Do not pick a candidate_id.",
@@ -119,16 +125,83 @@ export type ModelResponseLog = {
 };
 
 const RETRY_INSTRUCTION = [
+  "Do not regenerate the week.",
+  "Do not rewrite valid sessions.",
+  "Treat every valid session from the previous draft as immutable. Copy immutable_sessions from previous_draft byte for byte.",
   "Preserve valid sessions and the original weekly intent.",
-  "Fix the listed validation errors.",
+  "Modify only sessions that directly violate a listed validation error, in repair_sessions.",
+  "Fix the listed validation errors in priority order.",
+  "Do not introduce new movements, formats, equipment, weights, or structures unless required to repair the listed failure.",
+  "Do not fix one validation error by creating another validation error.",
   "Do not redesign unrelated days.",
   "Do not introduce a new strength method.",
   "Do not change the monthly goal.",
-  "Do not change valid sessions unless necessary to resolve a listed violation.",
   "All hard constraints remain mandatory.",
   "Do not repeat these errors.",
   "Do not discard the week and write a new random week.",
+  "Before returning the revised week, re-check all seven days against every hard constraint, every weekly requirement, the lower-body fatigue rule, the no-kilogram rule, Korean naming, and same-week similarity.",
 ].join(" ");
+
+const GENERATION_PHASES = {
+  note: "Think in this order. Output only the final JSON. Do not print the phases.",
+  phase_1_week_structure: {
+    goal: "Decide the role of every day before writing any session.",
+    per_day_decisions: [
+      "session type: strength / conditioning / mixed",
+      "movement pattern",
+      "primary stimulus",
+      "time domain and duration",
+      "approximate volume",
+      "intensity direction",
+      "equipment",
+      "work/rest",
+      "fatigue role",
+      "similarity avoidance against recent_structure_avoidance and against the other days of this week",
+    ],
+  },
+  phase_2_constraint_check: {
+    goal: "Check the structure before writing JSON.",
+    checks: [
+      "hard_constraints",
+      "weekly_requirements",
+      "monthly strength method",
+      "previous week feedback",
+      "lower_body_fatigue_rule on squat and deadlift",
+      "long conditioning count and 30–40 minutes",
+      "benchmark requirement",
+      "no two days share format + time_domain + stimulus + movement_pattern + equipment + volume at 4 or more matches",
+      "no kilograms anywhere",
+    ],
+  },
+  phase_3_final_json: {
+    goal: "Write the checked structure as the sessions array in the existing schema. Nothing else.",
+  },
+} as const;
+
+const PRESCRIBED_WEIGHT_RULE = {
+  rule: "Do not invent kilogram values. Do not invent male/female prescribed weights. Do not invent equipment specifications. Do not invent benchmark loads.",
+  allowed: "Movement names without a weight. Machine calories as a 12/10cal pair. Percent of training max inside strength.sets.",
+  server_applies: "The server adds the class wall ball, kettlebell, and box loads on the screen. You never write them.",
+  rejected_example: "월볼(남 9kg · 여 6kg)",
+  accepted_example: "월볼",
+  failure_name: "invented_weight",
+} as const;
+
+const NAME_KO_RULE = {
+  purpose: "name_ko is the natural Korean name a Korean member reads on the screen. key carries the English identity.",
+  rules: [
+    "Korean letters only, apart from the allowed tokens AMRAP, EMOM, Rx, Scaled, Benchmark, Deload, 5/3/1.",
+    "No kilograms, no male/female loads, no English abbreviations such as T2B or HSPU in name_ko.",
+    "Descriptions, purposes, and warmup text are Korean sentences, not English.",
+    "The server measures the Korean share of every *_ko field. Below 0.7 is rejected.",
+  ],
+  examples: [
+    { key: "toes_to_bar", name_ko: "토즈 투 바" },
+    { key: "wall_ball", name_ko: "월볼" },
+    { key: "handstand_push_up", name_ko: "핸드스탠드 푸시업" },
+    { key: "row", name_ko: "로잉", amount: "12/10cal" },
+  ],
+} as const;
 
 /** What the caller stores. modelName is set only when this process called the model. */
 export type AuthorTrace = {
@@ -508,6 +581,7 @@ async function authorWithRetries<T>(input: {
   format: ResponseFormat;
   accept: (
     json: unknown,
+    meta: { attempt: number; previous: unknown },
   ) =>
     | { ok: true; value: T; detail?: string | null; normalizations?: string[]; diagnostics?: Record<string, unknown> | null }
     | {
@@ -539,8 +613,8 @@ async function authorWithRetries<T>(input: {
       maxTokens: input.maxTokens,
       format: input.format,
     });
+    const accepted = completed.ok ? input.accept(completed.json, { attempt, previous }) : null;
     if (completed.ok) previous = completed.json;
-    const accepted = completed.ok ? input.accept(completed.json) : null;
     const attemptNormalizations = accepted?.normalizations ?? [];
     responses.push({
       attempt,
@@ -630,6 +704,100 @@ export function monthPrompt(summary: ProgrammingSummary): unknown {
   };
 }
 
+function structureAvoidanceEntry(row: StoredStructure) {
+  return {
+    day: row.day,
+    format: row.format,
+    time_domain: row.time_domain,
+    stimulus: row.stimulus,
+    movement_pattern: [...row.movement_patterns].sort(),
+    equipment: [...row.equipment].sort(),
+    volume: row.volume,
+    signature: [
+      row.format,
+      row.time_domain,
+      row.stimulus ?? "",
+      [...row.movement_patterns].sort().join("+"),
+      [...row.equipment].sort().join("+"),
+      row.volume,
+    ].join("|"),
+  };
+}
+
+/**
+ * One slot per weekday. The server names only the structural space and what must not repeat.
+ * It does not assign a lift, a movement, or a role to any day.
+ */
+function structureSlots(longRequired: boolean) {
+  const chooses = {
+    role: "AI chooses: strength / mixed / conditioning",
+    structure_signature: "AI must choose: format|time_domain|stimulus|movement_pattern|equipment|volume",
+    movement_pattern: "AI must choose",
+    stimulus: "AI must choose",
+    equipment: "AI must choose",
+  };
+  return DAY_ORDER.map((day, index) => {
+    const earlier = DAY_ORDER.slice(0, index);
+    const notes: string[] = [];
+    if (earlier.length) notes.push(`must not share ${SIMILARITY_CONFIG.threshold} or more similarity features with ${earlier.join(", ")}`);
+    notes.push("must not share 4 or more similarity features with any recent_structure_avoidance entry");
+    notes.push("must respect hard_constraints, lower_body_fatigue_rule, and the day-after rules");
+    if (index > 0) notes.push(`stimulus must differ from ${earlier[earlier.length - 1]} when both days train`);
+    if (longRequired) {
+      notes.push("eligible for the one long conditioning session if it is not a heavy squat or deadlift day and not the day after one; you choose the day");
+    }
+    if (day === "sat") notes.push("optional day, no main lift");
+    if (day === "sun") notes.push("may be the rest day; a rest day has rest=true, warmup_min 0, and null work fields");
+    return { day, ...chooses, notes };
+  });
+}
+
+function retrySection(retryErrors: readonly string[], previousDraft: unknown) {
+  const plan = retryRepairPlan(retryErrors);
+  return {
+    retry: {
+      instruction: RETRY_INSTRUCTION,
+      errors: [...retryErrors],
+      ...(previousDraft ? { previous_draft: previousDraft } : {}),
+    },
+    retry_context: {
+      previous_draft: previousDraft ?? null,
+      repair_plan: {
+        principle: plan.principle,
+        immutable_sessions: plan.immutable_sessions,
+        repair_sessions: plan.repair_sessions,
+        week_level_requirements: plan.week_level_requirements,
+        intent_only: plan.intent_only,
+        priority_order: plan.priority_order,
+      },
+      validation_errors: plan.errors,
+      failure_briefs: constraintFailureBriefs(retryErrors),
+      repair: {
+        preserve: "Preserve valid sessions and the original weekly intent. immutable_sessions are copied from previous_draft without any change.",
+        fix: "Fix the listed validation errors in priority order. Start with priority 1.",
+        may_change: [
+          "sessions listed in repair_sessions",
+          "a session that directly conflicts with a listed hard constraint error",
+          "exactly one additional session that you name, only when week_level_requirements is not empty",
+          ...(plan.intent_only ? ["intent text"] : []),
+        ],
+        must_keep: [
+          "every session in immutable_sessions, unchanged",
+          "monthly method",
+          "monthly goal",
+          "unrelated valid days",
+          "benchmark requirement",
+          "long conditioning requirement",
+          "a strength method that is already valid",
+        ],
+        hard_constraints: "All hard constraints remain mandatory.",
+        final_check:
+          "Before returning the revised JSON, mentally validate ALL seven sessions against ALL previously supplied hard constraints and weekly requirements, the lower-body fatigue rule, the no-kilogram rule, Korean naming, and same-week similarity. A repair that creates a new violation is a failed repair.",
+      },
+    },
+  };
+}
+
 export function weekPrompt(input: {
   summary: ProgrammingSummary;
   month: MonthDirection;
@@ -656,9 +824,12 @@ export function weekPrompt(input: {
         }
       : null;
   const exampleHeavy = (sets ?? []).some((set) => set.percent_of_tm >= 85);
+  const lowerRule = lowerBodyFatigueRule(method, input.weekIndex, previous?.actual);
+  const recentStructures = (input.recent ?? []).filter((row) => !row.benchmark).map(structureAvoidanceEntry);
   return {
     task: "Write the whole class week, including why. Do not pick from a catalog.",
     prompt_version: WEEKLY_PROMPT_VERSION,
+    generation_phases: GENERATION_PHASES,
     decision_order: [
       "monthly strength method",
       "method prescription",
@@ -701,12 +872,21 @@ export function weekPrompt(input: {
       equipment: row.equipment,
       volume: row.volume,
     })),
+    recent_structure_avoidance: {
+      rule: `Similarity counts six features: format, time_domain, stimulus, movement_pattern, equipment, volume. A session that shares ${SIMILARITY_CONFIG.threshold} or more of them with any entry below, or with another day of this same week, is rejected. Share at most ${SIMILARITY_CONFIG.threshold - 1} features with every entry and with every other day. Renaming a movement changes nothing; change the features.`,
+      entries: recentStructures,
+      same_week: "Apply the same rule between the days you are writing now. Keep a running list of this week's signatures while you plan.",
+    },
+    structure_slots: structureSlots(requirements.long_conditioning_sessions_min === 1),
     strength_prescription: guide,
     example_sets: {
       upper_body: allowed.upper_body_sets,
       lower_body: allowed.lower_body_sets,
       note: "Use lower_body on squat and deadlift. Use upper_body on ohp and bench. Do not copy one onto the other when they differ.",
     },
+    lower_body_fatigue_rule: lowerRule,
+    prescribed_weight_rule: PRESCRIBED_WEIGHT_RULE,
+    name_ko_rule: NAME_KO_RULE,
     hard_constraints: limits,
     programming_guidance: limits.guidance,
     programming_space: limits.programming_space,
@@ -773,39 +953,10 @@ export function weekPrompt(input: {
       "Use allowed_programming. lower_body_sets are required on squat and deadlift. upper_body_sets are required on ohp and bench. strength_prescription is the method rule. When the two differ, allowed_programming wins. Do not copy a 5/3/1 pattern unless the method is 531.",
       "weekly_requirements is a hard structural requirement for this week. Satisfy it inside sessions. The server rejects a miss and does not change duration for you.",
       "programming_space is only a boundary. Choose the day and the lift yourself.",
+      "lower_body_fatigue_rule.applies_to lists every lift the fatigue cut covers. When it is active, squat and deadlift both use lower_body_sets. A deadlift at the unrestricted method sets is rejected the same way a squat would be.",
+      "structure_slots name the structural space per day. They do not assign a lift or a movement. Use them to keep every day's signature apart from the others and from recent_structure_avoidance.",
     ],
-    ...(input.retryErrors && input.retryErrors.length
-      ? {
-          retry: {
-            instruction: RETRY_INSTRUCTION,
-            errors: [...input.retryErrors],
-            ...(input.previousDraft ? { previous_draft: input.previousDraft } : {}),
-          },
-          retry_context: {
-            previous_draft: input.previousDraft ?? null,
-            validation_errors: structureValidationErrors(input.retryErrors),
-            failure_briefs: constraintFailureBriefs(input.retryErrors),
-            repair: {
-              preserve: "Preserve valid sessions and the original weekly intent.",
-              fix: "Fix the listed validation errors.",
-              may_change: [
-                "the day named in a validation error",
-                "a day that directly conflicts with that error",
-                "the minimum sessions required to meet a hard constraint or weekly requirement",
-              ],
-              must_keep: [
-                "monthly method",
-                "monthly goal",
-                "unrelated valid days",
-                "benchmark requirement",
-                "long conditioning requirement",
-                "a strength method that is already valid",
-              ],
-              hard_constraints: "All hard constraints remain mandatory.",
-            },
-          },
-        }
-      : {}),
+    ...(input.retryErrors && input.retryErrors.length ? retrySection(input.retryErrors, input.previousDraft) : {}),
     output_shape: {
       top_level_keys: ["intent", "sessions"],
       intent: { why_ko: "한국어", focus: "한국어", scheme_note: "한국어" },
@@ -953,6 +1104,21 @@ export async function authorMonth(input: {
   return result.ok ? { ok: true, direction: result.value, trace: result.trace } : result;
 }
 
+/** Did attempt two stay inside the repair scope? Logged, not enforced. */
+function repairReport(previousErrors: readonly string[], previous: WeekDraft, next: WeekDraft) {
+  const plan = retryRepairPlan(previousErrors);
+  const changed = changedSessions(previous, next);
+  const allowance = plan.week_level_requirements.length ? 1 : 0;
+  const outOfScope = changed.filter((day) => plan.immutable_sessions.includes(day));
+  return {
+    immutable_sessions: plan.immutable_sessions,
+    repair_sessions: plan.repair_sessions,
+    changed_sessions: changed,
+    out_of_scope_changes: outOfScope,
+    within_scope: outOfScope.length <= allowance,
+  };
+}
+
 export async function authorWeek(input: {
   summary: ProgrammingSummary;
   month: MonthDirection;
@@ -977,6 +1143,7 @@ export async function authorWeek(input: {
     weekIndex: input.weekIndex,
     recent: input.recent,
   };
+  let previousErrors: string[] = [];
   const result = await authorWithRetries({
     key,
     body: weekPrompt(promptInput),
@@ -985,14 +1152,23 @@ export async function authorWeek(input: {
     maxTokens: WEEK_MAX_TOKENS,
     format: weekResponseFormat(),
     retryBody: (errors, previous) => weekPrompt({ ...promptInput, retryErrors: errors, previousDraft: previous }),
-    accept: (json) => {
+    accept: (json, meta) => {
       const judged = judgeWeek(json, input.month, input.weekIndex, input.recent, context);
       const draft = judged.ok ? judged.draft : parseWeekDraft(normalizeWeekPayload(json).value);
+      const previousDraft = meta.previous ? parseWeekDraft(normalizeWeekPayload(meta.previous).value) : null;
+      const retryRepair =
+        meta.attempt > 1 && previousDraft && draft && previousErrors.length
+          ? repairReport(previousErrors, previousDraft, draft)
+          : null;
+      previousErrors = judged.ok ? [] : judged.errors;
       const diagnostics = {
         similarity: draft ? similarityDiagnostics(draft, input.recent) : null,
         errors: judged.ok ? [] : judged.errors,
         failed_constraints: judged.ok ? [] : structureValidationErrors(judged.errors),
         failure_briefs: judged.ok ? [] : constraintFailureBriefs(judged.errors),
+        repair_plan: judged.ok ? null : retryRepairPlan(judged.errors),
+        field_trace: sessionFieldTrace(json, draft),
+        retry_repair: retryRepair,
       };
       if (!judged.ok) {
         return {
