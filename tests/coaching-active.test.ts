@@ -383,7 +383,9 @@ describe("active coaching contracts", () => {
     const enumFail = await run({ badDay: "wed" });
     expect(enumFail.result.day_sources.wed).toBe("fallback");
     expect(enumFail.result.day_sources.mon).toBe("model");
-    expect(enumFail.result.fallback_reason).toContain("partial_model_days");
+    expect(enumFail.result.prescription_source).toBe("fallback_after_model_failure");
+    expect(enumFail.result.generation_source).toBe("fallback");
+    expect(enumFail.result.fallback_reason).toContain("fallback_after_model_failure");
     expect(enumFail.result.plan.intent_source).toBe("model");
     expect(enumFail.result.plan.fallback_used).toBe(false);
     const wed = enumFail.result.traces.find((trace) => trace.agent_name === "session_coach" && trace.day === "wed" && trace.revision_number === 0);
