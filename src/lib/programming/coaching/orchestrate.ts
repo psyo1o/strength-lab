@@ -2,9 +2,9 @@ import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
 import { judgeWeek } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
-import type { DayIntent, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
+import type { DayIntent, DayPrescriptionRecord, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
-import { JSON_OBJECT, durationRuleText, headReviewErrors, loadDecisionErrors, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { durationRuleText, headReviewErrors, loadDecisionErrors, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -14,7 +14,7 @@ import {
   LOAD_COACH_PROMPT_VERSION,
   MAX_HEAD_COACH_REVISIONS,
   SESSION_COACH_PROMPT_VERSION,
-  STAGE14_PIPELINE_VERSION,
+  STAGE15_PIPELINE_VERSION,
   WEEKLY_COACH_PROMPT_VERSION,
 } from "./prompts";
 import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
@@ -25,7 +25,20 @@ import { heavyLowerStressDays } from "./stage13/specialists";
 import { applyHeadPolicy, routesFor } from "./stage13/revision";
 import { analyzeBundle, selfValidatorTraces } from "./stage13/wire";
 import { evaluateHead, toCoachReview } from "./stage14/decide";
-import { parseJudgeNote, recoveryNeedsJudge, variationNeedsJudge } from "./stage14/judges";
+import { recoveryNeedsJudge, variationNeedsJudge } from "./stage14/judges";
+import { hardFindings, lateDiscovered } from "./stage15/hard-rules";
+import { dayStillHard, isolationPlan, weekStatusFor } from "./stage15/isolate";
+import {
+  RECOVERY_JUDGE_PROMPT_VERSION,
+  VARIATION_JUDGE_PROMPT_VERSION,
+  parseRecoveryJudge,
+  parseVariationJudge,
+  recoveryJudgeErrors,
+  variationConcernRejectsDay,
+  variationJudgeErrors,
+} from "./stage15/judges";
+import { MAX_MONTHLY_ROUTER_RETRIES, MAX_WEEKLY_ROUTER_RETRIES, routerPlan } from "./stage15/router";
+import { fallbackQuality } from "./stage15/scores";
 import { mergeHeadWithCode } from "./stage14/merge";
 import { revisionWork } from "./stage14/route";
 import type { HeadDecision } from "./stage14/types";
@@ -386,7 +399,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   if (monthly.trace.source !== "model") noteFailure(monthly.trace.failure_reason);
   let month = { ...input.month, coaching_plan: monthly.plan };
   let week: CoachWeekInput = { ...input, month };
-  const rules = extractWeekRules({ month, weekIndex: input.weekIndex, actual: input.previousActual });
+  let rules = extractWeekRules({ month, weekIndex: input.weekIndex, actual: input.previousActual });
   traces.push(
     finishTrace(Date.now(), {
       run_id: runId,
@@ -490,6 +503,124 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       token_usage: weekly.usage,
     }),
   );
+  const firstRoute = routerPlan(weekly.validationErrors);
+  if (!weeklyFromModel && firstRoute.monthly && MAX_MONTHLY_ROUTER_RETRIES > 0) {
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "revision_router",
+        agent_type: "coach",
+        model: null,
+        prompt_version: "revision-router-v2",
+        input_hash: inputHash({ kind: "MONTHLY", errors: weekly.validationErrors }),
+        output: { monthly: true, max: MAX_MONTHLY_ROUTER_RETRIES },
+        validation_result: "pass",
+        retry_count: 0,
+        failure_reason: null,
+        deterministic: true,
+        decision: "MONTHLY",
+        revision_number: 1,
+      }),
+    );
+    const again = await coachMonthly({
+      month: input.month,
+      actual: input.previousActual,
+      key,
+      fetchImpl: input.fetchImpl,
+      timeoutMs,
+      runId,
+      weekId: input.weekStart,
+    });
+    traces.push({ ...again.trace, revision_number: 1 });
+    usage = addUsage(usage, again.trace.token_usage);
+    month = { ...input.month, coaching_plan: again.plan };
+    week = { ...week, month };
+    rules = extractWeekRules({ month, weekIndex: input.weekIndex, actual: input.previousActual });
+  }
+  if (!weeklyFromModel && firstRoute.weekly && MAX_WEEKLY_ROUTER_RETRIES > 0) {
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "revision_router",
+        agent_type: "coach",
+        model: null,
+        prompt_version: "revision-router-v2",
+        input_hash: inputHash({ kind: "WEEKLY", errors: weekly.validationErrors }),
+        output: { weekly: true, max: MAX_WEEKLY_ROUTER_RETRIES },
+        validation_result: "pass",
+        retry_count: 0,
+        failure_reason: null,
+        deterministic: true,
+        decision: "WEEKLY",
+        revision_number: 1,
+      }),
+    );
+    const weeklyRetryUser = {
+      ...(weeklyUser as Record<string, unknown>),
+      revision_number: 1,
+      revision_instruction: weekly.validationErrors.join(" "),
+    };
+    const weeklyRetry = await askCoach({
+      agent: "weekly",
+      user: weeklyRetryUser,
+      key,
+      fetchImpl: input.fetchImpl,
+      timeoutMs,
+      maxTokens: 6000,
+      promptVersion: WEEKLY_COACH_PROMPT_VERSION,
+      runId,
+      retryContext: { agent: "weekly", week_index: input.weekIndex, revision_number: 1 },
+      validate: (json) => {
+        const errors = weeklyIntentErrors(json);
+        if (errors.length) return { ok: false, errors };
+        const parsed = parseWeeklyIntent(json, deterministic);
+        if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
+        const ruleErrors = weekPlanErrors(parsed, rules);
+        if (ruleErrors.length) return { ok: false, errors: ruleErrors };
+        return { ok: true };
+      },
+    });
+    usage = addUsage(usage, weeklyRetry.usage);
+    modelName = weeklyRetry.model;
+    if (weeklyRetry.ok && weeklyRetry.json) {
+      const parsed = parseWeeklyIntent(weeklyRetry.json, deterministic);
+      if (parsed && weekPlanErrors(parsed, rules).length === 0) {
+        plan = {
+          ...parsed,
+          intent_source: "model",
+          original_intent_source: "model",
+          fallback_used: false,
+          realization: "intent",
+          strength_method: month.strength_method || month.scheme,
+        };
+        weeklyFromModel = true;
+      }
+    }
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "weekly_coach",
+        model: weeklyRetry.model,
+        prompt_version: WEEKLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash(weeklyRetryUser),
+        output: weeklyFromModel ? { block_phase: plan.block_phase } : weeklyRetry.json,
+        raw_output: weeklyRetry.raw,
+        validation_result: weeklyFromModel ? "pass" : "fail",
+        validation_errors: weeklyRetry.validationErrors,
+        retry_count: weeklyRetry.retryCount,
+        failure_reason: weeklyFromModel ? null : weeklyRetry.reason,
+        deterministic: false,
+        source: weeklyFromModel ? "model" : "fallback",
+        fallback_reason: weeklyFromModel ? null : weeklyRetry.reason,
+        revision_number: 1,
+        token_usage: weeklyRetry.usage,
+        decision: weeklyFromModel ? "RERUN" : "KEPT",
+      }),
+    );
+  }
   const planRuleErrors = weekPlanErrors(plan, rules);
   const structure = analyzeWeekStructure(plan);
   traces.push(
@@ -574,6 +705,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   }
 
   const daySources = Object.fromEntries(DAY_ORDER.map((day) => [day, "fallback"])) as Record<DayKey, "model" | "fallback">;
+  const revisedDays = new Set<DayKey>();
   let draft = stamp(built.draft, plan);
   for (const day of trainingDays(plan)) {
     const written = await writeSession({
@@ -735,6 +867,16 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let fatigue = bundle.fatigue;
   let variation = bundle.variation;
   let headDecision: HeadDecision | null = null;
+  let lastHeadHardCodes: string[] = [];
+  const currentHardErrors = () =>
+    finalWeekReport({
+      draft,
+      month,
+      weekIndex: input.weekIndex,
+      recent: input.recentStructures ?? [],
+      context: judgeContext(week),
+      rules,
+    }).hard;
 
   const askHead = async (revisionNumber: number): Promise<HeadCoachReview> => {
     const started = Date.now();
@@ -744,27 +886,30 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     if (key && variationNeedsJudge({ findings: variationFindings, progression })) {
       const judgeStarted = Date.now();
       const askedJudge = await askCoach({
-        agent: "head",
+        agent: "variation_judge",
         user: {
           agent_name: "variation_judge",
           revision_number: revisionNumber,
           findings: variationFindings,
           progression,
-          question: "Return {concern:boolean, note:string}. concern is true only when repetition is accidental monotony. Progression, benchmark, and skill practice are not concerns.",
+          question: "Return {concern:boolean, note:string, intentional:boolean}. concern is true only when repetition is accidental monotony. Do not use the head schema.",
         },
         key,
         fetchImpl: input.fetchImpl,
         timeoutMs,
         maxTokens: 400,
-        promptVersion: "variation-judge-v1",
+        promptVersion: VARIATION_JUDGE_PROMPT_VERSION,
         runId,
-        format: JSON_OBJECT,
         retryContext: { agent: "variation_judge", revision_number: revisionNumber },
-        validate: (json) => (parseJudgeNote(json) ? { ok: true } : { ok: false, errors: ["variation judge needs concern and note"] }),
+        validate: (json) => {
+          const errors = variationJudgeErrors(json);
+          return errors.length ? { ok: false, errors } : { ok: true };
+        },
       });
       usage = addUsage(usage, askedJudge.usage);
-      const parsedJudge = askedJudge.ok ? parseJudgeNote(askedJudge.json) : null;
+      const parsedJudge = askedJudge.ok ? parseVariationJudge(askedJudge.json) : null;
       if (parsedJudge && !parsedJudge.concern) clearVariation = true;
+      if (parsedJudge?.concern && variationConcernRejectsDay()) clearVariation = false;
       traces.push(
         finishTrace(judgeStarted, {
           run_id: runId,
@@ -772,7 +917,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           agent_name: "variation_judge",
           agent_type: "coach",
           model: askedJudge.model,
-          prompt_version: "variation-judge-v1",
+          prompt_version: VARIATION_JUDGE_PROMPT_VERSION,
           input_hash: inputHash({ findings: variationFindings.length, revision: revisionNumber }),
           output: parsedJudge,
           raw_output: askedJudge.raw,
@@ -799,26 +944,29 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     ) {
       const judgeStarted = Date.now();
       const askedJudge = await askCoach({
-        agent: "head",
+        agent: "recovery_judge",
         user: {
           agent_name: "recovery_judge",
           revision_number: revisionNumber,
           reported_fatigue: fatigue.reported_fatigue,
           heavy_lower: heavyLower,
-          question: "Return {concern:boolean, note:string}. concern is true only when athlete state and lower stress should change today's session.",
+          recovery_status: recoveryStatus,
+          question: "Return {concern:boolean, note:string, risk:'low'|'high'|'ambiguous'}. Do not use the head schema.",
         },
         key,
         fetchImpl: input.fetchImpl,
         timeoutMs,
         maxTokens: 400,
-        promptVersion: "recovery-judge-v1",
+        promptVersion: RECOVERY_JUDGE_PROMPT_VERSION,
         runId,
-        format: JSON_OBJECT,
         retryContext: { agent: "recovery_judge", revision_number: revisionNumber },
-        validate: (json) => (parseJudgeNote(json) ? { ok: true } : { ok: false, errors: ["recovery judge needs concern and note"] }),
+        validate: (json) => {
+          const errors = recoveryJudgeErrors(json);
+          return errors.length ? { ok: false, errors } : { ok: true };
+        },
       });
       usage = addUsage(usage, askedJudge.usage);
-      const parsedJudge = askedJudge.ok ? parseJudgeNote(askedJudge.json) : null;
+      const parsedJudge = askedJudge.ok ? parseRecoveryJudge(askedJudge.json) : null;
       traces.push(
         finishTrace(judgeStarted, {
           run_id: runId,
@@ -826,7 +974,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           agent_name: "recovery_judge",
           agent_type: "coach",
           model: askedJudge.model,
-          prompt_version: "recovery-judge-v1",
+          prompt_version: RECOVERY_JUDGE_PROMPT_VERSION,
           input_hash: inputHash({ heavyLower, revision: revisionNumber }),
           output: parsedJudge,
           raw_output: askedJudge.raw,
@@ -883,10 +1031,13 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         }),
       );
     }
+    const headHard = hardFindings(currentHardErrors());
+    lastHeadHardCodes = [...new Set(headHard.map((row) => row.code))];
     const user = {
       ...(headUser(week, plan, draft, loadDecisions, revisionNumber) as Record<string, unknown>),
+      hard_rule_findings: headHard,
       constitution:
-        "A concern is not a revision. Similarity alone stays minor. Revise only when benefit exceeds cost. Do not write a workout.",
+        "A concern is not a revision. Hard findings are facts, not a request to rebuild the week. Similarity alone stays minor. Revise only when benefit exceeds cost. Do not write a workout.",
       monthly_goal: month.coaching_plan?.block_goal ?? null,
       monthly_method: month.coaching_plan?.strength_method ?? month.strength_method,
       block_phase: plan.block_phase,
@@ -1149,6 +1300,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       if (written.source === "model") {
         draft = written.draft;
         daySources[revision.day] = "model";
+        revisedDays.add(revision.day);
         changed = true;
         continue;
       }
@@ -1290,43 +1442,111 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let rejectedErrors: string[] = [];
   let resolvedStatus: "APPROVE" | "APPROVE_WITH_NOTE" | "FINALIZE_WITH_WARNING" = finalStatus;
   let resolvedReason = fallbackReason;
+  const originals = new Map(draft.sessions.map((session) => [session.day, JSON.parse(JSON.stringify(session)) as SessionDraft]));
+  const failedDays = new Set<DayKey>();
   if (finalErrors.length > 0) {
     rejectedErrors = [...finalErrors];
-    const legal = assembleLegalWeek({
-      month,
-      weekIndex: input.weekIndex,
-      plan,
-      actual: input.previousActual,
-      recent: input.recentStructures,
-      recentLiftMaps: input.recentLiftMaps,
-    });
-    const legalDraft = stamp(legal.draft, plan);
-    const legalReport = finalWeekReport({
-      draft: legalDraft,
-      month,
-      weekIndex: input.weekIndex,
-      recent: input.recentStructures ?? [],
-      context: judgeContext(week),
-      rules,
-    });
-    if (legal.judgeOk && legalReport.hard.length === 0) {
-      rejectedDraft = draft;
-      draft = legalDraft;
-      for (const day of trained) daySources[day.day] = "fallback";
-      finalErrors = [];
+    const targeted = isolationPlan({ errors: finalErrors, trainingDays: trained.map((day) => day.day) });
+    if (targeted.replaceDays.length > 0) {
+      const rebuilt = replaceDays({
+        month,
+        weekIndex: input.weekIndex,
+        plan,
+        draft,
+        days: targeted.replaceDays,
+        actual: input.previousActual,
+        recent: input.recentStructures,
+        recentLiftMaps: input.recentLiftMaps,
+        salt: built.salt + 21,
+      });
+      const rebuiltReport = finalWeekReport({
+        draft: stamp(rebuilt.draft, plan),
+        month,
+        weekIndex: input.weekIndex,
+        recent: input.recentStructures ?? [],
+        context: judgeContext(week),
+        rules,
+      });
+      const sessions = draft.sessions.map((session) => {
+        if (!targeted.replaceDays.includes(session.day)) return originals.get(session.day) ?? session;
+        const fallbackSession = rebuilt.draft.sessions.find((row) => row.day === session.day);
+        if (!fallbackSession || dayStillHard(rebuiltReport.hard, session.day)) {
+          failedDays.add(session.day);
+          return originals.get(session.day) ?? session;
+        }
+        daySources[session.day] = "fallback";
+        return fallbackSession;
+      });
+      draft = stamp({ ...draft, sessions }, plan);
+      finalErrors = finalWeekReport({
+        draft,
+        month,
+        weekIndex: input.weekIndex,
+        recent: input.recentStructures ?? [],
+        context: judgeContext(week),
+        rules,
+      }).hard;
       modelDayCount = trained.filter((day) => daySources[day.day] === "model").length;
       origin = prescriptionSource({ modelDays: modelDayCount, trainingDays: trained.length, revisions, legacy: false });
       modelAdopted = origin === "model" || origin === "model_revised";
-      resolvedReason = "final_validation_rejected";
-      plan = { ...plan, day_sources: daySources, prescription_source: origin, fallback_used: true, final_status: resolvedStatus };
-      draft = stamp(draft, plan);
-    } else {
+    }
+    if (finalErrors.length > 0) {
       resolvedStatus = "FINALIZE_WITH_WARNING";
       resolvedReason = resolvedReason ? `${resolvedReason};final_validation_failed` : "final_validation_failed";
-      plan = { ...plan, final_status: resolvedStatus, coach_notes: notes };
-      draft = stamp(draft, plan);
     }
   }
+  const dayRecords: Partial<Record<DayKey, DayPrescriptionRecord>> = {};
+  for (const day of trained) {
+    const original = originals.get(day.day) ?? null;
+    const finalSession = draft.sessions.find((session) => session.day === day.day) ?? null;
+    const failed = failedDays.has(day.day) || dayStillHard(finalErrors, day.day);
+    const source = daySources[day.day];
+    const finalSource = failed
+      ? "FAILED"
+      : source === "model"
+        ? revisedDays.has(day.day)
+          ? "MODEL_REVISED"
+          : "MODEL"
+        : "DETERMINISTIC_FALLBACK";
+    const quality =
+      finalSource === "DETERMINISTIC_FALLBACK" || finalSource === "FAILED"
+        ? fallbackQuality({
+            monthlyAligned: true,
+            weeklyAligned: weekPlanErrors(plan, rules).length === 0,
+            fatigueOk: fatigue.reported_fatigue !== "high" || !dayStillHard(finalErrors, day.day),
+            strengthOk: !dayStillHard(finalErrors, day.day),
+            conditioningOk: Boolean(finalSession?.conditioning || finalSession?.rest),
+            practicalOk: !dayStillHard(finalErrors, day.day),
+          })
+        : null;
+    dayRecords[day.day] = {
+      original_model_output: source === "model" || failed ? original : original,
+      final_prescription: failed ? null : finalSession,
+      final_source: finalSource,
+      day_status: failed ? "FAILED" : finalSource === "MODEL_REVISED" ? "MODEL_REVISED" : finalSource === "MODEL" ? "MODEL" : "FALLBACK",
+      failure_reason: failed ? (finalErrors.find((error) => error.includes(day.day)) ?? "hard validation failed") : null,
+      revision_reason: revisedDays.has(day.day) ? "head revision" : null,
+      fallback_quality: quality,
+      original_model_score: null,
+      fallback_score: null,
+    };
+  }
+  const anyDayFailed = Object.values(dayRecords).some((row) => row?.day_status === "FAILED");
+  const weekStatus = weekStatusFor({ hardErrors: finalErrors, anyDayFailed });
+  plan = {
+    ...plan,
+    day_sources: { ...daySources },
+    day_records: dayRecords,
+    week_status: weekStatus,
+    prescription_source: origin,
+    final_status: resolvedStatus,
+    coach_notes: notes,
+  };
+  draft = stamp(draft, plan);
+  const late = lateDiscovered(
+    lastHeadHardCodes,
+    hardFindings(rejectedErrors.length ? rejectedErrors : finalErrors).map((row) => row.code),
+  );
   traces.push(
     finishTrace(Date.now(), {
       run_id: runId,
@@ -1336,13 +1556,18 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       model: null,
       prompt_version: "final-validator-v1",
       input_hash: inputHash({ errors: finalErrors.length }),
-      output: { errors: finalErrors.slice(0, 8), signals: finalReport.signals.slice(0, 8) },
-      validation_result: rejectedDraft ? "fail" : finalErrors.length ? "fail" : "pass",
+      output: {
+        errors: finalErrors.slice(0, 8),
+        signals: finalReport.signals.slice(0, 8),
+        late_discovered_hard_rule: late,
+        week_status: weekStatus,
+      },
+      validation_result: finalErrors.length ? "fail" : "pass",
       validation_errors: (rejectedErrors.length ? rejectedErrors : finalErrors).slice(0, 8),
       retry_count: 0,
-      failure_reason: rejectedDraft || finalErrors.length ? "final_validation_failed" : null,
+      failure_reason: finalErrors.length ? "final_validation_failed" : null,
       deterministic: true,
-      decision: rejectedDraft ? "REJECTED_NOT_ACTIVE" : finalErrors.length ? "FAIL" : "PASS",
+      decision: finalErrors.length ? "FAIL" : "PASS",
       revision_number: revisions,
     }),
   );
@@ -1356,7 +1581,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     generation_source: modelAdopted ? "model" : "fallback",
     fallback_reason: resolvedReason,
     model_name: modelName,
-    prompt_version: STAGE14_PIPELINE_VERSION,
+    prompt_version: STAGE15_PIPELINE_VERSION,
     traces,
     judge_ok: finalErrors.length === 0,
     day_sources: daySources,
@@ -1370,11 +1595,14 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       ok: finalErrors.length === 0,
       errors: finalErrors.slice(0, 8),
       signals: finalReport.signals.slice(0, 8),
-      rejected: Boolean(rejectedDraft) || finalErrors.length > 0,
+      rejected: finalErrors.length > 0,
       rejected_errors: rejectedErrors.slice(0, 8),
+      late_discovered_hard_rule: late,
     },
-    pipeline: "stage14",
+    pipeline: "stage15",
     prescription_source: origin,
     rejected_draft: rejectedDraft,
+    day_records: dayRecords,
+    week_status: weekStatus,
   };
 }

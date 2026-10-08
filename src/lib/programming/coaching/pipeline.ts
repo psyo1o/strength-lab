@@ -4,7 +4,7 @@ import { realizeWeekFromIntent } from "../realize-intent";
 import { judgeWeek, toStructure } from "../rules";
 import type { WeekActual } from "../summary";
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
-import type { MonthDirection, MonthlyCoachPlan, StoredStructure, WeekDraft, WeekIndex, WeeklyIntentPlan } from "../types";
+import type { DayPrescriptionRecord, MonthDirection, MonthlyCoachPlan, StoredStructure, WeekDraft, WeekIndex, WeekLifecycle, WeeklyIntentPlan } from "../types";
 import { fatigueReport, type FatigueReport } from "./fatigue";
 import { deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
@@ -59,10 +59,19 @@ export type CoachWeekResult = {
   load_decisions: LoadDecision[];
   token_usage: TokenUsage;
   latency_ms: number;
-  final_validation?: { ok: boolean; errors: string[]; signals?: string[]; rejected?: boolean; rejected_errors?: string[] };
-  pipeline?: "stage12" | "stage13" | "stage14";
+  final_validation?: {
+    ok: boolean;
+    errors: string[];
+    signals?: string[];
+    rejected?: boolean;
+    rejected_errors?: string[];
+    late_discovered_hard_rule?: boolean;
+  };
+  pipeline?: "stage12" | "stage13" | "stage14" | "stage15";
   rejected_draft?: WeekDraft | null;
   prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
+  day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
+  week_status?: WeekLifecycle;
 };
 
 export function assertProbeWeek(weekStart: string) {

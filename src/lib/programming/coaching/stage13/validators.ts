@@ -3,6 +3,7 @@ import { judgeWeek, TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rule
 import type { DayIntent, MonthDirection, SessionDraft, WeekDraft, WeekIndex } from "../../types";
 import { COACHING_POLICY, isCoachingSignal } from "./policy";
 import { MOVEMENT_EQUIPMENT, unitError } from "./units";
+import { longConditioningCountAllowed } from "../stage15/week-policy";
 import { weekPlanErrors, type WeekRules } from "./rules";
 
 export type SessionSelfReport = {
@@ -158,11 +159,12 @@ export function finalWeekReport(input: {
     }
   }
   const longs = input.draft.sessions.filter((session) => session.conditioning?.long_conditioning);
-  if (input.rules.long_conditioning_required && longs.length !== 1) {
-    hard.push(`final week long conditioning count ${longs.length}; rule requires 1`);
-  }
-  if (!input.rules.long_conditioning_required && longs.length !== 0) {
-    hard.push("final week has a long conditioning piece outside a long week");
+  if (!longConditioningCountAllowed(input.rules.long_conditioning_required, longs.length)) {
+    hard.push(
+      input.rules.long_conditioning_required
+        ? `final week long conditioning count ${longs.length}; rule requires 1`
+        : "final week has a long conditioning piece outside a long week",
+    );
   }
   for (const session of longs) {
     const minutes = session.conditioning?.duration_min ?? 0;

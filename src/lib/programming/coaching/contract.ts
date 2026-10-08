@@ -153,6 +153,24 @@ export function schemaBrief(agent: CoachAgentName): string {
       "reason_ko is Korean.",
     ].join("\n");
   }
+  if (agent === "variation_judge") {
+    return [
+      "JSON object. Keys: concern, note, intentional.",
+      "concern is a boolean. True only for accidental monotony.",
+      "intentional is a boolean. True when the repeat is progression, a benchmark, or skill practice.",
+      "note is one short sentence.",
+      "Do not return status, note_ko, or revisions. This is not a head review.",
+    ].join("\n");
+  }
+  if (agent === "recovery_judge") {
+    return [
+      "JSON object. Keys: concern, note, risk.",
+      "concern is a boolean.",
+      "risk is low, high, or ambiguous.",
+      "note is one short sentence.",
+      "Do not return status, note_ko, or revisions. This is not a head review.",
+    ].join("\n");
+  }
   return [
     "JSON object. Keys: status, note_ko, revisions.",
     enumLine("status", HEAD_STATUSES),
@@ -302,6 +320,32 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           ),
         },
         ["day", "warmup_ko", "notes_ko", "conditioning"],
+      ),
+    );
+  }
+  if (agent === "variation_judge") {
+    return schemaOf(
+      "variation_judge",
+      strictObject(
+        {
+          concern: { type: "boolean" },
+          note: TEXT,
+          intentional: { type: "boolean" },
+        },
+        ["concern", "note", "intentional"],
+      ),
+    );
+  }
+  if (agent === "recovery_judge") {
+    return schemaOf(
+      "recovery_judge",
+      strictObject(
+        {
+          concern: { type: "boolean" },
+          note: TEXT,
+          risk: stringEnum(["low", "high", "ambiguous"]),
+        },
+        ["concern", "note", "risk"],
       ),
     );
   }

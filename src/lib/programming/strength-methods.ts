@@ -1,5 +1,6 @@
 import type { MainLift, WeekIndex } from "../month-plan/types";
 import { fatigueCutSets, schemeSets, setsMatchFatigueCut, setsMatchScheme } from "./schemes";
+import { fatigueCutAllowed } from "./coaching/stage15/fatigue-cut";
 import { isLowerBodyLift, type Scheme, type StrengthSetDraft } from "./types";
 
 /**
@@ -247,7 +248,7 @@ export function validateStrengthPrescription(method: string, sets: StrengthSetDr
   if (!isImplementedStrengthMethod(method)) return `${label}: ${method} is not implemented`;
   if (EXACT_METHODS.has(method)) {
     const scheme = method as Scheme;
-    if (context.fatigue === "high" && isLowerBodyLift(context.lift)) {
+    if (context.fatigue === "high" && fatigueCutAllowed(context.lift)) {
       if (!setsMatchFatigueCut(scheme, context.weekIndex, sets)) return `${label}: fatigue cut`;
       return null;
     }

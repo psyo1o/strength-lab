@@ -1,9 +1,8 @@
 import type { DayKey, WeekIndex } from "../../month-plan/types";
 import { fillSessionFields } from "../session-fields";
-import { fatigueCutSets } from "../schemes";
-import { exampleSets, legacySchemeForMethod } from "../strength-methods";
 import type { WeekActual } from "../summary";
-import { isLowerBodyLift, type MonthDirection, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
+import type { MonthDirection, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
+import { setsForMethodAction } from "./stage15/method-policy";
 import { performanceRead } from "../weekly-intent";
 import type { LoadDecisionDraft } from "./contract";
 
@@ -66,18 +65,7 @@ export function setsForAction(input: {
   weekIndex: WeekIndex;
   session: SessionDraft;
 }): SessionDraft["strength"] {
-  if (!input.session.strength || input.action === "hold") return input.session.strength;
-  const method = input.month.strength_method || input.month.scheme;
-  const lift = input.session.strength.lift;
-  if (input.action === "cut" && !isLowerBodyLift(lift)) {
-    const scheme = legacySchemeForMethod(method);
-    if (!scheme) return input.session.strength;
-    return { lift, sets: fatigueCutSets(scheme, input.weekIndex) };
-  }
-  const fatigue = input.action === "cut" ? "high" : "low";
-  const sets = exampleSets(method, input.weekIndex, fatigue, lift);
-  if (!sets) return input.session.strength;
-  return { lift, sets };
+  return setsForMethodAction(input).strength;
 }
 
 export function applyLoadDecisions(input: {

@@ -11,6 +11,7 @@ export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
 export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
 export const STAGE13_PIPELINE_VERSION = "coaching-pipeline-v3";
 export const STAGE14_PIPELINE_VERSION = "coaching-pipeline-v4";
+export const STAGE15_PIPELINE_VERSION = "coaching-pipeline-v5";
 
 export const MAX_HEAD_COACH_REVISIONS = 2;
 
@@ -80,6 +81,25 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
       "Status is APPROVE, APPROVE_WITH_NOTE, or REVISE. Do not return a new week, new movements, or new sets. REVISE names only the days that must change. APPROVE_WITH_NOTE uses an empty revisions array.",
     output_schema: "Use the head schema in the OUTPUT SCHEMA block.",
     failure_behavior: "Unreadable reviews keep the code decision. After two revision cycles the week is finalized. A failed final validation is not stored as the active week.",
+  },
+  variation_judge: {
+    role: "You are the variation judge. You are not the head coach.",
+    objective: "Decide whether a repetition is accidental monotony or an intentional repeat.",
+    inputs: "Variation findings and progression labels. No workout to rewrite.",
+    decision_principles:
+      "Progression, benchmark practice, and skill practice are not concerns. Accidental monotony is a concern. A concern does not reject the day.",
+    constraints: "Do not return status, note_ko, or revisions. Do not write a workout. Do not invent a hard error.",
+    output_schema: "Return concern, note, and intentional. Nothing else.",
+    failure_behavior: "An unreadable answer is skipped. The day is not rejected.",
+  },
+  recovery_judge: {
+    role: "You are the recovery judge. You are not the head coach.",
+    objective: "Decide whether athlete fatigue and lower-body stress should change today's session.",
+    inputs: "Reported fatigue, heavy lower-body stress, and the analyzer status. Called only for ambiguous or high-risk reads.",
+    decision_principles: "A clear safe week is not yours to reopen. High risk is a concern, not a new program.",
+    constraints: "Do not return status, note_ko, or revisions. Do not write sets or movements.",
+    output_schema: "Return concern, note, and risk. risk is low, high, or ambiguous.",
+    failure_behavior: "An unreadable answer is skipped. The day is not rejected from this judge.",
   },
 };
 

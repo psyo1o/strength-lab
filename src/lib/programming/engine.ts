@@ -29,6 +29,7 @@ import {
   linkProgrammingWeek,
   saveMonthlyProposal,
   listProgrammingMonths,
+  listProgrammingWeekAttempts,
   listProgrammingWeeksBefore,
   listProgrammingWeeksForMonth,
   listRecentLiftMaps,
@@ -348,7 +349,7 @@ async function writeProgrammingWeek(
         draft: coached.draft,
         display: rejectedDisplay,
         inputSummaryJson: JSON.stringify(summary),
-        generationSource: "fallback",
+        generationSource: coached.generation_source,
         fallbackReason: "final_validation_failed",
         generatedAt: nowMs,
         modelName: coached.model_name,
@@ -362,6 +363,13 @@ async function writeProgrammingWeek(
       insertCoachTraces({ scopeKey: weekStart, planId: failedId, createdAt: nowMs, traces: coached.traces });
       const existing = getProgrammingWeek(weekStart);
       if (existing) return existing;
+      const salvage = Object.values(coached.day_records ?? {}).some(
+        (row) => row?.final_source === "MODEL" || row?.final_source === "MODEL_REVISED",
+      );
+      if (salvage || coached.week_status === "FAILED") {
+        const failed = listProgrammingWeekAttempts(weekStart).find((row) => row.id === failedId);
+        if (failed) return failed;
+      }
       const legal = fallbackWeek(
         month.direction,
         weekIndex,

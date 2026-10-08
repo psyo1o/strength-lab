@@ -2,6 +2,7 @@ import type { DayKey } from "../../../month-plan/types";
 import { previousLowerFatigue } from "../../rules";
 import type { MonthDirection, WeekIndex, WeeklyIntentPlan } from "../../types";
 import type { WeekActual } from "../../summary";
+import { benchmarkCountAllowed, longConditioningCountAllowed } from "../stage15/week-policy";
 
 /**
  * Immutable rules for one week, taken from the monthly plan.
@@ -57,18 +58,20 @@ export function weekPlanErrors(plan: WeeklyIntentPlan, rules: WeekRules): string
     errors.push(`weekly plan changed the method to ${plan.strength_method}; this block is ${rules.strength_method}`);
   }
   const benchmarks = count(plan, (day) => day.benchmark);
-  if (rules.benchmark_required && benchmarks !== 1) {
-    errors.push(`benchmark week needs exactly one benchmark day; current=${benchmarks}`);
-  }
-  if (!rules.benchmark_required && benchmarks !== 0) {
-    errors.push("benchmark day is only allowed on the benchmark week");
+  if (!benchmarkCountAllowed(rules.benchmark_required, benchmarks)) {
+    errors.push(
+      rules.benchmark_required
+        ? `benchmark week needs exactly one benchmark day; current=${benchmarks}`
+        : "benchmark day is only allowed on the benchmark week",
+    );
   }
   const longs = count(plan, (day) => day.secondary_training === "long_conditioning");
-  if (rules.long_conditioning_required && longs !== 1) {
-    errors.push(`this week needs exactly one long conditioning day; current=${longs}`);
-  }
-  if (!rules.long_conditioning_required && longs !== 0) {
-    errors.push("this week is not a long-conditioning week");
+  if (!longConditioningCountAllowed(rules.long_conditioning_required, longs)) {
+    errors.push(
+      rules.long_conditioning_required
+        ? `this week needs exactly one long conditioning day; current=${longs}`
+        : "this week is not a long-conditioning week",
+    );
   }
   const rests = count(plan, (day) => day.primary_training === "rest" || day.recovery_role === "rest");
   if (rests < rules.min_rest_days) errors.push(`weekly plan needs at least ${rules.min_rest_days} rest day`);

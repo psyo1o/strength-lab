@@ -21,16 +21,17 @@ export function variationNeedsJudge(input: {
 }
 
 /**
- * Recovery Judge runs only for a partial combination.
- * High reported fatigue plus heavy lower-body stress is decided in code.
+ * Recovery Judge runs only when the analyzer is ambiguous or already high-risk.
+ * A clear pass is not sent to the model.
  */
 export function recoveryNeedsJudge(input: {
   reportedFatigue: string | null;
   heavyLower: boolean;
   recoveryStatus: string;
 }): boolean {
-  if (input.reportedFatigue === "high" && input.heavyLower) return false;
-  if (input.recoveryStatus === "HIGH_RISK" || input.recoveryStatus === "SAFE") return false;
+  if (input.recoveryStatus === "PASS" || input.recoveryStatus === "SAFE") return false;
+  if (input.recoveryStatus === "HIGH_RISK" || input.recoveryStatus === "CRITICAL") return true;
+  if (input.reportedFatigue === "high" && input.heavyLower) return true;
   return input.reportedFatigue === "moderate" && input.heavyLower;
 }
 

@@ -1,4 +1,5 @@
 import { getSqlite } from "../db/client";
+import { isProbeSeed, probeMayWriteWeek } from "./coaching/stage15/probe-safety";
 import { kstParts } from "../month-plan/calendar";
 import { ADMIN_CONDITIONING_ID } from "../month-plan/metcon-edit";
 import { DAY_ORDER, type DayKey, type PlannedDay, type PlannedWeek } from "../month-plan/types";
@@ -84,6 +85,8 @@ export function recomputeWeeklyActual(weekStart: string, nowMs = Date.now()): We
   const week = getProgrammingWeek(weekStart);
   if (!week) return null;
   const previous = getWeeklyActual(week.id) ?? getWeeklyActualForStart(weekStart);
+  if (!probeMayWriteWeek(weekStart)) return previous;
+  if (previous && isProbeSeed(previous.note_ko)) return previous;
   const built = scrubActual(buildActual(week.weekStart, week.draft, week.display.days));
   const merged = mergeManual(built, previous);
   saveWeeklyActual(week.id, merged, nowMs);
