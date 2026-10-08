@@ -12,6 +12,7 @@ import {
   type WeeklyIntentPlan,
 } from "../types";
 import { movementCatalog } from "./pieces";
+import { unitGuide } from "./stage13/units";
 import type { CoachAgentName } from "./models";
 
 /**
@@ -34,7 +35,7 @@ export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals"] as const;
 export const LOAD_ACTIONS = ["progress", "hold", "cut"] as const;
 export const TARGET_EFFORTS = ["easy", "moderate", "hard"] as const;
 export const RELATIVE_INTENSITIES = ["up", "same", "down"] as const;
-export const HEAD_STATUSES = ["APPROVE", "REVISE"] as const;
+export const HEAD_STATUSES = ["APPROVE", "APPROVE_WITH_NOTE", "REVISE"] as const;
 export const REVISION_PRIORITIES = ["high", "medium", "low"] as const;
 export const WEEK_ROLES = ["accumulation", "progression", "intensification", "deload", "absorb", "long_support", "peak", "emphasis"] as const;
 
@@ -134,7 +135,8 @@ export function schemaBrief(agent: CoachAgentName): string {
       enumLine("equipment", EQUIPMENT),
       "movements is an array of {key, amount, name_ko}. 2 to 4 items, or 1 only when primary_training is aerobic and the day is not long.",
       `movement.key must be one of: ${catalog}.`,
-      "name_ko must be the catalog Korean name for that key. amount is reps or a calorie pair such as 12/10cal. No kilograms.",
+      "name_ko must be the catalog Korean name for that key.",
+      unitGuide(),
       durationRuleText(),
       "warmup_ko and notes_ko are Korean.",
     ].join("\n");
@@ -154,8 +156,10 @@ export function schemaBrief(agent: CoachAgentName): string {
   return [
     "JSON object. Keys: status, note_ko, revisions.",
     enumLine("status", HEAD_STATUSES),
-    "APPROVE uses an empty revisions array.",
-    "REVISE names only the days that must change. Do not return a new week.",
+    "APPROVE means there is no coaching issue worth acting on. revisions is empty.",
+    "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions is empty. Do not write a new workout.",
+    "REVISE only when the coaching benefit is greater than the cost of the change. Name only the days that must change. Do not return a new week.",
+    "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
     "Each revision: day, reason, correction_instruction, priority, constraints.",
     enumLine("day", DAY_ORDER),
     enumLine("priority", REVISION_PRIORITIES),
@@ -555,7 +559,7 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
         errors.push(`${prefix}.name_ko: received ${received(row.name_ko)}; catalog name for ${String(row.key)} is ${catalog.get(String(row.key))}`);
       }
       if (typeof row.amount !== "string" || !row.amount.trim() || /kg/i.test(row.amount)) {
-        errors.push(`${prefix}.amount: received ${received(row.amount)}; use reps or a calorie pair, never kilograms`);
+        errors.push(`${prefix}.amount: received ${received(row.amount)}; reps are 12 or 12 reps, calories are 12cal or 12/10cal, distance is 500m. Never kilograms.`);
       }
     });
   }
@@ -617,8 +621,8 @@ export function headReviewErrors(value: unknown): string[] {
     errors.push("revisions: expected an array");
     return errors;
   }
-  if (value.status === "APPROVE" && value.revisions.length > 0) {
-    errors.push("revisions: APPROVE requires an empty array");
+  if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE") && value.revisions.length > 0) {
+    errors.push("revisions: APPROVE and APPROVE_WITH_NOTE require an empty array");
   }
   if (value.status === "REVISE" && value.revisions.length === 0) {
     errors.push("revisions: REVISE requires at least one day");

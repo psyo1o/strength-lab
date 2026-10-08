@@ -24,7 +24,13 @@ const SESSION_VALIDATORS = new Set([
 ]);
 
 export function classifyTrace(trace: AgentTrace): RejectClass | null {
-  if (trace.validation_result !== "fail" && trace.agent_name !== "head_coach") return null;
+  if (
+    trace.validation_result !== "fail" &&
+    trace.agent_name !== "head_coach" &&
+    trace.agent_name !== "variation_coach"
+  ) {
+    return null;
+  }
   if (trace.agent_name === "head_coach" && trace.decision === "REVISE") return "HEAD_REVISION";
   if (trace.agent_name === "weekly_validator" || trace.agent_name === "weekly_coach") {
     const text = (trace.validation_errors ?? []).join(" ");
@@ -34,17 +40,23 @@ export function classifyTrace(trace: AgentTrace): RejectClass | null {
   if (trace.agent_name === "monthly_validator" || trace.agent_name === "monthly_coach") {
     return trace.validation_result === "fail" ? "CONTRACT_ERROR" : null;
   }
-  if (SESSION_VALIDATORS.has(trace.agent_name) || (trace.agent_name === "session_coach" && trace.validation_result === "fail")) {
+  if (SESSION_VALIDATORS.has(trace.agent_name)) {
     const text = (trace.validation_errors ?? []).join(" ");
     if (trace.failure_reason === "http_error" || trace.failure_reason === "timeout") return "MODEL_ERROR";
     if (text.includes("similar") || text.includes("repeats on")) return "INTERACTION_ERROR";
     return "SESSION_SELF_ERROR";
   }
+  if (trace.agent_name === "session_coach" && trace.validation_result === "fail") {
+    if (trace.failure_reason === "http_error" || trace.failure_reason === "timeout") return "MODEL_ERROR";
+    return null;
+  }
   if (trace.agent_name === "load_validator" || trace.agent_name === "load_coach") {
     return trace.validation_result === "fail" ? "LOAD_ERROR" : null;
   }
   if (trace.agent_name === "week_interaction_analyzer" && trace.validation_result === "fail") return "INTERACTION_ERROR";
-  if (trace.agent_name === "variation_coach" && trace.validation_result === "fail") return "VARIATION_CONCERN";
+  if (trace.agent_name === "variation_coach" && (trace.validation_result === "fail" || trace.decision === "CONCERN" || trace.decision === "CRITICAL")) {
+    return "VARIATION_CONCERN";
+  }
   if (trace.agent_name === "recovery_coach" || trace.agent_name === "recovery_analyzer") {
     return trace.validation_result === "fail" ? "FATIGUE_CONCERN" : null;
   }

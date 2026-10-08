@@ -9,6 +9,7 @@ import {
   type StructureHit,
 } from "./analyzers";
 import type { WeekRules } from "./rules";
+import { MOVEMENT_EQUIPMENT } from "./units";
 
 export type SpecialistName = "strength" | "conditioning" | "recovery" | "variation" | "practical" | "fun";
 
@@ -95,21 +96,61 @@ export function conditioningReview(input: {
   });
 }
 
-export function recoveryReview(sessions: readonly SessionDraft[]): SpecialistReview {
+const LOWER_METCON = new Set([
+  "box_jump",
+  "wall_ball",
+  "lunge",
+  "squat",
+  "front_squat",
+  "kb_swing",
+  "kettlebell",
+  "thruster",
+  "burpee",
+  "deadlift",
+  "pistol",
+  "clean",
+  "power_clean",
+  "hang_power_clean",
+]);
+
+export function heavyLowerStressDays(sessions: readonly SessionDraft[]): DayKey[] {
+  const days: DayKey[] = [];
+  for (const session of sessions) {
+    if (session.rest || session.conditioning?.intensity !== "heavy") continue;
+    const lowerLift = session.strength?.lift === "squat" || session.strength?.lift === "deadlift";
+    const lowerMove = (session.conditioning?.movements ?? []).some((movement) => LOWER_METCON.has(movement.key));
+    if (lowerLift || lowerMove) days.push(session.day);
+  }
+  return days;
+}
+
+export function recoveryReview(
+  sessions: readonly SessionDraft[],
+  context?: { reportedFatigue?: string | null },
+): SpecialistReview {
   const recovery = analyzeRecovery(sessions);
-  const status = recovery.status === "HIGH_RISK" ? "CRITICAL" : recovery.status === "CONCERN" ? "CONCERN" : "PASS";
+  const reasons = [...recovery.reasons];
+  const heavyLower = heavyLowerStressDays(sessions);
+  if (context?.reportedFatigue === "high" && heavyLower.length > 0) {
+    reasons.push(`reported fatigue high with heavy lower-body stress on ${heavyLower.join(" ")}`);
+  }
+  const stacked = reasons.some((reason) => reason.includes("stack lower-body") || reason.includes("reported fatigue high"));
+  const status = stacked ? "CONCERN" : recovery.status === "HIGH_RISK" ? "CRITICAL" : recovery.status === "CONCERN" || reasons.length ? "CONCERN" : "PASS";
   return review({
     name: "recovery",
     status,
-    confidence: recovery.status === "SAFE" ? 0.75 : 0.65,
-    signals: recovery.reasons,
-    reasoning: recovery.reasons,
-    recommendations: status === "PASS" ? [] : ["연속된 스트레스를 한 단계 낮추세요. 운동 목록을 여기서 다시 쓰지 않습니다."],
-    severity: recovery.status === "HIGH_RISK" ? "CRITICAL" : recovery.status === "CONCERN" ? "MAJOR" : "MINOR",
-    findings: recovery.reasons,
-    affected_days: daysOf(recovery.reasons.flatMap((reason) => reason.split(" ").filter((word) => ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].includes(word)))),
-    reason: recovery.reasons[0] ?? "recovery spacing is safe",
-    recommendation: status === "PASS" ? "" : "연속된 스트레스를 한 단계 낮추세요. 운동 목록을 여기서 다시 쓰지 않습니다.",
+    confidence: status === "PASS" ? 0.75 : 0.7,
+    signals: reasons,
+    reasoning: reasons,
+    recommendations: status === "PASS" ? [] : ["연속된 스트레스와 보고된 피로를 함께 보고, 그 날의 하체 부하만 낮추세요."],
+    severity: stacked || recovery.status === "HIGH_RISK" ? "MAJOR" : status === "CONCERN" ? "MAJOR" : "MINOR",
+    findings: reasons,
+    affected_days: daysOf([
+      ...reasons.flatMap((reason) => reason.split(" ").filter((word) => ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].includes(word))),
+      ...heavyLower,
+    ]),
+    reason: reasons[0] ?? "recovery spacing is safe",
+    recommendation: status === "PASS" ? "" : "연속된 스트레스와 보고된 피로를 함께 보고, 그 날의 하체 부하만 낮추세요.",
   });
 }
 
@@ -122,11 +163,24 @@ export function variationReview(input: {
   const accidental = progression.filter((row) => row.label === "ACCIDENTAL_REPETITION");
   const high = input.structures.filter((hit) => hit.score >= hit.threshold && hit.scope === "recent");
   const intentional = new Set(progression.filter((row) => row.label === "INTENTIONAL_PROGRESSION").map((row) => row.day));
+  const counts = new Map<string, string[]>();
+  for (const session of input.sessions) {
+    const intent = input.plan.days.find((day) => day.day === session.day);
+    const purposeful = Boolean(session.conditioning?.benchmark || intent?.progression_required || intent?.benchmark);
+    if (purposeful) continue;
+    for (const movement of session.conditioning?.movements ?? []) {
+      const days = counts.get(movement.key) ?? [];
+      days.push(session.day);
+      counts.set(movement.key, days);
+    }
+  }
+  const frequent = [...counts.entries()].filter(([, days]) => new Set(days).size >= 3);
   const findings = [
     ...accidental.map((row) => `${row.day}: ${row.reason}`),
     ...high.filter((hit) => !intentional.has(hit.day)).map((hit) => `${hit.day} structure similarity ${hit.score} (${hit.reason})`),
+    ...frequent.map(([key, days]) => `${key} frequency ${new Set(days).size} without a progression or benchmark intent`),
   ];
-  const status = accidental.length ? "CONCERN" : findings.length ? "CONCERN" : "PASS";
+  const status = findings.length ? "CONCERN" : "PASS";
   return review({
     name: "variation",
     status,
@@ -136,7 +190,11 @@ export function variationReview(input: {
     recommendations: status === "PASS" ? [] : ["형식, 자극, 패턴 중 두 가지 이상을 바꾸세요. 동작 이름만 바꾸지 않습니다."],
     severity: accidental.length ? "MAJOR" : "MINOR",
     findings,
-    affected_days: daysOf([...accidental.map((row) => row.day), ...high.map((hit) => hit.day)]),
+    affected_days: daysOf([
+      ...accidental.map((row) => row.day),
+      ...high.map((hit) => hit.day),
+      ...frequent.flatMap(([, days]) => days),
+    ]),
     reason: findings[0] ?? "repetition is either absent or an intentional progression",
     recommendation: status === "PASS" ? "" : "형식, 자극, 패턴 중 두 가지 이상을 바꾸세요. 동작 이름만 바꾸지 않습니다.",
   });
@@ -156,6 +214,14 @@ export function practicalReview(sessions: readonly SessionDraft[]): SpecialistRe
     if (session.conditioning.movements.length === 0) {
       findings.push(`${session.day} has no movements`);
       days.push(session.day);
+    }
+    const have = new Set(session.conditioning.equipment);
+    for (const movement of session.conditioning.movements) {
+      const need = MOVEMENT_EQUIPMENT[movement.key];
+      if (need && !have.has(need)) {
+        findings.push(`${session.day} ${movement.key} needs ${need}, which the class cannot use together`);
+        days.push(session.day);
+      }
     }
   }
   return review({
@@ -200,6 +266,11 @@ export type IntegratorDecision = {
   note_ko: string;
 };
 
+/**
+ * Aggregate evidence, severity candidates, and conflicts.
+ * must_revise stays false. A specialist concern does not force a revision, and a minor variation note never does.
+ * Head priority decides whether a change is worth making.
+ */
 export function integrateSpecialists(reviews: readonly SpecialistReview[]): IntegratorDecision {
   const priorities = reviews
     .filter((review) => review.status !== "PASS")

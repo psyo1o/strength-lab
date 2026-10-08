@@ -25,6 +25,7 @@ import {
   insertCoachTraces,
   insertProgrammingMonth,
   insertProgrammingWeek,
+  recordFailedProgrammingWeek,
   linkProgrammingWeek,
   saveMonthlyProposal,
   listProgrammingMonths,
@@ -316,6 +317,81 @@ async function writeProgrammingWeek(
       timeoutMs: options.timeoutMs,
       nowMs,
     });
+    if (coached.rejected_draft) {
+      const rejectedDisplay = projectWeek(coached.rejected_draft, weekIndex, "rules", month.direction.strength_method);
+      const failedId = recordFailedProgrammingWeek({
+        monthId: month.id,
+        weekIndex,
+        weekStart,
+        draft: coached.rejected_draft,
+        display: rejectedDisplay,
+        inputSummaryJson: JSON.stringify(summary),
+        generationSource: "fallback",
+        fallbackReason: "final_validation_failed",
+        generatedAt: nowMs,
+        modelName: coached.model_name,
+        promptVersion: coached.prompt_version,
+        rulesVersion: RULES_VERSION,
+        inputSummaryVersion: INPUT_SUMMARY_VERSION,
+        generationAttempt: coached.revision_count + 1,
+        responses: [],
+        logContext: options.logContext,
+      });
+      insertCoachTraces({ scopeKey: weekStart, planId: failedId, createdAt: nowMs, traces: coached.traces });
+    }
+    if (coached.final_validation && coached.final_validation.ok === false) {
+      const rejectedDisplay = projectWeek(coached.draft, weekIndex, "rules", month.direction.strength_method);
+      const failedId = recordFailedProgrammingWeek({
+        monthId: month.id,
+        weekIndex,
+        weekStart,
+        draft: coached.draft,
+        display: rejectedDisplay,
+        inputSummaryJson: JSON.stringify(summary),
+        generationSource: "fallback",
+        fallbackReason: "final_validation_failed",
+        generatedAt: nowMs,
+        modelName: coached.model_name,
+        promptVersion: coached.prompt_version,
+        rulesVersion: RULES_VERSION,
+        inputSummaryVersion: INPUT_SUMMARY_VERSION,
+        generationAttempt: coached.revision_count + 1,
+        responses: [],
+        logContext: options.logContext,
+      });
+      insertCoachTraces({ scopeKey: weekStart, planId: failedId, createdAt: nowMs, traces: coached.traces });
+      const existing = getProgrammingWeek(weekStart);
+      if (existing) return existing;
+      const legal = fallbackWeek(
+        month.direction,
+        weekIndex,
+        "final_validation_failed",
+        recent,
+        summary.previous_week?.actual ?? null,
+        recentLiftMaps,
+      );
+      const saved = insertProgrammingWeek({
+        monthId: month.id,
+        weekIndex,
+        weekStart,
+        draft: legal.draft,
+        display: legal.display,
+        inputSummaryJson: JSON.stringify(summary),
+        mode,
+        generationSource: "fallback",
+        fallbackReason: "final_validation_failed",
+        generatedAt: nowMs,
+        modelName: coached.model_name,
+        promptVersion: coached.prompt_version,
+        rulesVersion: RULES_VERSION,
+        inputSummaryVersion: INPUT_SUMMARY_VERSION,
+        generationAttempt: coached.revision_count + 1,
+        responses: [],
+        logContext: options.logContext,
+      });
+      syncClassWeek(saved, nowMs);
+      return saved;
+    }
     const display = projectWeek(
       coached.draft,
       weekIndex,

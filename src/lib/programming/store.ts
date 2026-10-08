@@ -612,6 +612,28 @@ function insertWeekRow(
   return weekId;
 }
 
+/**
+ * Audit row for a week that failed final validation.
+ * Does not replace the active week and does not sync the class week.
+ */
+export function recordFailedProgrammingWeek(
+  input: {
+    monthId: number;
+    weekIndex: WeekIndex;
+    weekStart: string;
+    draft: WeekDraft;
+    display: PlannedWeek;
+    inputSummaryJson: string;
+  } & GenerationWrite,
+): number {
+  const structures = input.draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null);
+  const raw = getSqlite();
+  const active = raw
+    .prepare(`SELECT generation_version FROM programming_weeks WHERE week_start = ? AND status = 'active'`)
+    .get(input.weekStart) as { generation_version: number } | undefined;
+  return insertWeekRow(raw, input, structures, "failed", active?.generation_version ?? 0);
+}
+
 export function linkProgrammingWeek(weekStart: string, classWeekId: number): void {
   getSqlite()
     .prepare(

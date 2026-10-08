@@ -162,11 +162,12 @@ export async function askCoach(input: {
   temperature?: number | null;
   retryContext?: unknown;
   validate?: (json: unknown) => CoachValidation;
+  format?: ResponseFormat;
 }): Promise<CoachCall> {
   const model = coachModel(input.agent);
   const fetchImpl = input.fetchImpl ?? fetch;
   const temperature = input.temperature === undefined ? 0.2 : input.temperature;
-  let format = responseFormatFor(input.agent);
+  let format = input.format ?? responseFormatFor(input.agent);
   let usage: TokenUsage | null = null;
   let latencyMs = 0;
   let lastRaw: unknown = null;

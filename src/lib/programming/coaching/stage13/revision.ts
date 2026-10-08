@@ -76,7 +76,7 @@ export function applyHeadPolicy(model: HeadCoachReview, integrator: { must_revis
     };
   }
   if (integrator.only_minor && model.status === "REVISE" && model.revisions.every((row) => row.priority !== "high")) {
-    return { status: "APPROVE", revisions: [], note_ko: "사소한 지적만 있어 이번 주를 승인합니다." };
+    return { status: "APPROVE_WITH_NOTE", revisions: [], note_ko: "사소한 지적은 있지만 수정 비용이 더 커서 기록만 남깁니다." };
   }
   return model;
 }

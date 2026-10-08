@@ -96,14 +96,41 @@ export function allowedUnits(key: string): readonly AmountUnit[] {
   return MOVEMENT_UNITS[key] ?? REPS;
 }
 
+/**
+ * Amount notation.
+ * Reps are an integer, with or without the word reps: "12", "12 reps", "10reps".
+ * A gender pair is not a rep scheme. "10/8" and "10/8reps" are rejected.
+ * Calories are "12cal" or the gender pair "12/10cal" (men/women). That pair is calories, not reps.
+ * Distance is "500m". Seconds are "30sec". Kilograms are never an amount.
+ */
 export function amountUnit(amount: string): AmountUnit | null {
   const text = amount.replace(/\s/g, "").toLowerCase();
-  if (!text || /kg/.test(text)) return null;
-  if (text.includes("cal")) return "cal";
-  if (text.includes("초") || text.endsWith("sec")) return "sec";
+  if (!text || text.includes("kg")) return null;
+  if (/^\d+\/\d+cal$/.test(text) || /^\d+cal$/.test(text)) return "cal";
+  if (/^\d+sec$/.test(text) || /^\d+초$/.test(text)) return "sec";
   if (/^\d+m$/.test(text)) return "m";
-  if (/^\d+$/.test(text)) return "reps";
+  if (/^\d+$/.test(text) || /^\d+reps$/.test(text)) return "reps";
   return null;
+}
+
+export function unitGuide(): string {
+  const groups = new Map<string, string[]>();
+  for (const [key, units] of Object.entries(MOVEMENT_UNITS)) {
+    const label = units.join("/");
+    const list = groups.get(label) ?? [];
+    list.push(key);
+    groups.set(label, list);
+  }
+  const lines = [...groups.entries()].map(([units, keys]) => `${units}: ${keys.join(", ")}`);
+  return [
+    "Amount notation. One unit. No kilograms.",
+    "Reps: 12 or 12 reps or 10reps. Do not write a gender pair for reps.",
+    "Calories: 12cal, or 12/10cal meaning men's calories / women's calories.",
+    "Distance: 500m. Seconds: 30sec.",
+    "Allowed units by movement.",
+    ...lines,
+    "Any other movement key uses reps.",
+  ].join(" ");
 }
 
 export function unitError(key: string, amount: string): string | null {

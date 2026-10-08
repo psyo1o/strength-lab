@@ -53,14 +53,15 @@ export type CoachWeekResult = {
   traces: AgentTrace[];
   judge_ok: boolean;
   day_sources: Record<DayKey, "model" | "fallback">;
-  final_status: "APPROVE" | "FINALIZE_WITH_WARNING";
+  final_status: "APPROVE" | "APPROVE_WITH_NOTE" | "FINALIZE_WITH_WARNING";
   coach_notes: string[];
   monthly_plan: MonthlyCoachPlan;
   load_decisions: LoadDecision[];
   token_usage: TokenUsage;
   latency_ms: number;
-  final_validation?: { ok: boolean; errors: string[]; signals?: string[] };
-  pipeline?: "stage12" | "stage13";
+  final_validation?: { ok: boolean; errors: string[]; signals?: string[]; rejected?: boolean; rejected_errors?: string[] };
+  pipeline?: "stage12" | "stage13" | "stage14";
+  rejected_draft?: WeekDraft | null;
   prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
 };
 
