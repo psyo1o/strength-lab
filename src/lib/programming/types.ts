@@ -223,6 +223,12 @@ export type WeeklyIntentPlan = {
   scheme_note: string;
   adjustment_ko: string;
   intent_source: "model" | "fallback";
+  /**
+   * Who first wrote this intent. A later fallback must not replace intent_source,
+   * and must set fallback_used instead of pretending the fallback was the model.
+   */
+  original_intent_source?: "model" | "fallback";
+  fallback_used?: boolean;
   realization: "model" | "intent" | "legacy_fallback";
   days: DayIntent[];
   quality: {
@@ -267,6 +273,31 @@ export type MonthDirection = {
   block_type: string;
   weekly_progression: string;
   deload_strategy: string;
+  /**
+   * Immutable monthly coach snapshot. Absent on rows written before the coaching pipeline.
+   * Weekly generation reads it and does not rewrite the month.
+   */
+  coaching_plan?: MonthlyCoachPlan;
+};
+
+/** Long-term direction. No workouts, no sets, no weekday template. */
+export type MonthlyCoachPlan = {
+  version: "monthly-coach-v1";
+  block_goal: string;
+  primary_adaptations: string[];
+  secondary_adaptations: string[];
+  strength_method: string;
+  conditioning_emphasis: string;
+  gymnastics_emphasis: string;
+  olympic_emphasis: string;
+  progression_strategy: string;
+  volume_trend: string;
+  intensity_trend: string;
+  recovery_strategy: string;
+  deload_strategy: string;
+  benchmark_strategy: string;
+  week_roles: { week_index: WeekIndex; role: string; note_ko: string }[];
+  source: "model" | "deterministic";
 };
 
 export type GenerationSource = "model" | "fallback";

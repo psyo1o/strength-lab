@@ -267,6 +267,45 @@ export function listProgrammingMonths(): MonthRow[] {
   return rows.map(toMonth);
 }
 
+export function insertCoachTraces(input: {
+  scopeKey: string;
+  planId: number;
+  createdAt: number;
+  traces: Array<{
+    run_id: string;
+    agent_name: string;
+    model: string | null;
+    prompt_version: string;
+    input_hash: string;
+    output: unknown;
+    validation_result: string;
+    duration_ms: number;
+    retry_count: number;
+    failure_reason: string | null;
+    deterministic: boolean;
+  }>;
+}): void {
+  if (input.traces.length === 0) return;
+  const insert = getSqlite().prepare(
+    `INSERT INTO programming_generation_logs (
+       scope, scope_key, plan_id, generation_attempt, prompt_version, model_name, raw_json, created_at, latency_ms
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  for (const trace of input.traces) {
+    insert.run(
+      "week",
+      input.scopeKey,
+      input.planId,
+      trace.retry_count + 1,
+      trace.prompt_version,
+      trace.model,
+      JSON.stringify(scrubGenerationPayload(trace)),
+      input.createdAt,
+      trace.duration_ms,
+    );
+  }
+}
+
 function insertGenerationLogs(
   raw: ReturnType<typeof getSqlite>,
   input: {

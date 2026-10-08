@@ -1016,7 +1016,7 @@ export function mentionsReducedLowerIntent(text: string): boolean {
 
 /**
  * Fatigue passed to the strength method.
- * Previous lower fatigue is the only signal. strength_volume does not choose it.
+ * Reported fatigue is the signal. Planned or recorded volume does not choose it.
  * Squat and deadlift share that level. Upper-body lifts stay on the method.
  */
 export function strengthCheckFatigue(lift: MainLift, actual: WeekActual | null | undefined): "high" | "low" | "unknown" {
@@ -1027,10 +1027,13 @@ export function strengthCheckFatigue(lift: MainLift, actual: WeekActual | null |
 
 export function previousLowerFatigue(actual: WeekActual | null | undefined): "high" | "moderate" | "low" | "unknown" {
   const signal = actual?.class_summary?.fatigue_signal;
-  const volume = actual?.class_summary?.actual_volume;
-  if (signal === "high" || volume === "high") return "high";
-  if (signal === "low") return "low";
-  if (signal === "moderate") return "moderate";
+  if (signal === "high" || signal === "moderate" || signal === "low") return signal;
+  const rated = (actual?.days ?? [])
+    .map((day) => day.fatigue)
+    .filter((value): value is "high" | "moderate" | "low" => value === "high" || value === "moderate" || value === "low");
+  if (rated.includes("high")) return "high";
+  if (rated.includes("moderate")) return "moderate";
+  if (rated.length > 0 && rated.every((value) => value === "low")) return "low";
   return "unknown";
 }
 
