@@ -8,7 +8,7 @@ import {
   fallbackMonth,
 } from "./fallback";
 import { completeMonthDirection } from "./month-direction";
-import { coachWeek } from "./coaching/pipeline";
+import { coachWeek, LIVE_CLASS_WEEK } from "./coaching/pipeline";
 import { coachingPipelineEnabled } from "./coaching/models";
 import { withCoachingPlan } from "./coaching/monthly";
 import { authorMonth, authorWeek, authorWeeklyIntent, type AuthorTrace, type FetchLike } from "./model";
@@ -299,6 +299,9 @@ async function writeProgrammingWeek(
   };
   const key = options.key === undefined ? undefined : options.key;
   if (coachingPipelineEnabled()) {
+    if (weekStart === LIVE_CLASS_WEEK) {
+      throw new Error("operational week 2026-10-05 is off limits for the coaching pipeline");
+    }
     const coached = await coachWeek({
       month: month.direction,
       weekIndex,
@@ -306,6 +309,7 @@ async function writeProgrammingWeek(
       previousActual: summary.previous_week?.actual ?? null,
       recentStructures: recent,
       recentSignatures: (intentContext.recentPlans ?? []).map((plan) => plan.days.map((day) => day.primary_training).join("|")),
+      recentPlans: intentContext.recentPlans,
       recentLiftMaps,
       key,
       fetchImpl: options.fetchImpl,

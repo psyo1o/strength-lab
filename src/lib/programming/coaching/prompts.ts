@@ -1,13 +1,14 @@
+import { schemaBrief } from "./contract";
 import type { CoachAgentName } from "./models";
 
-export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v1";
-export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v1";
-export const SESSION_COACH_PROMPT_VERSION = "session-coach-v1";
-export const LOAD_COACH_PROMPT_VERSION = "load-coach-v1";
-export const HEAD_COACH_PROMPT_VERSION = "head-coach-v1";
+export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v2";
+export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v2";
+export const SESSION_COACH_PROMPT_VERSION = "session-coach-v2";
+export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
+export const HEAD_COACH_PROMPT_VERSION = "head-coach-v2";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
 export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
-export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v1";
+export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
 
 export const MAX_HEAD_COACH_REVISIONS = 2;
 
@@ -30,8 +31,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
       "Choose the adaptation, the strength method, and how the four weeks should feel. Week roles are a decision about this athlete, not a fixed accumulation-progression-intensification-deload template. 5/3/1 is one method, not the default.",
     constraints:
       "Do not name daily exercises. Do not invent kilograms. Do not change a method mid-block. Korean for every *_ko field.",
-    output_schema:
-      "JSON monthly plan: block_goal, primary_adaptations, secondary_adaptations, strength_method, conditioning_emphasis, gymnastics_emphasis, olympic_emphasis, progression_strategy, volume_trend, intensity_trend, recovery_strategy, deload_strategy, benchmark_strategy, week_roles.",
+    output_schema: "The OUTPUT SCHEMA block is the contract. Do not rename keys.",
     failure_behavior: "If you cannot return that JSON, return nothing. The server keeps its deterministic month and records fallback_used.",
   },
   weekly: {
@@ -42,8 +42,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
       "Place purposes, not exercises. Monday is not squat. A repeated pattern is allowed only when progression needs it. High reported fatigue reduces lower exposure. Missed days repeat the purpose at lower volume.",
     constraints:
       "Do not write movements, sets, kilograms, time_domain, or similarity scores. duration_profile is the class window, not the conditioning clock. Keep the month's strength method.",
-    output_schema:
-      "JSON with block_phase, emphasis, why_ko, focus, scheme_note, adjustment_ko, and seven days. Each day has primary_training, secondary_training, training_goal, stimulus, intensity_profile, volume_profile, duration_profile, fatigue_target, movement_pattern, progression_required, recovery_role, strength_lift, benchmark, notes_ko.",
+    output_schema: 'The day array key is "days". Enum values in the OUTPUT SCHEMA block are the only allowed values.',
     failure_behavior: "Invalid JSON is discarded. The deterministic weekly plan is used and the model is not recorded as the source.",
   },
   session: {
@@ -54,8 +53,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
       "Vary format, combination, density, and work/rest when the purpose allows. Keep a lift when progression_required is true. Aerobic days may be one cyclical modality. Other days should combine movements. Fun is a purposeful combination, not a random rename.",
     constraints:
       "One day only. Do not output time_domain, fatigue scores, tonnage, or similarity. Do not invent kilograms. Conditioning duration_min is the piece length, not the class window. A rest day has no work.",
-    output_schema:
-      "JSON: day, training_goal, strength null or {lift}, conditioning {format, duration_min, stimulus, movements, equipment, volume, intensity, rep_structure, work_rest_structure}, warmup_ko, notes_ko.",
+    output_schema: "Use the session schema in the OUTPUT SCHEMA block. duration_min is the piece, not the class window.",
     failure_behavior: "A bad day is rejected. The server designs that day. Other days stay as they are.",
   },
   load: {
@@ -66,7 +64,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
       "Athlete response outranks the calendar. High reported fatigue does not add load. Low fatigue with full completion can progress inside the method. The method stays the same for the block.",
     constraints:
       "Do not invent percentages or kilograms. Do not switch methods. The server applies the method table. You only choose progress, hold, or cut, and only for the days you were given.",
-    output_schema: "JSON: decisions[{day, action: progress|hold|cut, reason_ko}].",
+    output_schema: "Use the load schema in the OUTPUT SCHEMA block. Actions are progress, hold, or cut.",
     failure_behavior: "Missing or unsafe decisions are ignored. The server applies the method table from reported fatigue.",
   },
   head: {
@@ -77,7 +75,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
       "Review alignment, progression, fatigue, recovery, variety, practicality, and whether an athlete would want to see next week. Do not rewrite the week.",
     constraints:
       "Status is APPROVE or REVISE. REVISE includes affected_days, reason, and correction_instruction. Do not return a new week. Do not change days that are fine.",
-    output_schema: "JSON: status, revisions[{day, reason, correction_instruction}].",
+    output_schema: "Use the head schema in the OUTPUT SCHEMA block. status is APPROVE or REVISE.",
     failure_behavior: "Unreadable reviews do not approve the week. The deterministic review is used. After two revision cycles the week is saved as fallback.",
   },
 };
@@ -94,7 +92,7 @@ export function coachSystemPrompt(agent: CoachAgentName): string {
     `INPUTS\n${doc.inputs}`,
     `DECISION PRINCIPLES\n${doc.decision_principles}`,
     `CONSTRAINTS\n${doc.constraints}`,
-    `OUTPUT SCHEMA\n${doc.output_schema}`,
+    `OUTPUT SCHEMA\n${schemaBrief(agent)}\n${doc.output_schema}`,
     `FAILURE BEHAVIOR\n${doc.failure_behavior}`,
   ].join("\n\n");
 }

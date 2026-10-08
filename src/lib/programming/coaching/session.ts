@@ -23,7 +23,8 @@ import {
   type WodFormat,
 } from "../types";
 import { timeDomainFromMinutes } from "./canonical";
-import { recipePool, roleFor, type Recipe } from "./pieces";
+import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
+import { movementCatalog, recipePool, roleFor, type Recipe } from "./pieces";
 
 const DAY_KO: Record<DayKey, string> = {
   mon: "월요일",
@@ -182,27 +183,34 @@ export function sessionFromCoachJson(input: {
   const format = piece.format;
   if (typeof format !== "string" || !(FORMATS as readonly string[]).includes(format)) return null;
   const minutes = piece.duration_min;
-  if (typeof minutes !== "number" || minutes < 1 || minutes > 40) return null;
+  const longPiece = input.intent.secondary_training === "long_conditioning";
+  const range = longPiece ? LONG_CONDITIONING : NON_LONG_CONDITIONING;
+  if (typeof minutes !== "number" || !Number.isInteger(minutes) || minutes < range.min || minutes > range.max) return null;
   const stimulus = piece.stimulus;
   if (typeof stimulus !== "string" || !(STIMULI as readonly string[]).includes(stimulus)) return null;
   const volume = piece.volume;
   const intensity = piece.intensity;
   if (volume !== "low" && volume !== "moderate" && volume !== "high") return null;
   if (intensity !== "light" && intensity !== "moderate" && intensity !== "heavy") return null;
-  if (!Array.isArray(piece.movements) || piece.movements.length === 0 || piece.movements.length > 4) return null;
+  const aerobicMono = input.intent.primary_training === "aerobic" && input.intent.secondary_training !== "long_conditioning";
+  const minMoves = aerobicMono ? 1 : 2;
+  if (!Array.isArray(piece.movements) || piece.movements.length < minMoves || piece.movements.length > 4) return null;
+  const catalog = new Map(movementCatalog().map((row) => [row.key, row.name_ko]));
   const movements = [];
   for (const row of piece.movements) {
     if (!row || typeof row !== "object") return null;
     const movement = row as Record<string, unknown>;
     if (typeof movement.key !== "string" || typeof movement.amount !== "string" || typeof movement.name_ko !== "string") return null;
     if (!hangul(movement.name_ko) || /kg/i.test(movement.amount)) return null;
+    if (catalog.get(movement.key) !== movement.name_ko) return null;
     movements.push({ key: movement.key, amount: movement.amount, name_ko: movement.name_ko });
   }
-  const equipment = Array.isArray(piece.equipment)
-    ? piece.equipment.filter((item): item is Equipment => typeof item === "string" && (EQUIPMENT as readonly string[]).includes(item))
-    : [];
-  if (equipment.length === 0) return null;
-  const longPiece = input.intent.secondary_training === "long_conditioning";
+  if (!Array.isArray(piece.equipment) || piece.equipment.length === 0) return null;
+  const equipment: Equipment[] = [];
+  for (const item of piece.equipment) {
+    if (typeof item !== "string" || !(EQUIPMENT as readonly string[]).includes(item)) return null;
+    equipment.push(item as Equipment);
+  }
   if (longPiece && timeDomainFromMinutes(minutes) !== "long") return null;
   if (!longPiece && timeDomainFromMinutes(minutes) === "long") return null;
   const recipe: Recipe = {

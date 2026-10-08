@@ -104,6 +104,15 @@ export function recipePool(input: { role: PieceRole; salt: number; short: boolea
   return recipes;
 }
 
+/** Movement keys the session contract, the prompt, and the parser all share. */
+export function movementCatalog(): ReadonlyArray<{ key: string; name_ko: string }> {
+  const seen = new Map<string, string>();
+  for (const body of BODIES) {
+    for (const movement of body.movements) seen.set(movement.key, movement.name_ko);
+  }
+  return [...seen.entries()].map(([key, name_ko]) => ({ key, name_ko }));
+}
+
 export function roleFor(primary: string, secondary: string): PieceRole {
   if (secondary === "long_conditioning") return "long";
   if (primary === "recovery") return "easy";

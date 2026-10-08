@@ -1,6 +1,11 @@
+import type { FetchLike } from "../model";
 import type { WeekActual } from "../summary";
 import { previousLowerFatigue } from "../rules";
 import type { MonthDirection, MonthlyCoachPlan, WeekIndex } from "../types";
+import { monthlyPlanErrors } from "./contract";
+import { askCoach } from "./llm";
+import { MONTHLY_COACH_PROMPT_VERSION } from "./prompts";
+import { finishTrace, inputHash, type AgentTrace } from "./trace";
 
 function emphasisText(month: MonthDirection): { gymnastics: string; olympic: string; conditioning: string } {
   const text = `${month.focus_ko}\n${month.skill_direction}\n${month.conditioning_direction}\n${month.monthly_goal}`;
@@ -67,4 +72,166 @@ function weekRole(
 export function withCoachingPlan(month: MonthDirection, actual?: WeekActual | null): MonthDirection {
   if (month.coaching_plan) return month;
   return { ...month, coaching_plan: deterministicMonthlyPlan(month, actual) };
+}
+
+export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual | null): unknown {
+  return {
+    agent_name: "monthly_coach",
+    current_method: month.strength_method || month.scheme,
+    monthly_goal: month.monthly_goal,
+    primary_block: month.primary_block,
+    secondary_goal: month.secondary_goal,
+    strength_direction: month.strength_direction,
+    conditioning_direction: month.conditioning_direction,
+    skill_direction: month.skill_direction,
+    volume_direction: month.volume_direction,
+    intensity_direction: month.intensity_direction,
+    fatigue_direction: month.fatigue_direction,
+    benchmark_direction: month.benchmark_direction,
+    deload_strategy: month.deload_strategy,
+    week_themes: month.week_themes,
+    long_conditioning_weeks: month.long_conditioning_weeks,
+    benchmark_week: month.benchmark_week,
+    reported_fatigue: actual?.class_summary?.fatigue_signal ?? null,
+    planned_volume: actual?.class_summary?.actual_volume ?? null,
+    completion: actual?.class_summary
+      ? { completed_days: actual.class_summary.completed_days, missed_days: actual.class_summary.missed_days }
+      : null,
+    note: "Choose the month strategy. Do not write workouts. Repeat current_method exactly.",
+  };
+}
+
+function planFromModel(json: unknown, month: MonthDirection): MonthlyCoachPlan {
+  const body = json as Record<string, unknown>;
+  const base = deterministicMonthlyPlan(month);
+  const roles = Array.isArray(body.week_roles)
+    ? body.week_roles.map((row) => {
+        const item = row as { week_index: 1 | 2 | 3 | 4; role: string; note_ko: string };
+        return { week_index: item.week_index, role: item.role, note_ko: item.note_ko };
+      })
+    : base.week_roles;
+  return {
+    version: "monthly-coach-v1",
+    block_goal: String(body.block_goal),
+    primary_adaptations: (body.primary_adaptations as string[]) ?? [],
+    secondary_adaptations: (body.secondary_adaptations as string[]) ?? [],
+    strength_method: String(body.strength_method),
+    conditioning_emphasis: String(body.conditioning_emphasis),
+    gymnastics_emphasis: String(body.gymnastics_emphasis),
+    olympic_emphasis: String(body.olympic_emphasis),
+    progression_strategy: String(body.progression_strategy),
+    volume_trend: String(body.volume_trend),
+    intensity_trend: String(body.intensity_trend),
+    recovery_strategy: String(body.recovery_strategy),
+    deload_strategy: String(body.deload_strategy),
+    benchmark_strategy: String(body.benchmark_strategy),
+    week_roles: roles,
+    fatigue_tolerance: body.fatigue_tolerance as MonthlyCoachPlan["fatigue_tolerance"],
+    variety_requirement: body.variety_requirement as MonthlyCoachPlan["variety_requirement"],
+    source: "model",
+  };
+}
+
+/** Monthly strategy. A missing key or a bad payload keeps the deterministic plan and says so. */
+export async function coachMonthly(input: {
+  month: MonthDirection;
+  actual?: WeekActual | null;
+  key?: string | null;
+  fetchImpl?: FetchLike;
+  timeoutMs: number;
+  runId: string;
+  weekId: string;
+}): Promise<{ plan: MonthlyCoachPlan; trace: AgentTrace }> {
+  const started = Date.now();
+  const deterministic = deterministicMonthlyPlan(input.month, input.actual);
+  const payload = monthlyCoachPayload(input.month, input.actual);
+  if (!input.key) {
+    return {
+      plan: deterministic,
+      trace: finishTrace(started, {
+        run_id: input.runId,
+        week_id: input.weekId,
+        agent_name: "monthly_coach",
+        model: null,
+        prompt_version: MONTHLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash(payload),
+        input_summary: { method: deterministic.strength_method, goal: deterministic.block_goal },
+        output: deterministic,
+        parsed_output: deterministic,
+        validation_result: "pass",
+        retry_count: 0,
+        failure_reason: null,
+        deterministic: true,
+        source: "fallback",
+        fallback_reason: "no_model",
+        revision_number: 0,
+        token_usage: null,
+      }),
+    };
+  }
+  const asked = await askCoach({
+    agent: "monthly",
+    user: payload,
+    key: input.key,
+    fetchImpl: input.fetchImpl,
+    timeoutMs: input.timeoutMs,
+    maxTokens: 2000,
+    promptVersion: MONTHLY_COACH_PROMPT_VERSION,
+    runId: input.runId,
+    retryContext: { current_method: input.month.strength_method || input.month.scheme },
+    validate: (json) => {
+      const errors = monthlyPlanErrors(json, input.month);
+      return errors.length ? { ok: false, errors } : { ok: true };
+    },
+  });
+  if (!asked.ok) {
+    return {
+      plan: deterministic,
+      trace: finishTrace(started, {
+        run_id: input.runId,
+        week_id: input.weekId,
+        agent_name: "monthly_coach",
+        model: asked.model,
+        prompt_version: asked.promptVersion,
+        input_hash: inputHash(payload),
+        input_summary: { method: deterministic.strength_method },
+        output: asked.json,
+        raw_output: asked.raw,
+        validation_result: "fail",
+        validation_errors: asked.validationErrors,
+        retry_count: asked.retryCount,
+        failure_reason: asked.reason,
+        deterministic: false,
+        source: "fallback",
+        fallback_reason: asked.reason,
+        revision_number: 0,
+        token_usage: asked.usage,
+      }),
+    };
+  }
+  const plan = planFromModel(asked.json, input.month);
+  return {
+    plan,
+    trace: finishTrace(started, {
+      run_id: input.runId,
+      week_id: input.weekId,
+      agent_name: "monthly_coach",
+      model: asked.model,
+      prompt_version: asked.promptVersion,
+      input_hash: inputHash(payload),
+      input_summary: { method: plan.strength_method, roles: plan.week_roles.map((row) => row.role) },
+      output: plan,
+      raw_output: asked.raw,
+      parsed_output: plan,
+      validation_result: "pass",
+      validation_errors: [],
+      retry_count: asked.retryCount,
+      failure_reason: null,
+      deterministic: false,
+      source: "model",
+      fallback_reason: null,
+      revision_number: 0,
+      token_usage: asked.usage,
+    }),
+  };
 }

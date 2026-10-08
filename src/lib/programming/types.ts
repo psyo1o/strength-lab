@@ -230,6 +230,10 @@ export type WeeklyIntentPlan = {
   original_intent_source?: "model" | "fallback";
   fallback_used?: boolean;
   realization: "model" | "intent" | "legacy_fallback";
+  /** Per-day source after the coaching pipeline. Absent on Stage 10 rows. */
+  day_sources?: Partial<Record<DayKey, "model" | "fallback">>;
+  coach_notes?: string[];
+  final_status?: "APPROVE" | "FINALIZE_WITH_WARNING";
   days: DayIntent[];
   quality: {
     repetition_risk: "low" | "moderate" | "high";
@@ -297,6 +301,8 @@ export type MonthlyCoachPlan = {
   deload_strategy: string;
   benchmark_strategy: string;
   week_roles: { week_index: WeekIndex; role: string; note_ko: string }[];
+  fatigue_tolerance?: "low" | "moderate" | "high";
+  variety_requirement?: "low" | "moderate" | "high";
   source: "model" | "deterministic";
 };
 
