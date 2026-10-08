@@ -156,7 +156,9 @@ export function scrubGenerationPayload(value: unknown): unknown {
 }
 
 function asSource(value: string): GenerationSource {
-  return value === "model" ? "model" : "fallback";
+  const token = value.trim().toUpperCase();
+  if (value === "model" || token === "MODEL" || token === "MODEL_REVISED") return "model";
+  return "fallback";
 }
 
 function asStatus(value: string): PlanStatus {

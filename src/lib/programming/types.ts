@@ -236,12 +236,51 @@ export type WeeklyIntentPlan = {
   final_status?: "APPROVE" | "FINALIZE_WITH_WARNING" | "APPROVE_WITH_NOTE";
   /** Who wrote the stored prescriptions. Distinct from a mixed model/fallback label. */
   prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
+  /** Stage 15. Week status does not rewrite a healthy day's source. */
+  week_status?: WeekLifecycle;
+  day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
   days: DayIntent[];
   quality: {
     repetition_risk: "low" | "moderate" | "high";
     similarity_note_ko: string;
     repeated_signature: string | null;
   };
+};
+
+export type DimensionScore = {
+  dimension: string;
+  score: number;
+  confidence: number;
+  evidence: string[];
+  source: string;
+};
+
+export type FallbackQuality = {
+  monthly_alignment: number;
+  weekly_alignment: number;
+  fatigue: number;
+  strength: number;
+  conditioning: number;
+  practical: number;
+};
+
+export type CanonicalDaySource = "MODEL" | "MODEL_REVISED" | "DETERMINISTIC_FALLBACK" | "LEGACY_FALLBACK" | "FAILED";
+
+export type DayLifecycle = "MODEL" | "MODEL_REVISED" | "FALLBACK" | "FAILED";
+
+export type WeekLifecycle = "DRAFT" | "VALIDATED" | "ACTIVE" | "FAILED";
+
+/** Kept beside the saved prescription. A fallback must not erase the model day. */
+export type DayPrescriptionRecord = {
+  original_model_output: SessionDraft | null;
+  final_prescription: SessionDraft | null;
+  final_source: CanonicalDaySource;
+  day_status: DayLifecycle;
+  failure_reason: string | null;
+  revision_reason: string | null;
+  fallback_quality: FallbackQuality | null;
+  original_model_score: DimensionScore[] | null;
+  fallback_score: DimensionScore[] | null;
 };
 
 export type WeekDraft = {

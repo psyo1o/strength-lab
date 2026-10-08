@@ -1,7 +1,7 @@
 import { MONTH_PLAN_OPENAI_MODEL } from "../../month-plan/week-model";
 
 /** One model id per coach. Unset variables fall back to the current class model, never to a hardcoded upgrade. */
-export type CoachAgentName = "monthly" | "weekly" | "session" | "load" | "head";
+export type CoachAgentName = "monthly" | "weekly" | "session" | "load" | "head" | "variation_judge" | "recovery_judge";
 
 const ENV_BY_AGENT: Record<CoachAgentName, readonly string[]> = {
   monthly: ["MONTHLY_MODEL", "MONTHLY_COACH_MODEL"],
@@ -9,6 +9,8 @@ const ENV_BY_AGENT: Record<CoachAgentName, readonly string[]> = {
   session: ["SESSION_MODEL", "SESSION_COACH_MODEL"],
   load: ["LOAD_MODEL", "LOAD_COACH_MODEL"],
   head: ["HEAD_FINAL_MODEL", "HEAD_COACH_MODEL"],
+  variation_judge: ["VARIATION_JUDGE_MODEL"],
+  recovery_judge: ["RECOVERY_JUDGE_MODEL"],
 };
 
 /** Judgment agents that stay on nano until a later stage promotes one of them. */

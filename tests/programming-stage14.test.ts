@@ -607,7 +607,8 @@ describe("stage14 head decision", () => {
         ],
       }),
     ).toBe(true);
-    expect(recoveryNeedsJudge({ reportedFatigue: "high", heavyLower: true, recoveryStatus: "CONCERN" })).toBe(false);
+    expect(recoveryNeedsJudge({ reportedFatigue: "high", heavyLower: true, recoveryStatus: "CONCERN" })).toBe(true);
+    expect(recoveryNeedsJudge({ reportedFatigue: "low", heavyLower: false, recoveryStatus: "PASS" })).toBe(false);
     expect(recoveryNeedsJudge({ reportedFatigue: "moderate", heavyLower: true, recoveryStatus: "CONCERN" })).toBe(true);
   });
 });

@@ -3,6 +3,8 @@ import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { isWodPurpose } from "../wod/purpose";
 import { completeMonthDirection } from "./month-direction";
 import { strengthIsHeavy } from "./schemes";
+import { safetyViolations } from "./coaching/stage15/safety-policy";
+import { benchmarkCountAllowed, longConditioningCountAllowed } from "./coaching/stage15/week-policy";
 import { exampleSets, legacySchemeForMethod, prescriptionGuide, validateStrengthPrescription } from "./strength-methods";
 import type { WeekActual } from "./summary";
 import {
@@ -807,20 +809,24 @@ export function constitutionViolations(
       if (problem) errors.push(problem);
     }
   }
-  for (let index = 0; index < DAY_ORDER.length - 1; index += 1) {
-    const today = exposures.get(DAY_ORDER[index]!);
-    const next = exposures.get(DAY_ORDER[index + 1]!);
-    if (!today || !next) continue;
-    if (today.heavySquat && (next.heavySnatch || next.heavyClean || next.heavyDeadlift)) {
-      errors.push(`heavy pull the day after squat (${today.day})`);
-    }
-    if (today.heavyDeadlift && next.heavySquat) errors.push(`heavy squat the day after deadlift (${today.day})`);
-    if (today.heavyPress && next.heavySnatch) errors.push(`heavy snatch the day after press (${today.day})`);
-    const nextSession = sessions.get(DAY_ORDER[index + 1]!);
-    if ((today.heavySquat || today.heavyDeadlift) && nextSession?.conditioning?.long_conditioning) {
-      errors.push(`${nextSession.day} long conditioning follows a heavy squat or deadlift`);
-    }
-  }
+  errors.push(
+    ...safetyViolations(
+      DAY_ORDER.map((day) => {
+        const session = sessions.get(day);
+        const load = exposures.get(day);
+        if (!session || !load) return null;
+        return {
+          day,
+          heavySquat: load.heavySquat,
+          heavyDeadlift: load.heavyDeadlift,
+          heavyPress: load.heavyPress,
+          heavySnatch: load.heavySnatch,
+          heavyClean: load.heavyClean,
+          longConditioning: Boolean(session.conditioning?.long_conditioning),
+        };
+      }),
+    ),
+  );
   const training = draft.sessions.filter((session) => !session.rest);
   for (let index = 1; index < training.length; index += 1) {
     const previous = training[index - 1]!.conditioning?.stimulus;
@@ -831,21 +837,22 @@ export function constitutionViolations(
   }
   const longs = draft.sessions.filter((session) => session.conditioning?.long_conditioning);
   const expectsLong = month.long_conditioning_weeks.includes(weekIndex);
-  if (expectsLong && longs.length !== 1) {
+  if (!longConditioningCountAllowed(expectsLong, longs.length)) {
     errors.push(
-      `this week needs one long conditioning piece; weekly_requirements.long_conditioning_sessions_min=1 current=${longs.length} long means ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes`,
+      expectsLong
+        ? `this week needs one long conditioning piece; weekly_requirements.long_conditioning_sessions_min=1 current=${longs.length} long means ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes`
+        : "this week is not a long-conditioning week",
     );
   }
-  if (!expectsLong && longs.length !== 0) errors.push("this week is not a long-conditioning week");
   for (const session of longs) {
     const minutes = session.conditioning?.duration_min ?? 0;
     if (minutes < 30 || minutes > 40) errors.push(`${session.day} long piece is not 30–40 minutes`);
-    const load = exposures.get(session.day);
-    if (load?.heavySquat || load?.heavyDeadlift) errors.push(`${session.day} long piece sits on a heavy squat or deadlift`);
   }
   const benchmarks = draft.sessions.filter((session) => session.conditioning?.benchmark);
-  if (weekIndex === month.benchmark_week && benchmarks.length !== 1) errors.push("benchmark week needs one benchmark");
-  if (weekIndex !== month.benchmark_week && benchmarks.length !== 0) errors.push("benchmark is only on the benchmark week");
+  const benchmarkRequired = weekIndex === month.benchmark_week;
+  if (!benchmarkCountAllowed(benchmarkRequired, benchmarks.length)) {
+    errors.push(benchmarkRequired ? "benchmark week needs one benchmark" : "benchmark is only on the benchmark week");
+  }
   return errors;
 }
 
