@@ -2,7 +2,7 @@ import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { classMetconPurpose } from "../wod/purpose";
 import { fillSessionFields } from "./session-fields";
 import { exampleSets } from "./strength-methods";
-import { judgeWeek, similarityScore, type WeekCheckContext } from "./rules";
+import { judgeWeek, previousLowerFatigue, similarityScore, type WeekCheckContext } from "./rules";
 import { strengthIsHeavy } from "./schemes";
 import { stampWeeklyIntent } from "./weekly-intent";
 import type { WeekActual } from "./summary";
@@ -235,10 +235,8 @@ function conditioningFor(day: DayKey, row: Piece, benchmark: boolean, variant: n
 }
 
 function lowerFatigue(actual: WeekActual | null | undefined): "high" | "low" | "unknown" {
-  const level = actual?.class_summary?.fatigue_signal;
-  const volume = actual?.class_summary?.actual_volume;
-  if (level === "high" || volume === "high") return "high";
-  if (level === "low") return "low";
+  const level = previousLowerFatigue(actual);
+  if (level === "high" || level === "low") return level;
   return "unknown";
 }
 

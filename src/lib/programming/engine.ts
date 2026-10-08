@@ -8,6 +8,9 @@ import {
   fallbackMonth,
 } from "./fallback";
 import { completeMonthDirection } from "./month-direction";
+import { coachWeek } from "./coaching/pipeline";
+import { coachingPipelineEnabled } from "./coaching/models";
+import { withCoachingPlan } from "./coaching/monthly";
 import { authorMonth, authorWeek, authorWeeklyIntent, type AuthorTrace, type FetchLike } from "./model";
 import { realizeWeekFromIntent } from "./realize-intent";
 import { planWeeklyIntent, weeklyIntentFrom, type WeeklyIntentContext } from "./weekly-intent";
@@ -19,6 +22,7 @@ import {
   getProgrammingWeek,
   getWeeklyActual,
   getWeeklyActualForStart,
+  insertCoachTraces,
   insertProgrammingMonth,
   insertProgrammingWeek,
   linkProgrammingWeek,
@@ -222,13 +226,14 @@ async function writeProgrammingMonth(
     fetchImpl: options.fetchImpl,
     timeoutMs: options.timeoutMs,
   });
-  const direction = completeMonthDirection(
+  const completed = completeMonthDirection(
     authored.ok
       ? authored.direction
       : fallbackMonth(
           evaluation ? { summary_ko: evaluation.summary_ko, next_scheme: evaluation.next_scheme } : null,
         ),
   );
+  const direction = coachingPipelineEnabled() ? withCoachingPlan(completed, summary.previous_week?.actual ?? null) : completed;
   return insertProgrammingMonth({
     monthStart,
     direction,
@@ -293,6 +298,53 @@ async function writeProgrammingWeek(
     summary,
   };
   const key = options.key === undefined ? undefined : options.key;
+  if (coachingPipelineEnabled()) {
+    const coached = await coachWeek({
+      month: month.direction,
+      weekIndex,
+      weekStart,
+      previousActual: summary.previous_week?.actual ?? null,
+      recentStructures: recent,
+      recentSignatures: (intentContext.recentPlans ?? []).map((plan) => plan.days.map((day) => day.primary_training).join("|")),
+      recentLiftMaps,
+      key,
+      fetchImpl: options.fetchImpl,
+      timeoutMs: options.timeoutMs,
+      nowMs,
+    });
+    const display = projectWeek(
+      coached.draft,
+      weekIndex,
+      coached.generation_source === "model" ? "model" : "rules",
+      month.direction.strength_method,
+    );
+    const saved = insertProgrammingWeek({
+      monthId: month.id,
+      weekIndex,
+      weekStart,
+      draft: coached.draft,
+      display,
+      inputSummaryJson: JSON.stringify(summary),
+      mode,
+      generationSource: coached.generation_source,
+      fallbackReason: coached.fallback_reason,
+      generatedAt: nowMs,
+      modelName: coached.model_name,
+      promptVersion: coached.prompt_version,
+      rulesVersion: RULES_VERSION,
+      inputSummaryVersion: INPUT_SUMMARY_VERSION,
+      generationAttempt: coached.revision_count + 1,
+      responses: [],
+      logContext: options.logContext,
+    });
+    insertCoachTraces({ scopeKey: weekStart, planId: saved.id, createdAt: nowMs, traces: coached.traces });
+    syncClassWeek(saved, nowMs);
+    const after = getProgrammingMonth(month.monthStart);
+    if (after && after.direction.monthly_goal !== monthGoal) {
+      throw new Error("weekly generation must not overwrite the monthly goal");
+    }
+    return saved;
+  }
   const intentAuthored = await authorWeeklyIntent({
     context: intentContext,
     key,
@@ -314,7 +366,13 @@ async function writeProgrammingWeek(
   const realized = realizeWeekFromIntent({
     month: month.direction,
     weekIndex,
-    plan: { ...intentPlan, intent_source: intentAuthored.ok ? "model" : "fallback", realization: "intent" },
+    plan: {
+      ...intentPlan,
+      intent_source: intentAuthored.ok ? "model" : "fallback",
+      original_intent_source: intentAuthored.ok ? "model" : "fallback",
+      fallback_used: true,
+      realization: "intent",
+    },
     recent,
     previousActual: summary.previous_week?.actual ?? null,
     recentLiftMaps,
@@ -331,9 +389,12 @@ async function writeProgrammingWeek(
     previousActual: summary.previous_week?.actual ?? null,
     recentLiftMaps,
   });
+  const intentSource = intentAuthored.ok ? ("model" as const) : ("fallback" as const);
   const modelPlan = {
     ...intentPlan,
-    intent_source: intentAuthored.ok ? ("model" as const) : ("fallback" as const),
+    intent_source: intentSource,
+    original_intent_source: intentSource,
+    fallback_used: false,
     realization: "model" as const,
   };
   let draft: WeekDraft;
@@ -365,7 +426,13 @@ async function writeProgrammingWeek(
       ...legacy.draft,
       intent: {
         ...legacy.draft.intent,
-        plan: { ...intentPlan, intent_source: "fallback", realization: "legacy_fallback" },
+        plan: {
+          ...intentPlan,
+          intent_source: intentAuthored.ok ? "model" : "fallback",
+          original_intent_source: intentAuthored.ok ? "model" : "fallback",
+          fallback_used: true,
+          realization: "legacy_fallback",
+        },
       },
     };
     display = legacy.display;
