@@ -179,7 +179,8 @@ export async function askCoach(input: {
       attempt === 1
         ? input.user
         : {
-            instruction: "Validation failed. Correct only the invalid fields. Do not rewrite valid fields.",
+            instruction: "Validation failed. Correct only the invalid fields. Do not rewrite valid fields. This is the same task, not a new question.",
+            original_input: input.user,
             validation_errors: errors,
             invalid_output: lastJson,
             expected_schema: schemaBrief(input.agent),

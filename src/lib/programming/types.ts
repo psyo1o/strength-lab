@@ -233,7 +233,9 @@ export type WeeklyIntentPlan = {
   /** Per-day source after the coaching pipeline. Absent on Stage 10 rows. */
   day_sources?: Partial<Record<DayKey, "model" | "fallback">>;
   coach_notes?: string[];
-  final_status?: "APPROVE" | "FINALIZE_WITH_WARNING";
+  final_status?: "APPROVE" | "FINALIZE_WITH_WARNING" | "APPROVE_WITH_NOTE";
+  /** Who wrote the stored prescriptions. Distinct from a mixed model/fallback label. */
+  prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
   days: DayIntent[];
   quality: {
     repetition_risk: "low" | "moderate" | "high";

@@ -1,13 +1,48 @@
 import { createHash, randomUUID } from "node:crypto";
 
+export type AgentType = "planner" | "generator" | "analyzer" | "validator" | "coach";
+
 export type AgentName =
   | "monthly_coach"
+  | "monthly_validator"
   | "weekly_coach"
+  | "weekly_rule_extractor"
+  | "weekly_validator"
+  | "week_structure_analyzer"
   | "session_coach"
+  | "session_schema_validator"
+  | "session_movement_validator"
+  | "session_duration_validator"
+  | "session_format_validator"
+  | "session_volume_validator"
+  | "session_intensity_validator"
+  | "session_equipment_validator"
+  | "session_unit_validator"
   | "load_coach"
+  | "load_validator"
+  | "movement_history_analyzer"
+  | "movement_pattern_analyzer"
+  | "structure_similarity_analyzer"
+  | "stimulus_analyzer"
+  | "time_domain_analyzer"
+  | "volume_analyzer"
+  | "intensity_analyzer"
+  | "progression_analyzer"
+  | "week_interaction_analyzer"
+  | "recent_variation_analyzer"
   | "fatigue_engine"
+  | "recovery_analyzer"
   | "variation_engine"
-  | "head_coach";
+  | "strength_coach"
+  | "conditioning_coach"
+  | "recovery_coach"
+  | "variation_coach"
+  | "practical_coach"
+  | "fun_coach"
+  | "head_integrator"
+  | "head_coach"
+  | "revision_router"
+  | "final_validator";
 
 export type TokenUsage = {
   prompt_tokens: number;
@@ -20,6 +55,7 @@ export type AgentTrace = {
   week_id?: string;
   day?: string | null;
   agent_name: AgentName;
+  agent_type?: AgentType;
   model: string | null;
   prompt_version: string;
   input_hash: string;
@@ -37,6 +73,7 @@ export type AgentTrace = {
   fallback_reason?: string | null;
   revision_number?: number;
   token_usage?: TokenUsage | null;
+  decision?: string | null;
 };
 
 export function newRunId(): string {

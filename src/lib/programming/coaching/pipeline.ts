@@ -59,6 +59,9 @@ export type CoachWeekResult = {
   load_decisions: LoadDecision[];
   token_usage: TokenUsage;
   latency_ms: number;
+  final_validation?: { ok: boolean; errors: string[]; signals?: string[] };
+  pipeline?: "stage12" | "stage13";
+  prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
 };
 
 export function assertProbeWeek(weekStart: string) {

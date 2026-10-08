@@ -16,6 +16,7 @@ import type {
   CoachingStimulus,
 } from "../types";
 import { deterministicMonthlyPlan } from "./monthly";
+import { extractWeekRules } from "./stage13/rules";
 
 const DAY_KO: Record<DayKey, string> = {
   mon: "월요일",
@@ -104,6 +105,7 @@ export function weeklyCoachPayload(input: {
     week_index: input.weekIndex,
     long_required_this_week: input.month.long_conditioning_weeks.includes(input.weekIndex),
     benchmark_week: input.month.benchmark_week === input.weekIndex,
+    week_rules: extractWeekRules({ month: input.month, weekIndex: input.weekIndex, actual: input.previousActual }),
     class_minutes: 60,
     reported_fatigue: summary?.fatigue_signal ?? null,
     planned_volume: summary?.actual_volume ?? null,
@@ -122,7 +124,7 @@ export function weeklyCoachPayload(input: {
       })),
     })),
     recent_structures: (input.recentStructures ?? []).slice(-12),
-    note: "Return seven day purposes under the key days. Do not name movements.",
+    note: "Return seven day purposes under the key days. Do not name movements. week_rules are immutable. A repeated weekday layout is not required. Change the order when fatigue, benchmark, long-day, or the block phase changes. Do not copy the same Monday-to-Sunday map just because an earlier week used it.",
   };
 }
 

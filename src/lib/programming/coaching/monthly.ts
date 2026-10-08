@@ -3,6 +3,7 @@ import type { WeekActual } from "../summary";
 import { previousLowerFatigue } from "../rules";
 import type { MonthDirection, MonthlyCoachPlan, WeekIndex } from "../types";
 import { monthlyPlanErrors } from "./contract";
+import { monthlyStrategyErrors } from "./stage13/rules";
 import { askCoach } from "./llm";
 import { MONTHLY_COACH_PROMPT_VERSION } from "./prompts";
 import { finishTrace, inputHash, type AgentTrace } from "./trace";
@@ -180,7 +181,7 @@ export async function coachMonthly(input: {
     runId: input.runId,
     retryContext: { current_method: input.month.strength_method || input.month.scheme },
     validate: (json) => {
-      const errors = monthlyPlanErrors(json, input.month);
+      const errors = [...monthlyPlanErrors(json, input.month), ...monthlyStrategyErrors(json)];
       return errors.length ? { ok: false, errors } : { ok: true };
     },
   });

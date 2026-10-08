@@ -4,19 +4,25 @@ import { judgeWeek } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import type { DayIntent, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
-import { durationRuleText, headReviewErrors, loadDecisionErrors, sessionCoachErrors, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { durationRuleText, headReviewErrors, loadDecisionErrors, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
 import {
-  COACHING_PIPELINE_VERSION,
   HEAD_COACH_PROMPT_VERSION,
   LOAD_COACH_PROMPT_VERSION,
   MAX_HEAD_COACH_REVISIONS,
   SESSION_COACH_PROMPT_VERSION,
+  STAGE13_PIPELINE_VERSION,
   WEEKLY_COACH_PROMPT_VERSION,
 } from "./prompts";
+import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
+import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
+import { prescriptionSource } from "./stage13/policy";
+import { analyzeWeekStructure } from "./stage13/analyzers";
+import { applyHeadPolicy, routesFor } from "./stage13/revision";
+import { analyzeBundle, selfValidatorTraces } from "./stage13/wire";
 import { hardSessionRevisions, mergeHeadReview, parseHeadReview, reviewWeek, type HeadCoachReview, type SessionRevision } from "./review";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
@@ -60,12 +66,29 @@ function trainingDays(plan: WeeklyIntentPlan): DayIntent[] {
   return plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest");
 }
 
-function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayIntent, revision: SessionRevision | null, revisionNumber: number) {
+function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayIntent, revision: SessionRevision | null, revisionNumber: number, rules: WeekRules) {
   return {
     agent_name: "session_coach",
     monthly_plan: input.month.coaching_plan ?? null,
     week_index: input.weekIndex,
+    week_rules: rules,
     day_intent: day,
+    long_day_required: day.secondary_training === "long_conditioning",
+    benchmark_required: day.benchmark,
+    strength_required: day.strength_lift !== "none",
+    recovery_intent: day.recovery_role,
+    target_duration: day.secondary_training === "long_conditioning" ? "30-40" : "8-20",
+    neighboring_days: plan.days
+      .filter((row) => row.day !== day.day)
+      .map((row) => ({
+        day: row.day,
+        primary_training: row.primary_training,
+        secondary_training: row.secondary_training,
+        stimulus: row.stimulus,
+        movement_pattern: row.movement_pattern,
+        intensity_profile: row.intensity_profile,
+        strength_lift: row.strength_lift,
+      })),
     class_minutes: 60,
     reported_fatigue: input.previousActual?.class_summary?.fatigue_signal ?? null,
     planned_volume: input.previousActual?.class_summary?.actual_volume ?? null,
@@ -101,7 +124,7 @@ function adoptDay(input: {
   day: DayIntent;
   json: unknown;
 }): { ok: true; draft: WeekDraft; session: SessionDraft } | { ok: false; errors: string[] } {
-  const schemaErrors = sessionCoachErrors(input.json, input.day);
+  const schemaErrors = sessionSelfErrors(input.json, input.day);
   if (schemaErrors.length) return { ok: false, errors: schemaErrors };
   const session = sessionFromCoachJson({
     json: input.json,
@@ -113,8 +136,6 @@ function adoptDay(input: {
   if (!session) return { ok: false, errors: ["session builder rejected a payload that passed the schema"] };
   const sessions = input.draft.sessions.map((row) => (row.day === input.day.day ? session : row));
   const candidate = stamp({ ...input.draft, sessions }, input.plan);
-  const judged = judgeWeek(bare(candidate), input.week.month, input.week.weekIndex, input.week.recentStructures ?? [], judgeContext(input.week));
-  if (!judged.ok) return { ok: false, errors: judged.errors.slice(0, 4) };
   return { ok: true, draft: candidate, session };
 }
 
@@ -127,9 +148,19 @@ async function writeSession(input: {
   revisionNumber: number;
   revision: SessionRevision | null;
   timeoutMs: number;
-}): Promise<{ draft: WeekDraft; source: "model" | "fallback"; trace: AgentTrace }> {
+  rules: WeekRules;
+}): Promise<{ draft: WeekDraft; source: "model" | "fallback"; trace: AgentTrace; selfTraces: AgentTrace[] }> {
   const started = Date.now();
-  const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber);
+  const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber, input.rules);
+  const selfTraces = (json: unknown) =>
+    selfValidatorTraces({
+      runId: input.runId,
+      weekId: input.week.weekStart,
+      day: input.day.day,
+      json,
+      intent: input.day,
+      revision: input.revisionNumber,
+    });
   const asked = await askCoach({
     agent: "session",
     user,
@@ -139,7 +170,14 @@ async function writeSession(input: {
     maxTokens: 2500,
     promptVersion: SESSION_COACH_PROMPT_VERSION,
     runId: input.runId,
-    retryContext: { agent: "session", day: input.day.day, revision_number: input.revisionNumber },
+    retryContext: {
+      agent: "session",
+      day: input.day.day,
+      revision_number: input.revisionNumber,
+      day_intent: input.day,
+      week_rules: input.rules,
+      duration_rule: durationRuleText(),
+    },
     validate: (json) => {
       const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json });
       return adopted.ok ? { ok: true } : { ok: false, errors: adopted.errors };
@@ -149,6 +187,7 @@ async function writeSession(input: {
     return {
       draft: input.draft,
       source: "fallback",
+      selfTraces: asked.json ? selfTraces(asked.json) : [],
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.week.weekStart,
@@ -177,6 +216,7 @@ async function writeSession(input: {
     return {
       draft: input.draft,
       source: "fallback",
+      selfTraces: selfTraces(asked.json),
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.week.weekStart,
@@ -203,6 +243,7 @@ async function writeSession(input: {
   return {
     draft: adopted.draft,
     source: "model",
+    selfTraces: selfTraces(asked.json),
     trace: finishTrace(started, {
       run_id: input.runId,
       week_id: input.week.weekStart,
@@ -339,6 +380,26 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   if (monthly.trace.source !== "model") noteFailure(monthly.trace.failure_reason);
   const month = { ...input.month, coaching_plan: monthly.plan };
   const week: CoachWeekInput = { ...input, month };
+  const rules = extractWeekRules({ month, weekIndex: input.weekIndex, actual: input.previousActual });
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "monthly_validator",
+      agent_type: "validator",
+      model: null,
+      prompt_version: "monthly-validator-v1",
+      input_hash: inputHash({ method: monthly.plan.strength_method }),
+      output: { source: monthly.plan.source, method: monthly.plan.strength_method },
+      validation_result: monthly.trace.validation_result,
+      validation_errors: monthly.trace.validation_errors,
+      retry_count: 0,
+      failure_reason: monthly.trace.failure_reason,
+      deterministic: true,
+      decision: monthly.trace.validation_result === "pass" ? "PASS" : "FAIL",
+      revision_number: 0,
+    }),
+  );
 
   const deterministic = planCoachedWeek({
     month,
@@ -369,7 +430,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     validate: (json) => {
       const errors = weeklyIntentErrors(json);
       if (errors.length) return { ok: false, errors };
-      if (!parseWeeklyIntent(json, deterministic)) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
+      const parsed = parseWeeklyIntent(json, deterministic);
+      if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
+      const ruleErrors = weekPlanErrors(parsed, rules);
+      if (ruleErrors.length) return { ok: false, errors: ruleErrors };
       return { ok: true };
     },
   });
@@ -420,6 +484,65 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       token_usage: weekly.usage,
     }),
   );
+  const planRuleErrors = weekPlanErrors(plan, rules);
+  const structure = analyzeWeekStructure(plan);
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "weekly_rule_extractor",
+      agent_type: "analyzer",
+      model: null,
+      prompt_version: "week-rules-v1",
+      input_hash: inputHash(rules),
+      output: rules,
+      parsed_output: rules,
+      validation_result: "pass",
+      retry_count: 0,
+      failure_reason: null,
+      deterministic: true,
+      decision: "IMMUTABLE",
+      revision_number: 0,
+    }),
+  );
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "weekly_validator",
+      agent_type: "validator",
+      model: null,
+      prompt_version: "weekly-validator-v1",
+      input_hash: inputHash({ phase: plan.block_phase, rules }),
+      output: { errors: planRuleErrors },
+      validation_result: planRuleErrors.length ? "fail" : "pass",
+      validation_errors: planRuleErrors,
+      retry_count: 0,
+      failure_reason: planRuleErrors.length ? "WEEK_PLAN_ERROR" : null,
+      deterministic: true,
+      decision: planRuleErrors.length ? "FAIL" : "PASS",
+      revision_number: 0,
+    }),
+  );
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "week_structure_analyzer",
+      agent_type: "analyzer",
+      model: null,
+      prompt_version: "week-structure-v1",
+      input_hash: inputHash(structure),
+      output: structure,
+      parsed_output: structure,
+      validation_result: structure.status === "STRUCTURE_GOOD" ? "pass" : "fail",
+      retry_count: 0,
+      failure_reason: structure.status === "STRUCTURE_GOOD" ? null : "STRUCTURE_CONCERN",
+      deterministic: true,
+      decision: structure.status,
+      revision_number: 0,
+    }),
+  );
 
   let built = assembleLegalWeek({
     month,
@@ -456,7 +579,9 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       revisionNumber: 0,
       revision: null,
       timeoutMs,
+      rules,
     });
+    traces.push(...written.selfTraces);
     traces.push(written.trace);
     usage = addUsage(usage, written.trace.token_usage);
     modelName = written.trace.model ?? modelName;
@@ -562,69 +687,62 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }),
   );
 
-  const refreshAnalysis = () => {
-    const fatigue = fatigueReport({ sessions: draft.sessions, actual: input.previousActual });
-    const variation = variationReport({
-      sessions: draft.sessions,
-      recent: input.recentStructures,
-      progressingLifts: plan.days.filter((day) => day.progression_required).map((day) => day.strength_lift),
-    });
-    return { fatigue, variation };
-  };
+  const loadRuleErrors = judgeWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week)).errors.filter((error) =>
+    error.includes("sets do not match"),
+  );
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "load_validator",
+      agent_type: "validator",
+      model: null,
+      prompt_version: "load-validator-v1",
+      input_hash: inputHash(loadDecisions.map((row) => `${row.day}:${row.action}`)),
+      output: { errors: loadRuleErrors },
+      validation_result: loadRuleErrors.length ? "fail" : "pass",
+      validation_errors: loadRuleErrors,
+      retry_count: 0,
+      failure_reason: loadRuleErrors.length ? "LOAD_ERROR" : null,
+      deterministic: true,
+      decision: loadRuleErrors.length ? "FAIL" : "PASS",
+      revision_number: 0,
+    }),
+  );
 
   const pushAnalysis = (revisionNumber: number) => {
-    const { fatigue, variation } = refreshAnalysis();
-    const started = Date.now();
-    traces.push(
-      finishTrace(started, {
-        run_id: runId,
-        week_id: input.weekStart,
-        agent_name: "fatigue_engine",
-        model: null,
-        prompt_version: fatigue.version,
-        input_hash: inputHash({ reported: fatigue.reported_fatigue, planned: fatigue.planned_volume, revision: revisionNumber }),
-        input_summary: { reported_fatigue: fatigue.reported_fatigue, planned_volume: fatigue.planned_volume },
-        output: fatigue,
-        parsed_output: fatigue,
-        validation_result: "pass",
-        retry_count: 0,
-        failure_reason: null,
-        deterministic: true,
-        source: "fallback",
-        fallback_reason: null,
-        revision_number: revisionNumber,
-        token_usage: null,
-      }),
-    );
-    traces.push(
-      finishTrace(started, {
-        run_id: runId,
-        week_id: input.weekStart,
-        agent_name: "variation_engine",
-        model: null,
-        prompt_version: variation.version,
-        input_hash: inputHash({ same: variation.same_week_similarity, accidental: variation.accidental_repetition, revision: revisionNumber }),
-        input_summary: { same_week_similarity: variation.same_week_similarity, accidental: variation.accidental_repetition },
-        output: variation,
-        parsed_output: variation,
-        validation_result: "pass",
-        retry_count: 0,
-        failure_reason: null,
-        deterministic: true,
-        source: "fallback",
-        fallback_reason: null,
-        revision_number: revisionNumber,
-        token_usage: null,
-      }),
-    );
-    return { fatigue, variation };
+    const bundle = analyzeBundle({
+      runId,
+      weekId: input.weekStart,
+      revision: revisionNumber,
+      sessions: draft.sessions,
+      plan,
+      rules,
+      recent: input.recentStructures ?? [],
+      actual: input.previousActual,
+    });
+    traces.push(...bundle.traces);
+    return bundle;
   };
 
-  let { fatigue, variation } = pushAnalysis(0);
+  let bundle = pushAnalysis(0);
+  let fatigue = bundle.fatigue;
+  let variation = bundle.variation;
 
   const askHead = async (revisionNumber: number): Promise<HeadCoachReview> => {
     const started = Date.now();
-    const user = headUser(week, plan, draft, loadDecisions, revisionNumber);
+    const user = {
+      ...(headUser(week, plan, draft, loadDecisions, revisionNumber) as Record<string, unknown>),
+      constitution: "Repetition and similarity are signals. Hard rejects are schema, catalog, unit, class clock, safety, and the active method table.",
+      specialists: bundle.specialists.map((row) => ({
+        name: row.name,
+        status: row.status,
+        confidence: row.confidence,
+        signals: row.signals,
+        recommendations: row.recommendations,
+      })),
+      integrator: bundle.integrator,
+    };
     const asked = await askCoach({
       agent: "head",
       user,
@@ -655,11 +773,13 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       }
     }
     if (source !== "model") noteFailure(asked.reason);
+    review = applyHeadPolicy(review, bundle.integrator);
     traces.push(
       finishTrace(started, {
         run_id: runId,
         week_id: input.weekStart,
         agent_name: "head_coach",
+        agent_type: "coach",
         model: asked.model,
         prompt_version: HEAD_COACH_PROMPT_VERSION,
         input_hash: inputHash({ status: review.status, days: review.revisions.map((row) => row.day), revision: revisionNumber }),
@@ -681,6 +801,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         fallback_reason: source === "model" ? null : asked.reason,
         revision_number: revisionNumber,
         token_usage: asked.usage,
+        decision: review.status,
       }),
     );
     return review;
@@ -691,8 +812,30 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   while (review.status === "REVISE" && revisions < MAX_HEAD_COACH_REVISIONS) {
     const batch = review.revisions;
     revisions += 1;
+    const routes = routesFor(batch, bundle.specialists);
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "revision_router",
+        agent_type: "coach",
+        model: null,
+        prompt_version: "revision-router-v1",
+        input_hash: inputHash(routes),
+        output: routes,
+        parsed_output: routes,
+        validation_result: "pass",
+        retry_count: 0,
+        failure_reason: null,
+        deterministic: true,
+        decision: routes.map((route) => route.kind).join(","),
+        revision_number: revisions,
+      }),
+    );
     let changed = false;
     for (const revision of batch) {
+      const route = routes.find((row) => row.days.includes(revision.day));
+      if (route && !route.agents.includes("session")) continue;
       const intent = plan.days.find((day) => day.day === revision.day);
       if (!intent || intent.primary_training === "rest" || intent.recovery_role === "rest") continue;
       const written = await writeSession({
@@ -704,7 +847,9 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         revisionNumber: revisions,
         revision,
         timeoutMs,
+        rules,
       });
+      traces.push(...written.selfTraces);
       traces.push(written.trace);
       usage = addUsage(usage, written.trace.token_usage);
       if (written.source === "model") {
@@ -732,12 +877,70 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         noteFailure("rule_break");
       }
     }
-    if (loadAsked.ok) {
+    if (changed) {
+      const revisedLoadUser = {
+        ...loadUser,
+        revision_number: revisions,
+        sessions: draft.sessions
+          .filter((session) => !session.rest)
+          .map((session) => ({
+            day: session.day,
+            lift: session.strength?.lift ?? null,
+            format: session.conditioning?.format ?? null,
+            duration_min: session.conditioning?.duration_min ?? null,
+            intensity: session.conditioning?.intensity ?? null,
+          })),
+      };
+      const loadStartedAgain = Date.now();
+      const loadAgain = await askCoach({
+        agent: "load",
+        user: revisedLoadUser,
+        key,
+        fetchImpl: input.fetchImpl,
+        timeoutMs,
+        maxTokens: 1600,
+        promptVersion: LOAD_COACH_PROMPT_VERSION,
+        runId,
+        retryContext: { agent: "load", days: loadDays, revision_number: revisions, original_days: loadUser.days },
+        validate: (json) => {
+          const errors = loadDecisionErrors(json, loadDays);
+          return errors.length ? { ok: false, errors } : { ok: true };
+        },
+      });
+      usage = addUsage(usage, loadAgain.usage);
+      if (loadAgain.ok && loadAgain.json) {
+        loadDecisions = parsedDecisions(loadAgain.json);
+      }
       draft = applyLoadDecisions({ draft: stamp(draft, plan), decisions: loadDecisions, month, weekIndex: input.weekIndex });
+      traces.push(
+        finishTrace(loadStartedAgain, {
+          run_id: runId,
+          week_id: input.weekStart,
+          agent_name: "load_coach",
+          agent_type: "planner",
+          model: loadAgain.model,
+          prompt_version: LOAD_COACH_PROMPT_VERSION,
+          input_hash: inputHash(revisedLoadUser),
+          input_summary: { revision: revisions, recalculated: true },
+          output: loadDecisions,
+          raw_output: loadAgain.raw,
+          parsed_output: loadAgain.ok ? loadDecisions : null,
+          validation_result: loadAgain.ok ? "pass" : "fail",
+          validation_errors: loadAgain.validationErrors,
+          retry_count: loadAgain.retryCount,
+          failure_reason: loadAgain.ok ? null : loadAgain.reason,
+          deterministic: !loadAgain.ok,
+          source: loadAgain.ok ? "model" : "fallback",
+          fallback_reason: loadAgain.ok ? null : loadAgain.reason,
+          revision_number: revisions,
+          token_usage: loadAgain.usage,
+          decision: "RECALCULATED",
+        }),
+      );
     }
-    const analysis = pushAnalysis(revisions);
-    fatigue = analysis.fatigue;
-    variation = analysis.variation;
+    bundle = pushAnalysis(revisions);
+    fatigue = bundle.fatigue;
+    variation = bundle.variation;
     if (!changed) {
       review = { ...review, status: "REVISE", note_ko: "수정한 날이 안전 검사를 통과하지 못해 이전 세션을 유지합니다." };
       break;
@@ -748,34 +951,74 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const finalStatus = review.status === "APPROVE" ? "APPROVE" : "FINALIZE_WITH_WARNING";
   const trained = trainingDays(plan);
   const modelDayCount = trained.filter((day) => daySources[day.day] === "model").length;
-  const modelAdopted = weeklyFromModel || modelDayCount > 0;
+  const origin = prescriptionSource({ modelDays: modelDayCount, trainingDays: trained.length, revisions, legacy: false });
+  const modelAdopted = origin === "model" || origin === "model_revised";
   const clean = weeklyFromModel && modelDayCount === trained.length && finalStatus === "APPROVE";
   const fallbackReason = clean
     ? null
     : finalStatus === "FINALIZE_WITH_WARNING" && weeklyFromModel && modelDayCount === trained.length
       ? "finalize_with_warning"
       : modelDayCount > 0 && modelDayCount < trained.length
-        ? `partial_model_days:${modelDayCount}/${trained.length}`
+        ? `fallback_after_model_failure:${modelDayCount}/${trained.length}`
         : failure ?? "schema";
-  const notes = coachNotes({
-    goal: monthly.plan.block_goal,
-    plan,
-    review,
-    load: loadDecisions,
-    fatigueNote: fatigue.note_ko,
-    variationNote: variation.note_ko,
-  });
+  const notes = [
+    ...coachNotes({
+      goal: monthly.plan.block_goal,
+      plan,
+      review,
+      load: loadDecisions,
+      fatigueNote: fatigue.note_ko,
+      variationNote: variation.note_ko,
+    }),
+    `전문: ${bundle.specialists.map((row) => `${row.name} ${row.status}`).join(", ")}`,
+  ];
   plan = {
     ...plan,
     day_sources: daySources,
     coach_notes: notes,
     final_status: finalStatus,
+    prescription_source: origin,
     fallback_used: weeklyFromModel ? false : true,
     original_intent_source: weeklyFromModel ? "model" : "fallback",
     intent_source: weeklyFromModel ? "model" : "fallback",
   };
   draft = stamp(draft, plan);
-  const judge = judgeWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+  const finalReport = finalWeekReport({
+    draft,
+    month,
+    weekIndex: input.weekIndex,
+    recent: input.recentStructures ?? [],
+    context: judgeContext(week),
+    rules,
+  });
+  const finalErrors = finalReport.hard;
+  let resolvedStatus: "APPROVE" | "FINALIZE_WITH_WARNING" = finalStatus;
+  let resolvedReason = fallbackReason;
+  if (finalErrors.length > 0) {
+    resolvedStatus = "FINALIZE_WITH_WARNING";
+    resolvedReason = resolvedReason ? `${resolvedReason};final_validation_failed` : "final_validation_failed";
+    plan = { ...plan, final_status: resolvedStatus, coach_notes: notes };
+    draft = stamp(draft, plan);
+  }
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "final_validator",
+      agent_type: "validator",
+      model: null,
+      prompt_version: "final-validator-v1",
+      input_hash: inputHash({ errors: finalErrors.length }),
+      output: { errors: finalErrors.slice(0, 8), signals: finalReport.signals.slice(0, 8) },
+      validation_result: finalErrors.length ? "fail" : "pass",
+      validation_errors: finalErrors.slice(0, 8),
+      retry_count: 0,
+      failure_reason: finalErrors.length ? "final_validation_failed" : null,
+      deterministic: true,
+      decision: finalErrors.length ? "FAIL" : "PASS",
+      revision_number: revisions,
+    }),
+  );
   return {
     draft,
     plan,
@@ -784,17 +1027,20 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     review,
     revision_count: revisions,
     generation_source: modelAdopted ? "model" : "fallback",
-    fallback_reason: fallbackReason,
+    fallback_reason: resolvedReason,
     model_name: modelName,
-    prompt_version: COACHING_PIPELINE_VERSION,
+    prompt_version: STAGE13_PIPELINE_VERSION,
     traces,
-    judge_ok: judge.ok,
+    judge_ok: finalErrors.length === 0,
     day_sources: daySources,
-    final_status: finalStatus,
+    final_status: resolvedStatus,
     coach_notes: notes,
     monthly_plan: monthly.plan,
     load_decisions: loadDecisions,
     token_usage: usage,
     latency_ms: traces.reduce((sum, trace) => sum + trace.duration_ms, 0),
+    final_validation: { ok: finalErrors.length === 0, errors: finalErrors.slice(0, 8), signals: finalReport.signals.slice(0, 8) },
+    pipeline: "stage13",
+    prescription_source: origin,
   };
 }
