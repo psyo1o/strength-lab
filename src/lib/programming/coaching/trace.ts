@@ -40,6 +40,13 @@ export type AgentName =
   | "practical_coach"
   | "fun_coach"
   | "head_integrator"
+  | "head_evidence"
+  | "head_risk"
+  | "head_priority"
+  | "head_tradeoff"
+  | "head_action"
+  | "variation_judge"
+  | "recovery_judge"
   | "head_coach"
   | "revision_router"
   | "final_validator";

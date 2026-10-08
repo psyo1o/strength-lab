@@ -117,7 +117,7 @@ export function analyzeBundle(input: {
   const specialists: SpecialistReview[] = [
     strengthReview({ sessions: input.sessions, plan: input.plan, rules: input.rules, fatigue }),
     conditioningReview({ sessions: input.sessions, rules: input.rules }),
-    recoveryReview(input.sessions),
+    recoveryReview(input.sessions, { reportedFatigue: fatigue.reported_fatigue }),
     variationReview({ sessions: input.sessions, plan: input.plan, structures }),
     practicalReview(input.sessions),
     funReview(input.sessions),

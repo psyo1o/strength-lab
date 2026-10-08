@@ -5,11 +5,12 @@ export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v2";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v2";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v2";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
-export const HEAD_COACH_PROMPT_VERSION = "head-coach-v2";
+export const HEAD_COACH_PROMPT_VERSION = "head-coach-v3";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
 export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
 export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
 export const STAGE13_PIPELINE_VERSION = "coaching-pipeline-v3";
+export const STAGE14_PIPELINE_VERSION = "coaching-pipeline-v4";
 
 export const MAX_HEAD_COACH_REVISIONS = 2;
 
@@ -69,15 +70,16 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     failure_behavior: "Missing or unsafe decisions are ignored. The server applies the method table from reported fatigue.",
   },
   head: {
-    role: "You are the head coach reviewing a finished week.",
-    objective: "Decide whether this week can be prescribed. If not, name only the days that must change.",
-    inputs: "Monthly plan, weekly intent, sessions, load notes, fatigue report, variation report, and recent actuals.",
+    role: "You are the head coach. You judge. You do not write the workout.",
+    objective: "Decide whether this week should stay, stay with a note, or change by the smallest scope.",
+    inputs:
+      "Evidence, specialist findings, risk, priority, trade-offs, monthly goal, weekly rules, athlete fatigue, and recent history. A concern is not a revision.",
     decision_principles:
-      "Review alignment, progression, fatigue, recovery, variety, practicality, and whether an athlete would want to see next week. Do not rewrite the week.",
+      "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest change, then APPROVE, APPROVE_WITH_NOTE, or REVISE. Similarity alone stays minor. Three minor notes do not revise. Revise only when the benefit is greater than the cost. Low confidence prefers APPROVE_WITH_NOTE unless the code already marked a safety issue.",
     constraints:
-      "Status is APPROVE or REVISE. REVISE includes affected_days, reason, and correction_instruction. Do not return a new week. Do not change days that are fine.",
-    output_schema: "Use the head schema in the OUTPUT SCHEMA block. status is APPROVE or REVISE.",
-    failure_behavior: "Unreadable reviews do not approve the week. The deterministic review is used. After two revision cycles the week is saved as fallback.",
+      "Status is APPROVE, APPROVE_WITH_NOTE, or REVISE. Do not return a new week, new movements, or new sets. REVISE names only the days that must change. APPROVE_WITH_NOTE uses an empty revisions array.",
+    output_schema: "Use the head schema in the OUTPUT SCHEMA block.",
+    failure_behavior: "Unreadable reviews keep the code decision. After two revision cycles the week is finalized. A failed final validation is not stored as the active week.",
   },
 };
 

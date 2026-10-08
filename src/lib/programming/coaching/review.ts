@@ -12,7 +12,7 @@ export type SessionRevision = {
 };
 
 export type HeadCoachReview = {
-  status: "APPROVE" | "REVISE";
+  status: "APPROVE" | "APPROVE_WITH_NOTE" | "REVISE";
   revisions: SessionRevision[];
   note_ko: string;
 };
@@ -87,11 +87,11 @@ export function hardSessionRevisions(draft: WeekDraft): SessionRevision[] {
 export function parseHeadReview(value: unknown): HeadCoachReview | null {
   if (!value || typeof value !== "object") return null;
   const body = value as Record<string, unknown>;
-  if (body.status !== "APPROVE" && body.status !== "REVISE") return null;
+  if (body.status !== "APPROVE" && body.status !== "APPROVE_WITH_NOTE" && body.status !== "REVISE") return null;
   if (typeof body.note_ko !== "string" || !body.note_ko.trim()) return null;
   if (!Array.isArray(body.revisions)) return null;
-  if (body.status === "APPROVE") {
-    return { status: "APPROVE", revisions: [], note_ko: body.note_ko.trim() };
+  if (body.status === "APPROVE" || body.status === "APPROVE_WITH_NOTE") {
+    return { status: body.status, revisions: [], note_ko: body.note_ko.trim() };
   }
   const revisions: SessionRevision[] = [];
   for (const row of body.revisions) {
@@ -119,13 +119,13 @@ export function parseHeadReview(value: unknown): HeadCoachReview | null {
  */
 export function mergeHeadReview(model: HeadCoachReview, hard: readonly SessionRevision[]): HeadCoachReview {
   const extra = hard.filter((row) => !model.revisions.some((kept) => kept.day === row.day));
-  if (model.status === "APPROVE" && extra.length === 0) return model;
+  if ((model.status === "APPROVE" || model.status === "APPROVE_WITH_NOTE") && extra.length === 0) return model;
   const revisions = [...model.revisions, ...extra].slice(0, 3);
   if (revisions.length === 0) return { status: "APPROVE", revisions: [], note_ko: model.note_ko };
   return {
     status: "REVISE",
     revisions,
-    note_ko: model.status === "APPROVE" ? "안전 제약에 걸린 날만 다시 설계합니다." : model.note_ko,
+    note_ko: model.status === "APPROVE" || model.status === "APPROVE_WITH_NOTE" ? "안전 제약에 걸린 날만 다시 설계합니다." : model.note_ko,
   };
 }
 

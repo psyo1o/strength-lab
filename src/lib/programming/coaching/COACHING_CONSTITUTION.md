@@ -57,8 +57,14 @@ A repeated exposure carries one of: `progression`, `benchmark`, `skill_practice`
 - Load coach: progress, hold, or cut. After a revised session it judges again. The method table supplies the numbers.
 - Analyzers: facts only.
 - Specialists: one judgment each.
-- Head coach: the only role that approves or asks for a revision.
-- Revision router: sends the problem back to the owning agent. Maximum two rounds.
+- Head coach: the only role that approves, notes, or asks for a revision. It does not write the workout.
+- Head decision order: evidence, risk, priority, trade-off, smallest action, then APPROVE, APPROVE_WITH_NOTE, or REVISE.
+- Similarity alone is at most MINOR and priority P3. It does not revise the week.
+- A specialist CONCERN is not a revision. Three minor notes are not a revision.
+- P0 safety and impossible execution are revised in code, whatever the model confidence is.
+- Low confidence prefers APPROVE_WITH_NOTE unless a P0 issue is present.
+- Revision router: sends the problem to the smallest owning agent. Weekly rule failures call the weekly coach. Monthly conflicts call monthly, then weekly, then the affected sessions. Maximum two rounds.
+- A week that fails final validation is stored as failed and is not the active week.
 
 ## What this pipeline will not do
 
@@ -67,6 +73,10 @@ movement repeated → FAIL
 similarity >= 4 → FAIL
 same structure → FAIL
 specialist says bad → replace the WOD
+concern → REVISE
+similarity >= threshold → REVISE
+three minor issues → REVISE
+head writes a new WOD
 ```
 
 The chain is fact, signal, specialist interpretation, head judgment, then action.
