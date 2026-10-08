@@ -9,18 +9,34 @@ export type AgentName =
   | "variation_engine"
   | "head_coach";
 
+export type TokenUsage = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+};
+
 export type AgentTrace = {
   run_id: string;
+  week_id?: string;
+  day?: string | null;
   agent_name: AgentName;
   model: string | null;
   prompt_version: string;
   input_hash: string;
+  input_summary?: unknown;
   output: unknown;
+  raw_output?: unknown;
+  parsed_output?: unknown;
   validation_result: "pass" | "fail" | "skipped";
+  validation_errors?: string[];
   duration_ms: number;
   retry_count: number;
   failure_reason: string | null;
   deterministic: boolean;
+  source?: "model" | "fallback";
+  fallback_reason?: string | null;
+  revision_number?: number;
+  token_usage?: TokenUsage | null;
 };
 
 export function newRunId(): string {

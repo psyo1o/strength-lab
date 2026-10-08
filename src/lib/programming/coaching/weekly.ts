@@ -88,6 +88,44 @@ function slot(input: Slot): Slot {
   return input;
 }
 
+/** What the weekly model actually sees. Monthly strategy and recent actuals are in this object. */
+export function weeklyCoachPayload(input: {
+  month: MonthDirection;
+  weekIndex: WeekIndex;
+  previousActual?: WeekActual | null;
+  recentPlans?: readonly WeeklyIntentPlan[];
+  recentStructures?: readonly { format: string; stimulus: string | null; movement_patterns: readonly string[]; duration_min: number }[];
+}): unknown {
+  const month = input.month.coaching_plan ?? deterministicMonthlyPlan(input.month, input.previousActual);
+  const summary = input.previousActual?.class_summary;
+  return {
+    agent_name: "weekly_coach",
+    monthly_plan: month,
+    week_index: input.weekIndex,
+    long_required_this_week: input.month.long_conditioning_weeks.includes(input.weekIndex),
+    benchmark_week: input.month.benchmark_week === input.weekIndex,
+    class_minutes: 60,
+    reported_fatigue: summary?.fatigue_signal ?? null,
+    planned_volume: summary?.actual_volume ?? null,
+    completion: summary ? { completed_days: summary.completed_days, missed_days: summary.missed_days } : null,
+    recent_intents: (input.recentPlans ?? []).slice(-4).map((plan) => ({
+      week_index: plan.week_index,
+      block_phase: plan.block_phase,
+      days: plan.days.map((day) => ({
+        day: day.day,
+        primary_training: day.primary_training,
+        secondary_training: day.secondary_training,
+        stimulus: day.stimulus,
+        volume_profile: day.volume_profile,
+        strength_lift: day.strength_lift,
+        progression_required: day.progression_required,
+      })),
+    })),
+    recent_structures: (input.recentStructures ?? []).slice(-12),
+    note: "Return seven day purposes under the key days. Do not name movements.",
+  };
+}
+
 /**
  * Seven day purposes. Lifts move with the week index.
  * duration_profile is the class window. The session coach chooses the piece clock later.
