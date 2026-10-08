@@ -10,14 +10,13 @@ import { deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { planCoachedWeek } from "./weekly";
-import { assembleLegalWeek, replaceDays } from "./session";
+import { assembleLegalWeek } from "./session";
 import { reviewWeek, type HeadCoachReview } from "./review";
 import { variationReport, type VariationReport } from "./variation";
 import { coachWeekActive } from "./orchestrate";
 import {
   COACHING_PIPELINE_VERSION,
   HEAD_COACH_PROMPT_VERSION,
-  MAX_HEAD_COACH_REVISIONS,
   SESSION_COACH_PROMPT_VERSION,
   WEEKLY_COACH_PROMPT_VERSION,
 } from "./prompts";
@@ -53,7 +52,7 @@ export type CoachWeekResult = {
   traces: AgentTrace[];
   judge_ok: boolean;
   day_sources: Record<DayKey, "model" | "fallback">;
-  final_status: "APPROVE" | "APPROVE_WITH_NOTE" | "FINALIZE_WITH_WARNING";
+  final_status: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING";
   coach_notes: string[];
   monthly_plan: MonthlyCoachPlan;
   load_decisions: LoadDecision[];
@@ -67,7 +66,7 @@ export type CoachWeekResult = {
     rejected_errors?: string[];
     late_discovered_hard_rule?: boolean;
   };
-  pipeline?: "stage12" | "stage13" | "stage14" | "stage15";
+  pipeline?: "stage12" | "stage13" | "stage14" | "stage15" | "stage16";
   rejected_draft?: WeekDraft | null;
   prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
   day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
@@ -273,34 +272,13 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
   );
 
   let review = reviewWeek({ draft, fatigue, variation });
-  let revisions = 0;
-  while (review.status === "REVISE" && revisions < MAX_HEAD_COACH_REVISIONS) {
-    const days = review.revisions.map((row) => row.day);
-    const rebuilt = replaceDays({
-      month: input.month,
-      weekIndex: input.weekIndex,
-      plan,
-      draft,
-      days,
-      actual: input.previousActual,
-      recent: input.recentStructures,
-      recentLiftMaps: input.recentLiftMaps,
-      salt: built.salt + revisions + 1,
-    });
-    revisions += 1;
-    if (rebuilt.judgeOk) {
-      draft = stamp(rebuilt.draft, plan);
-      fatigue = fatigueReport({ sessions: draft.sessions, actual: input.previousActual });
-      variation = variationReport({
-        sessions: draft.sessions,
-        recent: input.recentStructures,
-        progressingLifts: plan.days.filter((day) => day.progression_required).map((day) => day.strength_lift),
-      });
-      review = reviewWeek({ draft, fatigue, variation });
-    } else {
-      review = { ...review, status: "REVISE", note_ko: "수정한 날이 안전 검사를 통과하지 못해 이전 세션을 유지합니다." };
-      break;
-    }
+  const revisions = 0;
+  if (review.status === "REVISE") {
+    review = {
+      status: "APPROVE_WITH_NOTE",
+      revisions: [],
+      note_ko: `${review.note_ko} 코칭 지적은 기록만 남기고 날을 다시 만들지 않습니다.`,
+    };
   }
 
   const headStarted = Date.now();
@@ -313,12 +291,12 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
       prompt_version: HEAD_COACH_PROMPT_VERSION,
       input_hash: inputHash({ status: review.status, days: review.revisions.map((row) => row.day) }),
       output: review,
-      validation_result: review.status === "APPROVE" ? "pass" : "fail",
+      validation_result: review.status === "REVISE" ? "fail" : "pass",
       retry_count: revisions,
-      failure_reason: review.status === "APPROVE" ? null : "revise",
+      failure_reason: null,
       deterministic: true,
       source: "fallback",
-      fallback_reason: review.status === "APPROVE" ? null : "revise",
+      fallback_reason: null,
       revision_number: revisions,
     }),
   );
@@ -339,7 +317,7 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
     recentLiftMaps: input.recentLiftMaps ?? [],
   });
   const daySources = Object.fromEntries(DAY_ORDER.map((day) => [day, "fallback"])) as Record<DayKey, "model" | "fallback">;
-  const finalStatus = review.status === "APPROVE" ? "APPROVE" : "FINALIZE_WITH_WARNING";
+  const finalStatus = review.status === "APPROVE" || review.status === "APPROVE_WITH_NOTE" ? review.status : "FINALIZE_WITH_WARNING";
   const coachNotes = [
     `월간 목표: ${monthly.plan.block_goal}`,
     `주간 전략: ${plan.adjustment_ko}`,

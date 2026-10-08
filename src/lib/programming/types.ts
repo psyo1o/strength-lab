@@ -233,7 +233,10 @@ export type WeeklyIntentPlan = {
   /** Per-day source after the coaching pipeline. Absent on Stage 10 rows. */
   day_sources?: Partial<Record<DayKey, "model" | "fallback">>;
   coach_notes?: string[];
-  final_status?: "APPROVE" | "FINALIZE_WITH_WARNING" | "APPROVE_WITH_NOTE";
+  final_status?: "APPROVE" | "FINALIZE_WITH_WARNING" | "APPROVE_WITH_NOTE" | "ADJUST";
+  /** Stage 16. Model output, manager pass, head pass, and the saved prescription stay separate. */
+  adjustment_log?: import("./coaching/stage16/types").AdjustmentTrace[];
+  prescription_layers?: import("./coaching/stage16/types").PrescriptionLayers;
   /** Who wrote the stored prescriptions. Distinct from a mixed model/fallback label. */
   prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
   /** Stage 15. Week status does not rewrite a healthy day's source. */
@@ -264,15 +267,26 @@ export type FallbackQuality = {
   practical: number;
 };
 
-export type CanonicalDaySource = "MODEL" | "MODEL_REVISED" | "DETERMINISTIC_FALLBACK" | "LEGACY_FALLBACK" | "FAILED";
+export type CanonicalDaySource =
+  | "MODEL"
+  | "MODEL_REVISED"
+  | "MODEL_ADJUSTED"
+  | "HEAD_ADJUSTED"
+  | "DETERMINISTIC_ADJUSTMENT"
+  | "DETERMINISTIC_FALLBACK"
+  | "LEGACY_FALLBACK"
+  | "FALLBACK"
+  | "FAILED";
 
-export type DayLifecycle = "MODEL" | "MODEL_REVISED" | "FALLBACK" | "FAILED";
+export type DayLifecycle = "MODEL" | "MODEL_REVISED" | "MODEL_ADJUSTED" | "HEAD_ADJUSTED" | "FALLBACK" | "FAILED";
 
 export type WeekLifecycle = "DRAFT" | "VALIDATED" | "ACTIVE" | "FAILED";
 
 /** Kept beside the saved prescription. A fallback must not erase the model day. */
 export type DayPrescriptionRecord = {
   original_model_output: SessionDraft | null;
+  manager_adjusted?: SessionDraft | null;
+  head_adjusted?: SessionDraft | null;
   final_prescription: SessionDraft | null;
   final_source: CanonicalDaySource;
   day_status: DayLifecycle;

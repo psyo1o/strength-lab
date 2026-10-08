@@ -12,9 +12,8 @@ import { coachMonthly } from "./monthly";
 import {
   HEAD_COACH_PROMPT_VERSION,
   LOAD_COACH_PROMPT_VERSION,
-  MAX_HEAD_COACH_REVISIONS,
   SESSION_COACH_PROMPT_VERSION,
-  STAGE15_PIPELINE_VERSION,
+  STAGE16_PIPELINE_VERSION,
   WEEKLY_COACH_PROMPT_VERSION,
 } from "./prompts";
 import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
@@ -22,7 +21,7 @@ import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { prescriptionSource } from "./stage13/policy";
 import { analyzeProgression, analyzeWeekStructure } from "./stage13/analyzers";
 import { heavyLowerStressDays } from "./stage13/specialists";
-import { applyHeadPolicy, routesFor } from "./stage13/revision";
+import { applyHeadPolicy } from "./stage13/revision";
 import { analyzeBundle, selfValidatorTraces } from "./stage13/wire";
 import { evaluateHead, toCoachReview } from "./stage14/decide";
 import { recoveryNeedsJudge, variationNeedsJudge } from "./stage14/judges";
@@ -40,9 +39,10 @@ import {
 import { MAX_MONTHLY_ROUTER_RETRIES, MAX_WEEKLY_ROUTER_RETRIES, routerPlan } from "./stage15/router";
 import { fallbackQuality } from "./stage15/scores";
 import { mergeHeadWithCode } from "./stage14/merge";
-import { revisionWork } from "./stage14/route";
 import type { HeadDecision } from "./stage14/types";
-import { hardSessionRevisions, mergeHeadReview, parseHeadReview, type HeadCoachReview, type SessionRevision } from "./review";
+import { parseHeadAdjustments, runAdjustmentPass } from "./stage16/pass";
+import type { AdjustmentRequest } from "./stage16/types";
+import { parseHeadReview, type HeadCoachReview, type SessionRevision } from "./review";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { variationReport } from "./variation";
@@ -705,7 +705,6 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   }
 
   const daySources = Object.fromEntries(DAY_ORDER.map((day) => [day, "fallback"])) as Record<DayKey, "model" | "fallback">;
-  const revisedDays = new Set<DayKey>();
   let draft = stamp(built.draft, plan);
   for (const day of trainingDays(plan)) {
     const written = await writeSession({
@@ -867,6 +866,33 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let fatigue = bundle.fatigue;
   let variation = bundle.variation;
   let headDecision: HeadDecision | null = null;
+  let headAdjustments: AdjustmentRequest[] = [];
+  const modelOriginalSessions = JSON.parse(JSON.stringify(draft.sessions)) as WeekDraft["sessions"];
+  const managerPass = runAdjustmentPass({
+    sessions: draft.sessions,
+    specialists: bundle.specialists,
+    review: { status: "APPROVE", note_ko: bundle.integrator.note_ko },
+  });
+  draft = stamp({ ...draft, sessions: managerPass.sessions }, plan);
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "middle_manager",
+      agent_type: "coach",
+      model: null,
+      prompt_version: "middle-manager-v1",
+      input_hash: inputHash({ proposals: managerPass.proposals.length, conflicts: managerPass.conflicts.length }),
+      output: { conflicts: managerPass.conflicts, traces: managerPass.traces, regeneration_calls: managerPass.regeneration_calls },
+      parsed_output: managerPass.conflicts,
+      validation_result: "pass",
+      retry_count: 0,
+      failure_reason: null,
+      deterministic: true,
+      decision: managerPass.conflicts.length ? "TRADEOFF" : "INTEGRATED",
+      revision_number: 0,
+    }),
+  );
   let lastHeadHardCodes: string[] = [];
   const currentHardErrors = () =>
     finalWeekReport({
@@ -1037,7 +1063,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       ...(headUser(week, plan, draft, loadDecisions, revisionNumber) as Record<string, unknown>),
       hard_rule_findings: headHard,
       constitution:
-        "A concern is not a revision. Hard findings are facts, not a request to rebuild the week. Similarity alone stays minor. Revise only when benefit exceeds cost. Do not write a workout.",
+        "A concern is not a failure. Do not ask for the week or the session to be regenerated. If one field should change, put it in adjustments and keep weekly_strength_progression in preserve. Similarity alone stays a note.",
       monthly_goal: month.coaching_plan?.block_goal ?? null,
       monthly_method: month.coaching_plan?.strength_method ?? month.strength_method,
       block_phase: plan.block_phase,
@@ -1088,8 +1114,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       }
     }
     if (source !== "model") noteFailure(asked.reason);
-    let review = mergeHeadReview(toCoachReview(decision), hardSessionRevisions(draft));
-    review = applyHeadPolicy(review, bundle.integrator);
+    let review = applyHeadPolicy(toCoachReview(decision), bundle.integrator);
+    if (asked.ok && asked.json) headAdjustments = parseHeadAdjustments(asked.json);
     headDecision =
       review.status === "REVISE"
         ? {
@@ -1143,270 +1169,51 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   };
 
   let review = await askHead(0);
-  let revisions = 0;
-  while (review.status === "REVISE" && revisions < MAX_HEAD_COACH_REVISIONS) {
-    const batch = review.revisions;
-    revisions += 1;
-    const routes = routesFor(batch, bundle.specialists);
-    const work = headDecision
-      ? revisionWork(headDecision)
-      : { monthly: false, weekly: false, sessions: batch.map((row) => row.day), loadOnly: [] as DayKey[] };
-    if (routes.some((route) => route.kind === "WEEK_RULE_ERROR")) work.weekly = true;
-    if (routes.some((route) => route.kind === "MONTHLY_ALIGNMENT_ERROR")) {
-      work.monthly = true;
-      work.weekly = true;
-    }
-    const sessionDays = new Set<DayKey>(work.sessions);
-    if (work.weekly || work.monthly) {
-      for (const revision of batch) sessionDays.add(revision.day);
-    }
-    traces.push(
-      finishTrace(Date.now(), {
-        run_id: runId,
-        week_id: input.weekStart,
-        agent_name: "revision_router",
-        agent_type: "coach",
-        model: null,
-        prompt_version: "revision-router-v2",
-        input_hash: inputHash({ routes, work }),
-        output: { routes, work },
-        parsed_output: { routes, work },
-        validation_result: "pass",
-        retry_count: 0,
-        failure_reason: null,
-        deterministic: true,
-        decision: [
-          work.monthly ? "MONTHLY" : null,
-          work.weekly ? "WEEKLY" : null,
-          work.sessions.length ? "SESSION" : null,
-          work.loadOnly.length ? "LOAD" : null,
-        ]
-          .filter((row): row is string => row != null)
-          .join(","),
-        revision_number: revisions,
-      }),
-    );
-    let changed = false;
-    if (work.monthly) {
-      const again = await coachMonthly({
-        month: input.month,
-        actual: input.previousActual,
-        key,
-        fetchImpl: input.fetchImpl,
-        timeoutMs,
-        runId,
-        weekId: input.weekStart,
-      });
-      traces.push({ ...again.trace, revision_number: revisions });
-      usage = addUsage(usage, again.trace.token_usage);
-      month = { ...input.month, coaching_plan: again.plan };
-      week = { ...week, month };
-      changed = true;
-    }
-    if (work.weekly) {
-      const weeklyStartedAgain = Date.now();
-      const weeklyUserAgain = {
-        ...(weeklyCoachPayload({
-          month,
-          weekIndex: input.weekIndex,
-          previousActual: input.previousActual,
-          recentPlans: input.recentPlans,
-          recentStructures: input.recentStructures,
-        }) as Record<string, unknown>),
-        revision_number: revisions,
-        revision_instruction: batch.map((row) => row.correction_instruction).join(" ") || "주간 규칙을 지키고 어긋난 날의 목적만 고치세요.",
-      };
-      const weeklyAgain = await askCoach({
-        agent: "weekly",
-        user: weeklyUserAgain,
-        key,
-        fetchImpl: input.fetchImpl,
-        timeoutMs,
-        maxTokens: 6000,
-        promptVersion: WEEKLY_COACH_PROMPT_VERSION,
-        runId,
-        retryContext: { agent: "weekly", week_index: input.weekIndex, revision_number: revisions },
-        validate: (json) => {
-          const errors = weeklyIntentErrors(json);
-          if (errors.length) return { ok: false, errors };
-          const parsed = parseWeeklyIntent(json, plan);
-          if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
-          const ruleErrors = weekPlanErrors(parsed, rules);
-          if (ruleErrors.length) return { ok: false, errors: ruleErrors };
-          return { ok: true };
-        },
-      });
-      usage = addUsage(usage, weeklyAgain.usage);
-      modelName = weeklyAgain.model;
-      let adopted = false;
-      if (weeklyAgain.ok && weeklyAgain.json) {
-        const parsed = parseWeeklyIntent(weeklyAgain.json, plan);
-        if (parsed && weekPlanErrors(parsed, rules).length === 0) {
-          plan = {
-            ...parsed,
-            intent_source: "model",
-            original_intent_source: plan.original_intent_source ?? "model",
-            fallback_used: false,
-            realization: "intent",
-            strength_method: month.strength_method || month.scheme,
-          };
-          weeklyFromModel = true;
-          adopted = true;
-          changed = true;
-        }
-      }
-      traces.push(
-        finishTrace(weeklyStartedAgain, {
-          run_id: runId,
-          week_id: input.weekStart,
-          agent_name: "weekly_coach",
-          model: weeklyAgain.model,
-          prompt_version: WEEKLY_COACH_PROMPT_VERSION,
-          input_hash: inputHash(weeklyUserAgain),
-          output: adopted ? { block_phase: plan.block_phase } : weeklyAgain.json,
-          raw_output: weeklyAgain.raw,
-          validation_result: adopted ? "pass" : "fail",
-          validation_errors: weeklyAgain.validationErrors,
-          retry_count: weeklyAgain.retryCount,
-          failure_reason: adopted ? null : weeklyAgain.reason,
-          deterministic: false,
-          source: adopted ? "model" : "fallback",
-          fallback_reason: adopted ? null : weeklyAgain.reason,
-          revision_number: revisions,
-          token_usage: weeklyAgain.usage,
-          decision: adopted ? "RERUN" : "KEPT",
-        }),
-      );
-    }
-    if (work.loadOnly.length > 0 && sessionDays.size === 0) changed = true;
-    for (const revision of batch) {
-      if (!sessionDays.has(revision.day)) continue;
-      const intent = plan.days.find((day) => day.day === revision.day);
-      if (!intent || intent.primary_training === "rest" || intent.recovery_role === "rest") continue;
-      const written = await writeSession({
-        week,
-        plan,
-        draft,
-        day: intent,
-        runId,
-        revisionNumber: revisions,
-        revision,
-        timeoutMs,
-        rules,
-      });
-      traces.push(...written.selfTraces);
-      traces.push(written.trace);
-      usage = addUsage(usage, written.trace.token_usage);
-      if (written.source === "model") {
-        draft = written.draft;
-        daySources[revision.day] = "model";
-        revisedDays.add(revision.day);
-        changed = true;
-        continue;
-      }
-      const rebuilt = replaceDays({
-        month,
-        weekIndex: input.weekIndex,
-        plan,
-        draft,
-        days: [revision.day],
-        actual: input.previousActual,
-        recent: input.recentStructures,
-        recentLiftMaps: input.recentLiftMaps,
-        salt: built.salt + revisions + 3,
-      });
-      if (rebuilt.judgeOk) {
-        draft = stamp(rebuilt.draft, plan);
-        daySources[revision.day] = "fallback";
-        changed = true;
-      } else {
-        noteFailure("rule_break");
-      }
-    }
-    if (changed) {
-      const revisedLoadUser = {
-        ...loadUser,
-        revision_number: revisions,
-        sessions: draft.sessions
-          .filter((session) => !session.rest)
-          .map((session) => ({
-            day: session.day,
-            lift: session.strength?.lift ?? null,
-            format: session.conditioning?.format ?? null,
-            duration_min: session.conditioning?.duration_min ?? null,
-            intensity: session.conditioning?.intensity ?? null,
-          })),
-      };
-      const loadStartedAgain = Date.now();
-      const loadAgain = await askCoach({
-        agent: "load",
-        user: revisedLoadUser,
-        key,
-        fetchImpl: input.fetchImpl,
-        timeoutMs,
-        maxTokens: 1600,
-        promptVersion: LOAD_COACH_PROMPT_VERSION,
-        runId,
-        retryContext: { agent: "load", days: loadDays, revision_number: revisions, original_days: loadUser.days },
-        validate: (json) => {
-          const errors = loadDecisionErrors(json, loadDays);
-          return errors.length ? { ok: false, errors } : { ok: true };
-        },
-      });
-      usage = addUsage(usage, loadAgain.usage);
-      if (loadAgain.ok && loadAgain.json) {
-        loadDecisions = parsedDecisions(loadAgain.json);
-      }
-      draft = applyLoadDecisions({ draft: stamp(draft, plan), decisions: loadDecisions, month, weekIndex: input.weekIndex });
-      traces.push(
-        finishTrace(loadStartedAgain, {
-          run_id: runId,
-          week_id: input.weekStart,
-          agent_name: "load_coach",
-          agent_type: "planner",
-          model: loadAgain.model,
-          prompt_version: LOAD_COACH_PROMPT_VERSION,
-          input_hash: inputHash(revisedLoadUser),
-          input_summary: { revision: revisions, recalculated: true },
-          output: loadDecisions,
-          raw_output: loadAgain.raw,
-          parsed_output: loadAgain.ok ? loadDecisions : null,
-          validation_result: loadAgain.ok ? "pass" : "fail",
-          validation_errors: loadAgain.validationErrors,
-          retry_count: loadAgain.retryCount,
-          failure_reason: loadAgain.ok ? null : loadAgain.reason,
-          deterministic: !loadAgain.ok,
-          source: loadAgain.ok ? "model" : "fallback",
-          fallback_reason: loadAgain.ok ? null : loadAgain.reason,
-          revision_number: revisions,
-          token_usage: loadAgain.usage,
-          decision: "RECALCULATED",
-        }),
-      );
-    }
-    bundle = pushAnalysis(revisions);
-    fatigue = bundle.fatigue;
-    variation = bundle.variation;
-    if (!changed) {
-      review = { ...review, status: "REVISE", note_ko: "수정한 날이 안전 검사를 통과하지 못해 이전 세션을 유지합니다." };
-      break;
-    }
-    review = await askHead(revisions);
-  }
-
-  const finalStatus = review.status === "APPROVE" || review.status === "APPROVE_WITH_NOTE" ? review.status : "FINALIZE_WITH_WARNING";
+  const headPass = runAdjustmentPass({
+    sessions: draft.sessions,
+    review,
+    headAdjustments,
+  });
+  draft = stamp({ ...draft, sessions: headPass.sessions }, plan);
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "head_action",
+      agent_type: "coach",
+      model: null,
+      prompt_version: "head-adjustment-v1",
+      input_hash: inputHash({ stance: headPass.stance, applied: headPass.traces.length }),
+      output: { stance: headPass.stance, traces: headPass.traces, regeneration_calls: headPass.regeneration_calls },
+      parsed_output: headPass.traces,
+      validation_result: "pass",
+      retry_count: 0,
+      failure_reason: null,
+      deterministic: true,
+      decision: headPass.stance,
+      revision_number: 0,
+    }),
+  );
+  review = {
+    status: headPass.stance === "ACCEPT" ? "APPROVE" : "APPROVE_WITH_NOTE",
+    revisions: [],
+    note_ko: headPass.note,
+  };
+  const revisions = 0;
+  const finalStatus = headPass.stance === "ADJUST" ? "ADJUST" : headPass.stance === "ACCEPT" ? "APPROVE" : "APPROVE_WITH_NOTE";
   const trained = trainingDays(plan);
   let modelDayCount = trained.filter((day) => daySources[day.day] === "model").length;
   let origin = prescriptionSource({ modelDays: modelDayCount, trainingDays: trained.length, revisions, legacy: false });
   let modelAdopted = origin === "model" || origin === "model_revised";
-  const accepted = weeklyFromModel && modelDayCount === trained.length && (finalStatus === "APPROVE" || finalStatus === "APPROVE_WITH_NOTE");
+  const accepted =
+    weeklyFromModel &&
+    modelDayCount === trained.length &&
+    (finalStatus === "APPROVE" || finalStatus === "APPROVE_WITH_NOTE" || finalStatus === "ADJUST");
   let fallbackReason = accepted
     ? null
-    : finalStatus === "FINALIZE_WITH_WARNING" && weeklyFromModel && modelDayCount === trained.length
-      ? "finalize_with_warning"
-      : modelDayCount > 0 && modelDayCount < trained.length
-        ? `fallback_after_model_failure:${modelDayCount}/${trained.length}`
-        : failure ?? "schema";
+    : modelDayCount > 0 && modelDayCount < trained.length
+      ? `fallback_after_model_failure:${modelDayCount}/${trained.length}`
+      : failure ?? "schema";
   const notes = [
     ...coachNotes({
       goal: monthly.plan.block_goal,
@@ -1440,10 +1247,11 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let finalErrors = finalReport.hard;
   let rejectedDraft: WeekDraft | null = null;
   let rejectedErrors: string[] = [];
-  let resolvedStatus: "APPROVE" | "APPROVE_WITH_NOTE" | "FINALIZE_WITH_WARNING" = finalStatus;
+  let resolvedStatus: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING" = finalStatus;
   let resolvedReason = fallbackReason;
   const originals = new Map(draft.sessions.map((session) => [session.day, JSON.parse(JSON.stringify(session)) as SessionDraft]));
   const failedDays = new Set<DayKey>();
+  const hardAdjusted = new Set<DayKey>();
   if (finalErrors.length > 0) {
     rejectedErrors = [...finalErrors];
     const targeted = isolationPlan({ errors: finalErrors, trainingDays: trained.map((day) => day.day) });
@@ -1475,6 +1283,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           return originals.get(session.day) ?? session;
         }
         daySources[session.day] = "fallback";
+        hardAdjusted.add(session.day);
         return fallbackSession;
       });
       draft = stamp({ ...draft, sessions }, plan);
@@ -1501,15 +1310,20 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     const finalSession = draft.sessions.find((session) => session.day === day.day) ?? null;
     const failed = failedDays.has(day.day) || dayStillHard(finalErrors, day.day);
     const source = daySources[day.day];
+    const modelOriginal = modelOriginalSessions.find((session) => session.day === day.day) ?? original;
     const finalSource = failed
       ? "FAILED"
-      : source === "model"
-        ? revisedDays.has(day.day)
-          ? "MODEL_REVISED"
-          : "MODEL"
-        : "DETERMINISTIC_FALLBACK";
+      : hardAdjusted.has(day.day)
+        ? "DETERMINISTIC_ADJUSTMENT"
+        : headPass.touched[day.day] === "head"
+          ? "HEAD_ADJUSTED"
+          : managerPass.touched[day.day] === "manager"
+            ? "MODEL_ADJUSTED"
+            : source === "model"
+              ? "MODEL"
+              : "FALLBACK";
     const quality =
-      finalSource === "DETERMINISTIC_FALLBACK" || finalSource === "FAILED"
+      finalSource === "FALLBACK" || finalSource === "DETERMINISTIC_ADJUSTMENT" || finalSource === "FAILED"
         ? fallbackQuality({
             monthlyAligned: true,
             weeklyAligned: weekPlanErrors(plan, rules).length === 0,
@@ -1519,13 +1333,24 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
             practicalOk: !dayStillHard(finalErrors, day.day),
           })
         : null;
+    const dayStatus = failed
+      ? "FAILED"
+      : finalSource === "HEAD_ADJUSTED"
+        ? "HEAD_ADJUSTED"
+        : finalSource === "MODEL_ADJUSTED"
+          ? "MODEL_ADJUSTED"
+          : finalSource === "MODEL"
+            ? "MODEL"
+            : "FALLBACK";
     dayRecords[day.day] = {
-      original_model_output: source === "model" || failed ? original : original,
+      original_model_output: modelOriginal,
+      manager_adjusted: managerPass.layers.manager_adjusted.find((session) => session.day === day.day) ?? null,
+      head_adjusted: headPass.layers.head_adjusted.find((session) => session.day === day.day) ?? null,
       final_prescription: failed ? null : finalSession,
       final_source: finalSource,
-      day_status: failed ? "FAILED" : finalSource === "MODEL_REVISED" ? "MODEL_REVISED" : finalSource === "MODEL" ? "MODEL" : "FALLBACK",
+      day_status: dayStatus,
       failure_reason: failed ? (finalErrors.find((error) => error.includes(day.day)) ?? "hard validation failed") : null,
-      revision_reason: revisedDays.has(day.day) ? "head revision" : null,
+      revision_reason: headPass.touched[day.day] === "head" ? "head adjustment" : null,
       fallback_quality: quality,
       original_model_score: null,
       fallback_score: null,
@@ -1541,6 +1366,13 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     prescription_source: origin,
     final_status: resolvedStatus,
     coach_notes: notes,
+    adjustment_log: [...managerPass.traces, ...headPass.traces],
+    prescription_layers: {
+      model_original: modelOriginalSessions,
+      manager_adjusted: managerPass.layers.manager_adjusted,
+      head_adjusted: headPass.sessions,
+      final_prescription: draft.sessions,
+    },
   };
   draft = stamp(draft, plan);
   const late = lateDiscovered(
@@ -1581,7 +1413,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     generation_source: modelAdopted ? "model" : "fallback",
     fallback_reason: resolvedReason,
     model_name: modelName,
-    prompt_version: STAGE15_PIPELINE_VERSION,
+    prompt_version: STAGE16_PIPELINE_VERSION,
     traces,
     judge_ok: finalErrors.length === 0,
     day_sources: daySources,
@@ -1599,7 +1431,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       rejected_errors: rejectedErrors.slice(0, 8),
       late_discovered_hard_rule: late,
     },
-    pipeline: "stage15",
+    pipeline: "stage16",
     prescription_source: origin,
     rejected_draft: rejectedDraft,
     day_records: dayRecords,

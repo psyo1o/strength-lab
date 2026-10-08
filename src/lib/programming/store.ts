@@ -157,7 +157,15 @@ export function scrubGenerationPayload(value: unknown): unknown {
 
 function asSource(value: string): GenerationSource {
   const token = value.trim().toUpperCase();
-  if (value === "model" || token === "MODEL" || token === "MODEL_REVISED") return "model";
+  if (
+    value === "model" ||
+    token === "MODEL" ||
+    token === "MODEL_REVISED" ||
+    token === "MODEL_ADJUSTED" ||
+    token === "HEAD_ADJUSTED"
+  ) {
+    return "model";
+  }
   return "fallback";
 }
 

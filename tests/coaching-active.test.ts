@@ -154,7 +154,7 @@ function headJson(script: Script, revision: number, day: DayKey) {
   if (script.head === "always_revise" || (script.head === "revise" && revision === 0)) {
     return {
       status: "REVISE",
-      note_ko: "문제 있는 날만 다시 설계합니다.",
+      note_ko: "문제 있는 날의 컨디셔닝 강도만 낮춥니다.",
       revisions: [
         {
           day,
@@ -164,9 +164,24 @@ function headJson(script: Script, revision: number, day: DayKey) {
           constraints: "동작은 카탈로그 안에서만 고르고 하체 리프트는 유지합니다.",
         },
       ],
+      adjustments:
+        script.head === "revise"
+          ? [
+              {
+                target: `${day}.conditioning.duration_min`,
+                reason: "회복과 겹칩니다.",
+                priority: "P1",
+                current_value: "15",
+                proposed_value: "9",
+                preserve: ["weekly_strength_progression"],
+                rationale: "컨디셔닝 시간만 줄이고 스트렝스 진행은 유지합니다.",
+                confidence: 0.9,
+              },
+            ]
+          : [],
     };
   }
-  return { status: "APPROVE", note_ko: "이번 주는 회원에게 내도 됩니다.", revisions: [] };
+  return { status: "APPROVE", note_ko: "이번 주는 회원에게 내도 됩니다.", revisions: [], adjustments: [] };
 }
 
 function agentOf(user: Record<string, unknown>): string {
@@ -398,32 +413,45 @@ describe("active coaching contracts", () => {
     expect(httpFail.result.draft.sessions.find((session) => session.day === "fri")?.warmup_ko).toContain("모델");
   });
 
-  it("case 11 revises only the day the head coach names", async () => {
+  it("case 11 adjusts only the field the head coach names", async () => {
     const { result, calls } = await run({ head: "revise" });
-    const target = result.review.status === "APPROVE" ? result.traces.filter((trace) => trace.agent_name === "head_coach") : [];
-    expect(result.revision_count).toBe(1);
-    expect(result.final_status).toBe("APPROVE");
-    expect(result.review.status).toBe("APPROVE");
-    const revised = result.traces.filter((trace) => trace.agent_name === "session_coach" && trace.revision_number === 1 && trace.source === "model");
-    expect(revised).toHaveLength(1);
-    const day = revised[0]?.day as DayKey;
-    expect(result.draft.sessions.find((session) => session.day === day)?.warmup_ko).toContain("수정1");
+    expect(result.revision_count).toBe(0);
+    expect(result.final_status).toBe("ADJUST");
+    expect(result.pipeline).toBe("stage16");
+    const sessionCalls = calls.filter((call) => call === "session_coach");
+    const training = result.plan.days.filter((day) => day.primary_training !== "rest");
+    expect(sessionCalls).toHaveLength(training.length);
+    const adjusted = result.draft.sessions.find((session) => session.conditioning?.duration_min === 9 && !session.rest);
+    expect(adjusted).toBeTruthy();
+    const day = adjusted!.day;
+    expect(result.day_records?.[day]?.final_source).toBe("HEAD_ADJUSTED");
+    expect(result.day_records?.[day]?.original_model_output?.conditioning?.duration_min).not.toBe(9);
+    expect(JSON.stringify(adjusted?.strength)).toBe(JSON.stringify(result.day_records?.[day]?.original_model_output?.strength));
+    expect(result.draft.sessions.find((session) => session.day === day)?.warmup_ko).toContain("모델");
     const held = result.draft.sessions.filter((session) => session.day !== day && !session.rest);
     expect(held.every((session) => session.warmup_ko.includes("모델"))).toBe(true);
+    expect(
+      held.every(
+        (session) =>
+          session.conditioning?.duration_min === result.day_records?.[session.day]?.original_model_output?.conditioning?.duration_min &&
+          JSON.stringify(session.strength) === JSON.stringify(result.day_records?.[session.day]?.original_model_output?.strength),
+      ),
+    ).toBe(true);
     expect(calls.filter((call) => call === "weekly_coach")).toHaveLength(1);
-    expect(target).toBeDefined();
+    expect(calls.filter((call) => call === "head_coach")).toHaveLength(1);
+    expect(result.traces.filter((trace) => trace.agent_name === "session_coach" && trace.revision_number === 1)).toHaveLength(0);
   });
 
-  it("case 12 stops after two revisions and keeps the week with a warning", async () => {
-    const { result } = await run({ head: "always_revise" });
-    expect(result.revision_count).toBe(2);
-    expect(result.final_status).toBe("FINALIZE_WITH_WARNING");
-    expect(result.fallback_reason).toBe("finalize_with_warning");
+  it("case 12 does not call the head again when the revise has no field patch", async () => {
+    const { result, calls } = await run({ head: "always_revise" });
+    expect(result.revision_count).toBe(0);
+    expect(result.final_status).toBe("APPROVE_WITH_NOTE");
     expect(result.generation_source).toBe("model");
     expect(result.draft.sessions).toHaveLength(7);
     expect(result.judge_ok).toBe(true);
-    const heads = result.traces.filter((trace) => trace.agent_name === "head_coach");
-    expect(heads.length).toBeGreaterThanOrEqual(3);
+    expect(result.traces.filter((trace) => trace.agent_name === "head_coach")).toHaveLength(1);
+    expect(calls.filter((call) => call === "head_coach")).toHaveLength(1);
+    expect(result.draft.sessions.filter((session) => !session.rest).every((session) => session.warmup_ko.includes("모델"))).toBe(true);
   });
 
   it("case 14 treats a repeated lift with a different structure as progression", () => {
@@ -562,7 +590,8 @@ describe("active coaching contracts", () => {
     expect(modelDays).toBeGreaterThanOrEqual(20);
     expect(modelDays + fallbackDays).toBe(28);
     expect(weeks[3]?.phase).toBe("deload");
-    expect(weeks[2]?.revisions).toBe(1);
+    expect(weeks[2]?.revisions).toBe(0);
+    expect(weeks[2]?.head).toBe("ADJUST");
     expect(weeks.map((week) => week.model_days).reduce((sum, value) => sum + value, 0)).toBe(modelDays);
   });
 });

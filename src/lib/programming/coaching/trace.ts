@@ -39,6 +39,7 @@ export type AgentName =
   | "variation_coach"
   | "practical_coach"
   | "fun_coach"
+  | "middle_manager"
   | "head_integrator"
   | "head_evidence"
   | "head_risk"

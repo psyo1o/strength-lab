@@ -172,13 +172,16 @@ export function schemaBrief(agent: CoachAgentName): string {
     ].join("\n");
   }
   return [
-    "JSON object. Keys: status, note_ko, revisions.",
+    "JSON object. Keys: status, note_ko, revisions, adjustments.",
     enumLine("status", HEAD_STATUSES),
-    "APPROVE means there is no coaching issue worth acting on. revisions is empty.",
-    "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions is empty. Do not write a new workout.",
-    "REVISE only when the coaching benefit is greater than the cost of the change. Name only the days that must change. Do not return a new week.",
+    "APPROVE means there is no coaching issue worth acting on. revisions and adjustments are empty.",
+    "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout.",
+    "REVISE names a field change. It does not regenerate the week or the session. Put that change in adjustments.",
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
     "Each revision: day, reason, correction_instruction, priority, constraints.",
+    "Each adjustment: target, reason, priority, current_value, proposed_value, preserve, rationale, confidence.",
+    "target is day.conditioning.intensity, day.conditioning.volume, day.conditioning.duration_min, or day.conditioning.format.",
+    "priority is P0, P1, P2, or P3. preserve is an array of strings and includes weekly_strength_progression when the lift must stay.",
     enumLine("day", DAY_ORDER),
     enumLine("priority", REVISION_PRIORITIES),
     "correction_instruction is the required change for that day. constraints is a short limit the session coach must keep.",
@@ -391,8 +394,24 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
             ["day", "reason", "correction_instruction", "priority", "constraints"],
           ),
         },
+        adjustments: {
+          type: "array",
+          items: strictObject(
+            {
+              target: TEXT,
+              reason: TEXT,
+              priority: { type: "string", enum: ["P0", "P1", "P2", "P3"] },
+              current_value: TEXT,
+              proposed_value: TEXT,
+              preserve: { type: "array", items: TEXT },
+              rationale: TEXT,
+              confidence: { type: "number" },
+            },
+            ["target", "reason", "priority", "current_value", "proposed_value", "preserve", "rationale", "confidence"],
+          ),
+        },
       },
-      ["status", "note_ko", "revisions"],
+      ["status", "note_ko", "revisions", "adjustments"],
     ),
   );
 }
@@ -670,6 +689,20 @@ export function headReviewErrors(value: unknown): string[] {
   }
   if (value.status === "REVISE" && value.revisions.length === 0) {
     errors.push("revisions: REVISE requires at least one day");
+  }
+  if (Array.isArray(value.adjustments)) {
+    if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE") && value.adjustments.length > 0) {
+      errors.push("adjustments: APPROVE and APPROVE_WITH_NOTE require an empty array");
+    }
+    value.adjustments.forEach((row, index) => {
+      if (!isRecord(row)) {
+        errors.push(`adjustments[${index}]: expected an object`);
+        return;
+      }
+      if (typeof row.target !== "string" || !row.target.trim()) errors.push(`adjustments[${index}].target: expected text`);
+      if (typeof row.proposed_value !== "string") errors.push(`adjustments[${index}].proposed_value: expected text`);
+      if (!Array.isArray(row.preserve)) errors.push(`adjustments[${index}].preserve: expected an array`);
+    });
   }
   value.revisions.forEach((row, index) => {
     const prefix = `revisions[${index}]`;
