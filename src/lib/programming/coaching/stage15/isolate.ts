@@ -35,5 +35,5 @@ export function weekStatusFor(input: { hardErrors: readonly string[]; anyDayFail
 }
 
 export function legacySource(source: CanonicalSource | "FAILED"): "model" | "fallback" {
-  return source === "MODEL" || source === "MODEL_REVISED" ? "model" : "fallback";
+  return source === "MODEL" || source === "MODEL_REVISED" || source === "MODEL_ADJUSTED" || source === "HEAD_ADJUSTED" ? "model" : "fallback";
 }

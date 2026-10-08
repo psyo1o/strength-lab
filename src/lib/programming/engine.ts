@@ -10,6 +10,7 @@ import {
 import { completeMonthDirection } from "./month-direction";
 import { coachWeek, LIVE_CLASS_WEEK } from "./coaching/pipeline";
 import { coachingPipelineEnabled } from "./coaching/models";
+import { coachingWeekMayUseLegacyFallback } from "./coaching/stage16/hard";
 import { withCoachingPlan } from "./coaching/monthly";
 import { authorMonth, authorWeek, authorWeeklyIntent, type AuthorTrace, type FetchLike } from "./model";
 import { realizeWeekFromIntent } from "./realize-intent";
@@ -364,11 +365,22 @@ async function writeProgrammingWeek(
       const existing = getProgrammingWeek(weekStart);
       if (existing) return existing;
       const salvage = Object.values(coached.day_records ?? {}).some(
-        (row) => row?.final_source === "MODEL" || row?.final_source === "MODEL_REVISED",
+        (row) =>
+          row?.final_source === "MODEL" ||
+          row?.final_source === "MODEL_REVISED" ||
+          row?.final_source === "MODEL_ADJUSTED" ||
+          row?.final_source === "HEAD_ADJUSTED" ||
+          row?.final_source === "DETERMINISTIC_ADJUSTMENT",
       );
-      if (salvage || coached.week_status === "FAILED") {
+      const allowLegacyWeek = coachingWeekMayUseLegacyFallback({
+        pipeline: coached.pipeline,
+        weekStatus: coached.week_status,
+        salvage,
+      });
+      if (!allowLegacyWeek) {
         const failed = listProgrammingWeekAttempts(weekStart).find((row) => row.id === failedId);
         if (failed) return failed;
+        throw new Error("final validation failed and the coaching week was not replaced");
       }
       const legal = fallbackWeek(
         month.direction,

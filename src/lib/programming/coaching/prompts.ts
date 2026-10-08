@@ -12,8 +12,10 @@ export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
 export const STAGE13_PIPELINE_VERSION = "coaching-pipeline-v3";
 export const STAGE14_PIPELINE_VERSION = "coaching-pipeline-v4";
 export const STAGE15_PIPELINE_VERSION = "coaching-pipeline-v5";
+export const STAGE16_PIPELINE_VERSION = "coaching-pipeline-v6";
 
-export const MAX_HEAD_COACH_REVISIONS = 2;
+/** Coaching concerns do not regenerate the week. Kept at 0 so a revise loop cannot start. */
+export const MAX_HEAD_COACH_REVISIONS = 0;
 
 type PromptDoc = {
   role: string;
@@ -71,16 +73,16 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     failure_behavior: "Missing or unsafe decisions are ignored. The server applies the method table from reported fatigue.",
   },
   head: {
-    role: "You are the head coach. You judge. You do not write the workout.",
-    objective: "Decide whether this week should stay, stay with a note, or change by the smallest scope.",
+    role: "You are the head coach. You judge and you may name one field change. You do not regenerate the week.",
+    objective: "Decide whether this week should stay, stay with a note, or change one field.",
     inputs:
       "Evidence, specialist findings, risk, priority, trade-offs, monthly goal, weekly rules, athlete fatigue, and recent history. A concern is not a revision.",
     decision_principles:
-      "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest change, then APPROVE, APPROVE_WITH_NOTE, or REVISE. Similarity alone stays minor. Three minor notes do not revise. Revise only when the benefit is greater than the cost. Low confidence prefers APPROVE_WITH_NOTE unless the code already marked a safety issue.",
+      "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest field change, then APPROVE, APPROVE_WITH_NOTE, or REVISE. Similarity alone stays minor. Three minor notes do not revise. Name a field change only when the benefit is greater than the cost. Low confidence prefers APPROVE_WITH_NOTE unless the code already marked a safety issue. Do not ask for a new week.",
     constraints:
-      "Status is APPROVE, APPROVE_WITH_NOTE, or REVISE. Do not return a new week, new movements, or new sets. REVISE names only the days that must change. APPROVE_WITH_NOTE uses an empty revisions array.",
-    output_schema: "Use the head schema in the OUTPUT SCHEMA block.",
-    failure_behavior: "Unreadable reviews keep the code decision. After two revision cycles the week is finalized. A failed final validation is not stored as the active week.",
+      "Status is APPROVE, APPROVE_WITH_NOTE, or REVISE. APPROVE and APPROVE_WITH_NOTE use an empty revisions array and an empty adjustments array. REVISE does not mean regenerate. Put the field patch in adjustments. revisions still names the day. Do not return a new week, new movements, or new sets.",
+    output_schema: "Use the head schema in the OUTPUT SCHEMA block. adjustments is the only change the server applies.",
+    failure_behavior: "Unreadable reviews keep the code decision. The server does not call the generator again. A failed final validation is not stored as the active week.",
   },
   variation_judge: {
     role: "You are the variation judge. You are not the head coach.",
