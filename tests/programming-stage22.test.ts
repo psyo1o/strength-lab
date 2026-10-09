@@ -73,6 +73,10 @@ describe("stage22 archive and month pairs", () => {
     expect(fs.readFileSync(a1Log).equals(a1Hash)).toBe(true);
     const intact = verifyProbeArchives({ root, runId, passes: ["A1", "A2"] });
     expect(intact.ok).toBe(true);
+    const dotted = archiveInput(root, "stage23.1-run", "A1", [raw]);
+    expect(verifyProbeArchives({ root, runId: "stage23.1-run", passes: ["A1"] }).ok).toBe(true);
+    expect(dotted.dir).toContain("stage23.1-run");
+    expect(() => archiveInput(root, "stage23..1", "A1", [raw])).toThrow(/not a file label/);
 
     const other = archiveInput(root, "stage22-run-b", "A1", [raw]);
     expect(other.dir).not.toBe(first.dir);

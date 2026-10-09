@@ -15,11 +15,13 @@ export type PassManifest = {
   files: ArchiveFile[];
 };
 
-const LABEL = /^[A-Za-z0-9-]+$/;
+const LABEL = /^[A-Za-z0-9.-]+$/;
 const REQUIRED = ["generation-logs.json", "weeks.json", "months.json"] as const;
 
 function assertLabel(value: string, name: string) {
-  if (!LABEL.test(value)) throw new Error(`${name} is not a file label`);
+  if (!LABEL.test(value) || value.includes("..") || value.startsWith(".") || value.endsWith(".")) {
+    throw new Error(`${name} is not a file label`);
+  }
 }
 
 function sha256(body: string): string {
