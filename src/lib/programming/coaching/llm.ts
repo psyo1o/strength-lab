@@ -85,12 +85,13 @@ async function postOnce(input: {
   maxTokens: number;
   format: ResponseFormat;
   temperature: number | null;
+  systemPrompt?: string;
 }): Promise<Attempt> {
   const started = Date.now();
   const body: Record<string, unknown> = {
     model: input.model,
     messages: [
-      { role: "developer", content: coachSystemPrompt(input.agent) },
+      { role: "developer", content: input.systemPrompt ?? coachSystemPrompt(input.agent) },
       { role: "user", content: JSON.stringify(input.user) },
     ],
     response_format: input.format,
@@ -163,6 +164,10 @@ export async function askCoach(input: {
   retryContext?: unknown;
   validate?: (json: unknown) => CoachValidation;
   format?: ResponseFormat;
+  /** Replaces the agent system prompt. Absent keeps the coach prompt. */
+  systemPrompt?: string;
+  /** Replaces the retry schema note. Absent keeps the agent schema brief. */
+  schemaNote?: string;
 }): Promise<CoachCall> {
   const model = coachModel(input.agent);
   const fetchImpl = input.fetchImpl ?? fetch;
@@ -184,7 +189,7 @@ export async function askCoach(input: {
             original_input: input.user,
             validation_errors: errors,
             invalid_output: lastJson,
-            expected_schema: schemaBrief(input.agent),
+            expected_schema: input.schemaNote ?? schemaBrief(input.agent),
             context: input.retryContext ?? { agent: input.agent, run_id: input.runId },
           };
     let attemptResult = await postOnce({
@@ -197,6 +202,7 @@ export async function askCoach(input: {
       maxTokens: input.maxTokens,
       format,
       temperature,
+      systemPrompt: input.systemPrompt,
     });
     if (attemptResult.reason === "temperature_rejected") {
       attemptResult = await postOnce({
@@ -209,6 +215,7 @@ export async function askCoach(input: {
         maxTokens: input.maxTokens,
         format,
         temperature: null,
+        systemPrompt: input.systemPrompt,
       });
     }
     if (attemptResult.reason === "schema_rejected" && format.type === "json_schema") {
@@ -223,6 +230,7 @@ export async function askCoach(input: {
         maxTokens: input.maxTokens,
         format,
         temperature: null,
+        systemPrompt: input.systemPrompt,
       });
     }
     latencyMs += attemptResult.latencyMs;

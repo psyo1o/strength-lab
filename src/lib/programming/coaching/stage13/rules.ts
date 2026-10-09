@@ -3,6 +3,7 @@ import { previousLowerFatigue } from "../../rules";
 import type { MonthDirection, WeekIndex, WeeklyIntentPlan } from "../../types";
 import type { WeekActual } from "../../summary";
 import { benchmarkCountAllowed, longConditioningCountAllowed } from "../stage15/week-policy";
+import { benchmarkOnRestErrors } from "../stage15/week-structure";
 
 /**
  * Immutable rules for one week, taken from the monthly plan.
@@ -57,6 +58,15 @@ export function weekPlanErrors(plan: WeeklyIntentPlan, rules: WeekRules): string
   if (plan.strength_method && plan.strength_method !== rules.strength_method) {
     errors.push(`weekly plan changed the method to ${plan.strength_method}; this block is ${rules.strength_method}`);
   }
+  errors.push(
+    ...benchmarkOnRestErrors(
+      plan.days.map((day) => ({
+        day: day.day,
+        benchmark: day.benchmark,
+        rest: day.primary_training === "rest" || day.recovery_role === "rest",
+      })),
+    ),
+  );
   const benchmarks = count(plan, (day) => day.benchmark);
   if (!benchmarkCountAllowed(rules.benchmark_required, benchmarks)) {
     errors.push(

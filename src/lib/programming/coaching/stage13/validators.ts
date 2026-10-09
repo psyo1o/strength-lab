@@ -4,6 +4,7 @@ import type { DayIntent, MonthDirection, SessionDraft, WeekDraft, WeekIndex } fr
 import { COACHING_POLICY, isCoachingSignal } from "./policy";
 import { MOVEMENT_EQUIPMENT, unitError } from "./units";
 import { longConditioningCountAllowed } from "../stage15/week-policy";
+import { deloadHeavyConditioningErrors } from "../stage15/week-structure";
 import { weekPlanErrors, type WeekRules } from "./rules";
 
 export type SessionSelfReport = {
@@ -172,13 +173,15 @@ export function finalWeekReport(input: {
       hard.push(`${session.day} long piece is outside ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max}`);
     }
   }
-  if (input.rules.deload_mode) {
-    for (const session of input.draft.sessions) {
-      if (session.conditioning?.intensity === "heavy") {
-        signals.push(`${session.day} deload week has heavy conditioning`);
-      }
-    }
-  }
+  signals.push(
+    ...deloadHeavyConditioningErrors(
+      input.draft.sessions.map((session) => ({
+        day: session.day,
+        conditioningHeavy: session.conditioning?.intensity === "heavy",
+      })),
+      input.rules.deload_mode,
+    ),
+  );
   return { hard: [...new Set(hard)], signals: [...new Set(signals)] };
 }
 
