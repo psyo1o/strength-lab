@@ -9,6 +9,7 @@ import {
   parseHeadChoice,
   parseSpecialistReview,
   proposalsFrom,
+  salvageSpecialistReview,
   type AppliedChange,
   type PhaseCDecisionName,
   type PhaseCPacket,
@@ -226,11 +227,12 @@ export async function runPhaseCReview(input: {
     calls += 1 + asked.retryCount;
     tokens += asked.usage?.total_tokens ?? 0;
     if (!asked.ok) {
+      const last = asked.attempts.at(-1)?.json ?? asked.json;
+      const salvaged = salvageSpecialistReview(last, role);
       reviews.push({
-        role,
-        findings: [],
-        failure_reason: asked.reason ?? "model_failed",
-        validation_errors: asked.validationErrors,
+        ...salvaged,
+        failure_reason: salvaged.findings.length ? null : asked.reason ?? salvaged.failure_reason,
+        validation_errors: asked.validationErrors.length ? asked.validationErrors : salvaged.validation_errors,
       });
       continue;
     }

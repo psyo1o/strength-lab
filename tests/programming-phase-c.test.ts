@@ -311,6 +311,49 @@ describe("phase C coach review", () => {
     await expect(reviewActiveWeek({ weekStart: "2026-10-05", key: "test-key", fetchImpl })).rejects.toThrow(/refuses/);
   });
 
+  it("keeps the valid days when one day in the same review is malformed", async () => {
+    const tue = session();
+    tue.day = "tue";
+    const source = packet();
+    source.days.push({ day: "tue", intent: null, lock: null, session: tue });
+    const both = (role: "programming" | "strength_fatigue") => ({
+      role,
+      days: ["mon", "tue"].map((day) => ({ ...pass(role).days[0], day })),
+    });
+    const broken = {
+      role: "execution",
+      days: [
+        { ...pass("execution").days[0], day: "mon" },
+        {
+          day: "tue",
+          verdict: "SUGGEST_REVISION",
+          problem: "창이 빡빡하다",
+          severity: "moderate",
+          evidence: "30초",
+          intent_impact: "",
+          uncertainty: "",
+          proposal: { target: "amount" },
+        },
+      ],
+    };
+    const run = await runPhaseCReview({
+      packet: source,
+      key: "test-key",
+      fetchImpl: async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as { messages?: Array<{ content?: string }> };
+        const system = body.messages?.[0]?.content ?? "";
+        if (system.includes("programming coach")) return chat(both("programming"));
+        if (system.includes("strength and fatigue")) return chat(both("strength_fatigue"));
+        if (system.includes("execution coach")) return chat(broken);
+        return chat(head("APPROVE_ORIGINAL", [], [{ role: "execution", day: "tue", reason: "형식이 깨진 날은 고치지 않습니다." }]));
+      },
+    });
+    const execution = run.reviews.find((review) => review.role === "execution");
+    expect(execution?.findings.map((finding) => `${finding.day}:${finding.verdict}`)).toEqual(["mon:PASS", "tue:NEEDS_REVIEW"]);
+    expect(run.decision).toBe("APPROVE_ORIGINAL");
+    expect(run.changes).toEqual([]);
+  });
+
   it("rejects an impossible amount before it can become the confirmed piece", () => {
     const proposal = {
       role: "execution" as const,

@@ -154,6 +154,42 @@ export function parseSpecialistReview(value: unknown, role: PhaseCRole): { ok: t
   return { ok: true, review: { role, findings, failure_reason: null, validation_errors: [] } };
 }
 
+/** Keeps the days that parsed. A broken day stays as NEEDS_REVIEW and does not erase the rest. */
+export function salvageSpecialistReview(value: unknown, role: PhaseCRole): PhaseCSpecialistReview {
+  if (!isRecord(value) || !Array.isArray(value.days)) {
+    return { role, findings: [], failure_reason: "unparsed", validation_errors: ["days: expected an array"] };
+  }
+  const findings: PhaseCFinding[] = [];
+  const validation_errors: string[] = [];
+  value.days.forEach((row, index) => {
+    const parsed = parseSpecialistReview({ role, days: [row] }, role);
+    if (parsed.ok) {
+      findings.push(...parsed.review.findings);
+      return;
+    }
+    validation_errors.push(...parsed.errors.map((error) => error.replace("days[0]", `days[${index}]`)));
+    const day = isRecord(row) ? dayOf(row.day) : null;
+    if (!day) return;
+    findings.push({
+      role,
+      day,
+      verdict: "NEEDS_REVIEW",
+      problem: parsed.errors.join(" "),
+      severity: "moderate",
+      evidence: "",
+      intent_impact: "",
+      uncertainty: "이 날의 평가는 형식이 맞지 않아 수정안을 만들지 않았다.",
+      proposal: null,
+    });
+  });
+  return {
+    role,
+    findings,
+    failure_reason: findings.length ? null : "unparsed",
+    validation_errors,
+  };
+}
+
 function parseProposal(
   value: unknown,
   role: PhaseCRole,
