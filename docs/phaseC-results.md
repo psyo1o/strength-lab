@@ -58,7 +58,7 @@ A1 `07-27`은 생성은 모델이었고 Head 호출이 HTTP로 실패했다. 원
 | 2099-07-13 | 토요일 더블언더 교체, 로잉 `15cal` → `12cal` | 점프 부담은 타당하나 두 제안의 축이 달라 하나만 확정하지 않았다 |
 | 2099-07-20 | 목요일 케틀벨 스윙 `15reps` → `12reps` | 60초 안에 세 동작이 빠듯하다는 지적은 받았으나, 3회를 줄여 그 창에 들어간다는 근거가 패킷에 없다고 봤다 |
 
-이 세 주는 좋은 WOD를 억지로 고치지는 않았다. 동시에 원본 승인으로 닫지도 못했다. 제안 일수는 요약의 `proposal_days` 3과 같다. 호출 56, 토큰 69,823, 검토 시간 104,776ms는 실패 호출이 섞인 마지막 실행 값이다. 12주 품질 비교로 쓰지 않는다.
+이 세 주는 좋은 WOD를 억지로 고치지는 않았다. 동시에 원본 승인으로 닫지도 못했다. 그 차이를 통과와 미달로 가른 내용은 8절이다. 제안 일수는 요약의 `proposal_days` 3과 같다. 호출 56, 토큰 69,823, 검토 시간 104,776ms는 실패 호출이 섞인 마지막 실행 값이다. 12주 품질 비교로 쓰지 않는다.
 
 그 앞의 `phaseC-15a4a7c4-fbe4-48cc-a970-1831f56ab0ac`는 주간 생성 스키마를 물려받아 세 코치가 모두 `schema`로 비었다. 코칭 결과로 세지 않는다. 원본은 지워지지 않았다.
 
@@ -82,3 +82,54 @@ A1 `07-27`은 생성은 모델이었고 Head 호출이 HTTP로 실패했다. 원
 | `phaseC-15a4a7c4-fbe4-48cc-a970-1831f56ab0ac` | 같은 디렉터리 | 스키마를 물려받은 실행. 지우지 않음 |
 
 요약 파일은 `docs/phaseC-probe.json`이다.
+
+## 8. 추가 확인 기준
+
+판정은 실행 `phaseC-8ad2895a-e932-4e0b-aab0-37774736e0a2`의 A1에서 모델 호출이 끝난 세 주만 본다. `2099-07-06`, `2099-07-13`, `2099-07-20`이다. HTTP 실패 주와 스키마가 비었던 `phaseC-15a4a7c4`는 넣지 않는다. 모킹 테스트의 채택·기각 행은 통과 근거로 쓰지 않는다.
+
+| 기준 | 판정 |
+|---|---|
+| 코치가 문제를 찾으면 실제 WOD가 바뀌는가 | 미달 |
+| Head Coach가 수정안을 거절할 수 있는가 | 미달 |
+| 원본, 수정 이유, 최종 결과를 나란히 볼 수 있는가 | 통과 |
+
+### 1. 실제 WOD 변경 — 미달
+
+코치가 문제를 찾고 수정안을 낸 주는 위 세 주다. 세 주 모두 `changes`는 `[]`, `confirmed`는 `null`, 결정은 `NEEDS_REVIEW`다. 요약의 `changed_days`는 0이고 `APPROVE_REVISED`와 `PARTIAL_REVISION`도 0이다. 바뀐 WOD의 전후는 없다. 남은 것은 평가와 제안이다.
+
+저장 주 행은 Phase B 원본이다. `prompt_version`은 `coaching-pipeline-v6`이고 `generation_source`는 `model`이다.
+
+| 주 | 저장된 WOD | 제안 | 반영 |
+|---|---|---|---|
+| 2099-07-06 토 | `row:12cal`, `double_under:30sec`, `push_up:12reps`. 60초 일하고 30초 쉼 | execution: 더블언더 `30sec` → `30reps` | 없음. 저장 주도 `30sec` |
+| 2099-07-13 토 | `row:15cal`, `burpee:12reps`, `double_under:30sec`. 캡 36분 | strength_fatigue: 더블언더 → `single_under` 30초. execution: 로잉 `15cal` → `12cal` | 없음. 저장 주도 `15cal`과 `double_under:30sec` |
+| 2099-07-20 목 | `row:12cal`, `push_up:10reps`, `kb_swing:15reps`. 60초 일하고 30초 쉼 | execution: 케틀벨 스윙 `15reps` → `12reps` | 없음. 저장 주도 `15reps` |
+
+주 행은 `docs/phaseC-runs/phaseC-8ad2895a-e932-4e0b-aab0-37774736e0a2/A1/weeks.json`이다.
+
+### 2. Head Coach 거절 — 미달
+
+세 주에서 Head는 수정안을 채택하지 않았다. 자동으로 고친 경우는 없다. 거절로 닫은 사례도 없다. 12주 전부 `rejected`는 `[]`이고 `APPROVE_ORIGINAL`은 0이다. 결정 이름은 `NEEDS_REVIEW`다.
+
+가까운 문장은 보류다.
+
+- 2099-07-06. execution이 토요일 더블언더를 `30sec`에서 `30reps`로 바꾸자고 했다. Head 근거: 60초 작업과 단위가 섞인 지적은 맞다. 다만 초를 횟수로 바꾸는 안은 30초 안에 몇 회가 들어가는지 정하지 못하고, 다른 코치의 토요일 형식도 깨져 있다. 확정 수정을 만들지 않고 `NEEDS_REVIEW`로 두었다. `rejected`에는 이 안이 없다.
+- 2099-07-13. 점프를 낮추자는 안과 로잉 칼로리를 줄이자는 안이 같이 있었다. Head 근거: 발목·종아리 부하는 타당하나 두 축을 현재 정보로 하나만 확정할 수 없다. `NEEDS_REVIEW`. `rejected`는 비었다.
+- 2099-07-20. 케틀벨 스윙 3회 감소. Head 근거 마지막 문장: "따라서 안전한 변경을 확정할 수 없어 승인/수정 모두 보류." `rejected`는 비었다.
+
+원본을 선택한 거절 이유 칸은 비어 있다. 나중에 "어떤 거절이 품질을 지켰는지"를 `rejected[].reason`으로 비교할 수 없다. 이유는 `rationale` 문장에만 있다.
+
+### 3. 전후 비교 저장 — 통과
+
+원본, 수정 이유, 최종 결과가 한 기록에 있다. 최종 결과는 고친 WOD가 아니다. `confirmed: null`, `changes: []`이고, 주 행의 운동은 `original`과 같다.
+
+커밋된 위치는 `docs/phaseC-probe.json`이다. A1의 `2099-07-06`, `2099-07-13`, `2099-07-20` 아래 `phase_c`다.
+
+| 칸 | 내용 |
+|---|---|
+| `original` | 검토 당시 요일별 운동과 작업·휴식 |
+| `proposals[].before`, `after`, `reason` | 바꾸기 전 양, 제안 양, 코치가 적은 이유 |
+| `rationale` | Head가 확정하지 않은 이유 |
+| `decision`, `accepted`, `rejected`, `changes`, `confirmed` | 결정과 반영. 이 세 주는 결정만 `NEEDS_REVIEW`이고 나머지는 빈 값 또는 `null` |
+
+같은 내용의 원본 로그는 `docs/phaseC-runs/phaseC-8ad2895a-e932-4e0b-aab0-37774736e0a2/A1/generation-logs.json`이다. `prompt_version`이 `phase-c-review-v1`인 행의 `output`이다. 이 디렉터리는 gitignore다. 주 행의 최종 운동은 같은 A1의 `weeks.json`이다.
