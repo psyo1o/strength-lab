@@ -134,6 +134,8 @@ export function schemaBrief(agent: CoachAgentName): string {
       enumLine("intensity", INTENSITY_BANDS),
       enumLine("equipment", EQUIPMENT),
       "movements is an array of {key, amount, name_ko}. 2 to 4 items, or 1 only when primary_training is aerobic and the day is not long.",
+      "interval_work_sec and interval_rest_sec are integers only when format is intervals. Otherwise both are null.",
+      "amount is the work quantity. duration_min is the piece cap. Do not put the clock in amount.",
       `movement.key must be one of: ${catalog}.`,
       "name_ko must be the catalog Korean name for that key.",
       unitGuide(),
@@ -318,8 +320,10 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
               equipment: { type: "array", items: stringEnum(EQUIPMENT) },
               volume: stringEnum(VOLUME_BANDS),
               intensity: stringEnum(INTENSITY_BANDS),
+              interval_work_sec: { type: ["integer", "null"] },
+              interval_rest_sec: { type: ["integer", "null"] },
             },
-            ["format", "duration_min", "stimulus", "movements", "equipment", "volume", "intensity"],
+            ["format", "duration_min", "stimulus", "movements", "equipment", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
           ),
         },
         ["day", "warmup_ko", "notes_ko", "conditioning"],
@@ -577,6 +581,24 @@ function durationErrors(intent: DayIntent, minutes: unknown): string[] {
   return [];
 }
 
+/** Interval clock is separate from movement amount. Other formats leave both fields null. */
+export function intervalFieldErrors(piece: Record<string, unknown>): string[] {
+  const work = piece.interval_work_sec;
+  const rest = piece.interval_rest_sec;
+  const present = work != null || rest != null;
+  if (piece.format !== "intervals") {
+    return present ? ["interval_work_sec and interval_rest_sec must be null unless format is intervals"] : [];
+  }
+  const errors: string[] = [];
+  if (typeof work !== "number" || !Number.isInteger(work) || work < 10 || work > 90) {
+    errors.push(`interval_work_sec: received ${received(work)}; allowed: integer 10–90 when format is intervals`);
+  }
+  if (typeof rest !== "number" || !Number.isInteger(rest) || rest < 10 || rest > 90) {
+    errors.push(`interval_rest_sec: received ${received(rest)}; allowed: integer 10–90 when format is intervals`);
+  }
+  return errors;
+}
+
 export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] {
   if (intent.primary_training === "rest" || intent.recovery_role === "rest") return ["rest days are not sent to the session coach"];
   if (!isRecord(value)) return ["expected a session object"];
@@ -626,6 +648,7 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
       }
     });
   }
+  errors.push(...intervalFieldErrors(piece));
   if (!Array.isArray(piece.equipment) || piece.equipment.length === 0) {
     errors.push(`conditioning.equipment: expected a non-empty array; allowed: [${EQUIPMENT.join(", ")}]`);
   } else {

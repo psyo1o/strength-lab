@@ -14,6 +14,8 @@
  *   PROBE_MODE=db PROBE_LABEL=stage21 npx tsx scripts/plan-lab.ts
  * Stage 22 keeps each pass on disk before the next pass deletes 2099 rows:
  *   PROBE_MODE=db PROBE_LABEL=stage22 npx tsx scripts/plan-lab.ts
+ * Stage 23 uses the same scenarios. Raw files under docs/stage23-runs are gitignored:
+ *   PROBE_MODE=db PROBE_LABEL=stage23 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
@@ -22,6 +24,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { archiveProbePass, verifyProbeArchives } from "../src/lib/programming/probe-archive";
+import { unitError } from "../src/lib/programming/coaching/stage13/units";
+import { isAdoptedModelSession } from "../src/lib/programming/coaching/stage13/validators";
 import { evaluationStatus } from "../src/lib/programming/model";
 import type { ProgrammingSummary } from "../src/lib/programming/summary";
 import { DAY_ORDER } from "../src/lib/month-plan/types";
@@ -258,6 +262,13 @@ function classifySessionLogs(rawLogs: string[]) {
   let retriedFail = 0;
   let retainedFirst = 0;
   let retryWithoutFirst = 0;
+  let sessionsSeen = 0;
+  let firstClean = 0;
+  let doubleUnderErrors = 0;
+  let rowErrors = 0;
+  let otherUnitErrors = 0;
+  let adoptedPass = 0;
+  let notSuccess = 0;
   for (const raw of rawLogs) {
     const parsed = JSON.parse(raw) as {
       prompt_version?: string;
@@ -267,8 +278,26 @@ function classifySessionLogs(rawLogs: string[]) {
       first_validation_errors?: string[];
       retry_count?: number;
       deterministic?: boolean;
+      source?: string;
+      model_attempts?: Array<{ json?: unknown }>;
     };
-    if (parsed.prompt_version !== "session-coach-v2" || parsed.deterministic !== false) continue;
+    const sessionPrompt = parsed.prompt_version === "session-coach-v2" || parsed.prompt_version === "session-coach-v3";
+    if (!sessionPrompt || parsed.deterministic !== false) continue;
+    const firstAmounts = firstAttemptAmounts(parsed);
+    if (firstAmounts.length) {
+      sessionsSeen += 1;
+      let bad = false;
+      for (const movement of firstAmounts) {
+        if (!unitError(movement.key, movement.amount)) continue;
+        bad = true;
+        if (movement.key === "double_under") doubleUnderErrors += 1;
+        else if (movement.key === "row") rowErrors += 1;
+        else otherUnitErrors += 1;
+      }
+      if (!bad) firstClean += 1;
+    }
+    if (isAdoptedModelSession(parsed)) adoptedPass += 1;
+    else notSuccess += 1;
     if (parsed.validation_result === "pass") {
       passed += 1;
       if ((parsed.retry_count ?? 0) > 0) {
@@ -297,9 +326,33 @@ function classifySessionLogs(rawLogs: string[]) {
     retried_fail: retriedFail,
     retained_first_error: retainedFirst,
     retry_without_first_error: retryWithoutFirst,
+    unit_quality: {
+      sessions: sessionsSeen,
+      first_attempt_clean: firstClean,
+      double_under_errors: doubleUnderErrors,
+      row_errors: rowErrors,
+      other_unit_errors: otherUnitErrors,
+      adopted_pass: adoptedPass,
+      not_success: notSuccess,
+    },
     kinds,
     examples,
   };
+}
+
+function firstAttemptAmounts(parsed: { model_attempts?: Array<{ json?: unknown }> }): Array<{ key: string; amount: string }> {
+  const json = parsed.model_attempts?.[0]?.json;
+  if (!json || typeof json !== "object") return [];
+  const movements = (json as { conditioning?: { movements?: unknown } }).conditioning?.movements;
+  if (!Array.isArray(movements)) return [];
+  const rows: Array<{ key: string; amount: string }> = [];
+  for (const row of movements) {
+    if (!row || typeof row !== "object") continue;
+    const movement = row as { key?: unknown; amount?: unknown };
+    if (typeof movement.key !== "string" || typeof movement.amount !== "string") continue;
+    rows.push({ key: movement.key, amount: movement.amount });
+  }
+  return rows;
 }
 
 function normalizationReport(rawLogs: string[]) {
@@ -536,6 +589,29 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
         };
       },
       { retried_pass: 0, retried_fail: 0, retained_first_error: 0, retry_without_first_error: 0 },
+    ),
+    unit_quality: rows.reduce<{
+      sessions: number;
+      first_attempt_clean: number;
+      double_under_errors: number;
+      row_errors: number;
+      other_unit_errors: number;
+      adopted_pass: number;
+      not_success: number;
+    }>(
+      (sum, row) => {
+        const quality = (row.session_failures as { unit_quality?: Record<string, number> } | undefined)?.unit_quality ?? {};
+        return {
+          sessions: sum.sessions + (quality.sessions ?? 0),
+          first_attempt_clean: sum.first_attempt_clean + (quality.first_attempt_clean ?? 0),
+          double_under_errors: sum.double_under_errors + (quality.double_under_errors ?? 0),
+          row_errors: sum.row_errors + (quality.row_errors ?? 0),
+          other_unit_errors: sum.other_unit_errors + (quality.other_unit_errors ?? 0),
+          adopted_pass: sum.adopted_pass + (quality.adopted_pass ?? 0),
+          not_success: sum.not_success + (quality.not_success ?? 0),
+        };
+      },
+      { sessions: 0, first_attempt_clean: 0, double_under_errors: 0, row_errors: 0, other_unit_errors: 0, adopted_pass: 0, not_success: 0 },
     ),
     consistency: consistencyRows(rows),
     model_calls: rows.reduce((sum, row) => sum + Number(row.model_calls ?? 0), 0),

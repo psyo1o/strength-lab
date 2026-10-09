@@ -130,7 +130,20 @@ export function unitGuide(): string {
     "Allowed units by movement.",
     ...lines,
     "Any other movement key uses reps.",
+    "Amount is the work quantity. It is not the clock.",
+    "AMRAP and for time use duration_min as the time cap. Each amount is reps, calories, or metres.",
+    "EMOM uses duration_min as the number of minutes. Each amount is the work inside one minute, not 60sec.",
+    "Intervals use format intervals. interval_work_sec and interval_rest_sec are the work and rest clock. Amount is still the work done during the work interval, in that movement's allowed unit.",
+    "double_under amount is reps, for example 50. row amount is 12/10cal or 250m. row 12reps and row 30sec are rejected. double_under 30sec is rejected.",
+    "Do not fix a bad amount by only renaming the unit. If the clock was the intent, move it to the interval fields and choose a real work quantity. If the work quantity is unknown, do not invent calories or reps.",
+    "Handstand amount may be seconds because the hold is the work. Other movements do not put seconds in amount.",
   ].join(" ");
+}
+
+/** Retry text for a wrong amount. It names the movement, the value, and the allowed units. */
+export function amountRepairHint(key: string, amount: string): string {
+  const allowed = allowedUnits(key).join(", ");
+  return `${key} amount ${amount} is the wrong field for that value. Allowed amount units: ${allowed}. Put a work/rest clock in interval_work_sec and interval_rest_sec only when format is intervals. Do not only rename the unit, and do not invent a calorie or rep count.`;
 }
 
 export function unitError(key: string, amount: string): string | null {

@@ -182,7 +182,7 @@ function adoptDay(input: {
 }):
   | { ok: true; draft: WeekDraft; session: SessionDraft; json: unknown; normalizations: SessionNormalization[] }
   | { ok: false; errors: string[]; json: unknown; normalizations: SessionNormalization[] } {
-  const normalized = normalizeSessionPayload(input.json);
+  const normalized = normalizeSessionPayload(input.json, { inventWorkFromClock: false });
   const locked = lockedSkeletonDay(input.week, input.day.day);
   const schemaErrors = [
     ...sessionSelfErrors(normalized.json, input.day),

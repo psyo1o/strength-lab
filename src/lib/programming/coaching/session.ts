@@ -229,6 +229,16 @@ export function sessionFromCoachJson(input: {
   const lift = longPiece || input.intent.strength_lift === "none" ? null : input.intent.strength_lift;
   const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual) : null;
   const warmupText = typeof body.warmup_ko === "string" && hangul(body.warmup_ko) ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
+  const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark);
+  if (
+    format === "intervals" &&
+    typeof piece.interval_work_sec === "number" &&
+    typeof piece.interval_rest_sec === "number"
+  ) {
+    const clock = `${piece.interval_work_sec}초 일하고 ${piece.interval_rest_sec}초 쉽니다.`;
+    built.work_rest_structure = clock;
+    built.rep_structure = `${minutes}분 인터벌. ${clock}`;
+  }
   return fillSessionFields(
     {
       day: input.intent.day,
@@ -237,7 +247,7 @@ export function sessionFromCoachJson(input: {
       warmup_min: 10,
       warmup_ko: warmupText,
       strength,
-      conditioning: conditioningFrom(input.intent.day, recipe, input.intent.benchmark),
+      conditioning: built,
     },
     strength ? (input.intent.volume_profile === "low" ? "low" : "moderate") : null,
   );

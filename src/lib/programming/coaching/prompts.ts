@@ -3,7 +3,7 @@ import type { CoachAgentName } from "./models";
 
 export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v2";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v2";
-export const SESSION_COACH_PROMPT_VERSION = "session-coach-v2";
+export const SESSION_COACH_PROMPT_VERSION = "session-coach-v3";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
 export const HEAD_COACH_PROMPT_VERSION = "head-coach-v3";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
@@ -57,7 +57,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Vary format, combination, density, and work/rest when the purpose allows. Keep a lift when progression_required is true. Aerobic days may be one cyclical modality. Other days should combine movements. Fun is a purposeful combination, not a random rename.",
     constraints:
-      "One day only. Do not judge recent-week similarity, other days, monthly method changes, weekly rules, or load. Do not output time_domain, fatigue scores, tonnage, or similarity. Do not invent kilograms. Conditioning duration_min is the piece length, not the class window. When locked_day is present, duration_min, volume, and intensity must stay inside that day. Movement amount units must match the catalog. A rest day has no work.",
+      "One day only. Do not judge recent-week similarity, other days, monthly method changes, weekly rules, or load. Do not output time_domain, fatigue scores, tonnage, or similarity. Do not invent kilograms. Conditioning duration_min is the piece length, not the class window. When locked_day is present, duration_min, volume, and intensity must stay inside that day. Movement amount units must match the catalog. Amount is work, not a clock: double_under 30sec, row 30sec, and row 12reps are rejected and are not fixed by renaming the unit. Interval work and rest go in interval_work_sec and interval_rest_sec. Do not force a weekday template. A rest day has no work.",
     output_schema: "Use the session schema in the OUTPUT SCHEMA block. duration_min is the piece, not the class window.",
     failure_behavior: "A bad day is rejected. The server designs that day. Other days stay as they are.",
   },

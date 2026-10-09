@@ -25,7 +25,16 @@ type Pace = "fast" | "steady" | "easy";
 
 const DISPLAY_KEYS = new Set(["warmup_ko", "notes_ko", "purpose", "strength_purpose", "metcon_purpose", "scheme_note", "focus"]);
 
-export function normalizeSessionPayload(value: unknown): { json: unknown; normalizations: SessionNormalization[] } {
+export type NormalizeOptions = {
+  /**
+   * Stage21 recorded a seconds-to-work table. Adoption leaves it off so an ambiguous
+   * clock is not stored as an invented rep count or calorie count.
+   */
+  inventWorkFromClock?: boolean;
+};
+
+export function normalizeSessionPayload(value: unknown, options?: NormalizeOptions): { json: unknown; normalizations: SessionNormalization[] } {
+  const inventWorkFromClock = options?.inventWorkFromClock !== false;
   if (!value || typeof value !== "object") return { json: value, normalizations: [] };
   const json = JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
   const normalizations: SessionNormalization[] = [];
@@ -67,6 +76,8 @@ export function normalizeSessionPayload(value: unknown): { json: unknown; normal
     if (!unitError(key, amount)) return;
     const parsed = parsedAmount(amount);
     const converted = convertAmount({ key, amount, seconds: parsed.unit === "sec" ? parsed.value : null, pace, volume, domain, durationMin });
+    const invented = converted.ok && converted.rule.includes("_sec_to_");
+    const acceptInvention = inventWorkFromClock && invented;
     normalizations.push({
       movement_key: key || null,
       path: `${path}.amount`,
@@ -74,13 +85,13 @@ export function normalizeSessionPayload(value: unknown): { json: unknown; normal
       original_unit: parsed.unit,
       original_value: parsed.value || null,
       original_text: amount,
-      converted_unit: converted.ok ? converted.unit : null,
-      converted_value: converted.ok ? converted.value : null,
-      converted_text: converted.ok ? converted.amount : amount,
-      rule: converted.rule,
-      ok: converted.ok,
+      converted_unit: acceptInvention ? converted.unit : null,
+      converted_value: acceptInvention ? converted.value : null,
+      converted_text: acceptInvention ? converted.amount : amount,
+      rule: invented && !inventWorkFromClock ? "ambiguous_clock" : converted.rule,
+      ok: acceptInvention,
     });
-    if (converted.ok) movement.amount = converted.amount;
+    if (acceptInvention) movement.amount = converted.amount;
   });
   return { json, normalizations };
 }

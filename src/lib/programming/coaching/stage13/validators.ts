@@ -2,7 +2,7 @@ import { sessionCoachErrors } from "../contract";
 import { judgeWeek, TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rules";
 import type { DayIntent, MonthDirection, SessionDraft, WeekDraft, WeekIndex } from "../../types";
 import { COACHING_POLICY, isCoachingSignal } from "./policy";
-import { MOVEMENT_EQUIPMENT, unitError } from "./units";
+import { MOVEMENT_EQUIPMENT, amountRepairHint, unitError } from "./units";
 import { longConditioningCountAllowed } from "../stage15/week-policy";
 import { deloadHeavyConditioningErrors } from "../stage15/week-structure";
 import { weekPlanErrors, type WeekRules } from "./rules";
@@ -84,7 +84,7 @@ function unitErrors(value: unknown): string[] {
   const errors: string[] = [];
   for (const movement of movementsOf(value)) {
     const issue = unitError(movement.key, movement.amount);
-    if (issue) errors.push(issue);
+    if (issue) errors.push(`${issue}. ${amountRepairHint(movement.key, movement.amount)}`);
   }
   return errors;
 }
@@ -114,6 +114,11 @@ export function sessionSelfErrors(value: unknown, intent: DayIntent): string[] {
     ...report.equipment,
     ...report.unit,
   ];
+}
+
+/** A failed retry or a fallback day is not a successful model session. */
+export function isAdoptedModelSession(trace: { validation_result?: string; source?: string }): boolean {
+  return trace.validation_result === "pass" && trace.source === "model";
 }
 
 export function sessionUnitErrors(session: SessionDraft): string[] {
