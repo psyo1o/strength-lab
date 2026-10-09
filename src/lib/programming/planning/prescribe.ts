@@ -3,7 +3,8 @@ import { buildSession } from "../coaching/session";
 import { fillSessionFields } from "../session-fields";
 import type { WeekActual } from "../summary";
 import type { IntensityBand, MonthDirection, SessionDraft, StrengthLiftChoice, VolumeBand, WeekDraft, WeekIndex, WeeklyIntentPlan } from "../types";
-import { koreanRatio } from "../rules";
+import { timeDomainFromMinutes } from "../coaching/canonical";
+import { koreanRatio, TIME_DOMAIN_RANGES } from "../rules";
 import { lockedSkeletonViolations, type LockedFieldChange } from "./lock";
 import { intentFromSkeleton } from "./structure";
 import type { LongitudinalPlan, SkeletonDay, StrengthEmphasis, WeeklySkeleton, WeeklyThesis } from "./types";
@@ -106,29 +107,15 @@ export function prescriptionLockErrors(skeleton: WeeklySkeleton, draft: WeekDraf
 }
 
 /**
- * Keep the piece. Pull intensity, volume, and the short/medium clock onto the locked day.
- * A long-day move or a different lift is structural and is left for a day rebuild.
+ * Category A only: lower intensity to the locked ceiling.
+ * The piece, the duration class, and the volume band stay. Those are a one-day rewrite or a fallback.
  */
 export function fitSessionToSkeletonDay(session: SessionDraft, day: SkeletonDay): SessionDraft {
   if (day.status === "rest" || session.rest || !session.conditioning) return session;
   const piece = { ...session.conditioning };
   const ceiling = day.conditioning.intensity_ceiling;
-  if (isIntensity(piece.intensity) && rank(piece.intensity) > rank(ceiling)) piece.intensity = ceiling;
-  if (VOLUME_RANK[piece.volume] > VOLUME_RANK[day.volume_profile]) piece.volume = day.volume_profile;
-  const klass = day.conditioning.duration_class;
-  const sessionLong = piece.time_domain === "long" || piece.long_conditioning;
-  const skeletonLong = klass === "long" || day.long_day;
-  if (sessionLong === skeletonLong) {
-    if (klass === "short" && piece.time_domain !== "short") {
-      piece.duration_min = 12;
-      piece.time_domain = "short";
-      piece.long_conditioning = false;
-    } else if (klass === "medium" && piece.time_domain !== "medium") {
-      piece.duration_min = 16;
-      piece.time_domain = "medium";
-      piece.long_conditioning = false;
-    }
-  }
+  if (!isIntensity(piece.intensity) || rank(piece.intensity) <= rank(ceiling)) return session;
+  piece.intensity = ceiling;
   return fillSessionFields(
     {
       day: session.day,
@@ -141,6 +128,36 @@ export function fitSessionToSkeletonDay(session: SessionDraft, day: SkeletonDay)
     },
     session.strength_volume,
   );
+}
+
+const VOLUME_BANDS = ["low", "moderate", "high"] as const;
+
+/** Reject a session JSON that leaves the locked duration class or volume band. Intensity stays a clamp. */
+export function lockedSessionFieldErrors(value: unknown, day: SkeletonDay): string[] {
+  if (day.status !== "training") return [];
+  if (!value || typeof value !== "object") return [`${day.day} field conditioning received nothing; expected an object`];
+  const piece = (value as { conditioning?: unknown }).conditioning;
+  if (!piece || typeof piece !== "object") return [`${day.day} field conditioning received nothing; expected an object`];
+  const body = piece as { duration_min?: unknown; volume?: unknown };
+  const errors: string[] = [];
+  const klass = day.conditioning.duration_class;
+  if (klass === "short" || klass === "medium" || klass === "long") {
+    const range = TIME_DOMAIN_RANGES[klass];
+    const minutes = body.duration_min;
+    const domain = typeof minutes === "number" ? timeDomainFromMinutes(minutes) : null;
+    if (domain !== klass) {
+      errors.push(
+        `${day.day} field conditioning.duration_min received ${typeof minutes === "number" ? minutes : "missing"}; expected ${range.min}-${range.max} (${klass})`,
+      );
+    }
+  }
+  if (typeof body.volume === "string" && (VOLUME_BANDS as readonly string[]).includes(body.volume)) {
+    const volume = body.volume as VolumeBand;
+    if (VOLUME_RANK[volume] > VOLUME_RANK[day.volume_profile]) {
+      errors.push(`${day.day} field conditioning.volume received ${volume}; expected at or below ${day.volume_profile}`);
+    }
+  }
+  return errors;
 }
 
 function rank(value: IntensityBand): number {
@@ -232,7 +249,7 @@ export function rebuildLockedDay(input: {
   const intent = intentFromSkeleton(input.skeleton, input.month, input.thesis).days.find((row) => row.day === input.day);
   const skeletonDay = input.skeleton.days.find((row) => row.day === input.day);
   if (!intent || !skeletonDay) return null;
-  return buildSession({
+  const built = buildSession({
     intent,
     month: input.month,
     weekIndex: input.weekIndex,
@@ -243,6 +260,38 @@ export function rebuildLockedDay(input: {
     recent: input.recent ?? [],
     shortClock: skeletonDay.conditioning.duration_class === "short",
   });
+  return built ? alignFallbackSession(built, skeletonDay) : null;
+}
+
+/** Fallback pieces must already satisfy the locked duration class and volume band. */
+function alignFallbackSession(session: SessionDraft, day: SkeletonDay): SessionDraft {
+  if (day.status === "rest" || session.rest || !session.conditioning) return session;
+  const piece = { ...session.conditioning };
+  const klass = day.conditioning.duration_class;
+  if (klass === "short" || klass === "medium" || klass === "long") {
+    const range = TIME_DOMAIN_RANGES[klass];
+    const domain = timeDomainFromMinutes(piece.duration_min);
+    if (domain !== klass || piece.time_domain !== klass) {
+      piece.duration_min = klass === "short" ? 12 : klass === "medium" ? Math.max(range.min, 16) : 34;
+      piece.time_domain = klass;
+      piece.long_conditioning = klass === "long";
+    }
+  }
+  if (VOLUME_RANK[piece.volume] > VOLUME_RANK[day.volume_profile]) piece.volume = day.volume_profile;
+  const ceiling = day.conditioning.intensity_ceiling;
+  if (isIntensity(piece.intensity) && rank(piece.intensity) > rank(ceiling)) piece.intensity = ceiling;
+  return fillSessionFields(
+    {
+      day: session.day,
+      rest: session.rest,
+      optional: session.optional,
+      warmup_min: session.warmup_min,
+      warmup_ko: session.warmup_ko,
+      strength: session.strength,
+      conditioning: piece,
+    },
+    session.strength_volume,
+  );
 }
 
 export function skeletonLockRecord(enforced: LockEnforcement): WeeklyIntentPlan["skeleton_lock"] {

@@ -9,6 +9,7 @@
  *
  * Two model passes on a temporary 2099 database:
  *   PROBE_MODE=db npx tsx scripts/plan-lab.ts
+ * Stage 19 writes docs/stage19-probe.json and /tmp/stage19-phaseb.db.
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
@@ -183,6 +184,15 @@ async function databasePass(pass: string) {
       tokens += parsed.token_usage?.total_tokens ?? 0;
       if (parsed.deterministic === false && parsed.source === "model") modelCalls += 1;
     }
+    const sessionFailures = classifySessionLogs(logs.map((log) => log.raw_json));
+    const previousRow = raw
+      .prepare(
+        `SELECT a.actual_json FROM programming_actuals a
+         JOIN programming_weeks w ON w.id = a.week_id
+         WHERE w.week_start = ? AND w.status = 'active'`,
+      )
+      .get(previousWeek) as { actual_json: string } | undefined;
+    const previousActual = previousRow ? (JSON.parse(previousRow.actual_json) as { note_ko?: string; class_summary?: { fatigue_signal?: string; missed_days?: number; completed_days?: number } }) : null;
     const lock = saved.intent.plan?.skeleton_lock;
     const records = saved.intent.plan?.day_records ?? {};
     const sources = Object.values(records).map((row) => row?.final_source ?? "missing");
@@ -215,10 +225,65 @@ async function databasePass(pass: string) {
       model_calls: modelCalls,
       tokens,
       log_latency_ms: logs.reduce((sum, log) => sum + (log.latency_ms ?? 0), 0),
+      session_failures: sessionFailures,
+      previous_actual: {
+        week: previousWeek,
+        note_ko: previousActual?.note_ko ?? null,
+        fatigue_signal: previousActual?.class_summary?.fatigue_signal ?? null,
+        missed_days: previousActual?.class_summary?.missed_days ?? null,
+        completed_days: previousActual?.class_summary?.completed_days ?? null,
+        record: !previousActual ? "missing" : previousActual.class_summary ? "summary" : "no_record",
+      },
     });
     console.error(`pass ${pass} ${scenario.id} done before=${(lock?.before ?? []).length} after=${(lock?.after ?? []).length} calls=${modelCalls}`);
   }
   return { pass, weeks };
+}
+
+function classifySessionLogs(rawLogs: string[]) {
+  const kinds: Record<string, number> = {};
+  const examples: string[] = [];
+  let failed = 0;
+  let passed = 0;
+  let retriedPass = 0;
+  let retriedFail = 0;
+  for (const raw of rawLogs) {
+    const parsed = JSON.parse(raw) as {
+      prompt_version?: string;
+      model?: string | null;
+      validation_result?: string;
+      validation_errors?: string[];
+      retry_count?: number;
+      deterministic?: boolean;
+    };
+    if (parsed.prompt_version !== "session-coach-v2" || parsed.deterministic !== false) continue;
+    if (parsed.validation_result === "pass") {
+      passed += 1;
+      if ((parsed.retry_count ?? 0) > 0) retriedPass += 1;
+      continue;
+    }
+    failed += 1;
+    if ((parsed.retry_count ?? 0) > 0) retriedFail += 1;
+    for (const error of parsed.validation_errors ?? []) {
+      const kind = sessionFailureKind(error);
+      kinds[kind] = (kinds[kind] ?? 0) + 1;
+      if (examples.length < 8) examples.push(error.slice(0, 240));
+    }
+    if ((parsed.validation_errors ?? []).length === 0 && examples.length < 8) {
+      examples.push(parsed.validation_result ?? "fail");
+    }
+  }
+  return { failed_days: failed, passed_days: passed, retried_pass: retriedPass, retried_fail: retriedFail, kinds, examples };
+}
+
+function sessionFailureKind(error: string): string {
+  if (error.includes("does not allow") || error.includes("movements.amount") || error.includes("no allowed unit") || error.includes("expected unit")) return "unit";
+  if (error.includes("duration_min") || error.includes("duration class") || error.includes("time_domain")) return "duration";
+  if (error.includes("volume")) return "volume";
+  if (error.includes("korean") || error.includes("한글")) return "korean_ratio";
+  if (error.includes("missing") || error.includes("expected")) return "missing_field";
+  if (error.includes("strength") || error.includes("lift")) return "strength_placement";
+  return "schema";
 }
 
 function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
@@ -255,6 +320,23 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
       FALLBACK: count("FALLBACK"),
       FAILED: count("FAILED"),
     },
+    model_weeks: rows.filter((row) => row.generation_source === "model").length,
+    fallback_weeks: rows.filter((row) => row.generation_source !== "model").length,
+    session_failure_kinds: rows.reduce<Record<string, number>>((sum, row) => {
+      const kinds = (row.session_failures as { kinds?: Record<string, number> } | undefined)?.kinds ?? {};
+      for (const [kind, count] of Object.entries(kinds)) sum[kind] = (sum[kind] ?? 0) + count;
+      return sum;
+    }, {}),
+    session_rewrite: rows.reduce<{ retried_pass: number; retried_fail: number }>(
+      (sum, row) => {
+        const failure = row.session_failures as { retried_pass?: number; retried_fail?: number } | undefined;
+        return {
+          retried_pass: sum.retried_pass + (failure?.retried_pass ?? 0),
+          retried_fail: sum.retried_fail + (failure?.retried_fail ?? 0),
+        };
+      },
+      { retried_pass: 0, retried_fail: 0 },
+    ),
     model_calls: rows.reduce((sum, row) => sum + Number(row.model_calls ?? 0), 0),
     tokens: rows.reduce((sum, row) => sum + Number(row.tokens ?? 0), 0),
     elapsed_ms: rows.reduce((sum, row) => sum + Number(row.elapsed_ms ?? 0), 0),
@@ -275,7 +357,7 @@ async function main() {
     console.log(scrub(JSON.stringify({ plan_lab: { mode: "db", skipped: "MONTH_PLAN_MODEL_KEY is unset", structure: digest } })));
     return;
   }
-  process.env.DATABASE_PATH = "/tmp/stage18-phaseb.db";
+  process.env.DATABASE_PATH = "/tmp/stage19-phaseb.db";
   process.env.STRENGTH_LAB_PROBE = "1";
   process.env.COACHING_PIPELINE = "1";
   process.env.LONGITUDINAL_PLANNING = "1";
@@ -296,10 +378,12 @@ async function main() {
   };
   const json = scrub(JSON.stringify(report, null, 2));
   mkdirSync("/opt/cursor/artifacts", { recursive: true });
-  mkdirSync("/tmp/stage18-phaseb", { recursive: true });
-  writeFileSync("/opt/cursor/artifacts/stage18-phaseB-probe.json", json);
-  writeFileSync("/tmp/stage18-phaseb/probe.json", json);
-  console.log(scrub(JSON.stringify({ plan_lab: { wrote: "/opt/cursor/artifacts/stage18-phaseB-probe.json", summary: report.plan_lab.summary } })));
+  mkdirSync("/tmp/stage19-phaseb", { recursive: true });
+  mkdirSync("docs", { recursive: true });
+  writeFileSync("/opt/cursor/artifacts/stage19-probe.json", json);
+  writeFileSync("/tmp/stage19-phaseb/probe.json", json);
+  writeFileSync("docs/stage19-probe.json", json);
+  console.log(scrub(JSON.stringify({ plan_lab: { wrote: "docs/stage19-probe.json", summary: report.plan_lab.summary } })));
 }
 
 main().catch((error: unknown) => {

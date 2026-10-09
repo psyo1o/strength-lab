@@ -137,10 +137,10 @@ export function unitError(key: string, amount: string): string | null {
   const unit = amountUnit(amount);
   const allowed = allowedUnits(key);
   if (!unit) {
-    return `${key} amount ${amount} has no allowed unit; allowed: ${allowed.join(", ")}`;
+    return `${key} field conditioning.movements.amount received ${amount}; expected unit one of: ${allowed.join(", ")}`;
   }
   if (!allowed.includes(unit)) {
-    return `${key} does not allow ${unit}; allowed: ${allowed.join(", ")}`;
+    return `${key} does not allow ${unit}; allowed: ${allowed.join(", ")}; field conditioning.movements.amount received ${amount}`;
   }
   return null;
 }

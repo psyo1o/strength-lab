@@ -185,7 +185,9 @@ describe("stage18 locked skeleton prescriptions", () => {
     expect(repaired.regeneratedDays).not.toContain(neighbor!.day);
     expect(JSON.stringify(repaired.draft.sessions.find((session) => session.day === neighbor!.day))).toBe(neighborBefore);
     expect(repaired.draft.sessions.find((session) => session.day === host!.day)?.conditioning?.intensity).not.toBe("heavy");
-    expect(repaired.ok).toBe(true);
+    expect(repaired.draft.sessions.find((session) => session.day === host!.day)?.conditioning?.volume).toBe("high");
+    expect(repaired.after.join(" ")).toMatch(/volume/);
+    expect(repaired.ok).toBe(false);
   });
 
   it("F keeps a good day when one day cannot be rebuilt", async () => {

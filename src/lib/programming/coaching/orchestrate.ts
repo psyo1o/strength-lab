@@ -1,10 +1,10 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { judgeWeek } from "../rules";
+import { judgeWeek, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import type { DayIntent, DayPrescriptionRecord, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
-import { durationRuleText, headReviewErrors, loadDecisionErrors, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { durationRuleText, headReviewErrors, loadDecisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -47,7 +47,7 @@ import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session"
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { variationReport } from "./variation";
 import { planCoachedWeek, weeklyCoachPayload } from "./weekly";
-import { enforceLockedSkeleton, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
+import { enforceLockedSkeleton, lockedSessionFieldErrors, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
 import type { CoachWeekInput, CoachWeekResult } from "./pipeline";
 
 function bare(draft: WeekDraft): WeekDraft {
@@ -86,7 +86,15 @@ function trainingDays(plan: WeeklyIntentPlan): DayIntent[] {
   return plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest");
 }
 
+function lockedSkeletonDay(input: CoachWeekInput, day: DayKey) {
+  const skeleton = input.longitudinal?.skeleton;
+  if (!skeleton?.skeleton_locked) return null;
+  return skeleton.days.find((row) => row.day === day) ?? null;
+}
+
 function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayIntent, revision: SessionRevision | null, revisionNumber: number, rules: WeekRules) {
+  const locked = lockedSkeletonDay(input, day.day);
+  const lockedRange = locked && locked.conditioning.duration_class !== "rest" ? TIME_DOMAIN_RANGES[locked.conditioning.duration_class] : null;
   return {
     agent_name: "session_coach",
     monthly_plan: input.month.coaching_plan ?? null,
@@ -97,7 +105,21 @@ function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayInte
     benchmark_required: day.benchmark,
     strength_required: day.strength_lift !== "none",
     recovery_intent: day.recovery_role,
-    target_duration: day.secondary_training === "long_conditioning" ? "30-40" : "8-20",
+    target_duration: lockedRange ? `${lockedRange.min}-${lockedRange.max}` : day.secondary_training === "long_conditioning" ? "30-40" : "8-20",
+    locked_day: locked
+      ? {
+          day: locked.day,
+          status: locked.status,
+          strength_lift: locked.strength.lift,
+          duration_class: locked.conditioning.duration_class,
+          duration_min: lockedRange ? `${lockedRange.min}-${lockedRange.max}` : null,
+          volume_max: locked.volume_profile,
+          intensity_ceiling: locked.conditioning.intensity_ceiling,
+          benchmark: locked.benchmark,
+          long_day: locked.long_day,
+          fields: ["conditioning.duration_min", "conditioning.volume", "conditioning.intensity", "conditioning.movements[].amount"],
+        }
+      : null,
     neighboring_days: plan.days
       .filter((row) => row.day !== day.day)
       .map((row) => ({
@@ -124,10 +146,23 @@ function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayInte
       movement_patterns: row.movement_patterns,
       duration_min: row.duration_min,
     })),
-    duration_rule: durationRuleText(),
+    duration_rule: locked
+      ? `${durationRuleText()} Locked ${locked.day}: conditioning.duration_min must be ${lockedRange?.min}-${lockedRange?.max} (${locked.conditioning.duration_class}). conditioning.volume must be at or below ${locked.volume_profile}.`
+      : durationRuleText(),
     revision_number: revisionNumber,
     revision,
   };
+}
+
+function lockedSessionSchemaNote(input: CoachWeekInput, day: DayIntent): string {
+  const locked = lockedSkeletonDay(input, day.day);
+  const brief = schemaBrief("session");
+  if (!locked || locked.conditioning.duration_class === "rest") return brief;
+  const range = TIME_DOMAIN_RANGES[locked.conditioning.duration_class];
+  return [
+    `LOCKED ${locked.day}. field conditioning.duration_min expected ${range.min}-${range.max} (${locked.conditioning.duration_class}). field conditioning.volume expected at or below ${locked.volume_profile}. field conditioning.intensity expected at or below ${locked.conditioning.intensity_ceiling}. strength_lift expected ${locked.strength.lift}.`,
+    brief,
+  ].join("\n");
 }
 
 function judgeContext(input: CoachWeekInput) {
@@ -144,7 +179,8 @@ function adoptDay(input: {
   day: DayIntent;
   json: unknown;
 }): { ok: true; draft: WeekDraft; session: SessionDraft } | { ok: false; errors: string[] } {
-  const schemaErrors = sessionSelfErrors(input.json, input.day);
+  const locked = lockedSkeletonDay(input.week, input.day.day);
+  const schemaErrors = [...sessionSelfErrors(input.json, input.day), ...(locked ? lockedSessionFieldErrors(input.json, locked) : [])];
   if (schemaErrors.length) return { ok: false, errors: schemaErrors };
   const session = sessionFromCoachJson({
     json: input.json,
@@ -196,8 +232,9 @@ async function writeSession(input: {
       revision_number: input.revisionNumber,
       day_intent: input.day,
       week_rules: input.rules,
-      duration_rule: durationRuleText(),
+      duration_rule: lockedSessionSchemaNote(input.week, input.day),
     },
+    schemaNote: lockedSessionSchemaNote(input.week, input.day),
     validate: (json) => {
       const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json });
       return adopted.ok ? { ok: true } : { ok: false, errors: adopted.errors };

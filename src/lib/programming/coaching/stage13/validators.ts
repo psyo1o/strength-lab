@@ -98,7 +98,7 @@ export function sessionSelfReport(value: unknown, intent: DayIntent): SessionSel
     ...contract,
     intensity: [...contract.intensity, ...intensityClash(value)],
     equipment: [...contract.equipment, ...equipmentClash(value)],
-    unit: unitErrors(value),
+    unit: unitErrors(value).map((issue) => `${intent.day} field conditioning.movements.amount: ${issue}`),
   };
 }
 

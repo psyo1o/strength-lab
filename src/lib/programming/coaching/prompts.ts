@@ -57,7 +57,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Vary format, combination, density, and work/rest when the purpose allows. Keep a lift when progression_required is true. Aerobic days may be one cyclical modality. Other days should combine movements. Fun is a purposeful combination, not a random rename.",
     constraints:
-      "One day only. Do not judge recent-week similarity, other days, monthly method changes, weekly rules, or load. Do not output time_domain, fatigue scores, tonnage, or similarity. Do not invent kilograms. Conditioning duration_min is the piece length, not the class window. A rest day has no work.",
+      "One day only. Do not judge recent-week similarity, other days, monthly method changes, weekly rules, or load. Do not output time_domain, fatigue scores, tonnage, or similarity. Do not invent kilograms. Conditioning duration_min is the piece length, not the class window. When locked_day is present, duration_min, volume, and intensity must stay inside that day. Movement amount units must match the catalog. A rest day has no work.",
     output_schema: "Use the session schema in the OUTPUT SCHEMA block. duration_min is the piece, not the class window.",
     failure_behavior: "A bad day is rejected. The server designs that day. Other days stay as they are.",
   },
