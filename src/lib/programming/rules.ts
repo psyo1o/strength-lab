@@ -76,6 +76,56 @@ export function koreanRatio(text: string): number {
   return hangul / (hangul + latin);
 }
 
+/**
+ * Method names the month model copies into Korean fields.
+ * Replacing them does not change scheme or strength_method.
+ * A field that is still under the Korean ratio after this pass stays unchanged.
+ */
+const MONTH_LANGUAGE_TOKENS: Array<[RegExp, string]> = [
+  [/\bINTENSITY_BLOCK\b/g, "강도"],
+  [/\bDELOAD_RECOVERY\b/g, "회복"],
+  [/\bTECHNIQUE_SKILL\b/g, "기술"],
+  [/\bACCUMULATION\b/g, "축적"],
+  [/\bPROGRESSION\b/g, "진행"],
+  [/\bEMPHASIS\b/g, "강조"],
+  [/\bhigh_rep\b/gi, "고반복"],
+  [/\btechnical\b/gi, "기술"],
+  [/\bintervals\b/gi, "인터벌"],
+  [/\binterval\b/gi, "인터벌"],
+  [/\bvariation\b/gi, "변형"],
+  [/\bengine\b/gi, "엔진"],
+];
+
+export function rewriteMonthLanguageTokens(text: string): string {
+  let next = text;
+  for (const [pattern, korean] of MONTH_LANGUAGE_TOKENS) next = next.replace(pattern, korean);
+  return next;
+}
+
+/** Rewrite only Korean fields that clear the ratio after known method tokens are replaced. */
+export function repairMonthLanguage(direction: MonthDirection): { direction: MonthDirection; normalizations: string[] } {
+  const normalizations: string[] = [];
+  const rewrite = (path: string, text: string): string => {
+    if (koreanRatio(text) >= KOREAN_RATIO_MIN) return text;
+    const next = rewriteMonthLanguageTokens(text);
+    if (next === text || koreanRatio(next) < KOREAN_RATIO_MIN) return text;
+    normalizations.push(`${path} latin method tokens rewritten`);
+    return next;
+  };
+  return {
+    direction: {
+      ...direction,
+      focus_ko: rewrite("focus_ko", direction.focus_ko),
+      why_ko: rewrite("why_ko", direction.why_ko),
+      week_themes: direction.week_themes.map((theme, index) => ({
+        ...theme,
+        theme_ko: rewrite(`week_themes[${index}].theme_ko`, theme.theme_ko),
+      })),
+    },
+    normalizations,
+  };
+}
+
 /** A *_ko, focus, or scheme_note string whose Korean ratio is below the server minimum. */
 export function englishKoPath(value: unknown, path = ""): string | null {
   if (Array.isArray(value)) {
