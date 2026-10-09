@@ -243,6 +243,11 @@ export type WeeklyIntentPlan = {
   week_status?: WeekLifecycle;
   day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
   days: DayIntent[];
+  /**
+   * Stage 17 planning core. Present only when LONGITUDINAL_PLANNING is on.
+   * Session generation does not read this until Phase B.
+   */
+  longitudinal?: import("./planning/types").LongitudinalPlan;
   quality: {
     repetition_risk: "low" | "moderate" | "high";
     similarity_note_ko: string;

@@ -10,6 +10,8 @@ import {
 import { completeMonthDirection } from "./month-direction";
 import { coachWeek, LIVE_CLASS_WEEK } from "./coaching/pipeline";
 import { coachingPipelineEnabled } from "./coaching/models";
+import { longitudinalPlanningEnabled } from "./planning/flag";
+import { planLongitudinal, withLongitudinal } from "./planning/plan";
 import { coachingWeekMayUseLegacyFallback } from "./coaching/stage16/hard";
 import { withCoachingPlan } from "./coaching/monthly";
 import { authorMonth, authorWeek, authorWeeklyIntent, type AuthorTrace, type FetchLike } from "./model";
@@ -301,6 +303,17 @@ async function writeProgrammingWeek(
     summary,
   };
   const key = options.key === undefined ? undefined : options.key;
+  const longitudinal = longitudinalPlanningEnabled()
+    ? await planLongitudinal({
+        month: month.direction,
+        weekIndex,
+        previousActual: summary.previous_week?.actual ?? null,
+        recentPlans: intentContext.recentPlans,
+        key: typeof key === "string" ? key : null,
+        fetchImpl: options.fetchImpl,
+        timeoutMs: options.timeoutMs,
+      })
+    : null;
   if (coachingPipelineEnabled()) {
     if (weekStart === LIVE_CLASS_WEEK) {
       throw new Error("operational week 2026-10-05 is off limits for the coaching pipeline");
@@ -394,7 +407,7 @@ async function writeProgrammingWeek(
         monthId: month.id,
         weekIndex,
         weekStart,
-        draft: legal.draft,
+        draft: withLongitudinal(legal.draft, longitudinal),
         display: legal.display,
         inputSummaryJson: JSON.stringify(summary),
         mode,
@@ -422,7 +435,7 @@ async function writeProgrammingWeek(
       monthId: month.id,
       weekIndex,
       weekStart,
-      draft: coached.draft,
+      draft: withLongitudinal(coached.draft, longitudinal),
       display,
       inputSummaryJson: JSON.stringify(summary),
       mode,
@@ -542,7 +555,7 @@ async function writeProgrammingWeek(
     monthId: month.id,
     weekIndex,
     weekStart,
-    draft,
+    draft: withLongitudinal(draft, longitudinal),
     display,
     inputSummaryJson: JSON.stringify(summary),
     mode,

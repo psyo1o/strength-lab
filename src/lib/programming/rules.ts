@@ -1710,12 +1710,16 @@ export function monthAllowsSameLiftDays(month: MonthDirection): boolean {
   return /같은 요일|요일별 배치를 유지|주차.*진행|same weekday/i.test(text);
 }
 
-export function weekdayPatternViolations(draft: WeekDraft, recentMaps: readonly string[], allowRepeat: boolean): string[] {
+/** Same lift-map string the final gate already compares. Skeleton validation calls this too. */
+export function strengthLayoutRepeats(current: string, recentMaps: readonly string[], allowRepeat: boolean): string[] {
   if (allowRepeat || recentMaps.length < 2) return [];
-  const current = liftMapKey(draft);
   const lastTwo = recentMaps.slice(-2);
   if (lastTwo.every((map) => map === current)) return ["weekday strength layout repeats the previous two weeks"];
   return [];
+}
+
+export function weekdayPatternViolations(draft: WeekDraft, recentMaps: readonly string[], allowRepeat: boolean): string[] {
+  return strengthLayoutRepeats(liftMapKey(draft), recentMaps, allowRepeat);
 }
 
 /** Korean checks per session so the retry knows which day to fix. The intent is checked on its own. */
