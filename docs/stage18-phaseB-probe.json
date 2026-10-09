@@ -1,0 +1,665 @@
+{
+  "plan_lab": {
+    "mode": "db",
+    "model": "gpt-5.4-nano",
+    "structure": "95a63b551c495b80",
+    "scenarios": [
+      "W1",
+      "W2",
+      "W3",
+      "W4",
+      "S1",
+      "S2"
+    ],
+    "passes": 2,
+    "summary": {
+      "weeks_attempted": 12,
+      "skeleton_saved": 12,
+      "skeleton_save_rate": 1,
+      "weeks_matching_after_repair": 12,
+      "lock_violations_before": 55,
+      "lock_violations_after": 0,
+      "lock_before_kinds": {
+        "duration": 25,
+        "volume": 30
+      },
+      "lock_after_kinds": {},
+      "regenerated_days": 0,
+      "fitted_days": 48,
+      "unresolved_days": 0,
+      "failed_weeks": 0,
+      "day_final_sources": {
+        "MODEL": 23,
+        "MODEL_REVISED": 0,
+        "MODEL_ADJUSTED": 0,
+        "HEAD_ADJUSTED": 0,
+        "DETERMINISTIC_ADJUSTMENT": 48,
+        "FALLBACK": 1,
+        "FAILED": 0
+      },
+      "model_calls": 100,
+      "tokens": 431346,
+      "elapsed_ms": 553882,
+      "flags": {
+        "COACHING_PIPELINE": "1",
+        "LONGITUDINAL_PLANNING": "1"
+      }
+    },
+    "runs": [
+      {
+        "pass": "A1",
+        "weeks": [
+          {
+            "id": "W1",
+            "week": "2099-07-06",
+            "status": "fallback_after_model_failure:3/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:3/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "emphasis",
+              "volume_ceiling": "low",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "wed duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT"
+            ],
+            "elapsed_ms": 50429,
+            "log_count": 92,
+            "model_calls": 6,
+            "tokens": 40131,
+            "log_latency_ms": 36651
+          },
+          {
+            "id": "W2",
+            "week": "2099-07-13",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "progression",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "mon duration class is locked"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 48724,
+            "log_count": 92,
+            "model_calls": 9,
+            "tokens": 36167,
+            "log_latency_ms": 38523
+          },
+          {
+            "id": "W3",
+            "week": "2099-07-20",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "emphasis",
+              "volume_ceiling": "low",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low",
+              "sun volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "sat",
+              "sun"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT"
+            ],
+            "elapsed_ms": 43566,
+            "log_count": 92,
+            "model_calls": 9,
+            "tokens": 35235,
+            "log_latency_ms": 33112
+          },
+          {
+            "id": "W4",
+            "week": "2099-07-27",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 3
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 34545,
+            "log_count": 93,
+            "model_calls": 10,
+            "tokens": 36987,
+            "log_latency_ms": 33764
+          },
+          {
+            "id": "S1",
+            "week": "2099-08-03",
+            "status": "fallback_after_model_failure:5/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:5/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "wed duration class is locked",
+              "thu duration class is locked",
+              "fri duration class is locked",
+              "sat duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 4,
+              "volume": 2
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT"
+            ],
+            "elapsed_ms": 59751,
+            "log_count": 92,
+            "model_calls": 8,
+            "tokens": 42125,
+            "log_latency_ms": 33585
+          },
+          {
+            "id": "S2",
+            "week": "2099-08-10",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "wed duration class is locked",
+              "thu duration class is locked",
+              "fri duration class is locked"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 4
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "wed",
+              "thu",
+              "fri"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL"
+            ],
+            "elapsed_ms": 34334,
+            "log_count": 92,
+            "model_calls": 9,
+            "tokens": 30228,
+            "log_latency_ms": 28597
+          }
+        ]
+      },
+      {
+        "pass": "A2",
+        "weeks": [
+          {
+            "id": "W1",
+            "week": "2099-07-06",
+            "status": "fallback_after_model_failure:5/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:5/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "emphasis",
+              "volume_ceiling": "low",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "fri duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 4
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL"
+            ],
+            "elapsed_ms": 48374,
+            "log_count": 92,
+            "model_calls": 8,
+            "tokens": 32036,
+            "log_latency_ms": 29393
+          },
+          {
+            "id": "W2",
+            "week": "2099-07-13",
+            "status": "fallback_after_model_failure:5/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:5/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "progression",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "thu duration class is locked",
+              "fri duration class is locked",
+              "thu volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 3,
+              "volume": 1
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "thu",
+              "fri"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 43062,
+            "log_count": 92,
+            "model_calls": 8,
+            "tokens": 41450,
+            "log_latency_ms": 32208
+          },
+          {
+            "id": "W3",
+            "week": "2099-07-20",
+            "status": "fallback_after_model_failure:5/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:5/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "emphasis",
+              "volume_ceiling": "low",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "tue duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 4
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "tue",
+              "wed",
+              "sat"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL"
+            ],
+            "elapsed_ms": 46664,
+            "log_count": 92,
+            "model_calls": 8,
+            "tokens": 32784,
+            "log_latency_ms": 36247
+          },
+          {
+            "id": "W4",
+            "week": "2099-07-27",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 2
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "thu",
+              "fri"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "MODEL",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL"
+            ],
+            "elapsed_ms": 40966,
+            "log_count": 93,
+            "model_calls": 10,
+            "tokens": 33934,
+            "log_latency_ms": 36044
+          },
+          {
+            "id": "S1",
+            "week": "2099-08-03",
+            "status": "fallback_after_model_failure:4/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:4/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "wed duration class is locked",
+              "thu duration class is locked",
+              "fri volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 1
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "wed",
+              "thu",
+              "fri"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "MODEL",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL"
+            ],
+            "elapsed_ms": 62226,
+            "log_count": 92,
+            "model_calls": 7,
+            "tokens": 33996,
+            "log_latency_ms": 30512
+          },
+          {
+            "id": "S2",
+            "week": "2099-08-10",
+            "status": "fallback_after_model_failure:5/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:5/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "wed duration class is locked",
+              "fri duration class is locked",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 3,
+              "volume": 1
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [
+              "mon",
+              "wed",
+              "fri",
+              "sat"
+            ],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "DETERMINISTIC_ADJUSTMENT",
+              "MODEL",
+              "DETERMINISTIC_ADJUSTMENT",
+              "DETERMINISTIC_ADJUSTMENT"
+            ],
+            "elapsed_ms": 41241,
+            "log_count": 92,
+            "model_calls": 8,
+            "tokens": 36273,
+            "log_latency_ms": 30897
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,766 @@
+{
+  "model": "gpt-5.4-nano",
+  "started_at": "2026-10-09T05:24:20.696Z",
+  "elapsed_ms": 134976,
+  "usage": {
+    "calls": 14,
+    "prompt_tokens": 17783,
+    "completion_tokens": 21715,
+    "total_tokens": 39498
+  },
+  "passes": [
+    {
+      "pass": "A1",
+      "elapsed_ms": 76066,
+      "identical": {
+        "input": {
+          "month_start": "2099-06-01",
+          "months_recorded": 0,
+          "previous_schemes": [],
+          "evaluation_status": "no_previous_month",
+          "last_evaluation": null
+        },
+        "temperature": null,
+        "seed": null,
+        "first": {
+          "ok": true,
+          "scheme": "531",
+          "strength_method": "531",
+          "normalizations": [],
+          "attempt": 1
+        },
+        "second": {
+          "ok": true,
+          "scheme": "531",
+          "strength_method": "531",
+          "normalizations": [],
+          "attempt": 1
+        },
+        "same_scheme": true,
+        "same_method": true
+      },
+      "months": [
+        {
+          "input": {
+            "month_start": "2099-06-01",
+            "months_recorded": 0,
+            "previous_schemes": [],
+            "evaluation_status": "no_previous_month",
+            "last_evaluation": null
+          },
+          "generation_source": "model",
+          "fallback_reason": null,
+          "prior_evaluation_id": null,
+          "stored_scheme": "531",
+          "stored_method": "531",
+          "why_ko": "새로운 기간(이전 월 데이터 없음)에서는 과도한 변형보다 규칙적 자극과 회복 관리가 성과를 좌우하므로 5/3/1의 구조를 그대로 사용한다.",
+          "normalizations": [],
+          "model_body": [
+            {
+              "scheme": "531",
+              "strength_method": "5/3/1"
+            }
+          ],
+          "weeks": [
+            {
+              "week_index": 1,
+              "week_phase": "accumulation",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "week_phase": "progression",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 3,
+              "week_phase": "peak",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 4,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "label": "explicit_high_fatigue",
+              "week_phase": "emphasis",
+              "volume_ceiling": "low",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            }
+          ]
+        },
+        {
+          "input": {
+            "month_start": "2099-07-01",
+            "months_recorded": 1,
+            "previous_schemes": [
+              "531"
+            ],
+            "evaluation_status": "no_evaluation",
+            "last_evaluation": null
+          },
+          "generation_source": "model",
+          "fallback_reason": null,
+          "prior_evaluation_id": null,
+          "stored_scheme": "531",
+          "stored_method": "531",
+          "why_ko": "평가 데이터가 없어서(고피로로 간주 불가) ‘방법 변경’ 대신 동일 메서드로 계획된 누적 자극을 주고, 4주차 Deload로 안전한 회복을 확보하기 위함.",
+          "normalizations": [],
+          "model_body": [
+            {
+              "scheme": "volume",
+              "strength_method": "ACCUMULATION"
+            },
+            {
+              "scheme": "531",
+              "strength_method": "5/3/1"
+            }
+          ],
+          "weeks": [
+            {
+              "week_index": 1,
+              "week_phase": "accumulation",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "week_phase": "progression",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 3,
+              "week_phase": "peak",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 4,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "label": "explicit_high_fatigue",
+              "week_phase": "emphasis",
+              "volume_ceiling": "low",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            }
+          ]
+        },
+        {
+          "input": {
+            "month_start": "2099-08-01",
+            "months_recorded": 2,
+            "previous_schemes": [
+              "531",
+              "531"
+            ],
+            "evaluation_status": "present",
+            "last_evaluation": {
+              "month_start": "2099-07-01",
+              "next_scheme": "volume",
+              "fatigue": "기록 없음",
+              "summary_ko": "531 블록을 0주 진행했고, 마친 수업은 0일입니다."
+            }
+          },
+          "generation_source": "model",
+          "fallback_reason": null,
+          "prior_evaluation_id": 1,
+          "stored_scheme": "volume",
+          "stored_method": "ACCUMULATION",
+          "why_ko": "마지막 평가가 저장되어 있으나 실제 수행 기록이 없어(강도/볼륨/피로 근거 부족) 급격한 강도 전환보다 볼륨 축적이 리스크가 낮다. Deload로 누적 피로를 관리해 다음 달 성과를 끌어올린다.",
+          "normalizations": [],
+          "model_body": [
+            {
+              "scheme": "volume",
+              "strength_method": "ACCUMULATION"
+            }
+          ],
+          "weeks": [
+            {
+              "week_index": 1,
+              "week_phase": "accumulation",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "week_phase": "progression",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 3,
+              "week_phase": "peak",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 4,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "label": "explicit_high_fatigue",
+              "week_phase": "emphasis",
+              "volume_ceiling": "low",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            }
+          ]
+        },
+        {
+          "input": {
+            "month_start": "2099-09-01",
+            "months_recorded": 3,
+            "previous_schemes": [
+              "531",
+              "531",
+              "volume"
+            ],
+            "evaluation_status": "present",
+            "last_evaluation": {
+              "month_start": "2099-08-01",
+              "next_scheme": "deload",
+              "fatigue": "high",
+              "summary_ko": "8월은 강도 노출이 높았습니다. 다음 달은 회복이 필요합니다."
+            }
+          },
+          "generation_source": "fallback",
+          "fallback_reason": "schema",
+          "prior_evaluation_id": 2,
+          "stored_scheme": "deload",
+          "stored_method": "DELOAD_RECOVERY",
+          "why_ko": "8월은 강도 노출이 높았습니다. 다음 달은 회복이 필요합니다.",
+          "normalizations": [],
+          "model_body": [
+            {
+              "scheme": "deload",
+              "strength_method": "531"
+            },
+            {
+              "scheme": "deload",
+              "strength_method": "531"
+            }
+          ],
+          "weeks": [
+            {
+              "week_index": 1,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 3,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 4,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "label": "explicit_high_fatigue",
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "pass": "A2",
+      "elapsed_ms": 56724,
+      "identical": {
+        "input": {
+          "month_start": "2099-06-01",
+          "months_recorded": 0,
+          "previous_schemes": [],
+          "evaluation_status": "no_previous_month",
+          "last_evaluation": null
+        },
+        "temperature": null,
+        "seed": null,
+        "first": {
+          "ok": true,
+          "scheme": "531",
+          "strength_method": "531",
+          "normalizations": [],
+          "attempt": 1
+        },
+        "second": {
+          "ok": true,
+          "scheme": "531",
+          "strength_method": "531",
+          "normalizations": [],
+          "attempt": 1
+        },
+        "same_scheme": true,
+        "same_method": true
+      },
+      "months": [
+        {
+          "input": {
+            "month_start": "2099-06-01",
+            "months_recorded": 0,
+            "previous_schemes": [],
+            "evaluation_status": "no_previous_month",
+            "last_evaluation": null
+          },
+          "generation_source": "model",
+          "fallback_reason": null,
+          "prior_evaluation_id": null,
+          "stored_scheme": "531",
+          "stored_method": "531",
+          "why_ko": "이 달은 이전 평가/기록이 없으므로, 과도한 변형이나 누적 피로 대신 5/3/1의 고정된 구조로 안정적인 강도 자극과 기술 일관성을 확보하기 위함이다.",
+          "normalizations": [],
+          "model_body": [
+            {
+              "scheme": "531",
+              "strength_method": "5/3/1"
+            }
+          ],
+          "weeks": [
+            {
+              "week_index": 1,
+              "week_phase": "accumulation",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "week_phase": "progression",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 3,
+              "week_phase": "peak",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 4,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "label": "explicit_high_fatigue",
+              "week_phase": "emphasis",
+              "volume_ceiling": "low",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            }
+          ]
+        },
+        {
+          "input": {
+            "month_start": "2099-07-01",
+            "months_recorded": 1,
+            "previous_schemes": [
+              "531"
+            ],
+            "evaluation_status": "no_evaluation",
+            "last_evaluation": null
+          },
+          "generation_source": "model",
+          "fallback_reason": null,
+          "prior_evaluation_id": null,
+          "stored_scheme": "volume",
+          "stored_method": "ACCUMULATION",
+          "why_ko": "지난 달 평가가 없어서(피로를 ‘높다/낮다’로 단정 불가) 무리한 고강도 전환 대신, 누적형 스킴으로 안전하게 총 자극을 만들고 다음 달 강도/벤치마크 준비를 한다.",
+          "normalizations": [],
+          "model_body": [
+            {
+              "scheme": "volume",
+              "strength_method": "ACCUMULATION"
+            }
+          ],
+          "weeks": [
+            {
+              "week_index": 1,
+              "week_phase": "accumulation",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "week_phase": "progression",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 3,
+              "week_phase": "peak",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 4,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "label": "explicit_high_fatigue",
+              "week_phase": "emphasis",
+              "volume_ceiling": "low",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            }
+          ]
+        },
+        {
+          "input": {
+            "month_start": "2099-08-01",
+            "months_recorded": 2,
+            "previous_schemes": [
+              "531",
+              "volume"
+            ],
+            "evaluation_status": "present",
+            "last_evaluation": {
+              "month_start": "2099-07-01",
+              "next_scheme": "intensity",
+              "fatigue": "기록 없음",
+              "summary_ko": "volume 블록을 0주 진행했고, 마친 수업은 0일입니다."
+            }
+          },
+          "generation_source": "model",
+          "fallback_reason": null,
+          "prior_evaluation_id": 3,
+          "stored_scheme": "volume",
+          "stored_method": "ACCUMULATION",
+          "why_ko": "기록된 피로/강도/벤치마크가 없어 현재 상태 변동 폭을 크게 가정할 수 없으므로, 이번 달은 ‘안전한 누적 자극’으로 적응 기반을 만들고 다음 달에 강도 사이클로 자연스럽게 넘어가도록 한다.",
+          "normalizations": [],
+          "model_body": [
+            {
+              "scheme": "volume",
+              "strength_method": "ACCUMULATION"
+            }
+          ],
+          "weeks": [
+            {
+              "week_index": 1,
+              "week_phase": "accumulation",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "week_phase": "progression",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 3,
+              "week_phase": "peak",
+              "volume_ceiling": "high",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "heavy",
+              "heavy_conditioning_days": 2,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            },
+            {
+              "week_index": 4,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "label": "explicit_high_fatigue",
+              "week_phase": "emphasis",
+              "volume_ceiling": "low",
+              "strength_intensity_ceiling": "heavy",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": false,
+              "mismatches": []
+            }
+          ]
+        },
+        {
+          "input": {
+            "month_start": "2099-09-01",
+            "months_recorded": 3,
+            "previous_schemes": [
+              "531",
+              "volume",
+              "volume"
+            ],
+            "evaluation_status": "present",
+            "last_evaluation": {
+              "month_start": "2099-08-01",
+              "next_scheme": "deload",
+              "fatigue": "high",
+              "summary_ko": "8월은 강도 노출이 높았습니다. 다음 달은 회복이 필요합니다."
+            }
+          },
+          "generation_source": "model",
+          "fallback_reason": null,
+          "prior_evaluation_id": 4,
+          "stored_scheme": "deload",
+          "stored_method": "DELOAD_RECOVERY",
+          "why_ko": "피로가 높게 집계되었고 진행/벤치마크 데이터가 없어 과부하를 감행하기보다 신경계·관절·연부조직 회복을 우선해야 다음 달 성과를 안전하게 만들 수 있습니다.",
+          "normalizations": [],
+          "model_body": [
+            {
+              "scheme": "deload",
+              "strength_method": "DELOAD_RECOVERY"
+            }
+          ],
+          "weeks": [
+            {
+              "week_index": 1,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 3,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 4,
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            },
+            {
+              "week_index": 2,
+              "label": "explicit_high_fatigue",
+              "week_phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "strength_intensity_ceiling": "light",
+              "conditioning_intensity_ceiling": "moderate",
+              "heavy_conditioning_days": 0,
+              "high_volume_days": 0,
+              "deload_guard": true,
+              "mismatches": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "complete": true
+}
