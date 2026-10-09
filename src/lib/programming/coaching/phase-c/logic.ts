@@ -90,6 +90,14 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function cleanAmount(value: string): string {
+  return value.split("(")[0]?.trim() ?? "";
+}
+
+function integer(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) ? value : null;
+}
+
 function dayOf(value: unknown): DayKey | null {
   return typeof value === "string" && DAYS.has(value) ? (value as DayKey) : null;
 }
@@ -112,10 +120,9 @@ export function parseSpecialistReview(value: unknown, role: PhaseCRole): { ok: t
     }
     const day = dayOf(row.day);
     const verdict = PHASE_C_VERDICTS.find((item) => item === row.verdict) ?? null;
-    const severity = SEVERITY.has(String(row.severity)) ? (row.severity as PhaseCFinding["severity"]) : null;
+    const severity = SEVERITY.has(String(row.severity)) ? (row.severity as PhaseCFinding["severity"]) : verdict && verdict !== "PASS" ? "moderate" : null;
     if (!day) errors.push(`${prefix}.day: expected a weekday`);
     if (!verdict) errors.push(`${prefix}.verdict: expected PASS, SUGGEST_REVISION, or NEEDS_REVIEW`);
-    if (verdict !== "PASS" && !severity) errors.push(`${prefix}.severity: expected low, moderate, or high`);
     const problem = text(row.problem) ?? "";
     const evidence = text(row.evidence) ?? "";
     const intentImpact = text(row.intent_impact) ?? "";
@@ -178,7 +185,7 @@ export function salvageSpecialistReview(value: unknown, role: PhaseCRole): Phase
       severity: "moderate",
       evidence: "",
       intent_impact: "",
-      uncertainty: "이 날의 평가는 형식이 맞지 않아 수정안을 만들지 않았다.",
+      uncertainty: "형식 오류라 이 날의 수정안은 만들지 않았다.",
       proposal: null,
     });
   });
@@ -198,26 +205,27 @@ function parseProposal(
 ): { ok: true; proposal: PhaseCProposal } | { ok: false; errors: string[] } {
   if (!day) return { ok: false, errors: ["proposal: day is missing"] };
   if (!isRecord(value)) return { ok: false, errors: ["proposal: expected an object"] };
-  const target = value.target === "amount" || value.target === "interval_clock" || value.target === "replace_movement" ? value.target : null;
-  if (!target) return { ok: false, errors: ["proposal.target: expected amount, interval_clock, or replace_movement"] };
-  const movementKey = text(value.movement_key) ?? "";
-  const before = text(value.before) ?? "";
-  const after = text(value.after) ?? "";
-  const reason = text(value.reason);
-  const expected = text(value.expected_effect);
-  const downside = text(value.downside);
-  const impact = value.skeleton_impact === "none" || value.skeleton_impact === "risk" ? value.skeleton_impact : null;
+  const movementKey = text(value.movement_key) ?? text(value.replace_movement) ?? text(value.key) ?? "";
+  const before = cleanAmount(text(value.before) ?? text(value.current) ?? "");
+  const after = cleanAmount(text(value.after) ?? text(value.target_amount) ?? "");
+  const work = integer(value.work_sec) ?? integer(value.interval_work_sec);
+  const rest = integer(value.rest_sec) ?? integer(value.interval_rest_sec);
+  const replacementText = text(value.replacement_key);
+  const named = value.target === "amount" || value.target === "interval_clock" || value.target === "replace_movement" ? value.target : null;
+  const target =
+    named ??
+    (work != null && rest != null ? "interval_clock" : replacementText && replacementText !== movementKey ? "replace_movement" : "amount");
+  const reason = text(value.reason) ?? note.problem;
+  const expected = text(value.expected_effect) ?? (note.intent_impact || "기대 효과를 적지 않았다.");
+  const downside = text(value.downside) ?? (note.uncertainty || "손실을 적지 않았다.");
+  const impact = value.skeleton_impact === "none" || value.skeleton_impact === "risk" ? value.skeleton_impact : "none";
   const errors: string[] = [];
-  if (!reason || !expected || !downside || !impact) errors.push("proposal: reason, expected_effect, downside, and skeleton_impact are required");
+  if (!reason || !expected || !downside) errors.push("proposal: reason, expected_effect, and downside are required");
   if (target !== "interval_clock" && (!movementKey || !before || !after)) errors.push("proposal: amount and replace_movement need movement_key, before, and after");
-  const work = value.work_sec;
-  const rest = value.rest_sec;
-  if (target === "interval_clock") {
-    if (typeof work !== "number" || !Number.isInteger(work) || typeof rest !== "number" || !Number.isInteger(rest)) {
-      errors.push("proposal: interval_clock needs integer work_sec and rest_sec");
-    }
+  if (target === "interval_clock" && (work == null || rest == null)) {
+    errors.push("proposal: interval_clock needs integer work_sec and rest_sec");
   }
-  const replacement = target === "replace_movement" ? text(value.replacement_key) : null;
+  const replacement = target === "replace_movement" ? replacementText : null;
   if (target === "replace_movement" && !replacement) errors.push("proposal.replacement_key: expected a catalog key");
   const duration = typeof value.duration_min === "number" ? value.duration_min : null;
   if (errors.length || !reason || !expected || !downside || !impact) return { ok: false, errors };

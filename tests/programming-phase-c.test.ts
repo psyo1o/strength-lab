@@ -391,6 +391,34 @@ describe("phase C coach review", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.join(" ")).toMatch(/cannot be finished/);
     expect(parseSpecialistReview(pass("programming"), "programming").ok).toBe(true);
+    const aliased = parseSpecialistReview(
+      {
+        role: "execution",
+        days: [
+          {
+            day: "mon",
+            verdict: "SUGGEST_REVISION",
+            problem: "30초가 창을 채운다",
+            evidence: "30sec",
+            intent_impact: "버피가 밀린다",
+            uncertainty: "페이스를 모른다",
+            proposal: {
+              target_amount: "20sec(또는 40회)",
+              movement_key: "double_under",
+              before: "30sec",
+              after: "20sec(또는 싱글언더)",
+              replace_movement: "double_under",
+            },
+          },
+        ],
+      },
+      "execution",
+    );
+    expect(aliased.ok).toBe(true);
+    if (aliased.ok) {
+      expect(aliased.review.findings[0]?.proposal?.target).toBe("amount");
+      expect(aliased.review.findings[0]?.proposal?.after).toBe("20sec");
+    }
     expect(parseHeadChoice(head("NEEDS_REVIEW", [])).ok).toBe(true);
   });
 });

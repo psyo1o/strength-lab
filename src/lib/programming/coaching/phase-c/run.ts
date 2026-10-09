@@ -241,12 +241,20 @@ export async function runPhaseCReview(input: {
   }
   const proposals = proposalsFrom(reviews);
   const failed = reviews.some((review) => review.failure_reason);
-  const needsHead = failed || proposals.length > 0 || reviews.some((review) => review.findings.some((finding) => finding.verdict !== "PASS"));
+  const formOnly =
+    !failed &&
+    proposals.length === 0 &&
+    reviews.every((review) => review.findings.every((finding) => finding.verdict === "PASS" || finding.uncertainty.startsWith("형식 오류")));
+  const needsHead =
+    !formOnly &&
+    (failed || proposals.length > 0 || reviews.some((review) => review.findings.some((finding) => finding.verdict !== "PASS")));
   if (!needsHead) {
     return {
       ...base,
       decision: "APPROVE_ORIGINAL",
-      rationale: "세 코치가 수정을 요청하지 않아 원본을 승인합니다.",
+      rationale: formOnly
+        ? "완성된 수정안이 없어 원본을 승인합니다. 형식이 깨진 날은 훈련 문제로 보지 않았습니다."
+        : "세 코치가 수정을 요청하지 않아 원본을 승인합니다.",
       reviews,
       proposals,
       accepted: [],
