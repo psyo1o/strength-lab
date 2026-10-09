@@ -13,7 +13,7 @@ import {
   prescriptionLockErrors,
   rebuildLockedDay,
 } from "../src/lib/programming/planning/prescribe";
-import { feedbackViolations, mentionsReducedLowerIntent } from "../src/lib/programming/rules";
+import { feedbackViolations, koreanRatio, mentionsReducedLowerIntent } from "../src/lib/programming/rules";
 import { fatigueCutSets, schemeSets } from "../src/lib/programming/schemes";
 import type { WeekActual } from "../src/lib/programming/summary";
 import type { SessionDraft, WeekDraft } from "../src/lib/programming/types";
@@ -284,5 +284,13 @@ describe("stage18 locked skeleton prescriptions", () => {
     expect(bound.final_validation?.ok).toBe(true);
     expect(bound.plan.days.map((day) => day.primary_training)).toEqual(planned.skeleton.days.map((day) => day.primary_goal));
     expect(bound.judge_ok).toBe(true);
+  });
+
+  it("keeps the locked plan note in Korean when the month block name is Latin", async () => {
+    const source = { ...month(), primary_block: "ACCUMULATION 기반의 볼륨 확대" };
+    const planned = await planLongitudinal({ month: source, weekIndex: 1 });
+    const plan = planFromLockedSkeleton(planned, source);
+    expect(koreanRatio(plan.scheme_note)).toBeGreaterThanOrEqual(0.7);
+    expect(plan.scheme_note).not.toContain("ACCUMULATION");
   });
 });

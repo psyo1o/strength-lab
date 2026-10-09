@@ -3,6 +3,7 @@ import { buildSession } from "../coaching/session";
 import { fillSessionFields } from "../session-fields";
 import type { WeekActual } from "../summary";
 import type { IntensityBand, MonthDirection, SessionDraft, StrengthLiftChoice, VolumeBand, WeekDraft, WeekIndex, WeeklyIntentPlan } from "../types";
+import { koreanRatio } from "../rules";
 import { lockedSkeletonViolations, type LockedFieldChange } from "./lock";
 import { intentFromSkeleton } from "./structure";
 import type { LongitudinalPlan, SkeletonDay, StrengthEmphasis, WeeklySkeleton, WeeklyThesis } from "./types";
@@ -29,10 +30,13 @@ export function emphasisForPlacement(lift: StrengthLiftChoice, locked: StrengthE
 
 export function planFromLockedSkeleton(longitudinal: LongitudinalPlan, month: MonthDirection): WeeklyIntentPlan {
   const intent = intentFromSkeleton(longitudinal.skeleton, month, longitudinal.weekly_thesis);
+  const highFatigue = longitudinal.weekly_thesis.volume_ceiling === "low" && longitudinal.weekly_thesis.week_phase !== "DELOAD";
+  const blockNote = koreanRatio(month.primary_block) >= 0.7 ? `${month.primary_block} 블록의 방법을 이번 주에도 유지합니다.` : "이번 주 블록의 방법을 유지합니다.";
   return {
     ...intent,
     why_ko: longitudinal.weekly_thesis.thesis || intent.why_ko,
     adjustment_ko: longitudinal.weekly_thesis.fatigue_distribution || intent.adjustment_ko,
+    scheme_note: highFatigue ? "지난주 하체 피로가 높아 스쿼트와 데드리프트 세트를 줄입니다." : blockNote,
     strength_method: month.strength_method || month.scheme,
     intent_source: "fallback",
     original_intent_source: "fallback",

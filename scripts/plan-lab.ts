@@ -166,6 +166,7 @@ async function databasePass(pass: string) {
       if (seeded && "error" in seeded) throw new ProbeSafetyError(`${scenario.id} actual seed failed: ${seeded.error}`);
     }
     const started = Date.now();
+    console.error(`pass ${pass} ${scenario.id} start`);
     const saved = await regenerateProgrammingWeek(scenario.weekStart, { key });
     if (saved.weekStart === LIVE_CLASS_WEEK || !saved.weekStart.startsWith("2099-")) {
       throw new ProbeSafetyError(`refusing stored week ${saved.weekStart}`);
@@ -215,6 +216,7 @@ async function databasePass(pass: string) {
       tokens,
       log_latency_ms: logs.reduce((sum, log) => sum + (log.latency_ms ?? 0), 0),
     });
+    console.error(`pass ${pass} ${scenario.id} done before=${(lock?.before ?? []).length} after=${(lock?.after ?? []).length} calls=${modelCalls}`);
   }
   return { pass, weeks };
 }
