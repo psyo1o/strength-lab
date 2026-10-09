@@ -2,7 +2,7 @@ import { sessionCoachErrors } from "../contract";
 import { judgeWeek, TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rules";
 import type { DayIntent, MonthDirection, SessionDraft, WeekDraft, WeekIndex } from "../../types";
 import { COACHING_POLICY, isCoachingSignal } from "./policy";
-import { MOVEMENT_EQUIPMENT, prescriptionAmountIssue } from "./units";
+import { MOVEMENT_EQUIPMENT, intervalFitIssues, prescriptionAmountIssue } from "./units";
 import { longConditioningCountAllowed } from "../stage15/week-policy";
 import { deloadHeavyConditioningErrors } from "../stage15/week-structure";
 import { weekPlanErrors, type WeekRules } from "./rules";
@@ -94,6 +94,10 @@ function prescriptionErrors(value: unknown): string[] {
     const verdict = prescriptionAmountIssue(movement.key, movement.amount, minutes);
     if (verdict.status === "ok") continue;
     errors.push(`prescription: ${verdict.message}`);
+  }
+  const conditioning = value && typeof value === "object" ? (value as { conditioning?: { format?: unknown; interval_work_sec?: unknown; movements?: unknown } }).conditioning : undefined;
+  if (conditioning) {
+    for (const issue of intervalFitIssues(conditioning)) errors.push(`prescription: ${issue}`);
   }
   return errors;
 }

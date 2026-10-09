@@ -86,14 +86,31 @@ describe("stage23 prescription quality", () => {
     });
     expect(built?.conditioning?.work_rest_structure).toBe("30초 일하고 30초 쉽니다.");
     expect(built?.conditioning?.movements[0]?.amount).toBe("50");
-    const rowInterval = payload(
+    const rowInterval = payload([{ key: "row", amount: "30sec", name_ko: "로잉" }], {
+      format: "intervals",
+      interval_work_sec: 30,
+      interval_rest_sec: 30,
+      equipment: ["rower"],
+    });
+    expect(sessionSelfErrors(rowInterval, intent({ primary_training: "aerobic", secondary_training: "aerobic" }))).toEqual([]);
+    const crowded = payload(
       [
-        { key: "row", amount: "30sec", name_ko: "로잉" },
-        { key: "burpee", amount: "8", name_ko: "버피" },
+        { key: "double_under", amount: "30sec", name_ko: "더블언더" },
+        { key: "row", amount: "500m", name_ko: "로잉" },
       ],
-      { format: "intervals", interval_work_sec: 30, interval_rest_sec: 30, equipment: ["rower", "bodyweight"] },
+      { format: "intervals", interval_work_sec: 30, interval_rest_sec: 30 },
     );
-    expect(sessionSelfErrors(rowInterval, intent())).toEqual([]);
+    const crowdedErrors = sessionSelfErrors(crowded, intent()).join(" ");
+    expect(crowdedErrors).toMatch(/fills the 30 second work interval/);
+    expect(crowdedErrors).toMatch(/does not fit a 30 second work interval/);
+    const chipper = payload(
+      [
+        { key: "row", amount: "500m", name_ko: "로잉" },
+        { key: "double_under", amount: "30sec", name_ko: "더블언더" },
+      ],
+      { format: "for_time", duration_min: 18 },
+    );
+    expect(sessionSelfErrors(chipper, intent())).toEqual([]);
   });
 
   it("keeps row calories and metres, accepts 30sec, and asks for a real row amount instead of 12 reps", () => {

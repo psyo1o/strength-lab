@@ -180,6 +180,53 @@ export function prescriptionAmountIssue(key: string, amount: string, durationMin
   };
 }
 
+/** Faster than a metcon sprint. Used only to see that a distance cannot fit the work interval. */
+const SPRINT_METRES_PER_SEC = 6;
+
+/**
+ * Interval structure versus the amounts inside it.
+ * A seconds bout that fills the work window leaves no room for another movement.
+ * A distance past the sprint ceiling cannot be finished inside that window.
+ */
+export function intervalFitIssues(piece: {
+  format?: unknown;
+  interval_work_sec?: unknown;
+  movements?: unknown;
+}): string[] {
+  if (piece.format !== "intervals") return [];
+  const work = piece.interval_work_sec;
+  if (typeof work !== "number" || !Number.isInteger(work) || work <= 0) return [];
+  const rows = Array.isArray(piece.movements) ? piece.movements : [];
+  const movements = rows.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const item = row as { key?: unknown; amount?: unknown };
+    if (typeof item.key !== "string" || typeof item.amount !== "string") return [];
+    return [{ key: item.key, amount: item.amount }];
+  });
+  const errors: string[] = [];
+  const filling = movements.find((movement) => {
+    if (movement.key !== "double_under" && movement.key !== "row") return false;
+    if (amountUnit(movement.amount) !== "sec") return false;
+    return parsedAmount(movement.amount).value >= work;
+  });
+  if (filling && movements.length > 1) {
+    errors.push(
+      `${filling.key} amount ${filling.amount} fills the ${work} second work interval, so the other movements do not fit. Keep one clear bout. Do not invent a replacement amount.`,
+    );
+  }
+  for (const movement of movements) {
+    if (movement.key !== "row" && movement.key !== "ski" && movement.key !== "run") continue;
+    if (amountUnit(movement.amount) !== "m") continue;
+    const metres = parsedAmount(movement.amount).value;
+    if (metres > work * SPRINT_METRES_PER_SEC) {
+      errors.push(
+        `${movement.key} amount ${movement.amount} does not fit a ${work} second work interval. Shorten the distance or lengthen the work interval. Do not invent calories.`,
+      );
+    }
+  }
+  return errors;
+}
+
 /** Retry text for a wrong amount. It names the movement, the value, and the allowed units. */
 export function amountRepairHint(key: string, amount: string): string {
   const allowed = allowedUnits(key).join(", ");
