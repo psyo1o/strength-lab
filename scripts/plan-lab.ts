@@ -18,6 +18,8 @@
  *   PROBE_MODE=db PROBE_LABEL=stage23 npx tsx scripts/plan-lab.ts
  * Stage 23.1 uses the same 12 weeks. Raw files under docs/stage23.1-runs are gitignored:
  *   PROBE_MODE=db PROBE_LABEL=stage23.1 npx tsx scripts/plan-lab.ts
+ * Phase C reviews those stored weeks. It does not rewrite the week row.
+ *   PROBE_MODE=db PROBE_LABEL=phaseC PHASE_C=1 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
@@ -26,6 +28,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { archiveProbePass, verifyProbeArchives } from "../src/lib/programming/probe-archive";
+import { phaseCTotals, type PhaseCRun } from "../src/lib/programming/coaching/phase-c/run";
 import { amountUnit, prescriptionAmountIssue } from "../src/lib/programming/coaching/stage13/units";
 import { isAdoptedModelSession } from "../src/lib/programming/coaching/stage13/validators";
 import { evaluationStatus } from "../src/lib/programming/model";
@@ -250,7 +253,14 @@ async function databasePass(pass: string) {
         record: !previousActual ? "missing" : previousActual.class_summary ? "summary" : "no_record",
       },
     });
+    let phaseC: unknown = null;
+    if (process.env.PHASE_C === "1") {
+      const { reviewActiveWeek } = await import("../src/lib/programming/coaching/phase-c/active");
+      console.error(`pass ${pass} ${scenario.id} phase C`);
+      phaseC = await reviewActiveWeek({ weekStart: scenario.weekStart, key: key ?? "" });
+    }
     console.error(`pass ${pass} ${scenario.id} done before=${(lock?.before ?? []).length} after=${(lock?.after ?? []).length} calls=${modelCalls}`);
+    weeks[weeks.length - 1] = { ...(weeks[weeks.length - 1] as object), phase_c: phaseC };
   }
   return { pass, weeks };
 }
@@ -647,6 +657,10 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
       },
     ),
     consistency: consistencyRows(rows),
+    phase_c: (() => {
+      const runs = rows.flatMap((row) => (row.phase_c ? [row.phase_c as PhaseCRun] : []));
+      return runs.length ? phaseCTotals(runs) : null;
+    })(),
     model_calls: rows.reduce((sum, row) => sum + Number(row.model_calls ?? 0), 0),
     tokens: rows.reduce((sum, row) => sum + Number(row.tokens ?? 0), 0),
     elapsed_ms: rows.reduce((sum, row) => sum + Number(row.elapsed_ms ?? 0), 0),
@@ -668,7 +682,7 @@ async function main() {
     return;
   }
   const probeLabel = process.env.PROBE_LABEL?.trim() || "stage19";
-  if (!/^[a-z0-9.-]+$/.test(probeLabel) || probeLabel.includes("..") || probeLabel.startsWith(".")) {
+  if (!/^[A-Za-z0-9.-]+$/.test(probeLabel) || probeLabel.includes("..") || probeLabel.startsWith(".")) {
     throw new ProbeSafetyError("PROBE_LABEL is not a file label");
   }
   process.env.DATABASE_PATH = `/tmp/${probeLabel}-phaseb.db`;
