@@ -2,7 +2,7 @@ import { sessionCoachErrors } from "../contract";
 import { judgeWeek, TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rules";
 import type { DayIntent, MonthDirection, SessionDraft, WeekDraft, WeekIndex } from "../../types";
 import { COACHING_POLICY, isCoachingSignal } from "./policy";
-import { MOVEMENT_EQUIPMENT, unitError } from "./units";
+import { MOVEMENT_EQUIPMENT, intervalFitIssues, prescriptionAmountIssue } from "./units";
 import { longConditioningCountAllowed } from "../stage15/week-policy";
 import { deloadHeavyConditioningErrors } from "../stage15/week-structure";
 import { weekPlanErrors, type WeekRules } from "./rules";
@@ -80,11 +80,24 @@ function equipmentClash(value: unknown): string[] {
   return errors;
 }
 
-function unitErrors(value: unknown): string[] {
+function pieceMinutes(value: unknown): number | null {
+  if (!value || typeof value !== "object") return null;
+  const minutes = (value as { conditioning?: { duration_min?: unknown } }).conditioning?.duration_min;
+  return typeof minutes === "number" ? minutes : null;
+}
+
+/** Performability. Schema, types, and locked ceilings stay in the technical checks. */
+function prescriptionErrors(value: unknown): string[] {
+  const minutes = pieceMinutes(value);
   const errors: string[] = [];
   for (const movement of movementsOf(value)) {
-    const issue = unitError(movement.key, movement.amount);
-    if (issue) errors.push(issue);
+    const verdict = prescriptionAmountIssue(movement.key, movement.amount, minutes);
+    if (verdict.status === "ok") continue;
+    errors.push(`prescription: ${verdict.message}`);
+  }
+  const conditioning = value && typeof value === "object" ? (value as { conditioning?: { format?: unknown; interval_work_sec?: unknown; movements?: unknown } }).conditioning : undefined;
+  if (conditioning) {
+    for (const issue of intervalFitIssues(conditioning)) errors.push(`prescription: ${issue}`);
   }
   return errors;
 }
@@ -98,7 +111,7 @@ export function sessionSelfReport(value: unknown, intent: DayIntent): SessionSel
     ...contract,
     intensity: [...contract.intensity, ...intensityClash(value)],
     equipment: [...contract.equipment, ...equipmentClash(value)],
-    unit: unitErrors(value),
+    unit: prescriptionErrors(value).map((issue) => `${intent.day} field conditioning.movements.amount: ${issue}`),
   };
 }
 
@@ -116,11 +129,17 @@ export function sessionSelfErrors(value: unknown, intent: DayIntent): string[] {
   ];
 }
 
+/** A failed retry or a fallback day is not a successful model session. */
+export function isAdoptedModelSession(trace: { validation_result?: string; source?: string }): boolean {
+  return trace.validation_result === "pass" && trace.source === "model";
+}
+
 export function sessionUnitErrors(session: SessionDraft): string[] {
+  const minutes = session.conditioning?.duration_min ?? null;
   const movements = session.conditioning?.movements ?? [];
   return movements.flatMap((movement) => {
-    const issue = unitError(movement.key, movement.amount);
-    return issue ? [`${session.day} ${issue}`] : [];
+    const verdict = prescriptionAmountIssue(movement.key, movement.amount, minutes);
+    return verdict.status === "ok" ? [] : [`${session.day} prescription: ${verdict.message}`];
   });
 }
 

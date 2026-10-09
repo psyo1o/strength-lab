@@ -12,6 +12,7 @@ import {
   normalizeWeekPayload,
   parseMonthDirection,
   parseWeekDraft,
+  repairMonthLanguage,
   changedSessions,
   constraintFailureBriefs,
   lowerBodyFatigueRule,
@@ -84,7 +85,8 @@ const MONTH_RULES = [
   "You are not required to use 5/3/1. 5/3/1 is only one strength method. Choose from the previous month, fatigue, strength, volume, intensity, benchmarks, and the long-term block. Do not change the method from week to week. Do not write daily workouts.",
   "long_conditioning_weeks has exactly two week indexes. benchmark_week is one week index.",
   "Return one JSON object. Put every required key at the top level. Do not wrap the object. Do not use a key named month_direction_only.",
-  "Every *_ko field is Korean. Allowed English tokens are only AMRAP, EMOM, Rx, Scaled, Benchmark, Deload, and 5/3/1. The server rejects a low Korean ratio.",
+  "Every *_ko field is Korean. Allowed English tokens are only AMRAP, EMOM, Rx, Scaled, Benchmark, Deload, and 5/3/1. Do not copy method names such as ACCUMULATION, PROGRESSION, EMPHASIS, INTENSITY_BLOCK, DELOAD_RECOVERY, engine, high_rep, technical, interval, or variation into those fields.",
+  "evaluation_status no_evaluation means a previous month exists and no evaluation was stored. That is missing data, not high fatigue, and not a reason to choose DELOAD_RECOVERY. no_previous_month means there is no earlier month. present means last_evaluation is stored.",
 ];
 
 function messageText(payload: unknown): string | null {
@@ -127,6 +129,8 @@ export type ModelResponseLog = {
   responseFormat: "json_schema" | "json_object" | null;
   normalizations: string[];
   diagnostics?: Record<string, unknown> | null;
+  /** Validation errors for this attempt. Empty when the attempt was accepted. */
+  errors?: string[];
 };
 
 const RETRY_INSTRUCTION = [
@@ -750,6 +754,15 @@ async function authorWithRetries<T>(input: {
     const accepted = completed.ok ? input.accept(completed.json, { attempt, previous }) : null;
     if (completed.ok) previous = completed.json;
     const attemptNormalizations = accepted?.normalizations ?? [];
+    const attemptErrors = !completed.ok
+      ? [completed.detail]
+      : !accepted || !accepted.ok
+        ? accepted && !accepted.ok
+          ? accepted.errors?.length
+            ? accepted.errors
+            : [accepted.detail]
+          : ["unreadable JSON"]
+        : [];
     responses.push({
       attempt,
       raw: completed.ok ? completed.json : completed.raw,
@@ -757,6 +770,7 @@ async function authorWithRetries<T>(input: {
       responseFormat: completed.responseFormat,
       normalizations: attemptNormalizations,
       diagnostics: accepted?.diagnostics ?? null,
+      errors: attemptErrors,
     });
     if (!completed.ok) {
       reason = completed.reason;
@@ -792,15 +806,28 @@ async function authorWithRetries<T>(input: {
   };
 }
 
+export type EvaluationStatus = "present" | "no_previous_month" | "no_evaluation";
+
+/** Missing evaluation is a stored fact. A thrown lookup is not converted into this value. */
+export function evaluationStatus(summary: ProgrammingSummary): EvaluationStatus {
+  if (summary.progression.last_evaluation) return "present";
+  if (summary.progression.months_recorded === 0) return "no_previous_month";
+  return "no_evaluation";
+}
+
 export function monthPrompt(summary: ProgrammingSummary): unknown {
-  const bootstrap = summary.progression.months_recorded === 0;
+  const status = evaluationStatus(summary);
+  const bootstrap = status === "no_previous_month";
   return {
     task: "Return one JSON object for the month. Put every required key at the top level. Do not wrap the object. Do not use a key named month_direction_only. Do not write daily workouts.",
     personalization: null,
     bootstrap,
+    evaluation_status: status,
     block_rule: bootstrap
       ? "Bootstrap month. Choose the strength method. 5/3/1 is allowed and is not the default."
-      : "Follow the stored strength method and the previous evaluation. Do not switch the method inside this month.",
+      : status === "present"
+        ? "Follow the stored strength method and the previous evaluation. Do not switch the method inside this month."
+        : "Previous month is stored and evaluation_status is no_evaluation. Do not treat the missing evaluation as fatigue or as a reason to choose DELOAD_RECOVERY. Do not switch the method inside this month.",
     summary,
     rules: MONTH_RULES,
     required_top_level_keys: [...MONTH_REQUIRED_KEYS],
@@ -1314,9 +1341,18 @@ export async function authorMonth(input: {
       }
       const schemaErrors = monthSchemaErrors(direction, json);
       if (schemaErrors.length) return { ok: false, reason: "schema", detail: schemaErrors[0]!, errors: schemaErrors };
-      const english = englishKoPath(direction);
-      if (english) return { ok: false, reason: "language", detail: english, errors: [english] };
-      return { ok: true, value: direction };
+      const repaired = repairMonthLanguage(direction);
+      const english = englishKoPath(repaired.direction);
+      if (english) {
+        return {
+          ok: false,
+          reason: "language",
+          detail: english,
+          errors: [english],
+          normalizations: repaired.normalizations,
+        };
+      }
+      return { ok: true, value: repaired.direction, normalizations: repaired.normalizations };
     },
   });
   return result.ok ? { ok: true, direction: result.value, trace: result.trace } : result;

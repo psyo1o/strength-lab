@@ -130,17 +130,123 @@ export function unitGuide(): string {
     "Allowed units by movement.",
     ...lines,
     "Any other movement key uses reps.",
+    "Amount is the work the athlete performs. duration_min is the piece cap.",
+    "double_under 50 and double_under 30sec are both clear work. row 500m, row 15cal, and row 30sec are clear work.",
+    "row 12reps is not a natural row prescription. Choose calories or metres that fit the piece. Do not invent a number by renaming the unit.",
+    "A work bout in seconds has to fit inside duration_min. Do not invent calories or reps when the bout does not fit.",
+    "Intervals may also put the repeating clock in interval_work_sec and interval_rest_sec. Those fields are the interval structure, not a replacement for a clear amount.",
+    "Handstand amount may be seconds because the hold is the work.",
   ].join(" ");
+}
+
+export type PrescriptionStatus = "ok" | "revise" | "unclear";
+
+export type PrescriptionVerdict = { status: "ok" } | { status: "revise" | "unclear"; message: string };
+
+const CLEAR_WORK_CLOCK = new Set(["double_under", "row"]);
+
+/**
+ * Prescription check. Catalog unitError stays the technical unit list.
+ * A clear work duration for double-under or row is performable even when that list omits seconds.
+ */
+export function prescriptionAmountIssue(key: string, amount: string, durationMin: number | null): PrescriptionVerdict {
+  const catalog = unitError(key, amount);
+  if (!catalog) return { status: "ok" };
+  const parsed = parsedAmount(amount);
+  if (CLEAR_WORK_CLOCK.has(key) && parsed.unit === "sec" && Number.isInteger(parsed.value) && parsed.value > 0) {
+    if (durationMin != null && Number.isFinite(durationMin) && parsed.value > durationMin * 60) {
+      return {
+        status: "revise",
+        message: `${key} amount ${amount} is longer than the ${durationMin} minute piece. The work bout has to fit the session. Do not invent calories or reps.`,
+      };
+    }
+    return { status: "ok" };
+  }
+  if (key === "row" && parsed.unit === "reps") {
+    return {
+      status: "revise",
+      message: `${catalog}. Row reps are not a natural row prescription. Choose calories or metres that fit this piece. Do not invent a specific number by only renaming the unit.`,
+    };
+  }
+  if (!parsed.unit || !Object.prototype.hasOwnProperty.call(MOVEMENT_UNITS, key)) {
+    return {
+      status: "unclear",
+      message: `${catalog}. The prescription is not clear enough to store as a different amount. Do not invent a work quantity.`,
+    };
+  }
+  return {
+    status: "revise",
+    message: `${catalog}. ${amountRepairHint(key, amount)}`,
+  };
+}
+
+/**
+ * Whole-piece ceiling, faster than a 500m world record.
+ * A 30 second station and a 200–500m row are judged against the session, not against the work window.
+ */
+const PIECE_METRES_PER_SEC = 8;
+
+/**
+ * Performability of the finished piece.
+ * One station may use the whole interval. Row 200–500m is not rejected by comparing metres to that window.
+ * A seconds total or a distance that cannot finish inside the session is still a revision.
+ */
+export function intervalFitIssues(piece: {
+  format?: unknown;
+  duration_min?: unknown;
+  interval_work_sec?: unknown;
+  movements?: unknown;
+}): string[] {
+  const minutes = typeof piece.duration_min === "number" && Number.isFinite(piece.duration_min) ? piece.duration_min : null;
+  if (minutes == null || minutes <= 0) return [];
+  const budget = minutes * 60;
+  const rows = Array.isArray(piece.movements) ? piece.movements : [];
+  const movements = rows.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const item = row as { key?: unknown; amount?: unknown };
+    if (typeof item.key !== "string" || typeof item.amount !== "string") return [];
+    return [{ key: item.key, amount: item.amount }];
+  });
+  const errors: string[] = [];
+  let seconds = 0;
+  for (const movement of movements) {
+    if (amountUnit(movement.amount) !== "sec") continue;
+    const value = parsedAmount(movement.amount).value;
+    if (value > 0) seconds += value;
+  }
+  if (seconds > budget) {
+    errors.push(
+      `seconds stations total ${seconds}s, longer than the ${minutes} minute piece. The required bouts do not fit the session. Do not invent calories or reps.`,
+    );
+  }
+  const ceiling = budget * PIECE_METRES_PER_SEC;
+  for (const movement of movements) {
+    if (movement.key !== "row" && movement.key !== "ski" && movement.key !== "run") continue;
+    if (amountUnit(movement.amount) !== "m") continue;
+    const metres = parsedAmount(movement.amount).value;
+    if (metres > ceiling) {
+      errors.push(
+        `${movement.key} amount ${movement.amount} cannot be finished inside the ${minutes} minute piece. Do not invent calories.`,
+      );
+    }
+  }
+  return errors;
+}
+
+/** Retry text for a wrong amount. It names the movement, the value, and the allowed units. */
+export function amountRepairHint(key: string, amount: string): string {
+  const allowed = allowedUnits(key).join(", ");
+  return `${key} amount ${amount} is the wrong field for that value. Allowed amount units: ${allowed}. Put a work/rest clock in interval_work_sec and interval_rest_sec only when format is intervals. Do not only rename the unit, and do not invent a calorie or rep count.`;
 }
 
 export function unitError(key: string, amount: string): string | null {
   const unit = amountUnit(amount);
   const allowed = allowedUnits(key);
   if (!unit) {
-    return `${key} amount ${amount} has no allowed unit; allowed: ${allowed.join(", ")}`;
+    return `${key} field conditioning.movements.amount received ${amount}; expected unit one of: ${allowed.join(", ")}`;
   }
   if (!allowed.includes(unit)) {
-    return `${key} does not allow ${unit}; allowed: ${allowed.join(", ")}`;
+    return `${key} does not allow ${unit}; allowed: ${allowed.join(", ")}; field conditioning.movements.amount received ${amount}`;
   }
   return null;
 }

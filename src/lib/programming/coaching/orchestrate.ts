@@ -1,12 +1,12 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { judgeWeek } from "../rules";
+import { judgeWeek, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import type { DayIntent, DayPrescriptionRecord, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
-import { durationRuleText, headReviewErrors, loadDecisionErrors, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { durationRuleText, headReviewErrors, loadDecisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
-import { askCoach } from "./llm";
+import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
 import {
@@ -17,6 +17,7 @@ import {
   WEEKLY_COACH_PROMPT_VERSION,
 } from "./prompts";
 import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
+import { normalizeSessionPayload, type SessionNormalization } from "./stage13/normalize";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { prescriptionSource } from "./stage13/policy";
 import { analyzeProgression, analyzeWeekStructure } from "./stage13/analyzers";
@@ -47,6 +48,7 @@ import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session"
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { variationReport } from "./variation";
 import { planCoachedWeek, weeklyCoachPayload } from "./weekly";
+import { enforceLockedSkeleton, lockedSessionFieldErrors, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
 import type { CoachWeekInput, CoachWeekResult } from "./pipeline";
 
 function bare(draft: WeekDraft): WeekDraft {
@@ -85,7 +87,15 @@ function trainingDays(plan: WeeklyIntentPlan): DayIntent[] {
   return plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest");
 }
 
+function lockedSkeletonDay(input: CoachWeekInput, day: DayKey) {
+  const skeleton = input.longitudinal?.skeleton;
+  if (!skeleton?.skeleton_locked) return null;
+  return skeleton.days.find((row) => row.day === day) ?? null;
+}
+
 function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayIntent, revision: SessionRevision | null, revisionNumber: number, rules: WeekRules) {
+  const locked = lockedSkeletonDay(input, day.day);
+  const lockedRange = locked && locked.conditioning.duration_class !== "rest" ? TIME_DOMAIN_RANGES[locked.conditioning.duration_class] : null;
   return {
     agent_name: "session_coach",
     monthly_plan: input.month.coaching_plan ?? null,
@@ -96,7 +106,21 @@ function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayInte
     benchmark_required: day.benchmark,
     strength_required: day.strength_lift !== "none",
     recovery_intent: day.recovery_role,
-    target_duration: day.secondary_training === "long_conditioning" ? "30-40" : "8-20",
+    target_duration: lockedRange ? `${lockedRange.min}-${lockedRange.max}` : day.secondary_training === "long_conditioning" ? "30-40" : "8-20",
+    locked_day: locked
+      ? {
+          day: locked.day,
+          status: locked.status,
+          strength_lift: locked.strength.lift,
+          duration_class: locked.conditioning.duration_class,
+          duration_min: lockedRange ? `${lockedRange.min}-${lockedRange.max}` : null,
+          volume_max: locked.volume_profile,
+          intensity_ceiling: locked.conditioning.intensity_ceiling,
+          benchmark: locked.benchmark,
+          long_day: locked.long_day,
+          fields: ["conditioning.duration_min", "conditioning.volume", "conditioning.intensity", "conditioning.movements[].amount"],
+        }
+      : null,
     neighboring_days: plan.days
       .filter((row) => row.day !== day.day)
       .map((row) => ({
@@ -123,10 +147,23 @@ function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayInte
       movement_patterns: row.movement_patterns,
       duration_min: row.duration_min,
     })),
-    duration_rule: durationRuleText(),
+    duration_rule: locked
+      ? `${durationRuleText()} Locked ${locked.day}: conditioning.duration_min must be ${lockedRange?.min}-${lockedRange?.max} (${locked.conditioning.duration_class}). conditioning.volume must be at or below ${locked.volume_profile}.`
+      : durationRuleText(),
     revision_number: revisionNumber,
     revision,
   };
+}
+
+function lockedSessionSchemaNote(input: CoachWeekInput, day: DayIntent): string {
+  const locked = lockedSkeletonDay(input, day.day);
+  const brief = schemaBrief("session");
+  if (!locked || locked.conditioning.duration_class === "rest") return brief;
+  const range = TIME_DOMAIN_RANGES[locked.conditioning.duration_class];
+  return [
+    `LOCKED ${locked.day}. field conditioning.duration_min expected ${range.min}-${range.max} (${locked.conditioning.duration_class}). field conditioning.volume expected at or below ${locked.volume_profile}. field conditioning.intensity expected at or below ${locked.conditioning.intensity_ceiling}. strength_lift expected ${locked.strength.lift}.`,
+    brief,
+  ].join("\n");
 }
 
 function judgeContext(input: CoachWeekInput) {
@@ -142,20 +179,34 @@ function adoptDay(input: {
   draft: WeekDraft;
   day: DayIntent;
   json: unknown;
-}): { ok: true; draft: WeekDraft; session: SessionDraft } | { ok: false; errors: string[] } {
-  const schemaErrors = sessionSelfErrors(input.json, input.day);
-  if (schemaErrors.length) return { ok: false, errors: schemaErrors };
+}):
+  | { ok: true; draft: WeekDraft; session: SessionDraft; json: unknown; normalizations: SessionNormalization[] }
+  | { ok: false; errors: string[]; json: unknown; normalizations: SessionNormalization[] } {
+  const normalized = normalizeSessionPayload(input.json, { inventWorkFromClock: false });
+  const locked = lockedSkeletonDay(input.week, input.day.day);
+  const schemaErrors = [
+    ...sessionSelfErrors(normalized.json, input.day),
+    ...(locked ? lockedSessionFieldErrors(normalized.json, locked) : []),
+  ];
+  if (schemaErrors.length) return { ok: false, errors: schemaErrors, json: normalized.json, normalizations: normalized.normalizations };
   const session = sessionFromCoachJson({
-    json: input.json,
+    json: normalized.json,
     intent: input.day,
     month: input.week.month,
     weekIndex: input.week.weekIndex,
     actual: input.week.previousActual,
   });
-  if (!session) return { ok: false, errors: ["session builder rejected a payload that passed the schema"] };
+  if (!session) {
+    return {
+      ok: false,
+      errors: ["session builder rejected a payload that passed the schema"],
+      json: normalized.json,
+      normalizations: normalized.normalizations,
+    };
+  }
   const sessions = input.draft.sessions.map((row) => (row.day === input.day.day ? session : row));
   const candidate = stamp({ ...input.draft, sessions }, input.plan);
-  return { ok: true, draft: candidate, session };
+  return { ok: true, draft: candidate, session, json: normalized.json, normalizations: normalized.normalizations };
 }
 
 async function writeSession(input: {
@@ -168,9 +219,11 @@ async function writeSession(input: {
   revision: SessionRevision | null;
   timeoutMs: number;
   rules: WeekRules;
-}): Promise<{ draft: WeekDraft; source: "model" | "fallback"; trace: AgentTrace; selfTraces: AgentTrace[] }> {
+}): Promise<{ draft: WeekDraft; source: "model" | "fallback"; normalized: boolean; trace: AgentTrace; selfTraces: AgentTrace[] }> {
   const started = Date.now();
   const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber, input.rules);
+  const normalizations: SessionNormalization[] = [];
+  let normalizedJson: unknown = null;
   const selfTraces = (json: unknown) =>
     selfValidatorTraces({
       runId: input.runId,
@@ -195,10 +248,13 @@ async function writeSession(input: {
       revision_number: input.revisionNumber,
       day_intent: input.day,
       week_rules: input.rules,
-      duration_rule: durationRuleText(),
+      duration_rule: lockedSessionSchemaNote(input.week, input.day),
     },
+    schemaNote: lockedSessionSchemaNote(input.week, input.day),
     validate: (json) => {
       const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json });
+      normalizations.push(...adopted.normalizations);
+      normalizedJson = adopted.json;
       return adopted.ok ? { ok: true } : { ok: false, errors: adopted.errors };
     },
   });
@@ -206,7 +262,8 @@ async function writeSession(input: {
     return {
       draft: input.draft,
       source: "fallback",
-      selfTraces: asked.json ? selfTraces(asked.json) : [],
+      selfTraces: normalizedJson ? selfTraces(normalizedJson) : [],
+      normalized: false,
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.week.weekStart,
@@ -218,8 +275,10 @@ async function writeSession(input: {
         input_summary: { day: input.day.day, primary_training: input.day.primary_training, revision: input.revisionNumber },
         output: asked.json,
         raw_output: asked.raw,
+        model_input: user,
         validation_result: "fail",
         validation_errors: asked.validationErrors,
+        ...coachAttemptRecord(asked),
         retry_count: asked.retryCount,
         failure_reason: asked.reason,
         deterministic: false,
@@ -227,6 +286,7 @@ async function writeSession(input: {
         fallback_reason: asked.reason,
         revision_number: input.revisionNumber,
         token_usage: asked.usage,
+        normalizations,
       }),
     };
   }
@@ -235,7 +295,8 @@ async function writeSession(input: {
     return {
       draft: input.draft,
       source: "fallback",
-      selfTraces: selfTraces(asked.json),
+      normalized: false,
+      selfTraces: selfTraces(adopted.json),
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.week.weekStart,
@@ -247,8 +308,10 @@ async function writeSession(input: {
         input_summary: { day: input.day.day, primary_training: input.day.primary_training },
         output: asked.json,
         raw_output: asked.raw,
+        model_input: user,
         validation_result: "fail",
         validation_errors: adopted.errors,
+        ...coachAttemptRecord(asked),
         retry_count: asked.retryCount,
         failure_reason: "schema",
         deterministic: false,
@@ -256,13 +319,15 @@ async function writeSession(input: {
         fallback_reason: "schema",
         revision_number: input.revisionNumber,
         token_usage: asked.usage,
+        normalizations,
       }),
     };
   }
   return {
     draft: adopted.draft,
     source: "model",
-    selfTraces: selfTraces(asked.json),
+    normalized: normalizations.some((row) => row.ok),
+    selfTraces: selfTraces(normalizedJson ?? adopted.json),
     trace: finishTrace(started, {
       run_id: input.runId,
       week_id: input.week.weekStart,
@@ -275,8 +340,10 @@ async function writeSession(input: {
       output: { day: input.day.day, warmup_ko: adopted.session.warmup_ko, format: adopted.session.conditioning?.format },
       raw_output: asked.raw,
       parsed_output: asked.json,
+      model_input: user,
       validation_result: "pass",
       validation_errors: [],
+      ...coachAttemptRecord(asked),
       retry_count: asked.retryCount,
       failure_reason: null,
       deterministic: false,
@@ -284,6 +351,7 @@ async function writeSession(input: {
       fallback_reason: null,
       revision_number: input.revisionNumber,
       token_usage: asked.usage,
+      normalizations,
     }),
   };
 }
@@ -428,6 +496,29 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   });
   let plan = deterministic;
   let weeklyFromModel = false;
+  const lockedLongitudinal = input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal : null;
+  if (lockedLongitudinal) {
+    plan = planFromLockedSkeleton(lockedLongitudinal, month);
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "weekly_coach",
+        model: null,
+        prompt_version: WEEKLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash({ source: "locked_skeleton", week_index: input.weekIndex }),
+        output: { block_phase: plan.block_phase, days: plan.days.map((day) => day.primary_training), source: "locked_skeleton" },
+        validation_result: "pass",
+        retry_count: 0,
+        failure_reason: null,
+        deterministic: true,
+        source: "fallback",
+        fallback_reason: null,
+        revision_number: 0,
+      }),
+    );
+  }
+  if (!lockedLongitudinal) {
   const weeklyUser = weeklyCoachPayload({
     month,
     weekIndex: input.weekIndex,
@@ -492,8 +583,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       output: weeklyFromModel ? { block_phase: plan.block_phase, days: plan.days.map((day) => day.primary_training) } : weekly.json,
       raw_output: weekly.raw,
       parsed_output: weeklyFromModel ? plan.days : null,
+      model_input: weeklyUser,
       validation_result: weeklyFromModel ? "pass" : "fail",
       validation_errors: weekly.validationErrors,
+      ...coachAttemptRecord(weekly),
       retry_count: weekly.retryCount,
       failure_reason: weeklyFromModel ? null : weekly.reason,
       deterministic: false,
@@ -608,8 +701,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         input_hash: inputHash(weeklyRetryUser),
         output: weeklyFromModel ? { block_phase: plan.block_phase } : weeklyRetry.json,
         raw_output: weeklyRetry.raw,
+        model_input: weeklyRetryUser,
         validation_result: weeklyFromModel ? "pass" : "fail",
         validation_errors: weeklyRetry.validationErrors,
+        ...coachAttemptRecord(weeklyRetry),
         retry_count: weeklyRetry.retryCount,
         failure_reason: weeklyFromModel ? null : weeklyRetry.reason,
         deterministic: false,
@@ -620,6 +715,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         decision: weeklyFromModel ? "RERUN" : "KEPT",
       }),
     );
+  }
   }
   const planRuleErrors = weekPlanErrors(plan, rules);
   const structure = analyzeWeekStructure(plan);
@@ -705,6 +801,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   }
 
   const daySources = Object.fromEntries(DAY_ORDER.map((day) => [day, "fallback"])) as Record<DayKey, "model" | "fallback">;
+  const normalizedDays = new Set<DayKey>();
   let draft = stamp(built.draft, plan);
   for (const day of trainingDays(plan)) {
     const written = await writeSession({
@@ -725,6 +822,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     if (written.source === "model") {
       draft = written.draft;
       daySources[day.day] = "model";
+      if (written.normalized) normalizedDays.add(day.day);
     } else {
       noteFailure(written.trace.failure_reason);
     }
@@ -814,6 +912,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       parsed_output: loadSource === "model" ? loadDecisions : null,
       validation_result: loadSource === "model" ? "pass" : "fail",
       validation_errors: loadAsked.validationErrors,
+      ...coachAttemptRecord(loadAsked),
       retry_count: loadAsked.retryCount,
       failure_reason: loadSource === "model" ? null : loadAsked.reason,
       deterministic: loadSource !== "model",
@@ -1153,8 +1252,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         output: { review, decision: headDecision },
         raw_output: asked.raw,
         parsed_output: source === "model" ? asked.json : review,
+        model_input: user,
         validation_result: source === "model" ? "pass" : "fail",
         validation_errors: asked.validationErrors,
+        ...coachAttemptRecord(asked),
         retry_count: asked.retryCount,
         failure_reason: source === "model" ? null : asked.reason,
         deterministic: source !== "model",
@@ -1206,7 +1307,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let origin = prescriptionSource({ modelDays: modelDayCount, trainingDays: trained.length, revisions, legacy: false });
   let modelAdopted = origin === "model" || origin === "model_revised";
   const accepted =
-    weeklyFromModel &&
+    (weeklyFromModel || Boolean(lockedLongitudinal)) &&
     modelDayCount === trained.length &&
     (finalStatus === "APPROVE" || finalStatus === "APPROVE_WITH_NOTE" || finalStatus === "ADJUST");
   let fallbackReason = accepted
@@ -1231,7 +1332,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     coach_notes: notes,
     final_status: finalStatus,
     prescription_source: origin,
-    fallback_used: weeklyFromModel ? false : true,
+    fallback_used: lockedLongitudinal ? false : weeklyFromModel ? false : true,
     original_intent_source: weeklyFromModel ? "model" : "fallback",
     intent_source: weeklyFromModel ? "model" : "fallback",
   };
@@ -1304,6 +1405,37 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       resolvedReason = resolvedReason ? `${resolvedReason};final_validation_failed` : "final_validation_failed";
     }
   }
+  if (lockedLongitudinal) {
+    const enforced = enforceLockedSkeleton({
+      skeleton: lockedLongitudinal.skeleton,
+      draft,
+      rebuildDay: (day) =>
+        rebuildLockedDay({
+          day,
+          skeleton: lockedLongitudinal.skeleton,
+          month,
+          weekIndex: input.weekIndex,
+          thesis: lockedLongitudinal.weekly_thesis,
+          actual: input.previousActual,
+          recent: input.recentStructures,
+          salt: built.salt + DAY_ORDER.indexOf(day),
+        }),
+    });
+    draft = stamp(enforced.draft, plan);
+    for (const day of enforced.fittedDays) hardAdjusted.add(day);
+    for (const day of enforced.regeneratedDays) daySources[day] = "fallback";
+    if (enforced.after.length > 0) {
+      finalErrors = [...new Set([...finalErrors, ...enforced.after])];
+      for (const day of enforced.unresolvedDays) failedDays.add(day);
+      resolvedStatus = "FINALIZE_WITH_WARNING";
+      resolvedReason = resolvedReason ? `${resolvedReason};skeleton_lock` : "skeleton_lock";
+    }
+    plan = { ...plan, skeleton_lock: skeletonLockRecord(enforced) };
+    draft = stamp(draft, plan);
+    modelDayCount = trained.filter((day) => daySources[day.day] === "model").length;
+    origin = prescriptionSource({ modelDays: modelDayCount, trainingDays: trained.length, revisions, legacy: false });
+    modelAdopted = origin === "model" || origin === "model_revised";
+  }
   const dayRecords: Partial<Record<DayKey, DayPrescriptionRecord>> = {};
   for (const day of trained) {
     const original = originals.get(day.day) ?? null;
@@ -1319,9 +1451,11 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           ? "HEAD_ADJUSTED"
           : managerPass.touched[day.day] === "manager"
             ? "MODEL_ADJUSTED"
-            : source === "model"
-              ? "MODEL"
-              : "FALLBACK";
+            : source === "model" && normalizedDays.has(day.day)
+              ? "MODEL_REVISED"
+              : source === "model"
+                ? "MODEL"
+                : "FALLBACK";
     const quality =
       finalSource === "FALLBACK" || finalSource === "DETERMINISTIC_ADJUSTMENT" || finalSource === "FAILED"
         ? fallbackQuality({
@@ -1339,9 +1473,11 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         ? "HEAD_ADJUSTED"
         : finalSource === "MODEL_ADJUSTED"
           ? "MODEL_ADJUSTED"
-          : finalSource === "MODEL"
-            ? "MODEL"
-            : "FALLBACK";
+          : finalSource === "MODEL_REVISED"
+            ? "MODEL_REVISED"
+            : finalSource === "MODEL"
+              ? "MODEL"
+              : "FALLBACK";
     dayRecords[day.day] = {
       original_model_output: modelOriginal,
       manager_adjusted: managerPass.layers.manager_adjusted.find((session) => session.day === day.day) ?? null,

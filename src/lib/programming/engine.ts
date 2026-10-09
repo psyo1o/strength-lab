@@ -14,7 +14,7 @@ import { longitudinalPlanningEnabled } from "./planning/flag";
 import { planLongitudinal, withLongitudinal } from "./planning/plan";
 import { coachingWeekMayUseLegacyFallback } from "./coaching/stage16/hard";
 import { withCoachingPlan } from "./coaching/monthly";
-import { authorMonth, authorWeek, authorWeeklyIntent, type AuthorTrace, type FetchLike } from "./model";
+import { authorMonth, authorWeek, authorWeeklyIntent, evaluationStatus, monthPrompt, type AuthorTrace, type FetchLike } from "./model";
 import { realizeWeekFromIntent } from "./realize-intent";
 import { planWeeklyIntent, weeklyIntentFrom, type WeeklyIntentContext } from "./weekly-intent";
 import { projectWeek } from "./project";
@@ -245,7 +245,12 @@ async function writeProgrammingMonth(
     inputSummaryJson: JSON.stringify(summary),
     priorEvaluationId: evaluation?.id ?? null,
     mode,
-    ...generationWrite(MONTHLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason, options.logContext),
+    ...generationWrite(MONTHLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason, {
+      ...(options.logContext ?? {}),
+      evaluation_status: evaluationStatus(summary),
+      prior_next_scheme: evaluation?.next_scheme ?? null,
+      month_input: monthPrompt(summary),
+    }),
   });
 }
 
@@ -327,6 +332,7 @@ async function writeProgrammingWeek(
       recentSignatures: (intentContext.recentPlans ?? []).map((plan) => plan.days.map((day) => day.primary_training).join("|")),
       recentPlans: intentContext.recentPlans,
       recentLiftMaps,
+      longitudinal,
       key,
       fetchImpl: options.fetchImpl,
       timeoutMs: options.timeoutMs,
@@ -338,7 +344,7 @@ async function writeProgrammingWeek(
         monthId: month.id,
         weekIndex,
         weekStart,
-        draft: coached.rejected_draft,
+        draft: withLongitudinal(coached.rejected_draft, longitudinal),
         display: rejectedDisplay,
         inputSummaryJson: JSON.stringify(summary),
         generationSource: "fallback",
@@ -360,7 +366,7 @@ async function writeProgrammingWeek(
         monthId: month.id,
         weekIndex,
         weekStart,
-        draft: coached.draft,
+        draft: withLongitudinal(coached.draft, longitudinal),
         display: rejectedDisplay,
         inputSummaryJson: JSON.stringify(summary),
         generationSource: coached.generation_source,
@@ -385,11 +391,13 @@ async function writeProgrammingWeek(
           row?.final_source === "HEAD_ADJUSTED" ||
           row?.final_source === "DETERMINISTIC_ADJUSTMENT",
       );
-      const allowLegacyWeek = coachingWeekMayUseLegacyFallback({
-        pipeline: coached.pipeline,
-        weekStatus: coached.week_status,
-        salvage,
-      });
+      const allowLegacyWeek =
+        longitudinal?.skeleton.skeleton_locked !== true &&
+        coachingWeekMayUseLegacyFallback({
+          pipeline: coached.pipeline,
+          weekStatus: coached.week_status,
+          salvage,
+        });
       if (!allowLegacyWeek) {
         const failed = listProgrammingWeekAttempts(weekStart).find((row) => row.id === failedId);
         if (failed) return failed;

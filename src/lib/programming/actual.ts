@@ -88,9 +88,24 @@ export function recomputeWeeklyActual(weekStart: string, nowMs = Date.now()): We
   if (!probeMayWriteWeek(weekStart)) return previous;
   if (previous && isProbeSeed(previous.note_ko)) return previous;
   const built = scrubActual(buildActual(week.weekStart, week.draft, week.display.days));
+  if (previous && hasExplicitPerformance(previous) && !hasExplicitPerformance(built)) return previous;
   const merged = mergeManual(built, previous);
   saveWeeklyActual(week.id, merged, nowMs);
   return merged;
+}
+
+function hasExplicitPerformance(actual: WeekActual): boolean {
+  if (isProbeSeed(actual.note_ko)) return true;
+  return actual.days.some(
+    (day) =>
+      day.fatigue != null ||
+      day.result_ko === "완료" ||
+      day.result_ko === "결석" ||
+      (day.completed_count ?? 0) > 0 ||
+      (day.score?.entries ?? 0) > 0 ||
+      day.plan_vs_actual === "missed" ||
+      day.plan_vs_actual === "matched",
+  );
 }
 
 function scrubActual(actual: WeekActual): WeekActual {
@@ -164,16 +179,18 @@ function buildActual(weekStart: string, draft: WeekDraft, plannedDays: PlannedDa
     const entries = classScores.length + wods.length;
     const isLower = lowerBody(shown, planned);
     const completed = !rest && completedCount > 0;
+    const noRecord = !rest && !completed && missedCount === 0 && classScores.length === 0 && wods.length === 0;
     let planVs = "rest";
     if (!rest && adminModified) planVs = "admin_modified";
     else if (!rest && completed) planVs = "matched";
+    else if (noRecord) planVs = "no_record";
     else if (!rest) planVs = "missed";
     return {
       day: dayKey,
       date,
       rest,
       completed,
-      result_ko: rest ? "휴식" : generatedResult(completedCount, missedCount),
+      result_ko: rest ? "휴식" : noRecord ? "기록 없음" : generatedResult(completedCount, missedCount),
       admin_modified: adminModified,
       completed_count: completedCount,
       missed_count: missedCount,
@@ -196,6 +213,8 @@ function buildActual(weekStart: string, draft: WeekDraft, plannedDays: PlannedDa
 
   const training = days.filter((day) => !day.rest);
   const completedDays = training.filter((day) => day.completed);
+  const explicitMisses = training.filter((day) => day.plan_vs_actual === "missed");
+  const noRecordOnly = training.length > 0 && training.every((day) => day.plan_vs_actual === "no_record");
   const scalingMix: ScalingMix = { rx: 0, scaled: 0, beginner: 0 };
   for (const day of training) {
     scalingMix.rx += day.scaling?.rx ?? 0;
@@ -203,11 +222,17 @@ function buildActual(weekStart: string, draft: WeekDraft, plannedDays: PlannedDa
     scalingMix.beginner += day.scaling?.beginner ?? 0;
   }
   const fatigueSignal = weekFatigue(training);
+  if (noRecordOnly || !fatigueSignal) {
+    return {
+      note_ko: "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+      days,
+    };
+  }
   const volume = weekVolume(training, fatigueSignal);
   const intensity = weekIntensity(training, fatigueSignal);
   const adminDays = training.filter((day) => day.admin_modified).length;
   const benchmarkDays = training.filter((day) => day.benchmark_result).length;
-  const missedDays = training.length - completedDays.length;
+  const missedDays = explicitMisses.length;
   const planVs =
     adminDays > 0 ? "일부 날은 관리자가 수정했습니다." : missedDays === 0 ? "계획한 훈련일을 마쳤습니다." : `빠뜨린 훈련일 ${missedDays}일입니다.`;
   const classSummary: ClassActualSummary = {
@@ -228,10 +253,12 @@ function buildActual(weekStart: string, draft: WeekDraft, plannedDays: PlannedDa
   };
 }
 
-function weekFatigue(days: WeekActualDay[]): FatigueSignal {
+function weekFatigue(days: WeekActualDay[]): FatigueSignal | null {
   const rated = days.map((day) => day.fatigue).filter((value): value is FatigueSignal => value != null);
   if (rated.length) return majority(rated, "moderate");
   const missed = days.filter((day) => day.plan_vs_actual === "missed").length;
+  const known = days.filter((day) => day.plan_vs_actual === "missed" || day.plan_vs_actual === "matched" || day.completed).length;
+  if (known === 0) return null;
   if (days.length > 0 && missed * 2 >= days.length) return "high";
   return "low";
 }

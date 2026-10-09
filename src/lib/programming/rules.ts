@@ -76,6 +76,57 @@ export function koreanRatio(text: string): number {
   return hangul / (hangul + latin);
 }
 
+/**
+ * Method names the month model copies into Korean fields.
+ * Replacing them does not change scheme or strength_method.
+ * A field that is still under the Korean ratio after this pass stays unchanged.
+ */
+const MONTH_LANGUAGE_TOKENS: Array<[RegExp, string]> = [
+  [/\bINTENSITY_BLOCK\b/g, "강도"],
+  [/\bDELOAD_RECOVERY\b/g, "디로드 및 회복"],
+  [/\bTECHNIQUE_SKILL\b/g, "기술"],
+  [/\bACCUMULATION\b/g, "축적"],
+  [/\bPROGRESSION\b/g, "점진적 향상"],
+  [/\bEMPHASIS\b/g, "강조"],
+  [/\bDELOAD\b/g, "디로드"],
+  [/\bhigh_rep\b/gi, "고반복"],
+  [/\btechnical\b/gi, "기술"],
+  [/\bintervals\b/gi, "인터벌"],
+  [/\binterval\b/gi, "인터벌"],
+  [/\bvariation\b/gi, "변형"],
+  [/\bengine\b/gi, "엔진"],
+];
+
+export function rewriteMonthLanguageTokens(text: string): string {
+  let next = text;
+  for (const [pattern, korean] of MONTH_LANGUAGE_TOKENS) next = next.replace(pattern, korean);
+  return next;
+}
+
+/** Rewrite only Korean fields that clear the ratio after known method tokens are replaced. */
+export function repairMonthLanguage(direction: MonthDirection): { direction: MonthDirection; normalizations: string[] } {
+  const normalizations: string[] = [];
+  const rewrite = (path: string, text: string): string => {
+    if (koreanRatio(text) >= KOREAN_RATIO_MIN) return text;
+    const next = rewriteMonthLanguageTokens(text);
+    if (next === text || koreanRatio(next) < KOREAN_RATIO_MIN) return text;
+    normalizations.push(`${path} latin method tokens rewritten`);
+    return next;
+  };
+  return {
+    direction: {
+      ...direction,
+      focus_ko: rewrite("focus_ko", direction.focus_ko),
+      why_ko: rewrite("why_ko", direction.why_ko),
+      week_themes: direction.week_themes.map((theme, index) => ({
+        ...theme,
+        theme_ko: rewrite(`week_themes[${index}].theme_ko`, theme.theme_ko),
+      })),
+    },
+    normalizations,
+  };
+}
+
 /** A *_ko, focus, or scheme_note string whose Korean ratio is below the server minimum. */
 export function englishKoPath(value: unknown, path = ""): string | null {
   if (Array.isArray(value)) {
@@ -477,6 +528,21 @@ export function parseMonthDirection(value: unknown): MonthDirection | null {
   });
 }
 
+/**
+ * deload + 531 is not a legal month. Week 4 of a 531 month is the deload phase.
+ * A recovery month uses scheme deload and DELOAD_RECOVERY. The pair is rejected, not rewritten.
+ */
+export function schemeMethodMismatch(direction: Pick<MonthDirection, "scheme" | "strength_method">): string {
+  const method = direction.strength_method || "missing";
+  if (direction.scheme === "deload" && method === "531") {
+    return "scheme deload does not allow strength_method 531; a recovery month uses DELOAD_RECOVERY; a 531 month uses scheme 531 and only week 4 is a deload";
+  }
+  if (direction.scheme === "531" && method === "DELOAD_RECOVERY") {
+    return "scheme 531 does not allow strength_method DELOAD_RECOVERY; a recovery month uses scheme deload and DELOAD_RECOVERY; a 531 month uses strength_method 531";
+  }
+  return `scheme ${direction.scheme} does not match strength_method ${method}`;
+}
+
 export function monthSchemaErrors(direction: MonthDirection, raw: unknown): string[] {
   const errors: string[] = [];
   const banned = bannedKey(raw, new Set([...BANNED_KEYS, ...MONTH_BANNED_KEYS]));
@@ -485,7 +551,7 @@ export function monthSchemaErrors(direction: MonthDirection, raw: unknown): stri
   const expectedScheme = legacySchemeForMethod(direction.strength_method);
   if (!direction.strength_method) errors.push("missing strength_method");
   else if (!expectedScheme) errors.push(`${direction.strength_method} is not an implemented strength method`);
-  else if (expectedScheme !== direction.scheme) errors.push("scheme does not match strength_method");
+  else if (expectedScheme !== direction.scheme) errors.push(schemeMethodMismatch(direction));
   if (direction.long_conditioning_weeks.length !== 2) errors.push("long conditioning must be two weeks");
   if (new Set(direction.long_conditioning_weeks).size !== 2) errors.push("long conditioning weeks repeat");
   const weeks = new Set(direction.week_themes.map((row) => row.week_index));
@@ -1014,7 +1080,7 @@ const LOWER_LIFTS = new Set<MainLift>(LOWER_BODY_LIFTS);
  * that reduces volume, load, sets, intensity, or work. "피로가 낮다" is not that action.
  */
 const REDUCED_INTENT =
-  /하체(?:[^.。\n]{0,48}?)(?:볼륨|부하|세트|강도|훈련량|부담)(?:을|를|이|가)?\s*(?:줄(?:이|였|인|임|여)|낮(?:춰|추|춘|췄)|감소)|하체(?:를|을)?\s*(?:줄(?:이|였|인|임|여)|낮(?:춰|추|춘|췄)|감소)/;
+  /하체(?:[^.。\n]{0,48}?)(?:볼륨|부하|세트|강도|훈련량|부담)(?:을|를|이|가)?\s*(?:줄(?:이|였|인|임|여|입)|낮(?:춰|추|춘|췄|춥)|감소)|하체(?:를|을)?\s*(?:줄(?:이|였|인|임|여|입)|낮(?:춰|추|춘|췄|춥)|감소)/;
 
 /** True when the text says the lower-body prescription itself was reduced. */
 export function mentionsReducedLowerIntent(text: string): boolean {

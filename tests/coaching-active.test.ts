@@ -122,6 +122,8 @@ function sessionJson(session: SessionDraft, mark: string) {
       equipment: piece.equipment,
       volume: piece.volume,
       intensity: piece.intensity,
+      interval_work_sec: piece.format === "intervals" ? 30 : null,
+      interval_rest_sec: piece.format === "intervals" ? 30 : null,
     },
   };
 }
