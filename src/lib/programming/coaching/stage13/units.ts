@@ -211,7 +211,7 @@ export function intervalFitIssues(piece: {
   });
   if (filling && movements.length > 1) {
     errors.push(
-      `${filling.key} amount ${filling.amount} fills the ${work} second work interval, so the other movements do not fit. Keep one clear bout. Do not invent a replacement amount.`,
+      `${filling.key} amount ${filling.amount} fills the ${work} second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do not invent a replacement amount.`,
     );
   }
   for (const movement of movements) {
