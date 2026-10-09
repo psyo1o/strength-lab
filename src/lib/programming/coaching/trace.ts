@@ -82,6 +82,8 @@ export type AgentTrace = {
   revision_number?: number;
   token_usage?: TokenUsage | null;
   decision?: string | null;
+  /** Code normalization applied before validation. Not a model retry. */
+  normalizations?: unknown;
 };
 
 export function newRunId(): string {

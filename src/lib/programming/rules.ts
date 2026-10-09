@@ -83,11 +83,12 @@ export function koreanRatio(text: string): number {
  */
 const MONTH_LANGUAGE_TOKENS: Array<[RegExp, string]> = [
   [/\bINTENSITY_BLOCK\b/g, "강도"],
-  [/\bDELOAD_RECOVERY\b/g, "회복"],
+  [/\bDELOAD_RECOVERY\b/g, "디로드 및 회복"],
   [/\bTECHNIQUE_SKILL\b/g, "기술"],
   [/\bACCUMULATION\b/g, "축적"],
-  [/\bPROGRESSION\b/g, "진행"],
+  [/\bPROGRESSION\b/g, "점진적 향상"],
   [/\bEMPHASIS\b/g, "강조"],
+  [/\bDELOAD\b/g, "디로드"],
   [/\bhigh_rep\b/gi, "고반복"],
   [/\btechnical\b/gi, "기술"],
   [/\bintervals\b/gi, "인터벌"],

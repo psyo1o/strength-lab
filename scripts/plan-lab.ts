@@ -10,6 +10,8 @@
  * Two model passes on a temporary 2099 database:
  *   PROBE_MODE=db npx tsx scripts/plan-lab.ts
  * Stage 19 writes docs/stage19-probe.json and /tmp/stage19-phaseb.db.
+ * Stage 21 uses the same scenarios:
+ *   PROBE_MODE=db PROBE_LABEL=stage21 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
@@ -226,6 +228,7 @@ async function databasePass(pass: string) {
       tokens,
       log_latency_ms: logs.reduce((sum, log) => sum + (log.latency_ms ?? 0), 0),
       session_failures: sessionFailures,
+      normalizations: normalizationReport(logs.map((log) => log.raw_json)),
       previous_actual: {
         week: previousWeek,
         note_ko: previousActual?.note_ko ?? null,
@@ -274,6 +277,27 @@ function classifySessionLogs(rawLogs: string[]) {
     }
   }
   return { failed_days: failed, passed_days: passed, retried_pass: retriedPass, retried_fail: retriedFail, kinds, examples };
+}
+
+function normalizationReport(rawLogs: string[]) {
+  const rows: Array<{ kind?: string; ok?: boolean; rule?: string }> = [];
+  for (const raw of rawLogs) {
+    const parsed = JSON.parse(raw) as { normalizations?: Array<{ kind?: string; ok?: boolean; rule?: string }> };
+    if (!Array.isArray(parsed.normalizations)) continue;
+    rows.push(...parsed.normalizations);
+  }
+  const count = (kind: string, ok: boolean) => rows.filter((row) => row.kind === kind && row.ok === ok).length;
+  return {
+    unit_seen: rows.filter((row) => row.kind === "unit").length,
+    unit_converted: count("unit", true),
+    unit_unconverted: count("unit", false),
+    display_rewrites: count("display", true),
+    rules: rows.reduce<Record<string, number>>((sum, row) => {
+      if (!row.rule) return sum;
+      sum[row.rule] = (sum[row.rule] ?? 0) + 1;
+      return sum;
+    }, {}),
+  };
 }
 
 function sessionFailureKind(error: string): string {
@@ -327,6 +351,20 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
       for (const [kind, count] of Object.entries(kinds)) sum[kind] = (sum[kind] ?? 0) + count;
       return sum;
     }, {}),
+    normalizations: rows.reduce<{ unit_seen: number; unit_converted: number; unit_unconverted: number; display_rewrites: number }>(
+      (sum, row) => {
+        const report = row.normalizations as
+          | { unit_seen?: number; unit_converted?: number; unit_unconverted?: number; display_rewrites?: number }
+          | undefined;
+        return {
+          unit_seen: sum.unit_seen + (report?.unit_seen ?? 0),
+          unit_converted: sum.unit_converted + (report?.unit_converted ?? 0),
+          unit_unconverted: sum.unit_unconverted + (report?.unit_unconverted ?? 0),
+          display_rewrites: sum.display_rewrites + (report?.display_rewrites ?? 0),
+        };
+      },
+      { unit_seen: 0, unit_converted: 0, unit_unconverted: 0, display_rewrites: 0 },
+    ),
     session_rewrite: rows.reduce<{ retried_pass: number; retried_fail: number }>(
       (sum, row) => {
         const failure = row.session_failures as { retried_pass?: number; retried_fail?: number } | undefined;
@@ -357,7 +395,9 @@ async function main() {
     console.log(scrub(JSON.stringify({ plan_lab: { mode: "db", skipped: "MONTH_PLAN_MODEL_KEY is unset", structure: digest } })));
     return;
   }
-  process.env.DATABASE_PATH = "/tmp/stage19-phaseb.db";
+  const probeLabel = process.env.PROBE_LABEL?.trim() || "stage19";
+  if (!/^[a-z0-9-]+$/.test(probeLabel)) throw new ProbeSafetyError("PROBE_LABEL is not a file label");
+  process.env.DATABASE_PATH = `/tmp/${probeLabel}-phaseb.db`;
   process.env.STRENGTH_LAB_PROBE = "1";
   process.env.COACHING_PIPELINE = "1";
   process.env.LONGITUDINAL_PLANNING = "1";
@@ -378,12 +418,13 @@ async function main() {
   };
   const json = scrub(JSON.stringify(report, null, 2));
   mkdirSync("/opt/cursor/artifacts", { recursive: true });
-  mkdirSync("/tmp/stage19-phaseb", { recursive: true });
+  mkdirSync(`/tmp/${probeLabel}-phaseb`, { recursive: true });
   mkdirSync("docs", { recursive: true });
-  writeFileSync("/opt/cursor/artifacts/stage19-probe.json", json);
-  writeFileSync("/tmp/stage19-phaseb/probe.json", json);
-  writeFileSync("docs/stage19-probe.json", json);
-  console.log(scrub(JSON.stringify({ plan_lab: { wrote: "docs/stage19-probe.json", summary: report.plan_lab.summary } })));
+  const probeFile = `docs/${probeLabel}-probe.json`;
+  writeFileSync(`/opt/cursor/artifacts/${probeLabel}-probe.json`, json);
+  writeFileSync(`/tmp/${probeLabel}-phaseb/probe.json`, json);
+  writeFileSync(probeFile, json);
+  console.log(scrub(JSON.stringify({ plan_lab: { wrote: probeFile, summary: report.plan_lab.summary } })));
 }
 
 main().catch((error: unknown) => {

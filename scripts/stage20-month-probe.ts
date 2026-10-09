@@ -289,7 +289,7 @@ function modelBodyFor(monthStart: string): { scheme: string | null; strength_met
   });
 }
 
-function writeProbe(payload: { complete: boolean }) {
+function writeProbe(payload: { complete: boolean; [key: string]: unknown }) {
   const text = scrub(JSON.stringify(payload, null, 2));
   mkdirSync("/opt/cursor/artifacts", { recursive: true });
   writeFileSync("/tmp/stage20-probe.json", text);
