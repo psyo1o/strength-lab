@@ -16,6 +16,8 @@
  *   PROBE_MODE=db PROBE_LABEL=stage22 npx tsx scripts/plan-lab.ts
  * Stage 23 uses the same scenarios. Raw files under docs/stage23-runs are gitignored:
  *   PROBE_MODE=db PROBE_LABEL=stage23 npx tsx scripts/plan-lab.ts
+ * Stage 23.1 uses the same 12 weeks. Raw files under docs/stage23.1-runs are gitignored:
+ *   PROBE_MODE=db PROBE_LABEL=stage23.1 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
@@ -666,7 +668,9 @@ async function main() {
     return;
   }
   const probeLabel = process.env.PROBE_LABEL?.trim() || "stage19";
-  if (!/^[a-z0-9-]+$/.test(probeLabel)) throw new ProbeSafetyError("PROBE_LABEL is not a file label");
+  if (!/^[a-z0-9.-]+$/.test(probeLabel) || probeLabel.includes("..") || probeLabel.startsWith(".")) {
+    throw new ProbeSafetyError("PROBE_LABEL is not a file label");
+  }
   process.env.DATABASE_PATH = `/tmp/${probeLabel}-phaseb.db`;
   process.env.STRENGTH_LAB_PROBE = "1";
   process.env.COACHING_PIPELINE = "1";

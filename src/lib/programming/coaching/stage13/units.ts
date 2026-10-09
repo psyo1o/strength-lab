@@ -180,22 +180,26 @@ export function prescriptionAmountIssue(key: string, amount: string, durationMin
   };
 }
 
-/** Faster than a metcon sprint. Used only to see that a distance cannot fit the work interval. */
-const SPRINT_METRES_PER_SEC = 6;
+/**
+ * Whole-piece ceiling, faster than a 500m world record.
+ * A 30 second station and a 200–500m row are judged against the session, not against the work window.
+ */
+const PIECE_METRES_PER_SEC = 8;
 
 /**
- * Interval structure versus the amounts inside it.
- * A seconds bout that fills the work window leaves no room for another movement.
- * A distance past the sprint ceiling cannot be finished inside that window.
+ * Performability of the finished piece.
+ * One station may use the whole interval. Row 200–500m is not rejected by comparing metres to that window.
+ * A seconds total or a distance that cannot finish inside the session is still a revision.
  */
 export function intervalFitIssues(piece: {
   format?: unknown;
+  duration_min?: unknown;
   interval_work_sec?: unknown;
   movements?: unknown;
 }): string[] {
-  if (piece.format !== "intervals") return [];
-  const work = piece.interval_work_sec;
-  if (typeof work !== "number" || !Number.isInteger(work) || work <= 0) return [];
+  const minutes = typeof piece.duration_min === "number" && Number.isFinite(piece.duration_min) ? piece.duration_min : null;
+  if (minutes == null || minutes <= 0) return [];
+  const budget = minutes * 60;
   const rows = Array.isArray(piece.movements) ? piece.movements : [];
   const movements = rows.flatMap((row) => {
     if (!row || typeof row !== "object") return [];
@@ -204,23 +208,25 @@ export function intervalFitIssues(piece: {
     return [{ key: item.key, amount: item.amount }];
   });
   const errors: string[] = [];
-  const filling = movements.find((movement) => {
-    if (movement.key !== "double_under" && movement.key !== "row") return false;
-    if (amountUnit(movement.amount) !== "sec") return false;
-    return parsedAmount(movement.amount).value >= work;
-  });
-  if (filling && movements.length > 1) {
+  let seconds = 0;
+  for (const movement of movements) {
+    if (amountUnit(movement.amount) !== "sec") continue;
+    const value = parsedAmount(movement.amount).value;
+    if (value > 0) seconds += value;
+  }
+  if (seconds > budget) {
     errors.push(
-      `${filling.key} amount ${filling.amount} fills the ${work} second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do not invent a replacement amount.`,
+      `seconds stations total ${seconds}s, longer than the ${minutes} minute piece. The required bouts do not fit the session. Do not invent calories or reps.`,
     );
   }
+  const ceiling = budget * PIECE_METRES_PER_SEC;
   for (const movement of movements) {
     if (movement.key !== "row" && movement.key !== "ski" && movement.key !== "run") continue;
     if (amountUnit(movement.amount) !== "m") continue;
     const metres = parsedAmount(movement.amount).value;
-    if (metres > work * SPRINT_METRES_PER_SEC) {
+    if (metres > ceiling) {
       errors.push(
-        `${movement.key} amount ${movement.amount} does not fit a ${work} second work interval. Shorten the distance or lengthen the work interval. Do not invent calories.`,
+        `${movement.key} amount ${movement.amount} cannot be finished inside the ${minutes} minute piece. Do not invent calories.`,
       );
     }
   }

@@ -11,13 +11,13 @@
 | run_id | `stage22-bf55fe00-309b-4c6e-997d-6a0da1d859d0` |
 | A1 실행 식별자 | `stage22-bf55fe00-309b-4c6e-997d-6a0da1d859d0-A1` |
 | A2 실행 식별자 | `stage22-bf55fe00-309b-4c6e-997d-6a0da1d859d0-A2` |
-| A1 경로 | `docs/stage22-runs/stage22-bf55fe00-309b-4c6e-997d-6a0da1d859d0/A1` |
-| A2 경로 | `docs/stage22-runs/stage22-bf55fe00-309b-4c6e-997d-6a0da1d859d0/A2` |
+| A1 경로 | `docs/probe-raw/stage22-runs/stage22-bf55fe00-309b-4c6e-997d-6a0da1d859d0/A1` |
+| A2 경로 | `docs/probe-raw/stage22-runs/stage22-bf55fe00-309b-4c6e-997d-6a0da1d859d0/A2` |
 | 원본 저장 | 예. 각 패스에 `generation-logs.json`, `weeks.json`, `months.json`, `evaluations.json`, `usage.json`, `manifest.json` |
 | A2 이후 A1 무결성 | 유지. A2가 돌아가는 동안 저장한 A1 SHA-256과 프로브 종료 후 해시가 같다 |
 | 누락·보존 실패 | 0. 요약 작성 전에 검사했고 `missing`은 빈 배열이다 |
 
-2099 SQL 행은 패스 시작 때 지운다. 지우기 전에 직전 패스를 위 디렉터리에 쓴다. A2 삭제는 A1 파일을 건드리지 않는다. 로그 파일이 없으면 `verifyProbeArchives`가 실패하고 프로브는 성공으로 끝나지 않는다. 이 검사는 결정론 테스트에서도 통과했다.
+2099 SQL 행은 패스 시작 때 지운다. 지우기 전에 직전 패스를 위 디렉터리에 쓴다. A2 삭제는 A1 파일을 건드리지 않는다. 로그 파일이 없으면 `verifyProbeArchives`가 실패하고 프로브는 성공으로 끝나지 않는다. 이 검사는 결정론 테스트에서도 통과했다. 대용량 원본은 이후 `docs/probe-raw/stage22-runs/`로 옮겨 커밋에서 빠졌다. 파일은 지우지 않았다. `docs/stage22-probe.json`의 경로 문자열은 프로브 당시 값이다.
 
 원본에 들어 있는 것:
 

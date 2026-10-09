@@ -91,7 +91,7 @@ A1은 7월이 회복 달이라 W1–W4 상한이 moderate / moderate / light다.
 | A1 호출 / 토큰 / 시간 | 43 / 259,471 / 284,942ms |
 | A2 호출 / 토큰 / 시간 | 38 / 331,301 / 328,778ms |
 
-원본 디렉터리는 `.gitignore`의 `docs/stage23-runs/`라 이 커밋에 없다. 지운 원본은 없다. 수정 전 원본 `docs/stage23-runs/stage23-0cf30386-9f8c-4266-a5d0-c50616359bbf`와 중간 실행 `stage23-e2802e04-1068-4dbc-9913-3539fc777be0`, `stage23-b2d6af83-a01c-42f8-b87a-a831864c9bb3`도 그 경로에 남아 있다. Stage22 원본 `docs/stage22-runs/`는 계속 추적된다. 요약은 `docs/stage23-probe.json`이다.
+원본 디렉터리는 `.gitignore`의 `docs/stage23-runs/`라 이 커밋에 없다. 지운 원본은 없다. 수정 전 원본 `docs/stage23-runs/stage23-0cf30386-9f8c-4266-a5d0-c50616359bbf`와 중간 실행 `stage23-e2802e04-1068-4dbc-9913-3539fc777be0`, `stage23-b2d6af83-a01c-42f8-b87a-a831864c9bb3`도 그 경로에 남아 있다. Stage22 원본은 `docs/probe-raw/stage22-runs/`로 옮겨 커밋에서 빠진다. 요약은 `docs/stage23-probe.json`이다.
 
 ## 남은 문제
 

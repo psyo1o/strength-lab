@@ -16,3 +16,5 @@ coverage
 *.tsbuildinfo
 next-env.d.ts
 docs/stage23-runs/
+docs/stage23.1-runs/
+docs/probe-raw/

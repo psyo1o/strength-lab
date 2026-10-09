@@ -98,11 +98,45 @@ describe("stage23 prescription quality", () => {
         { key: "double_under", amount: "30sec", name_ko: "더블언더" },
         { key: "row", amount: "500m", name_ko: "로잉" },
       ],
-      { format: "intervals", interval_work_sec: 30, interval_rest_sec: 30 },
+      { format: "intervals", interval_work_sec: 30, interval_rest_sec: 30, duration_min: 16 },
     );
-    const crowdedErrors = sessionSelfErrors(crowded, intent()).join(" ");
-    expect(crowdedErrors).toMatch(/fills the 30 second work interval/);
-    expect(crowdedErrors).toMatch(/does not fit a 30 second work interval/);
+    expect(sessionSelfErrors(crowded, intent())).toEqual([]);
+    const shortDoubles = payload(
+      [
+        { key: "double_under", amount: "15sec", name_ko: "더블언더" },
+        { key: "burpee", amount: "8", name_ko: "버피" },
+      ],
+      { format: "intervals", interval_work_sec: 30, interval_rest_sec: 30, equipment: ["jump_rope", "bodyweight"] },
+    );
+    expect(sessionSelfErrors(shortDoubles, intent())).toEqual([]);
+    for (const amount of ["200m", "500m"]) {
+      for (const work of [30, 60]) {
+        const rowPiece = payload(
+          [
+            { key: "row", amount, name_ko: "로잉" },
+            { key: "burpee", amount: "8", name_ko: "버피" },
+          ],
+          { format: "intervals", interval_work_sec: work, interval_rest_sec: 30, duration_min: 16, equipment: ["rower", "bodyweight"] },
+        );
+        expect(sessionSelfErrors(rowPiece, intent())).toEqual([]);
+      }
+    }
+    const impossibleDistance = sessionSelfErrors(
+      payload([{ key: "row", amount: "10000m", name_ko: "로잉" }, { key: "burpee", amount: "6", name_ko: "버피" }], { duration_min: 10 }),
+      intent(),
+    );
+    expect(impossibleDistance.join(" ")).toMatch(/cannot be finished inside the 10 minute piece/);
+    const stackedSeconds = sessionSelfErrors(
+      payload(
+        [
+          { key: "double_under", amount: "400sec", name_ko: "더블언더" },
+          { key: "row", amount: "400sec", name_ko: "로잉" },
+        ],
+        { duration_min: 10 },
+      ),
+      intent(),
+    );
+    expect(stackedSeconds.join(" ")).toMatch(/seconds stations total 800s/);
     const chipper = payload(
       [
         { key: "row", amount: "500m", name_ko: "로잉" },
