@@ -1,6 +1,6 @@
 import { movementCatalog } from "../pieces";
 import { TIME_DOMAIN_RANGES, rewriteMonthLanguageTokens } from "../../rules";
-import { MOVEMENT_UNITS, amountUnit, parsedAmount, unitError, type AmountUnit } from "./units";
+import { MOVEMENT_UNITS, amountUnit, parsedAmount, prescriptionAmountIssue, unitError, type AmountUnit } from "./units";
 
 /**
  * Display and unit normalization for one session payload.
@@ -75,6 +75,8 @@ export function normalizeSessionPayload(value: unknown, options?: NormalizeOptio
     const amount = movement.amount;
     if (!unitError(key, amount)) return;
     const parsed = parsedAmount(amount);
+    const verdict = prescriptionAmountIssue(key, amount, durationMin);
+    if (!inventWorkFromClock && verdict.status === "ok") return;
     const converted = convertAmount({ key, amount, seconds: parsed.unit === "sec" ? parsed.value : null, pace, volume, domain, durationMin });
     const invented = converted.ok && converted.rule.includes("_sec_to_");
     const acceptInvention = inventWorkFromClock && invented;
@@ -88,7 +90,7 @@ export function normalizeSessionPayload(value: unknown, options?: NormalizeOptio
       converted_unit: acceptInvention ? converted.unit : null,
       converted_value: acceptInvention ? converted.value : null,
       converted_text: acceptInvention ? converted.amount : amount,
-      rule: invented && !inventWorkFromClock ? "ambiguous_clock" : converted.rule,
+      rule: invented && !inventWorkFromClock ? "ambiguous_clock" : !inventWorkFromClock && verdict.status !== "ok" ? `prescription_${verdict.status}` : converted.rule,
       ok: acceptInvention,
     });
     if (acceptInvention) movement.amount = converted.amount;

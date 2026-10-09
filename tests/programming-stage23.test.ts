@@ -3,7 +3,7 @@ import { intervalFieldErrors } from "../src/lib/programming/coaching/contract";
 import { sessionFromCoachJson } from "../src/lib/programming/coaching/session";
 import { normalizeSessionPayload } from "../src/lib/programming/coaching/stage13/normalize";
 import { isAdoptedModelSession, sessionSelfErrors, sessionUnitErrors } from "../src/lib/programming/coaching/stage13/validators";
-import { unitError } from "../src/lib/programming/coaching/stage13/units";
+import { prescriptionAmountIssue, unitError } from "../src/lib/programming/coaching/stage13/units";
 import { fallbackMonth } from "../src/lib/programming/fallback";
 import { lockedSessionFieldErrors } from "../src/lib/programming/planning/prescribe";
 import type { DayIntent, SessionDraft } from "../src/lib/programming/types";
@@ -51,33 +51,24 @@ function payload(movements: Array<{ key: string; amount: string; name_ko: string
 }
 
 describe("stage23 prescription quality", () => {
-  it("keeps a legal double-under rep count and rejects a clock stuffed into the amount", () => {
+  it("keeps double-under reps and a clear 30 second bout without inventing reps", () => {
     const legal = normalizeSessionPayload(payload([{ key: "double_under", amount: "50", name_ko: "더블언더" }, { key: "burpee", amount: "8", name_ko: "버피" }]), {
       inventWorkFromClock: false,
     });
     expect(legal.normalizations.filter((row) => row.kind === "unit")).toEqual([]);
+    expect(sessionSelfErrors(legal.json, intent())).toEqual([]);
     const clock = normalizeSessionPayload(payload([{ key: "double_under", amount: "30sec", name_ko: "더블언더" }, { key: "burpee", amount: "8", name_ko: "버피" }]), {
       inventWorkFromClock: false,
     });
-    const change = clock.normalizations.find((row) => row.kind === "unit");
-    expect(change?.ok).toBe(false);
-    expect(change?.rule).toBe("ambiguous_clock");
-    expect(change?.converted_text).toBe("30sec");
+    expect(clock.normalizations.filter((row) => row.kind === "unit")).toEqual([]);
     const json = clock.json as { conditioning: { movements: Array<{ amount: string }> } };
     expect(json.conditioning.movements[0]?.amount).toBe("30sec");
-    expect(json.conditioning.movements[0]?.amount).not.toBe("45");
-    const errors = sessionSelfErrors(clock.json, intent());
-    expect(errors.join(" ")).toMatch(/double_under/);
-    expect(errors.join(" ")).toMatch(/does not allow/);
-    expect(errors.join(" ")).toMatch(/interval_work_sec/);
+    expect(prescriptionAmountIssue("double_under", "30sec", 16).status).toBe("ok");
+    expect(sessionSelfErrors(clock.json, intent()).join(" ")).not.toMatch(/prescription:/);
+    expect(unitError("double_under", "30sec")).toMatch(/does not allow sec/);
   });
 
-  it("accepts an interval only when the clock is in the interval fields and the amount stays reps", () => {
-    const amrapClock = sessionSelfErrors(
-      payload([{ key: "double_under", amount: "30sec", name_ko: "더블언더" }, { key: "burpee", amount: "8", name_ko: "버피" }]),
-      intent(),
-    );
-    expect(amrapClock.join(" ")).toMatch(/does not allow sec/);
+  it("keeps an explicit interval clock and still accepts a clear seconds amount", () => {
     const interval = payload(
       [
         { key: "double_under", amount: "50", name_ko: "더블언더" },
@@ -86,7 +77,7 @@ describe("stage23 prescription quality", () => {
       { format: "intervals", interval_work_sec: 30, interval_rest_sec: 30, equipment: ["jump_rope", "bodyweight"] },
     );
     expect(intervalFieldErrors(interval.conditioning)).toEqual([]);
-    expect(sessionSelfErrors(interval, intent()).join(" ")).not.toMatch(/does not allow/);
+    expect(sessionSelfErrors(interval, intent())).toEqual([]);
     const built = sessionFromCoachJson({
       json: interval,
       intent: intent(),
@@ -95,28 +86,52 @@ describe("stage23 prescription quality", () => {
     });
     expect(built?.conditioning?.work_rest_structure).toBe("30초 일하고 30초 쉽니다.");
     expect(built?.conditioning?.movements[0]?.amount).toBe("50");
+    const rowInterval = payload(
+      [
+        { key: "row", amount: "30sec", name_ko: "로잉" },
+        { key: "burpee", amount: "8", name_ko: "버피" },
+      ],
+      { format: "intervals", interval_work_sec: 30, interval_rest_sec: 30, equipment: ["rower", "bodyweight"] },
+    );
+    expect(sessionSelfErrors(rowInterval, intent())).toEqual([]);
   });
 
-  it("keeps legal row calories and metres, and does not invent calories from 30sec or accept 12 reps", () => {
-    for (const amount of ["12/10cal", "250m"]) {
+  it("keeps row calories and metres, accepts 30sec, and asks for a real row amount instead of 12 reps", () => {
+    for (const amount of ["15cal", "12/10cal", "500m"]) {
       expect(unitError("row", amount)).toBeNull();
+      expect(prescriptionAmountIssue("row", amount, 16).status).toBe("ok");
       const normalized = normalizeSessionPayload(payload([{ key: "row", amount, name_ko: "로잉" }, { key: "burpee", amount: "6", name_ko: "버피" }]), {
         inventWorkFromClock: false,
       });
       expect(normalized.normalizations.filter((row) => row.kind === "unit")).toEqual([]);
+      expect(sessionSelfErrors(normalized.json, intent())).toEqual([]);
     }
-    expect(unitError("row", "12reps")).toMatch(/does not allow reps/);
-    const reps = sessionSelfErrors(payload([{ key: "row", amount: "12reps", name_ko: "로잉" }, { key: "burpee", amount: "6", name_ko: "버피" }]), intent());
-    expect(reps.join(" ")).toMatch(/row/);
-    expect(reps.join(" ")).toMatch(/12reps/);
-    expect(reps.join(" ")).toMatch(/Do not only rename the unit/);
     const seconds = normalizeSessionPayload(payload([{ key: "row", amount: "30sec", name_ko: "로잉" }, { key: "burpee", amount: "6", name_ko: "버피" }]), {
       inventWorkFromClock: false,
     });
     const json = seconds.json as { conditioning: { movements: Array<{ amount: string }> } };
     expect(json.conditioning.movements[0]?.amount).toBe("30sec");
-    expect(json.conditioning.movements[0]?.amount).not.toMatch(/cal/);
-    expect(seconds.normalizations.find((row) => row.kind === "unit")?.rule).toBe("ambiguous_clock");
+    expect(seconds.normalizations.filter((row) => row.kind === "unit")).toEqual([]);
+    expect(sessionSelfErrors(seconds.json, intent())).toEqual([]);
+    expect(unitError("row", "12reps")).toMatch(/does not allow reps/);
+    const reps = sessionSelfErrors(payload([{ key: "row", amount: "12reps", name_ko: "로잉" }, { key: "burpee", amount: "6", name_ko: "버피" }]), intent());
+    expect(reps.join(" ")).toMatch(/prescription:/);
+    expect(reps.join(" ")).toMatch(/12reps/);
+    expect(reps.join(" ")).toMatch(/Do not invent a specific number/);
+    const repsJson = payload([{ key: "row", amount: "12reps", name_ko: "로잉" }, { key: "burpee", amount: "6", name_ko: "버피" }]);
+    const unchanged = normalizeSessionPayload(repsJson, { inventWorkFromClock: false });
+    expect((unchanged.json as { conditioning: { movements: Array<{ amount: string }> } }).conditioning.movements[0]?.amount).toBe("12reps");
+    const tooLong = sessionSelfErrors(
+      payload([{ key: "row", amount: "1200sec", name_ko: "로잉" }, { key: "burpee", amount: "6", name_ko: "버피" }]),
+      intent(),
+    );
+    expect(tooLong.join(" ")).toMatch(/longer than the 16 minute piece/);
+    const broken = sessionSelfErrors(
+      { day: "mon", warmup_ko: "준비합니다.", notes_ko: "형식이 없습니다." },
+      intent(),
+    );
+    expect(broken.join(" ")).toMatch(/conditioning/);
+    expect(broken.join(" ")).not.toMatch(/prescription:/);
   });
 
   it("does not silently repair an unknown movement, and still checks the locked skeleton after normalization", () => {
@@ -124,7 +139,10 @@ describe("stage23 prescription quality", () => {
       inventWorkFromClock: false,
     });
     expect(unknown.normalizations.find((row) => row.kind === "unit")?.ok).toBe(false);
-    expect(unknown.normalizations.find((row) => row.kind === "unit")?.rule).toBe("unknown_movement");
+    expect(unknown.normalizations.find((row) => row.kind === "unit")?.rule).toBe("prescription_unclear");
+    const kept = unknown.json as { conditioning: { movements: Array<{ amount: string }> } };
+    expect(kept.conditioning.movements[0]?.amount).toBe("60sec");
+    expect(prescriptionAmountIssue("pull_up", "60sec", 16).status).toBe("revise");
     const legal = normalizeSessionPayload(
       payload([
         { key: "double_under", amount: "40", name_ko: "더블언더" },

@@ -135,7 +135,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       enumLine("equipment", EQUIPMENT),
       "movements is an array of {key, amount, name_ko}. 2 to 4 items, or 1 only when primary_training is aerobic and the day is not long.",
       "interval_work_sec and interval_rest_sec are integers only when format is intervals. Otherwise both are null.",
-      "amount is the work quantity. duration_min is the piece cap. Do not put the clock in amount.",
+      "amount is the work. duration_min is the piece cap. double_under 30sec and row 30sec are clear work durations. row 12reps is not a natural row amount.",
       `movement.key must be one of: ${catalog}.`,
       "name_ko must be the catalog Korean name for that key.",
       unitGuide(),

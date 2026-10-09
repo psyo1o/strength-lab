@@ -24,7 +24,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { archiveProbePass, verifyProbeArchives } from "../src/lib/programming/probe-archive";
-import { unitError } from "../src/lib/programming/coaching/stage13/units";
+import { amountUnit, prescriptionAmountIssue } from "../src/lib/programming/coaching/stage13/units";
 import { isAdoptedModelSession } from "../src/lib/programming/coaching/stage13/validators";
 import { evaluationStatus } from "../src/lib/programming/model";
 import type { ProgrammingSummary } from "../src/lib/programming/summary";
@@ -269,6 +269,9 @@ function classifySessionLogs(rawLogs: string[]) {
   let otherUnitErrors = 0;
   let adoptedPass = 0;
   let notSuccess = 0;
+  let timeBasedAccepted = 0;
+  let prescriptionRevise = 0;
+  let prescriptionUnclear = 0;
   for (const raw of rawLogs) {
     const parsed = JSON.parse(raw) as {
       prompt_version?: string;
@@ -281,15 +284,21 @@ function classifySessionLogs(rawLogs: string[]) {
       source?: string;
       model_attempts?: Array<{ json?: unknown }>;
     };
-    const sessionPrompt = parsed.prompt_version === "session-coach-v2" || parsed.prompt_version === "session-coach-v3";
+    const sessionPrompt = parsed.prompt_version === "session-coach-v2" || parsed.prompt_version === "session-coach-v3" || parsed.prompt_version === "session-coach-v4";
     if (!sessionPrompt || parsed.deterministic !== false) continue;
-    const firstAmounts = firstAttemptAmounts(parsed);
-    if (firstAmounts.length) {
+    const first = firstAttemptPiece(parsed);
+    if (first.movements.length) {
       sessionsSeen += 1;
       let bad = false;
-      for (const movement of firstAmounts) {
-        if (!unitError(movement.key, movement.amount)) continue;
+      for (const movement of first.movements) {
+        const verdict = prescriptionAmountIssue(movement.key, movement.amount, first.durationMin);
+        if (verdict.status === "ok") {
+          if ((movement.key === "double_under" || movement.key === "row") && amountUnit(movement.amount) === "sec") timeBasedAccepted += 1;
+          continue;
+        }
         bad = true;
+        if (verdict.status === "unclear") prescriptionUnclear += 1;
+        else prescriptionRevise += 1;
         if (movement.key === "double_under") doubleUnderErrors += 1;
         else if (movement.key === "row") rowErrors += 1;
         else otherUnitErrors += 1;
@@ -334,25 +343,29 @@ function classifySessionLogs(rawLogs: string[]) {
       other_unit_errors: otherUnitErrors,
       adopted_pass: adoptedPass,
       not_success: notSuccess,
+      time_based_accepted: timeBasedAccepted,
+      prescription_revise: prescriptionRevise,
+      prescription_unclear: prescriptionUnclear,
     },
     kinds,
     examples,
   };
 }
 
-function firstAttemptAmounts(parsed: { model_attempts?: Array<{ json?: unknown }> }): Array<{ key: string; amount: string }> {
+function firstAttemptPiece(parsed: { model_attempts?: Array<{ json?: unknown }> }): { durationMin: number | null; movements: Array<{ key: string; amount: string }> } {
   const json = parsed.model_attempts?.[0]?.json;
-  if (!json || typeof json !== "object") return [];
-  const movements = (json as { conditioning?: { movements?: unknown } }).conditioning?.movements;
-  if (!Array.isArray(movements)) return [];
-  const rows: Array<{ key: string; amount: string }> = [];
-  for (const row of movements) {
+  if (!json || typeof json !== "object") return { durationMin: null, movements: [] };
+  const conditioning = (json as { conditioning?: { duration_min?: unknown; movements?: unknown } }).conditioning;
+  const durationMin = typeof conditioning?.duration_min === "number" ? conditioning.duration_min : null;
+  if (!Array.isArray(conditioning?.movements)) return { durationMin, movements: [] };
+  const movements: Array<{ key: string; amount: string }> = [];
+  for (const row of conditioning.movements) {
     if (!row || typeof row !== "object") continue;
     const movement = row as { key?: unknown; amount?: unknown };
     if (typeof movement.key !== "string" || typeof movement.amount !== "string") continue;
-    rows.push({ key: movement.key, amount: movement.amount });
+    movements.push({ key: movement.key, amount: movement.amount });
   }
-  return rows;
+  return { durationMin, movements };
 }
 
 function normalizationReport(rawLogs: string[]) {
@@ -377,6 +390,7 @@ function normalizationReport(rawLogs: string[]) {
 }
 
 function sessionFailureKind(error: string): string {
+  if (error.includes("prescription:")) return "prescription";
   if (error.includes("does not allow") || error.includes("movements.amount") || error.includes("no allowed unit") || error.includes("expected unit")) return "unit";
   if (error.includes("duration_min") || error.includes("duration class") || error.includes("time_domain")) return "duration";
   if (error.includes("volume")) return "volume";
@@ -598,6 +612,9 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
       other_unit_errors: number;
       adopted_pass: number;
       not_success: number;
+      time_based_accepted: number;
+      prescription_revise: number;
+      prescription_unclear: number;
     }>(
       (sum, row) => {
         const quality = (row.session_failures as { unit_quality?: Record<string, number> } | undefined)?.unit_quality ?? {};
@@ -609,9 +626,23 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
           other_unit_errors: sum.other_unit_errors + (quality.other_unit_errors ?? 0),
           adopted_pass: sum.adopted_pass + (quality.adopted_pass ?? 0),
           not_success: sum.not_success + (quality.not_success ?? 0),
+          time_based_accepted: sum.time_based_accepted + (quality.time_based_accepted ?? 0),
+          prescription_revise: sum.prescription_revise + (quality.prescription_revise ?? 0),
+          prescription_unclear: sum.prescription_unclear + (quality.prescription_unclear ?? 0),
         };
       },
-      { sessions: 0, first_attempt_clean: 0, double_under_errors: 0, row_errors: 0, other_unit_errors: 0, adopted_pass: 0, not_success: 0 },
+      {
+        sessions: 0,
+        first_attempt_clean: 0,
+        double_under_errors: 0,
+        row_errors: 0,
+        other_unit_errors: 0,
+        adopted_pass: 0,
+        not_success: 0,
+        time_based_accepted: 0,
+        prescription_revise: 0,
+        prescription_unclear: 0,
+      },
     ),
     consistency: consistencyRows(rows),
     model_calls: rows.reduce((sum, row) => sum + Number(row.model_calls ?? 0), 0),

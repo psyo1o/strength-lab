@@ -130,14 +130,54 @@ export function unitGuide(): string {
     "Allowed units by movement.",
     ...lines,
     "Any other movement key uses reps.",
-    "Amount is the work quantity. It is not the clock.",
-    "AMRAP and for time use duration_min as the time cap. Each amount is reps, calories, or metres.",
-    "EMOM uses duration_min as the number of minutes. Each amount is the work inside one minute, not 60sec.",
-    "Intervals use format intervals. interval_work_sec and interval_rest_sec are the work and rest clock. Amount is still the work done during the work interval, in that movement's allowed unit.",
-    "double_under amount is reps, for example 50. row amount is 12/10cal or 250m. row 12reps and row 30sec are rejected. double_under 30sec is rejected.",
-    "Do not fix a bad amount by only renaming the unit. If the clock was the intent, move it to the interval fields and choose a real work quantity. If the work quantity is unknown, do not invent calories or reps.",
-    "Handstand amount may be seconds because the hold is the work. Other movements do not put seconds in amount.",
+    "Amount is the work the athlete performs. duration_min is the piece cap.",
+    "double_under 50 and double_under 30sec are both clear work. row 500m, row 15cal, and row 30sec are clear work.",
+    "row 12reps is not a natural row prescription. Choose calories or metres that fit the piece. Do not invent a number by renaming the unit.",
+    "A work bout in seconds has to fit inside duration_min. Do not invent calories or reps when the bout does not fit.",
+    "Intervals may also put the repeating clock in interval_work_sec and interval_rest_sec. Those fields are the interval structure, not a replacement for a clear amount.",
+    "Handstand amount may be seconds because the hold is the work.",
   ].join(" ");
+}
+
+export type PrescriptionStatus = "ok" | "revise" | "unclear";
+
+export type PrescriptionVerdict = { status: "ok" } | { status: "revise" | "unclear"; message: string };
+
+const CLEAR_WORK_CLOCK = new Set(["double_under", "row"]);
+
+/**
+ * Prescription check. Catalog unitError stays the technical unit list.
+ * A clear work duration for double-under or row is performable even when that list omits seconds.
+ */
+export function prescriptionAmountIssue(key: string, amount: string, durationMin: number | null): PrescriptionVerdict {
+  const catalog = unitError(key, amount);
+  if (!catalog) return { status: "ok" };
+  const parsed = parsedAmount(amount);
+  if (CLEAR_WORK_CLOCK.has(key) && parsed.unit === "sec" && Number.isInteger(parsed.value) && parsed.value > 0) {
+    if (durationMin != null && Number.isFinite(durationMin) && parsed.value > durationMin * 60) {
+      return {
+        status: "revise",
+        message: `${key} amount ${amount} is longer than the ${durationMin} minute piece. The work bout has to fit the session. Do not invent calories or reps.`,
+      };
+    }
+    return { status: "ok" };
+  }
+  if (key === "row" && parsed.unit === "reps") {
+    return {
+      status: "revise",
+      message: `${catalog}. Row reps are not a natural row prescription. Choose calories or metres that fit this piece. Do not invent a specific number by only renaming the unit.`,
+    };
+  }
+  if (!parsed.unit || !Object.prototype.hasOwnProperty.call(MOVEMENT_UNITS, key)) {
+    return {
+      status: "unclear",
+      message: `${catalog}. The prescription is not clear enough to store as a different amount. Do not invent a work quantity.`,
+    };
+  }
+  return {
+    status: "revise",
+    message: `${catalog}. ${amountRepairHint(key, amount)}`,
+  };
 }
 
 /** Retry text for a wrong amount. It names the movement, the value, and the allowed units. */
