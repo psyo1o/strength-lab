@@ -57,6 +57,7 @@ export type PhaseCSpecialistReview = {
   role: PhaseCRole;
   findings: PhaseCFinding[];
   failure_reason: string | null;
+  validation_errors: string[];
 };
 
 export type PhaseCHeadChoice = {
@@ -150,7 +151,7 @@ export function parseSpecialistReview(value: unknown, role: PhaseCRole): { ok: t
     }
   });
   if (errors.length) return { ok: false, errors };
-  return { ok: true, review: { role, findings, failure_reason: null } };
+  return { ok: true, review: { role, findings, failure_reason: null, validation_errors: [] } };
 }
 
 function parseProposal(

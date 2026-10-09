@@ -153,8 +153,10 @@ describe("phase C coach review", () => {
 
   it("keeps the original when every coach passes", async () => {
     let calls = 0;
-    const fetchImpl = async () => {
+    const fetchImpl = async (_input: RequestInfo | URL, init?: RequestInit) => {
       calls += 1;
+      const body = JSON.parse(String(init?.body ?? "{}")) as { response_format?: { type?: string } };
+      expect(body.response_format?.type).toBe("json_object");
       const role = calls === 1 ? "programming" : calls === 2 ? "strength_fatigue" : "execution";
       return chat(pass(role));
     };

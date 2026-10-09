@@ -1,4 +1,5 @@
 import type { FetchLike } from "../../model";
+import { JSON_OBJECT } from "../contract";
 import { askCoach } from "../llm";
 import { coachModel } from "../models";
 import { inputHash, newRunId } from "../trace";
@@ -214,6 +215,7 @@ export async function runPhaseCReview(input: {
       temperature: 0.2,
       systemPrompt: systemPrompt(role),
       schemaNote: SCHEMA,
+      format: JSON_OBJECT,
       validate: (json) => {
         const parsed = parseSpecialistReview(json, role);
         if (!parsed.ok) return { ok: false, errors: parsed.errors };
@@ -224,11 +226,16 @@ export async function runPhaseCReview(input: {
     calls += 1 + asked.retryCount;
     tokens += asked.usage?.total_tokens ?? 0;
     if (!asked.ok) {
-      reviews.push({ role, findings: [], failure_reason: asked.reason ?? "model_failed" });
+      reviews.push({
+        role,
+        findings: [],
+        failure_reason: asked.reason ?? "model_failed",
+        validation_errors: asked.validationErrors,
+      });
       continue;
     }
     const parsed = parseSpecialistReview(asked.json, role);
-    reviews.push(parsed.ok ? parsed.review : { role, findings: [], failure_reason: "unparsed" });
+    reviews.push(parsed.ok ? parsed.review : { role, findings: [], failure_reason: "unparsed", validation_errors: ["unparsed"] });
   }
   const proposals = proposalsFrom(reviews);
   const failed = reviews.some((review) => review.failure_reason);
@@ -277,6 +284,7 @@ export async function runPhaseCReview(input: {
       temperature: 0.2,
       systemPrompt: HEAD_PROMPT,
       schemaNote: HEAD_SCHEMA,
+      format: JSON_OBJECT,
       validate: (json) => {
         const parsed = parseHeadChoice(json);
         return parsed.ok ? { ok: true } : { ok: false, errors: parsed.errors };
@@ -294,7 +302,11 @@ export async function runPhaseCReview(input: {
         accepted: [],
         rejected: [],
         changes: [],
-        validation: { ok: false, errors: [asked.reason ?? "head_failed"], attempts: attempts + 1 },
+        validation: {
+          ok: false,
+          errors: asked.validationErrors.length ? asked.validationErrors : [asked.reason ?? "head_failed"],
+          attempts: attempts + 1,
+        },
         confirmed: null,
         calls,
         tokens,
