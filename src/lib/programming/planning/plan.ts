@@ -103,7 +103,13 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
     previousActual: input.previousActual,
     recentSignatures: signatures,
   });
-  const thesis = deriveWeeklyThesis({ month: input.month, weekIndex: input.weekIndex, intent, monthly });
+  const thesis = deriveWeeklyThesis({
+    month: input.month,
+    weekIndex: input.weekIndex,
+    intent,
+    monthly,
+    previousActual: input.previousActual,
+  });
   const seed = skeletonFromIntent(intent, thesis);
   const maps = [...strengthMapsFromPlans(input.recentPlans), ...(input.recentStrengthMaps ?? [])];
   const check = checkFor(input, thesis, maps);

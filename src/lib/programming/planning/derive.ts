@@ -2,6 +2,7 @@ import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { deterministicMonthlyPlan } from "../coaching/monthly";
 import { extractWeekRules } from "../coaching/stage13/rules";
 import { planCoachedWeek } from "../coaching/weekly";
+import { previousLowerFatigue } from "../rules";
 import type { WeekActual } from "../summary";
 import type {
   BlockPhase,
@@ -10,6 +11,7 @@ import type {
   IntensityBand,
   MonthDirection,
   StrengthLiftChoice,
+  VolumeBand,
   WeekIndex,
   WeeklyIntentPlan,
 } from "../types";
@@ -75,15 +77,23 @@ function intensityOf(day: DayIntent, ceiling: IntensityBand): IntensityBand {
   return "moderate";
 }
 
+const VOLUME_RANK: Record<VolumeBand, number> = { low: 0, moderate: 1, high: 2 };
+
+function capVolume(volume: VolumeBand, ceiling: VolumeBand): VolumeBand {
+  return VOLUME_RANK[volume] > VOLUME_RANK[ceiling] ? ceiling : volume;
+}
+
 export function deriveWeeklyThesis(input: {
   month: MonthDirection;
   weekIndex: WeekIndex;
   intent: WeeklyIntentPlan;
   monthly: MonthlyThesis;
+  previousActual?: WeekActual | null;
 }): WeeklyThesis {
-  const rules = extractWeekRules({ month: input.month, weekIndex: input.weekIndex });
+  const rules = extractWeekRules({ month: input.month, weekIndex: input.weekIndex, actual: input.previousActual });
   const phase = weekPhase(input.intent.block_phase);
   const deload = phase === "DELOAD";
+  const highFatigue = !deload && previousLowerFatigue(input.previousActual) === "high";
   const counts = { short: 0, medium: 0, long: 0 };
   const lifts: string[] = [];
   const rest: DayKey[] = [];
@@ -111,9 +121,9 @@ export function deriveWeeklyThesis(input: {
     fatigue_distribution: input.intent.adjustment_ko,
     week_phase: phase,
     block_phase: input.intent.block_phase,
-    strength_intensity_ceiling: "heavy",
-    conditioning_intensity_ceiling: deload ? "moderate" : "heavy",
-    volume_ceiling: deload ? "moderate" : "high",
+    strength_intensity_ceiling: deload ? "light" : "heavy",
+    conditioning_intensity_ceiling: deload || highFatigue ? "moderate" : "heavy",
+    volume_ceiling: deload ? "moderate" : highFatigue ? "low" : "high",
     recovery_demand: role,
   };
 }
@@ -145,7 +155,7 @@ export function skeletonFromIntent(intent: WeeklyIntentPlan, thesis: WeeklyThesi
       benchmark: day.benchmark,
       long_day: duration === "long",
       recovery_demand: day.fatigue_target,
-      volume_profile: thesis.week_phase === "DELOAD" && day.volume_profile === "high" ? "moderate" : day.volume_profile,
+      volume_profile: capVolume(day.volume_profile, thesis.volume_ceiling),
       preferred_format: null,
       prohibited_patterns: thesis.week_phase === "DELOAD" ? ["heavy_conditioning"] : [],
     };

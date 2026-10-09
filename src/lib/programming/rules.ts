@@ -1014,7 +1014,7 @@ const LOWER_LIFTS = new Set<MainLift>(LOWER_BODY_LIFTS);
  * that reduces volume, load, sets, intensity, or work. "피로가 낮다" is not that action.
  */
 const REDUCED_INTENT =
-  /하체(?:[^.。\n]{0,48}?)(?:볼륨|부하|세트|강도|훈련량|부담)(?:을|를|이|가)?\s*(?:줄(?:이|였|인|임|여)|낮(?:춰|추|춘|췄)|감소)|하체(?:를|을)?\s*(?:줄(?:이|였|인|임|여)|낮(?:춰|추|춘|췄)|감소)/;
+  /하체(?:[^.。\n]{0,48}?)(?:볼륨|부하|세트|강도|훈련량|부담)(?:을|를|이|가)?\s*(?:줄(?:이|였|인|임|여|입)|낮(?:춰|추|춘|췄|춥)|감소)|하체(?:를|을)?\s*(?:줄(?:이|였|인|임|여|입)|낮(?:춰|추|춘|췄|춥)|감소)/;
 
 /** True when the text says the lower-body prescription itself was reduced. */
 export function mentionsReducedLowerIntent(text: string): boolean {

@@ -245,9 +245,17 @@ export type WeeklyIntentPlan = {
   days: DayIntent[];
   /**
    * Stage 17 planning core. Present only when LONGITUDINAL_PLANNING is on.
-   * Session generation does not read this until Phase B.
+   * Phase B session generation reads the locked skeleton when the caller passes it in.
    */
   longitudinal?: import("./planning/types").LongitudinalPlan;
+  /** Phase B. Comparison of this prescription to the stored skeleton, before and after day repair. */
+  skeleton_lock?: {
+    before: string[];
+    after: string[];
+    fitted_days: string[];
+    regenerated_days: string[];
+    unresolved_days: string[];
+  };
   quality: {
     repetition_risk: "low" | "moderate" | "high";
     similarity_note_ko: string;

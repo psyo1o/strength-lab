@@ -47,6 +47,7 @@ import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session"
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { variationReport } from "./variation";
 import { planCoachedWeek, weeklyCoachPayload } from "./weekly";
+import { enforceLockedSkeleton, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
 import type { CoachWeekInput, CoachWeekResult } from "./pipeline";
 
 function bare(draft: WeekDraft): WeekDraft {
@@ -428,6 +429,29 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   });
   let plan = deterministic;
   let weeklyFromModel = false;
+  const lockedLongitudinal = input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal : null;
+  if (lockedLongitudinal) {
+    plan = planFromLockedSkeleton(lockedLongitudinal, month);
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "weekly_coach",
+        model: null,
+        prompt_version: WEEKLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash({ source: "locked_skeleton", week_index: input.weekIndex }),
+        output: { block_phase: plan.block_phase, days: plan.days.map((day) => day.primary_training), source: "locked_skeleton" },
+        validation_result: "pass",
+        retry_count: 0,
+        failure_reason: null,
+        deterministic: true,
+        source: "fallback",
+        fallback_reason: null,
+        revision_number: 0,
+      }),
+    );
+  }
+  if (!lockedLongitudinal) {
   const weeklyUser = weeklyCoachPayload({
     month,
     weekIndex: input.weekIndex,
@@ -620,6 +644,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         decision: weeklyFromModel ? "RERUN" : "KEPT",
       }),
     );
+  }
   }
   const planRuleErrors = weekPlanErrors(plan, rules);
   const structure = analyzeWeekStructure(plan);
@@ -1206,7 +1231,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let origin = prescriptionSource({ modelDays: modelDayCount, trainingDays: trained.length, revisions, legacy: false });
   let modelAdopted = origin === "model" || origin === "model_revised";
   const accepted =
-    weeklyFromModel &&
+    (weeklyFromModel || Boolean(lockedLongitudinal)) &&
     modelDayCount === trained.length &&
     (finalStatus === "APPROVE" || finalStatus === "APPROVE_WITH_NOTE" || finalStatus === "ADJUST");
   let fallbackReason = accepted
@@ -1231,7 +1256,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     coach_notes: notes,
     final_status: finalStatus,
     prescription_source: origin,
-    fallback_used: weeklyFromModel ? false : true,
+    fallback_used: lockedLongitudinal ? false : weeklyFromModel ? false : true,
     original_intent_source: weeklyFromModel ? "model" : "fallback",
     intent_source: weeklyFromModel ? "model" : "fallback",
   };
@@ -1303,6 +1328,37 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       resolvedStatus = "FINALIZE_WITH_WARNING";
       resolvedReason = resolvedReason ? `${resolvedReason};final_validation_failed` : "final_validation_failed";
     }
+  }
+  if (lockedLongitudinal) {
+    const enforced = enforceLockedSkeleton({
+      skeleton: lockedLongitudinal.skeleton,
+      draft,
+      rebuildDay: (day) =>
+        rebuildLockedDay({
+          day,
+          skeleton: lockedLongitudinal.skeleton,
+          month,
+          weekIndex: input.weekIndex,
+          thesis: lockedLongitudinal.weekly_thesis,
+          actual: input.previousActual,
+          recent: input.recentStructures,
+          salt: built.salt + DAY_ORDER.indexOf(day),
+        }),
+    });
+    draft = stamp(enforced.draft, plan);
+    for (const day of enforced.fittedDays) hardAdjusted.add(day);
+    for (const day of enforced.regeneratedDays) daySources[day] = "fallback";
+    if (enforced.after.length > 0) {
+      finalErrors = [...new Set([...finalErrors, ...enforced.after])];
+      for (const day of enforced.unresolvedDays) failedDays.add(day);
+      resolvedStatus = "FINALIZE_WITH_WARNING";
+      resolvedReason = resolvedReason ? `${resolvedReason};skeleton_lock` : "skeleton_lock";
+    }
+    plan = { ...plan, skeleton_lock: skeletonLockRecord(enforced) };
+    draft = stamp(draft, plan);
+    modelDayCount = trained.filter((day) => daySources[day.day] === "model").length;
+    origin = prescriptionSource({ modelDays: modelDayCount, trainingDays: trained.length, revisions, legacy: false });
+    modelAdopted = origin === "model" || origin === "model_revised";
   }
   const dayRecords: Partial<Record<DayKey, DayPrescriptionRecord>> = {};
   for (const day of trained) {

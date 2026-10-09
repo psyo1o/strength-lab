@@ -10,6 +10,8 @@ import { deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { planCoachedWeek } from "./weekly";
+import type { LongitudinalPlan } from "../planning/types";
+import { enforceLockedSkeleton, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
 import { assembleLegalWeek } from "./session";
 import { reviewWeek, type HeadCoachReview } from "./review";
 import { variationReport, type VariationReport } from "./variation";
@@ -32,6 +34,8 @@ export type CoachWeekInput = {
   recentSignatures?: readonly string[];
   recentLiftMaps?: readonly string[];
   recentPlans?: readonly WeeklyIntentPlan[];
+  /** Locked week from planLongitudinal. Session fill uses it only when the skeleton is locked. */
+  longitudinal?: LongitudinalPlan | null;
   key?: string | null;
   fetchImpl?: FetchLike;
   timeoutMs?: number;
@@ -133,7 +137,9 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
     previousActual: input.previousActual,
     recentSignatures: input.recentSignatures,
   });
-  let plan = deterministic;
+  let plan = input.longitudinal?.skeleton.skeleton_locked
+    ? planFromLockedSkeleton(input.longitudinal, input.month)
+    : deterministic;
   const weeklyStarted = Date.now();
   traces.push(
     finishTrace(weeklyStarted, {
@@ -317,7 +323,8 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
     recentLiftMaps: input.recentLiftMaps ?? [],
   });
   const daySources = Object.fromEntries(DAY_ORDER.map((day) => [day, "fallback"])) as Record<DayKey, "model" | "fallback">;
-  const finalStatus = review.status === "APPROVE" || review.status === "APPROVE_WITH_NOTE" ? review.status : "FINALIZE_WITH_WARNING";
+  let finalStatus: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING" =
+    review.status === "APPROVE" || review.status === "APPROVE_WITH_NOTE" ? review.status : "FINALIZE_WITH_WARNING";
   const coachNotes = [
     `월간 목표: ${monthly.plan.block_goal}`,
     `주간 전략: ${plan.adjustment_ko}`,
@@ -327,6 +334,34 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
   ];
   plan = { ...plan, day_sources: daySources, coach_notes: coachNotes, final_status: finalStatus };
   draft = stamp(draft, plan);
+  const locked = input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal : null;
+  let lockOk = true;
+  if (locked) {
+    const enforced = enforceLockedSkeleton({
+      skeleton: locked.skeleton,
+      draft,
+      rebuildDay: (day) =>
+        rebuildLockedDay({
+          day,
+          skeleton: locked.skeleton,
+          month: input.month,
+          weekIndex: input.weekIndex,
+          thesis: locked.weekly_thesis,
+          actual: input.previousActual,
+          recent: input.recentStructures,
+          salt: built.salt + 3,
+        }),
+    });
+    draft = stamp(enforced.draft, plan);
+    plan = { ...plan, skeleton_lock: skeletonLockRecord(enforced) };
+    draft = stamp(draft, plan);
+    lockOk = enforced.ok;
+    if (!lockOk) {
+      finalStatus = "FINALIZE_WITH_WARNING";
+      plan = { ...plan, final_status: finalStatus };
+      draft = stamp(draft, plan);
+    }
+  }
   return {
     draft,
     plan,
@@ -339,7 +374,10 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
     model_name: modelName,
     prompt_version: COACHING_PIPELINE_VERSION,
     traces,
-    judge_ok: judge.ok,
+    judge_ok: judge.ok && lockOk,
+    final_validation: locked
+      ? { ok: lockOk, errors: plan.skeleton_lock?.after ?? [], rejected: !lockOk }
+      : undefined,
     day_sources: daySources,
     final_status: finalStatus,
     coach_notes: coachNotes,
