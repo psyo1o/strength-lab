@@ -1,0 +1,3360 @@
+{
+  "plan_lab": {
+    "mode": "db",
+    "model": "gpt-5.4-nano",
+    "structure": "95a63b551c495b80",
+    "scenarios": [
+      "W1",
+      "W2",
+      "W3",
+      "W4",
+      "S1",
+      "S2"
+    ],
+    "passes": 2,
+    "summary": {
+      "weeks_attempted": 12,
+      "skeleton_saved": 12,
+      "skeleton_save_rate": 1,
+      "weeks_matching_after_repair": 12,
+      "lock_violations_before": 59,
+      "lock_violations_after": 0,
+      "lock_before_kinds": {
+        "duration": 13,
+        "volume": 46
+      },
+      "lock_after_kinds": {},
+      "regenerated_days": 47,
+      "fitted_days": 0,
+      "unresolved_days": 0,
+      "failed_weeks": 0,
+      "day_final_sources": {
+        "MODEL": 17,
+        "MODEL_REVISED": 7,
+        "MODEL_ADJUSTED": 0,
+        "HEAD_ADJUSTED": 0,
+        "DETERMINISTIC_ADJUSTMENT": 0,
+        "FALLBACK": 48,
+        "FAILED": 0
+      },
+      "model_weeks": 4,
+      "fallback_weeks": 8,
+      "session_failure_kinds": {},
+      "normalizations": {
+        "unit_seen": 0,
+        "unit_converted": 0,
+        "unit_unconverted": 0,
+        "display_rewrites": 7
+      },
+      "session_rewrite": {
+        "retried_pass": 2,
+        "retried_fail": 0,
+        "retained_first_error": 2,
+        "retry_without_first_error": 0
+      },
+      "unit_quality": {
+        "sessions": 24,
+        "first_attempt_clean": 24,
+        "double_under_errors": 0,
+        "row_errors": 0,
+        "other_unit_errors": 0,
+        "adopted_pass": 24,
+        "not_success": 48,
+        "time_based_accepted": 10,
+        "prescription_revise": 0,
+        "prescription_unclear": 0
+      },
+      "consistency": {
+        "mismatches": [],
+        "mismatch_count": 0
+      },
+      "phase_c": {
+        "weeks": 12,
+        "decisions": {
+          "APPROVE_ORIGINAL": 0,
+          "APPROVE_REVISED": 0,
+          "PARTIAL_REVISION": 0,
+          "NEEDS_REVIEW": 12
+        },
+        "proposal_days": 3,
+        "changed_days": 0,
+        "validation_pass": 3,
+        "validation_fail": 9,
+        "calls": 56,
+        "tokens": 69823,
+        "elapsed_ms": 104776,
+        "model_failures": 9
+      },
+      "model_calls": 36,
+      "tokens": 150383,
+      "elapsed_ms": 174573,
+      "flags": {
+        "COACHING_PIPELINE": "1",
+        "LONGITUDINAL_PLANNING": "1"
+      }
+    },
+    "archive": {
+      "run_id": "phaseC-8ad2895a-e932-4e0b-aab0-37774736e0a2",
+      "root": "docs/phaseC-runs",
+      "raw_saved": true,
+      "summary_is_not_raw": true,
+      "a1_intact_after_a2": true,
+      "missing": [],
+      "passes": [
+        {
+          "pass": "A1",
+          "dir": "docs/phaseC-runs/phaseC-8ad2895a-e932-4e0b-aab0-37774736e0a2/A1",
+          "files": [
+            "generation-logs.json",
+            "weeks.json",
+            "months.json",
+            "evaluations.json",
+            "usage.json"
+          ]
+        },
+        {
+          "pass": "A2",
+          "dir": "docs/phaseC-runs/phaseC-8ad2895a-e932-4e0b-aab0-37774736e0a2/A2",
+          "files": [
+            "generation-logs.json",
+            "weeks.json",
+            "months.json",
+            "evaluations.json",
+            "usage.json"
+          ]
+        }
+      ]
+    },
+    "months": [
+      {
+        "pass": "A1",
+        "months": [
+          {
+            "month_start": "2099-06-01",
+            "scheme": "531",
+            "strength_method": "531",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_previous_month",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-07-01",
+            "scheme": "volume",
+            "strength_method": "ACCUMULATION",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-08-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          }
+        ]
+      },
+      {
+        "pass": "A2",
+        "months": [
+          {
+            "month_start": "2099-06-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_previous_month",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-07-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-08-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          }
+        ]
+      }
+    ],
+    "runs": [
+      {
+        "pass": "A1",
+        "weeks": [
+          {
+            "id": "W1",
+            "week": "2099-07-06",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "accumulation",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL"
+            ],
+            "elapsed_ms": 49098,
+            "log_count": 92,
+            "model_calls": 9,
+            "tokens": 30226,
+            "log_latency_ms": 29018,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 6,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 6,
+                "not_success": 0,
+                "time_based_accepted": 1,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 3,
+              "rules": {
+                "catalog_name_ko": 2,
+                "display_term": 1
+              }
+            },
+            "previous_actual": {
+              "week": "2099-06-29",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            },
+            "phase_c": {
+              "week_start": "2099-07-06",
+              "input_hash": "86bae8354a3c18c1",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "row:500m",
+                    "burpee:12reps",
+                    "kb_swing:15reps"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "double_under:50",
+                    "row:500m"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "row:500m",
+                    "push_up:12reps",
+                    "sit_up:12reps"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "row:500m",
+                    "push_up:12reps",
+                    "kb_swing:15reps"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "row:500m",
+                    "double_under:50",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:12cal",
+                    "double_under:30sec",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "60초 일하고 30초 쉽니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "근거: execution 리뷰의 sat 제안은 ‘work/rest(60초 work/30초 rest)’와 movements의 단위가 섞여( row=12cal, double_under=30sec, push_up=12reps ) 라운드 내 수행 시간/전환 규칙이 불명확하다는 문제를 지적했습니다. 다만 제안은 double_under을 30sec→30reps로 바꾸는 형태인데, 이 변경은 ‘30초 work’ 안에 실제로 몇 회가 들어가는지(개인 속도/전환 속도) 불확실성이 크고, 또한 프로그램 스키마 측면에서 strength_fatigue/programming 모두 sat에 대해 형식 오류( interval_clock work_sec/rest_sec, proposal amount/replace_movement 키 누락 )가 있어 안전하게 확정된 수정안을 확인할 수 없습니다. 따라서 의도(낮은 볼륨 누적, 폼 일관성)와 수행 가능성/일관성을 동시에 보장하는 확정 수정이 불가하여 NEEDS_REVIEW로 처리합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [
+                    {
+                      "role": "programming",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "wed",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "thu",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "fri",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "sat",
+                      "verdict": "NEEDS_REVIEW",
+                      "problem": "days[0].proposal: amount and replace_movement need movement_key, before, and after",
+                      "severity": "moderate",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "형식 오류라 이 날의 수정안은 만들지 않았다.",
+                      "proposal": null
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": [
+                    "days[5].proposal: amount and replace_movement need movement_key, before, and after"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [
+                    {
+                      "role": "strength_fatigue",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "wed",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "thu",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "fri",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "sat",
+                      "verdict": "NEEDS_REVIEW",
+                      "problem": "days[0].proposal: interval_clock needs integer work_sec and rest_sec",
+                      "severity": "moderate",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "형식 오류라 이 날의 수정안은 만들지 않았다.",
+                      "proposal": null
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": [
+                    "days[5].proposal: interval_clock needs integer work_sec and rest_sec"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [
+                    {
+                      "role": "execution",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "wed",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "thu",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "fri",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "sat",
+                      "verdict": "SUGGEST_REVISION",
+                      "problem": "Evidence: interval WOD에서 row는 12cal(거리/카운트), double_under는 30sec(시간), push_up은 12reps(횟수)로 서로 다른 단위가 한 라운드에 섞여 있고, work/rest 구조(60초 work/30초 rest)와 double_under의 ‘30초’가 중복되어 실제 라운드 수행 시간이 불명확해짐. Reason: 60초 work 동안 double_under를 30초만 하게 되면 나머지 30초에 row/push_up을 어떻게 배분할지 전환(transition) 규칙이 없어서, 클래스가 동일한 기준으로 수행하기 어려움.",
+                      "severity": "moderate",
+                      "evidence": "sat movements: row=12cal, double_under=30sec, push_up=12reps with work_rest_structure 60초 일하고 30초 쉽니다.",
+                      "intent_impact": "의도(유산소/호흡 효율 유지, 낮은 볼륨 누적)를 유지하되, 라운드 내 시간 배분이 명확해져 폼 일관성과 수행 품질이 좋아짐.",
+                      "uncertainty": "double_under을 ‘라운드당 30초’로 고정해도 실제로 60초 work 안에 row/push_up을 충분히 넣을 수 있는지(개인 속도/전환 속도)에 따라 난이도 체감이 달라질 수 있음.",
+                      "proposal": {
+                        "role": "execution",
+                        "day": "sat",
+                        "target": "amount",
+                        "movement_key": "double_under",
+                        "before": "30sec",
+                        "after": "30reps",
+                        "replacement_key": null,
+                        "work_sec": null,
+                        "rest_sec": null,
+                        "reason": "Evidence: interval WOD에서 row는 12cal(거리/카운트), double_under는 30sec(시간), push_up은 12reps(횟수)로 서로 다른 단위가 한 라운드에 섞여 있고, work/rest 구조(60초 work/30초 rest)와 double_under의 ‘30초’가 중복되어 실제 라운드 수행 시간이 불명확해짐. Reason: 60초 work 동안 double_under를 30초만 하게 되면 나머지 30초에 row/push_up을 어떻게 배분할지 전환(transition) 규칙이 없어서, 클래스가 동일한 기준으로 수행하기 어려움.",
+                        "expected_effect": "의도(유산소/호흡 효율 유지, 낮은 볼륨 누적)를 유지하되, 라운드 내 시간 배분이 명확해져 폼 일관성과 수행 품질이 좋아짐.",
+                        "downside": "double_under을 ‘라운드당 30초’로 고정해도 실제로 60초 work 안에 row/push_up을 충분히 넣을 수 있는지(개인 속도/전환 속도)에 따라 난이도 체감이 달라질 수 있음.",
+                        "skeleton_impact": "none",
+                        "duration_min": null,
+                        "problem": "Evidence: interval WOD에서 row는 12cal(거리/카운트), double_under는 30sec(시간), push_up은 12reps(횟수)로 서로 다른 단위가 한 라운드에 섞여 있고, work/rest 구조(60초 work/30초 rest)와 double_under의 ‘30초’가 중복되어 실제 라운드 수행 시간이 불명확해짐. Reason: 60초 work 동안 double_under를 30초만 하게 되면 나머지 30초에 row/push_up을 어떻게 배분할지 전환(transition) 규칙이 없어서, 클래스가 동일한 기준으로 수행하기 어려움.",
+                        "severity": "moderate",
+                        "evidence": "sat movements: row=12cal, double_under=30sec, push_up=12reps with work_rest_structure 60초 일하고 30초 쉽니다.",
+                        "intent_impact": "의도(유산소/호흡 효율 유지, 낮은 볼륨 누적)를 유지하되, 라운드 내 시간 배분이 명확해져 폼 일관성과 수행 품질이 좋아짐.",
+                        "uncertainty": "double_under을 ‘라운드당 30초’로 고정해도 실제로 60초 work 안에 row/push_up을 충분히 넣을 수 있는지(개인 속도/전환 속도)에 따라 난이도 체감이 달라질 수 있음."
+                      }
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": []
+                }
+              ],
+              "proposals": [
+                {
+                  "role": "execution",
+                  "day": "sat",
+                  "target": "amount",
+                  "movement_key": "double_under",
+                  "before": "30sec",
+                  "after": "30reps",
+                  "replacement_key": null,
+                  "work_sec": null,
+                  "rest_sec": null,
+                  "reason": "Evidence: interval WOD에서 row는 12cal(거리/카운트), double_under는 30sec(시간), push_up은 12reps(횟수)로 서로 다른 단위가 한 라운드에 섞여 있고, work/rest 구조(60초 work/30초 rest)와 double_under의 ‘30초’가 중복되어 실제 라운드 수행 시간이 불명확해짐. Reason: 60초 work 동안 double_under를 30초만 하게 되면 나머지 30초에 row/push_up을 어떻게 배분할지 전환(transition) 규칙이 없어서, 클래스가 동일한 기준으로 수행하기 어려움.",
+                  "expected_effect": "의도(유산소/호흡 효율 유지, 낮은 볼륨 누적)를 유지하되, 라운드 내 시간 배분이 명확해져 폼 일관성과 수행 품질이 좋아짐.",
+                  "downside": "double_under을 ‘라운드당 30초’로 고정해도 실제로 60초 work 안에 row/push_up을 충분히 넣을 수 있는지(개인 속도/전환 속도)에 따라 난이도 체감이 달라질 수 있음.",
+                  "skeleton_impact": "none",
+                  "duration_min": null,
+                  "problem": "Evidence: interval WOD에서 row는 12cal(거리/카운트), double_under는 30sec(시간), push_up은 12reps(횟수)로 서로 다른 단위가 한 라운드에 섞여 있고, work/rest 구조(60초 work/30초 rest)와 double_under의 ‘30초’가 중복되어 실제 라운드 수행 시간이 불명확해짐. Reason: 60초 work 동안 double_under를 30초만 하게 되면 나머지 30초에 row/push_up을 어떻게 배분할지 전환(transition) 규칙이 없어서, 클래스가 동일한 기준으로 수행하기 어려움.",
+                  "severity": "moderate",
+                  "evidence": "sat movements: row=12cal, double_under=30sec, push_up=12reps with work_rest_structure 60초 일하고 30초 쉽니다.",
+                  "intent_impact": "의도(유산소/호흡 효율 유지, 낮은 볼륨 누적)를 유지하되, 라운드 내 시간 배분이 명확해져 폼 일관성과 수행 품질이 좋아짐.",
+                  "uncertainty": "double_under을 ‘라운드당 30초’로 고정해도 실제로 60초 work 안에 row/push_up을 충분히 넣을 수 있는지(개인 속도/전환 속도)에 따라 난이도 체감이 달라질 수 있음."
+                }
+              ],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": true,
+                "errors": [],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 6,
+              "tokens": 18825,
+              "elapsed_ms": 26432,
+              "failure_reason": null
+            }
+          },
+          {
+            "id": "W2",
+            "week": "2099-07-13",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "progression",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 36042,
+            "log_count": 92,
+            "model_calls": 9,
+            "tokens": 34030,
+            "log_latency_ms": 29919,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 6,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 6,
+                "not_success": 0,
+                "time_based_accepted": 3,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 1,
+              "rules": {
+                "catalog_name_ko": 1
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-06",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "low",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-13",
+              "input_hash": "2b78b4a45cd850ff",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "row:500m",
+                    "push_up:12reps",
+                    "double_under:30sec"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "row:500m",
+                    "kb_swing:20reps",
+                    "push_up:15reps"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "push_up:12reps",
+                    "kb_swing:15reps",
+                    "sit_up:12reps"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "row:500m",
+                    "push_up:12reps",
+                    "sit_up:12reps"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:15cal",
+                    "burpee:12reps",
+                    "double_under:30sec"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                },
+                {
+                  "day": "sun",
+                  "movements": [
+                    "row:12cal",
+                    "double_under:30sec",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "캡 20분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "근거로 제시된 토요일(36분) 더블언더/로잉+버피 조합의 발목·종아리 탄성 부하 및 일요일 연속 점프 요소와의 겹침 가능성은 타당하나, 두 제안 모두 ‘안전/수행 품질’에 직접 영향을 주는 구체 변경(더블언더→단일언더, 로잉 15cal→12cal)이 패킷 내에서 서로 다른 축(점프 종류 vs 로잉량)이라 단독 적용 시의 효과/손실을 현재 정보로 확정하기 어렵습니다. 또한 specialist findings에 불확실성(개인 더블언더 숙련도, 실제 for_time 페이스/라운드 수, 점프 강도)이 명시되어 있어 안전성/의도 달성 여부를 확정할 수 없습니다. 따라서 안전 문제를 ‘확정적으로’ 해결하는 변경으로 확인되지 않아 NEEDS_REVIEW로 처리합니다. 사용한 evidence: strength_fatigue sat SUGGEST_REVISION(더블언더 특이 부하, sun과 겹침), execution sat SUGGEST_REVISION(더블언더 병목으로 폼/호흡/관절 정렬 무너질 가능성).",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [
+                    {
+                      "role": "programming",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "thu",
+                      "verdict": "NEEDS_REVIEW",
+                      "problem": "",
+                      "severity": "moderate",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "fri",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "sat",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "sun",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": []
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [
+                    {
+                      "role": "strength_fatigue",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "thu",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "fri",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "sat",
+                      "verdict": "SUGGEST_REVISION",
+                      "problem": "토요일(36분)에서 로잉+버피+더블언더 조합이 발목/종아리 탄성 부하를 키워, 다음날(일요일) 연속 점프 요소와 겹칠 수 있음.",
+                      "severity": "moderate",
+                      "evidence": "sat: row 15cal + burpee 12reps + double_under 30sec(캡 36분). sun: row 12cal + double_under 30sec + push_up 12reps(캡 20분). 주중에는 bench/deadlift/squat/ohp가 있어 하체·코어 피로가 이미 존재할 수 있음.",
+                      "intent_impact": "주말 엔진/유산소는 유지하되, 더블언더 특이 부하를 단일언더로 낮춰 발목/종아리 과사용과 폼 흔들림 가능성을 줄임.",
+                      "uncertainty": "개인 더블언더 숙련도/실수 빈도, 발목 내구성, 실제 for_time 페이스(라운드 수) 및 점프 강도(높이/속도)가 패킷에 없어 과부하 정도를 단정하기 어려움.",
+                      "proposal": {
+                        "role": "strength_fatigue",
+                        "day": "sat",
+                        "target": "replace_movement",
+                        "movement_key": "double_under",
+                        "before": "30sec",
+                        "after": "30sec",
+                        "replacement_key": "single_under",
+                        "work_sec": null,
+                        "rest_sec": null,
+                        "reason": "토요일(36분)에서 로잉+버피+더블언더 조합이 발목/종아리 탄성 부하를 키워, 다음날(일요일) 연속 점프 요소와 겹칠 수 있음.",
+                        "expected_effect": "주말 엔진/유산소는 유지하되, 더블언더 특이 부하를 단일언더로 낮춰 발목/종아리 과사용과 폼 흔들림 가능성을 줄임.",
+                        "downside": "개인 더블언더 숙련도/실수 빈도, 발목 내구성, 실제 for_time 페이스(라운드 수) 및 점프 강도(높이/속도)가 패킷에 없어 과부하 정도를 단정하기 어려움.",
+                        "skeleton_impact": "none",
+                        "duration_min": null,
+                        "problem": "토요일(36분)에서 로잉+버피+더블언더 조합이 발목/종아리 탄성 부하를 키워, 다음날(일요일) 연속 점프 요소와 겹칠 수 있음.",
+                        "severity": "moderate",
+                        "evidence": "sat: row 15cal + burpee 12reps + double_under 30sec(캡 36분). sun: row 12cal + double_under 30sec + push_up 12reps(캡 20분). 주중에는 bench/deadlift/squat/ohp가 있어 하체·코어 피로가 이미 존재할 수 있음.",
+                        "intent_impact": "주말 엔진/유산소는 유지하되, 더블언더 특이 부하를 단일언더로 낮춰 발목/종아리 과사용과 폼 흔들림 가능성을 줄임.",
+                        "uncertainty": "개인 더블언더 숙련도/실수 빈도, 발목 내구성, 실제 for_time 페이스(라운드 수) 및 점프 강도(높이/속도)가 패킷에 없어 과부하 정도를 단정하기 어려움."
+                      }
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "sun",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": []
+                },
+                {
+                  "role": "execution",
+                  "findings": [
+                    {
+                      "role": "execution",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "thu",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "fri",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "sat",
+                      "verdict": "SUGGEST_REVISION",
+                      "problem": "로잉 15cal + 버피 12reps + 더블언더 30sec를 36분 캡 안에 ‘for time’로 반복 수행할 때, 더블언더 전환/지속이 병목이 되어 전체 수행 품질(호흡/관절 정렬)이 무너질 가능성이 큼.",
+                      "severity": "moderate",
+                      "evidence": "장비는 rower/jump_rope/bodyweight로 구성되어 있고, 더블언더는 전환(로프 세팅/착지 리듬)과 피로 누적에 민감함. 36분 ‘for time’은 반복 횟수가 늘어날수록 더블언더 구간에서 속도 저하가 커짐.",
+                      "intent_impact": "aerobic/long conditioning의 ‘폼 일관성 유지’와 ‘계획 대비 수행 품질’을 더 안정적으로 확보(과도한 더블언더 실패/중단 방지)하기 위함.",
+                      "uncertainty": "개별 더블언더 숙련도에 따라 병목이 달라질 수 있어, 15cal→12cal로 줄여도 목표 자극이 충분히 유지되는지 정도는 변동 가능.",
+                      "proposal": {
+                        "role": "execution",
+                        "day": "sat",
+                        "target": "amount",
+                        "movement_key": "row",
+                        "before": "15cal",
+                        "after": "12cal",
+                        "replacement_key": null,
+                        "work_sec": null,
+                        "rest_sec": null,
+                        "reason": "로잉 15cal + 버피 12reps + 더블언더 30sec를 36분 캡 안에 ‘for time’로 반복 수행할 때, 더블언더 전환/지속이 병목이 되어 전체 수행 품질(호흡/관절 정렬)이 무너질 가능성이 큼.",
+                        "expected_effect": "aerobic/long conditioning의 ‘폼 일관성 유지’와 ‘계획 대비 수행 품질’을 더 안정적으로 확보(과도한 더블언더 실패/중단 방지)하기 위함.",
+                        "downside": "개별 더블언더 숙련도에 따라 병목이 달라질 수 있어, 15cal→12cal로 줄여도 목표 자극이 충분히 유지되는지 정도는 변동 가능.",
+                        "skeleton_impact": "none",
+                        "duration_min": null,
+                        "problem": "로잉 15cal + 버피 12reps + 더블언더 30sec를 36분 캡 안에 ‘for time’로 반복 수행할 때, 더블언더 전환/지속이 병목이 되어 전체 수행 품질(호흡/관절 정렬)이 무너질 가능성이 큼.",
+                        "severity": "moderate",
+                        "evidence": "장비는 rower/jump_rope/bodyweight로 구성되어 있고, 더블언더는 전환(로프 세팅/착지 리듬)과 피로 누적에 민감함. 36분 ‘for time’은 반복 횟수가 늘어날수록 더블언더 구간에서 속도 저하가 커짐.",
+                        "intent_impact": "aerobic/long conditioning의 ‘폼 일관성 유지’와 ‘계획 대비 수행 품질’을 더 안정적으로 확보(과도한 더블언더 실패/중단 방지)하기 위함.",
+                        "uncertainty": "개별 더블언더 숙련도에 따라 병목이 달라질 수 있어, 15cal→12cal로 줄여도 목표 자극이 충분히 유지되는지 정도는 변동 가능."
+                      }
+                    },
+                    {
+                      "role": "execution",
+                      "day": "sun",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": []
+                }
+              ],
+              "proposals": [
+                {
+                  "role": "strength_fatigue",
+                  "day": "sat",
+                  "target": "replace_movement",
+                  "movement_key": "double_under",
+                  "before": "30sec",
+                  "after": "30sec",
+                  "replacement_key": "single_under",
+                  "work_sec": null,
+                  "rest_sec": null,
+                  "reason": "토요일(36분)에서 로잉+버피+더블언더 조합이 발목/종아리 탄성 부하를 키워, 다음날(일요일) 연속 점프 요소와 겹칠 수 있음.",
+                  "expected_effect": "주말 엔진/유산소는 유지하되, 더블언더 특이 부하를 단일언더로 낮춰 발목/종아리 과사용과 폼 흔들림 가능성을 줄임.",
+                  "downside": "개인 더블언더 숙련도/실수 빈도, 발목 내구성, 실제 for_time 페이스(라운드 수) 및 점프 강도(높이/속도)가 패킷에 없어 과부하 정도를 단정하기 어려움.",
+                  "skeleton_impact": "none",
+                  "duration_min": null,
+                  "problem": "토요일(36분)에서 로잉+버피+더블언더 조합이 발목/종아리 탄성 부하를 키워, 다음날(일요일) 연속 점프 요소와 겹칠 수 있음.",
+                  "severity": "moderate",
+                  "evidence": "sat: row 15cal + burpee 12reps + double_under 30sec(캡 36분). sun: row 12cal + double_under 30sec + push_up 12reps(캡 20분). 주중에는 bench/deadlift/squat/ohp가 있어 하체·코어 피로가 이미 존재할 수 있음.",
+                  "intent_impact": "주말 엔진/유산소는 유지하되, 더블언더 특이 부하를 단일언더로 낮춰 발목/종아리 과사용과 폼 흔들림 가능성을 줄임.",
+                  "uncertainty": "개인 더블언더 숙련도/실수 빈도, 발목 내구성, 실제 for_time 페이스(라운드 수) 및 점프 강도(높이/속도)가 패킷에 없어 과부하 정도를 단정하기 어려움."
+                },
+                {
+                  "role": "execution",
+                  "day": "sat",
+                  "target": "amount",
+                  "movement_key": "row",
+                  "before": "15cal",
+                  "after": "12cal",
+                  "replacement_key": null,
+                  "work_sec": null,
+                  "rest_sec": null,
+                  "reason": "로잉 15cal + 버피 12reps + 더블언더 30sec를 36분 캡 안에 ‘for time’로 반복 수행할 때, 더블언더 전환/지속이 병목이 되어 전체 수행 품질(호흡/관절 정렬)이 무너질 가능성이 큼.",
+                  "expected_effect": "aerobic/long conditioning의 ‘폼 일관성 유지’와 ‘계획 대비 수행 품질’을 더 안정적으로 확보(과도한 더블언더 실패/중단 방지)하기 위함.",
+                  "downside": "개별 더블언더 숙련도에 따라 병목이 달라질 수 있어, 15cal→12cal로 줄여도 목표 자극이 충분히 유지되는지 정도는 변동 가능.",
+                  "skeleton_impact": "none",
+                  "duration_min": null,
+                  "problem": "로잉 15cal + 버피 12reps + 더블언더 30sec를 36분 캡 안에 ‘for time’로 반복 수행할 때, 더블언더 전환/지속이 병목이 되어 전체 수행 품질(호흡/관절 정렬)이 무너질 가능성이 큼.",
+                  "severity": "moderate",
+                  "evidence": "장비는 rower/jump_rope/bodyweight로 구성되어 있고, 더블언더는 전환(로프 세팅/착지 리듬)과 피로 누적에 민감함. 36분 ‘for time’은 반복 횟수가 늘어날수록 더블언더 구간에서 속도 저하가 커짐.",
+                  "intent_impact": "aerobic/long conditioning의 ‘폼 일관성 유지’와 ‘계획 대비 수행 품질’을 더 안정적으로 확보(과도한 더블언더 실패/중단 방지)하기 위함.",
+                  "uncertainty": "개별 더블언더 숙련도에 따라 병목이 달라질 수 있어, 15cal→12cal로 줄여도 목표 자극이 충분히 유지되는지 정도는 변동 가능."
+                }
+              ],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": true,
+                "errors": [],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 6,
+              "tokens": 18953,
+              "elapsed_ms": 23178,
+              "failure_reason": null
+            }
+          },
+          {
+            "id": "W3",
+            "week": "2099-07-20",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "emphasis",
+              "volume_ceiling": "low",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL"
+            ],
+            "elapsed_ms": 39642,
+            "log_count": 92,
+            "model_calls": 9,
+            "tokens": 38416,
+            "log_latency_ms": 29872,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 6,
+              "retried_pass": 1,
+              "retried_fail": 0,
+              "retained_first_error": 1,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 6,
+                "not_success": 0,
+                "time_based_accepted": 2,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 1,
+              "rules": {
+                "catalog_name_ko": 1
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-13",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 3,
+              "completed_days": 3,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-20",
+              "input_hash": "1c5c19a2274560c5",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "row:12cal",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "30초 일하고 30초 쉽니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "row:500m",
+                    "push_up:12reps",
+                    "kb_swing:12reps"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "row:500m",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "30초 일하고 30초 쉽니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "row:12cal",
+                    "push_up:10reps",
+                    "kb_swing:15reps"
+                  ],
+                  "work_rest": "60초 일하고 30초 쉽니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:12cal",
+                    "double_under:30sec",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "60초 일하고 30초 쉽니다."
+                },
+                {
+                  "day": "sun",
+                  "movements": [
+                    "row:12cal",
+                    "double_under:30sec"
+                  ],
+                  "work_rest": "60초 일하고 30초 쉽니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "근거: execution day=thu에서 ‘work_rest_structure=60초 일하고 30초 쉽니다’인데 movements가 3종(로잉 12cal + 푸시업 10reps + KB 스윙 15reps)이라 60초 작업 구간 내 완료 보장이 어렵다는 안전/수행 품질 이슈가 제기됨. 다만 제안은 kb_swing을 15reps→12reps로 줄이는 형태인데, 패킷 정보만으로는 60초 내 완료 가능성(안전한 수행 보장)과 의도(인터벌/EMOM 설계 일관성)를 충분히 확인할 수 없음. 또한 programming day=thu의 ‘interval_clock needs integer work_sec and rest_sec’ 형식 오류는 수정안이 제공되지 않아(제안 없음) 구조 자체를 확정하기 어려움. 따라서 안전한 변경을 확정할 수 없어 승인/수정 모두 보류.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [
+                    {
+                      "role": "programming",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "wed",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "thu",
+                      "verdict": "NEEDS_REVIEW",
+                      "problem": "days[0]: a revision names the part and the evidence days[0].proposal: interval_clock needs integer work_sec and rest_sec",
+                      "severity": "moderate",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "형식 오류라 이 날의 수정안은 만들지 않았다.",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "sat",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "sun",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": [
+                    "days[3]: a revision names the part and the evidence",
+                    "days[3].proposal: interval_clock needs integer work_sec and rest_sec"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "truncated",
+                  "validation_errors": [
+                    "truncated: return one JSON object that matches the schema"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [
+                    {
+                      "role": "execution",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "wed",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "thu",
+                      "verdict": "SUGGEST_REVISION",
+                      "problem": "60초 일하고 30초 쉬는 구조에서, 로잉 12cal + 푸시업 10reps + 케틀벨 스윙 15reps를 한 사이클(60초 작업 구간) 안에 모두 끝내기 어려워질 수 있음.",
+                      "severity": "moderate",
+                      "evidence": "work_rest_structure이 '60초 일하고 30초 쉽니다'인데, movements가 3종(로잉 12cal, 푸시업 10reps, KB 스윙 15reps)으로 구성되어 있어 60초 내 완료를 전제로 한 EMOM/인터벌 설계가 아님.",
+                      "intent_impact": "",
+                      "uncertainty": "개별 선수의 로잉/스윙 페이스와 전환 속도에 따라 60초 내 가능할 수도 있으나, 패킷 정보만으로는 안전한 완료 보장이 어려움.",
+                      "proposal": {
+                        "role": "execution",
+                        "day": "thu",
+                        "target": "amount",
+                        "movement_key": "kb_swing",
+                        "before": "15reps",
+                        "after": "12reps",
+                        "replacement_key": null,
+                        "work_sec": null,
+                        "rest_sec": null,
+                        "reason": "60초 일하고 30초 쉬는 구조에서, 로잉 12cal + 푸시업 10reps + 케틀벨 스윙 15reps를 한 사이클(60초 작업 구간) 안에 모두 끝내기 어려워질 수 있음.",
+                        "expected_effect": "기대 효과를 적지 않았다.",
+                        "downside": "개별 선수의 로잉/스윙 페이스와 전환 속도에 따라 60초 내 가능할 수도 있으나, 패킷 정보만으로는 안전한 완료 보장이 어려움.",
+                        "skeleton_impact": "none",
+                        "duration_min": null,
+                        "problem": "60초 일하고 30초 쉬는 구조에서, 로잉 12cal + 푸시업 10reps + 케틀벨 스윙 15reps를 한 사이클(60초 작업 구간) 안에 모두 끝내기 어려워질 수 있음.",
+                        "severity": "moderate",
+                        "evidence": "work_rest_structure이 '60초 일하고 30초 쉽니다'인데, movements가 3종(로잉 12cal, 푸시업 10reps, KB 스윙 15reps)으로 구성되어 있어 60초 내 완료를 전제로 한 EMOM/인터벌 설계가 아님.",
+                        "intent_impact": "",
+                        "uncertainty": "개별 선수의 로잉/스윙 페이스와 전환 속도에 따라 60초 내 가능할 수도 있으나, 패킷 정보만으로는 안전한 완료 보장이 어려움."
+                      }
+                    },
+                    {
+                      "role": "execution",
+                      "day": "sat",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "execution",
+                      "day": "sun",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": []
+                }
+              ],
+              "proposals": [
+                {
+                  "role": "execution",
+                  "day": "thu",
+                  "target": "amount",
+                  "movement_key": "kb_swing",
+                  "before": "15reps",
+                  "after": "12reps",
+                  "replacement_key": null,
+                  "work_sec": null,
+                  "rest_sec": null,
+                  "reason": "60초 일하고 30초 쉬는 구조에서, 로잉 12cal + 푸시업 10reps + 케틀벨 스윙 15reps를 한 사이클(60초 작업 구간) 안에 모두 끝내기 어려워질 수 있음.",
+                  "expected_effect": "기대 효과를 적지 않았다.",
+                  "downside": "개별 선수의 로잉/스윙 페이스와 전환 속도에 따라 60초 내 가능할 수도 있으나, 패킷 정보만으로는 안전한 완료 보장이 어려움.",
+                  "skeleton_impact": "none",
+                  "duration_min": null,
+                  "problem": "60초 일하고 30초 쉬는 구조에서, 로잉 12cal + 푸시업 10reps + 케틀벨 스윙 15reps를 한 사이클(60초 작업 구간) 안에 모두 끝내기 어려워질 수 있음.",
+                  "severity": "moderate",
+                  "evidence": "work_rest_structure이 '60초 일하고 30초 쉽니다'인데, movements가 3종(로잉 12cal, 푸시업 10reps, KB 스윙 15reps)으로 구성되어 있어 60초 내 완료를 전제로 한 EMOM/인터벌 설계가 아님.",
+                  "intent_impact": "",
+                  "uncertainty": "개별 선수의 로잉/스윙 페이스와 전환 속도에 따라 60초 내 가능할 수도 있으나, 패킷 정보만으로는 안전한 완료 보장이 어려움."
+                }
+              ],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": true,
+                "errors": [],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 6,
+              "tokens": 19852,
+              "elapsed_ms": 32223,
+              "failure_reason": null
+            }
+          },
+          {
+            "id": "W4",
+            "week": "2099-07-27",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 42042,
+            "log_count": 92,
+            "model_calls": 9,
+            "tokens": 47711,
+            "log_latency_ms": 35951,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 6,
+              "retried_pass": 1,
+              "retried_fail": 0,
+              "retained_first_error": 1,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 6,
+                "not_success": 0,
+                "time_based_accepted": 4,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 2,
+              "rules": {
+                "catalog_name_ko": 2
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-20",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-27",
+              "input_hash": "5a90802ce801f32c",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "row:30sec",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "30초 일하고 30초 쉽니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "double_under:30sec",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "30초 일하고 30초 쉽니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "row:500m",
+                    "kb_swing:20reps",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "double_under:30sec",
+                    "row:30sec"
+                  ],
+                  "work_rest": "30초 일하고 30초 쉽니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "row:15cal",
+                    "push_up:12reps"
+                  ],
+                  "work_rest": "30초 일하고 30초 쉽니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:15cal",
+                    "push_up:12reps",
+                    "kb_swing:15reps"
+                  ],
+                  "work_rest": "60초 일하고 60초 쉽니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [
+                    {
+                      "role": "programming",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "wed",
+                      "verdict": "NEEDS_REVIEW",
+                      "problem": "days[0].proposal: amount and replace_movement need movement_key, before, and after",
+                      "severity": "moderate",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "형식 오류라 이 날의 수정안은 만들지 않았다.",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "thu",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "fri",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "programming",
+                      "day": "sat",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": [
+                    "days[2].proposal: amount and replace_movement need movement_key, before, and after"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [
+                    {
+                      "role": "strength_fatigue",
+                      "day": "mon",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "tue",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "wed",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "thu",
+                      "verdict": "NEEDS_REVIEW",
+                      "problem": "days[0].proposal: amount and replace_movement need movement_key, before, and after days[0].proposal.replacement_key: expected a catalog key",
+                      "severity": "moderate",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "형식 오류라 이 날의 수정안은 만들지 않았다.",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "fri",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    },
+                    {
+                      "role": "strength_fatigue",
+                      "day": "sat",
+                      "verdict": "PASS",
+                      "problem": "",
+                      "severity": "low",
+                      "evidence": "",
+                      "intent_impact": "",
+                      "uncertainty": "",
+                      "proposal": null
+                    }
+                  ],
+                  "failure_reason": null,
+                  "validation_errors": [
+                    "days[3].proposal: amount and replace_movement need movement_key, before, and after",
+                    "days[3].proposal.replacement_key: expected a catalog key"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 6,
+              "tokens": 12193,
+              "elapsed_ms": 20592,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "S1",
+            "week": "2099-08-03",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "thu duration class is locked",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 5
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 1528,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 971,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-27",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            },
+            "phase_c": {
+              "week_start": "2099-08-03",
+              "input_hash": "90da838253492eb6",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 375,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "S2",
+            "week": "2099-08-10",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 947,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 825,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-08-03",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-08-10",
+              "input_hash": "3a17ab814c473f6a",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "ski:200m",
+                    "row:12/10cal",
+                    "sit_up:8"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 312,
+              "failure_reason": "http_error"
+            }
+          }
+        ]
+      },
+      {
+        "pass": "A2",
+        "weeks": [
+          {
+            "id": "W1",
+            "week": "2099-07-06",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 952,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 701,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-06-29",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            },
+            "phase_c": {
+              "week_start": "2099-07-06",
+              "input_hash": "24ecb0eaa781fadd",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 243,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "W2",
+            "week": "2099-07-13",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 5
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 736,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 659,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-06",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "low",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-13",
+              "input_hash": "3f0650a1efa136cf",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "ski:200m",
+                    "row:12/10cal",
+                    "sit_up:8"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 282,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "W3",
+            "week": "2099-07-20",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "wed duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 804,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 653,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-13",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 3,
+              "completed_days": 3,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-20",
+              "input_hash": "89a443885c667dec",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 232,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "W4",
+            "week": "2099-07-27",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "wed duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 872,
+            "log_count": 45,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 1297,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-20",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-27",
+              "input_hash": "2395828eee37d80b",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "ring_row:8",
+                    "push_up:6"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 319,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "S1",
+            "week": "2099-08-03",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 1123,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 688,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-27",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            },
+            "phase_c": {
+              "week_start": "2099-08-03",
+              "input_hash": "d510edefdac86529",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "power_clean:3",
+                    "push_up:6"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "power_clean:3",
+                    "push_up:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "fan_bike:10/8cal",
+                    "double_under:30"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 321,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "S2",
+            "week": "2099-08-10",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 787,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 678,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-08-03",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-08-10",
+              "input_hash": "a2f3c24aa278ea0f",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "ski:200m",
+                    "row:12/10cal",
+                    "sit_up:8"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 267,
+              "failure_reason": "http_error"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
