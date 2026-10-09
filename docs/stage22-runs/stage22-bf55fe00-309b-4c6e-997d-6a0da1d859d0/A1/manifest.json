@@ -1,0 +1,32 @@
+{
+  "run_id": "stage22-bf55fe00-309b-4c6e-997d-6a0da1d859d0",
+  "pass": "A1",
+  "execution_id": "stage22-bf55fe00-309b-4c6e-997d-6a0da1d859d0-A1",
+  "files": [
+    {
+      "relative": "generation-logs.json",
+      "sha256": "69a64fc8013a54c86bd3590e77548e64034120cfa8caa59570d1afa6c73e384e",
+      "bytes": 2567188
+    },
+    {
+      "relative": "weeks.json",
+      "sha256": "014f389eb55656034ca54d03dd64a1d27e55aa3262d39dc51d6335fba53cd73f",
+      "bytes": 2717801
+    },
+    {
+      "relative": "months.json",
+      "sha256": "79d6b5ffa74b5fd078705ae0e4dc3be07a197d7bacee37176c5159c467c6cb6d",
+      "bytes": 35168
+    },
+    {
+      "relative": "evaluations.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "bytes": 2
+    },
+    {
+      "relative": "usage.json",
+      "sha256": "e85acfa02beddad35ebc2afff0dab8e6a9a7422cdedcc0f3935e12c8aa8b1262",
+      "bytes": 504
+    }
+  ]
+}
