@@ -14,7 +14,7 @@ import { longitudinalPlanningEnabled } from "./planning/flag";
 import { planLongitudinal, withLongitudinal } from "./planning/plan";
 import { coachingWeekMayUseLegacyFallback } from "./coaching/stage16/hard";
 import { withCoachingPlan } from "./coaching/monthly";
-import { authorMonth, authorWeek, authorWeeklyIntent, type AuthorTrace, type FetchLike } from "./model";
+import { authorMonth, authorWeek, authorWeeklyIntent, evaluationStatus, monthPrompt, type AuthorTrace, type FetchLike } from "./model";
 import { realizeWeekFromIntent } from "./realize-intent";
 import { planWeeklyIntent, weeklyIntentFrom, type WeeklyIntentContext } from "./weekly-intent";
 import { projectWeek } from "./project";
@@ -245,7 +245,12 @@ async function writeProgrammingMonth(
     inputSummaryJson: JSON.stringify(summary),
     priorEvaluationId: evaluation?.id ?? null,
     mode,
-    ...generationWrite(MONTHLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason, options.logContext),
+    ...generationWrite(MONTHLY_PROMPT_VERSION, authored, nowMs, authored.ok ? null : authored.reason, {
+      ...(options.logContext ?? {}),
+      evaluation_status: evaluationStatus(summary),
+      prior_next_scheme: evaluation?.next_scheme ?? null,
+      month_input: monthPrompt(summary),
+    }),
   });
 }
 

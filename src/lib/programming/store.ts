@@ -33,6 +33,7 @@ export type GenerationWrite = {
     responseFormat?: "json_schema" | "json_object" | null;
     normalizations?: string[];
     diagnostics?: Record<string, unknown> | null;
+    errors?: string[];
   }[];
 };
 
@@ -348,6 +349,7 @@ function insertGenerationLogs(
         scrubGenerationPayload({
           response_format: response.responseFormat ?? null,
           normalizations: response.normalizations ?? [],
+          errors: response.errors ?? [],
           diagnostics: response.diagnostics ?? null,
           run: {
             ...(input.logContext ?? {}),

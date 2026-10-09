@@ -4,7 +4,7 @@ import { previousLowerFatigue } from "../rules";
 import type { MonthDirection, MonthlyCoachPlan, WeekIndex } from "../types";
 import { monthlyPlanErrors } from "./contract";
 import { monthlyStrategyErrors } from "./stage13/rules";
-import { askCoach } from "./llm";
+import { askCoach, coachAttemptRecord } from "./llm";
 import { MONTHLY_COACH_PROMPT_VERSION } from "./prompts";
 import { finishTrace, inputHash, type AgentTrace } from "./trace";
 
@@ -198,8 +198,10 @@ export async function coachMonthly(input: {
         input_summary: { method: deterministic.strength_method },
         output: asked.json,
         raw_output: asked.raw,
+        model_input: payload,
         validation_result: "fail",
         validation_errors: asked.validationErrors,
+        ...coachAttemptRecord(asked),
         retry_count: asked.retryCount,
         failure_reason: asked.reason,
         deterministic: false,
@@ -224,8 +226,10 @@ export async function coachMonthly(input: {
       output: plan,
       raw_output: asked.raw,
       parsed_output: plan,
+      model_input: payload,
       validation_result: "pass",
       validation_errors: [],
+      ...coachAttemptRecord(asked),
       retry_count: asked.retryCount,
       failure_reason: null,
       deterministic: false,

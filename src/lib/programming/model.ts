@@ -129,6 +129,8 @@ export type ModelResponseLog = {
   responseFormat: "json_schema" | "json_object" | null;
   normalizations: string[];
   diagnostics?: Record<string, unknown> | null;
+  /** Validation errors for this attempt. Empty when the attempt was accepted. */
+  errors?: string[];
 };
 
 const RETRY_INSTRUCTION = [
@@ -752,6 +754,15 @@ async function authorWithRetries<T>(input: {
     const accepted = completed.ok ? input.accept(completed.json, { attempt, previous }) : null;
     if (completed.ok) previous = completed.json;
     const attemptNormalizations = accepted?.normalizations ?? [];
+    const attemptErrors = !completed.ok
+      ? [completed.detail]
+      : !accepted || !accepted.ok
+        ? accepted && !accepted.ok
+          ? accepted.errors?.length
+            ? accepted.errors
+            : [accepted.detail]
+          : ["unreadable JSON"]
+        : [];
     responses.push({
       attempt,
       raw: completed.ok ? completed.json : completed.raw,
@@ -759,6 +770,7 @@ async function authorWithRetries<T>(input: {
       responseFormat: completed.responseFormat,
       normalizations: attemptNormalizations,
       diagnostics: accepted?.diagnostics ?? null,
+      errors: attemptErrors,
     });
     if (!completed.ok) {
       reason = completed.reason;

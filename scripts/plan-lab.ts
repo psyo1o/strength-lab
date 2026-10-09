@@ -12,13 +12,18 @@
  * Stage 19 writes docs/stage19-probe.json and /tmp/stage19-phaseb.db.
  * Stage 21 uses the same scenarios:
  *   PROBE_MODE=db PROBE_LABEL=stage21 npx tsx scripts/plan-lab.ts
+ * Stage 22 keeps each pass on disk before the next pass deletes 2099 rows:
+ *   PROBE_MODE=db PROBE_LABEL=stage22 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
  * different temporary file. The default temporary files are under /tmp.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { archiveProbePass, verifyProbeArchives } from "../src/lib/programming/probe-archive";
+import { evaluationStatus } from "../src/lib/programming/model";
+import type { ProgrammingSummary } from "../src/lib/programming/summary";
 import { DAY_ORDER } from "../src/lib/month-plan/types";
 import {
   LIVE_CLASS_WEEK,
@@ -145,6 +150,7 @@ async function databasePass(pass: string) {
   const { getProgrammingWeek, listProgrammingWeekAttempts } = await import("../src/lib/programming/store");
   const { getSqlite } = await import("../src/lib/db/client");
   const raw = getSqlite();
+  // SQL rows for 2099 are pass-local. Raw files are archived after the pass, before the next delete.
   raw.prepare(`DELETE FROM programming_actuals WHERE week_id IN (SELECT id FROM programming_weeks WHERE week_start LIKE '2099-%')`).run();
   raw.prepare(`DELETE FROM programming_generation_logs WHERE scope_key LIKE '2099-%'`).run();
   raw.prepare(`DELETE FROM programming_weeks WHERE week_start LIKE '2099-%'`).run();
@@ -250,19 +256,27 @@ function classifySessionLogs(rawLogs: string[]) {
   let passed = 0;
   let retriedPass = 0;
   let retriedFail = 0;
+  let retainedFirst = 0;
+  let retryWithoutFirst = 0;
   for (const raw of rawLogs) {
     const parsed = JSON.parse(raw) as {
       prompt_version?: string;
       model?: string | null;
       validation_result?: string;
       validation_errors?: string[];
+      first_validation_errors?: string[];
       retry_count?: number;
       deterministic?: boolean;
     };
     if (parsed.prompt_version !== "session-coach-v2" || parsed.deterministic !== false) continue;
     if (parsed.validation_result === "pass") {
       passed += 1;
-      if ((parsed.retry_count ?? 0) > 0) retriedPass += 1;
+      if ((parsed.retry_count ?? 0) > 0) {
+        retriedPass += 1;
+        const first = parsed.first_validation_errors ?? [];
+        if (first.some((error) => error.trim())) retainedFirst += 1;
+        else retryWithoutFirst += 1;
+      }
       continue;
     }
     failed += 1;
@@ -276,7 +290,16 @@ function classifySessionLogs(rawLogs: string[]) {
       examples.push(parsed.validation_result ?? "fail");
     }
   }
-  return { failed_days: failed, passed_days: passed, retried_pass: retriedPass, retried_fail: retriedFail, kinds, examples };
+  return {
+    failed_days: failed,
+    passed_days: passed,
+    retried_pass: retriedPass,
+    retried_fail: retriedFail,
+    retained_first_error: retainedFirst,
+    retry_without_first_error: retryWithoutFirst,
+    kinds,
+    examples,
+  };
 }
 
 function normalizationReport(rawLogs: string[]) {
@@ -308,6 +331,138 @@ function sessionFailureKind(error: string): string {
   if (error.includes("missing") || error.includes("expected")) return "missing_field";
   if (error.includes("strength") || error.includes("lift")) return "strength_placement";
   return "schema";
+}
+
+function consistencyRows(rows: Array<Record<string, unknown>>) {
+  const mismatches: Array<{ pass?: string; week: string; type: string }> = [];
+  for (const row of rows) {
+    const thesis = row.thesis as { phase?: string; conditioning_ceiling?: string; strength_ceiling?: string } | undefined;
+    const previous = row.previous_actual as { record?: string; fatigue_signal?: string | null } | undefined;
+    const week = String(row.id ?? row.week ?? "");
+    const phase = thesis?.phase ?? "";
+    if (((row.lock_after as string[] | undefined)?.length ?? 0) > 0 || row.week_status === "FAILED") {
+      mismatches.push({ week, type: "lock_or_failed" });
+    }
+    if (previous?.record === "no_record" && phase === "emphasis") mismatches.push({ week, type: "no_record_as_emphasis" });
+    if (previous?.fatigue_signal === "high" && phase !== "emphasis" && phase !== "DELOAD") {
+      mismatches.push({ week, type: "high_fatigue_not_limited" });
+    }
+    if (phase === "DELOAD" && (thesis?.conditioning_ceiling !== "moderate" || thesis?.strength_ceiling !== "light")) {
+      mismatches.push({ week, type: "deload_ceiling" });
+    }
+  }
+  return { mismatches, mismatch_count: mismatches.length };
+}
+
+function parseJson(text: unknown): unknown {
+  if (typeof text !== "string") return text;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { parse_error: true, raw_json: text };
+  }
+}
+
+async function readProbeSnapshot() {
+  const { getSqlite } = await import("../src/lib/db/client");
+  const raw = getSqlite();
+  const logs = raw
+    .prepare(
+      `SELECT scope, scope_key, generation_attempt, prompt_version, model_name, raw_json, latency_ms, created_at
+       FROM programming_generation_logs WHERE scope_key LIKE '2099-%' ORDER BY id`,
+    )
+    .all() as Array<{
+    scope: string;
+    scope_key: string;
+    generation_attempt: number;
+    prompt_version: string;
+    model_name: string | null;
+    raw_json: string;
+    latency_ms: number | null;
+    created_at: number;
+  }>;
+  const weeks = raw
+    .prepare(
+      `SELECT week_start, week_index, generation_source, fallback_reason, model_name, prompt_version, intent_json, plan_json, display_json
+       FROM programming_weeks WHERE week_start LIKE '2099-%' AND status = 'active' ORDER BY week_start`,
+    )
+    .all() as Array<Record<string, unknown>>;
+  const months = raw
+    .prepare(
+      `SELECT month_start, generation_source, fallback_reason, model_name, prompt_version, direction_json, input_summary_json
+       FROM programming_months WHERE month_start LIKE '2099-%' AND status = 'active' ORDER BY month_start`,
+    )
+    .all() as Array<Record<string, unknown>>;
+  const evaluations = raw
+    .prepare(
+      `SELECT m.month_start AS month_start, e.evaluation_json AS evaluation_json
+       FROM programming_evaluations e
+       JOIN programming_months m ON m.id = e.month_id
+       WHERE m.month_start LIKE '2099-%'`,
+    )
+    .all() as Array<{ month_start: string; evaluation_json: string }>;
+  return {
+    logs: logs.map((row) => {
+      const parsed = parseJson(row.raw_json);
+      const body = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : { body: parsed };
+      return {
+        scope: row.scope,
+        scope_key: row.scope_key,
+        generation_attempt: row.generation_attempt,
+        prompt_version: row.prompt_version,
+        model_name: row.model_name,
+        latency_ms: row.latency_ms,
+        created_at: row.created_at,
+        ...body,
+      };
+    }),
+    weeks: weeks.map((row) => ({
+      week_start: row.week_start,
+      week_index: row.week_index,
+      generation_source: row.generation_source,
+      fallback_reason: row.fallback_reason,
+      model_name: row.model_name,
+      prompt_version: row.prompt_version,
+      intent: parseJson(row.intent_json),
+      plan: parseJson(row.plan_json),
+      display: parseJson(row.display_json),
+    })),
+    months: months.map((row) => ({
+      month_start: row.month_start,
+      generation_source: row.generation_source,
+      fallback_reason: row.fallback_reason,
+      model_name: row.model_name,
+      prompt_version: row.prompt_version,
+      direction: parseJson(row.direction_json),
+      input_summary: parseJson(row.input_summary_json),
+    })),
+    evaluations: evaluations.map((row) => ({ month_start: row.month_start, evaluation: parseJson(row.evaluation_json) })),
+  };
+}
+
+function monthDigest(months: Array<{ month_start: unknown; generation_source: unknown; fallback_reason: unknown; direction: unknown; input_summary: unknown }>) {
+  return months.map((row) => {
+    const direction = (row.direction ?? {}) as { scheme?: string; strength_method?: string };
+    let status = "unparsed";
+    let next: string | null = null;
+    try {
+      const summary = row.input_summary as ProgrammingSummary;
+      status = evaluationStatus(summary);
+      next = summary.progression?.last_evaluation?.next_scheme ?? null;
+    } catch (error) {
+      status = `lookup_error:${error instanceof Error ? error.message : "unknown"}`;
+    }
+    return {
+      month_start: row.month_start,
+      scheme: direction.scheme ?? null,
+      strength_method: direction.strength_method ?? null,
+      generation_source: row.generation_source,
+      fallback_reason: row.fallback_reason,
+      evaluation_status: status,
+      next_scheme: next,
+      followed_next_scheme: next == null ? null : direction.scheme === next,
+    };
+  });
 }
 
 function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
@@ -365,16 +520,24 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
       },
       { unit_seen: 0, unit_converted: 0, unit_unconverted: 0, display_rewrites: 0 },
     ),
-    session_rewrite: rows.reduce<{ retried_pass: number; retried_fail: number }>(
+    session_rewrite: rows.reduce<{ retried_pass: number; retried_fail: number; retained_first_error: number; retry_without_first_error: number }>(
       (sum, row) => {
-        const failure = row.session_failures as { retried_pass?: number; retried_fail?: number } | undefined;
+        const failure = row.session_failures as {
+          retried_pass?: number;
+          retried_fail?: number;
+          retained_first_error?: number;
+          retry_without_first_error?: number;
+        } | undefined;
         return {
           retried_pass: sum.retried_pass + (failure?.retried_pass ?? 0),
           retried_fail: sum.retried_fail + (failure?.retried_fail ?? 0),
+          retained_first_error: sum.retained_first_error + (failure?.retained_first_error ?? 0),
+          retry_without_first_error: sum.retry_without_first_error + (failure?.retry_without_first_error ?? 0),
         };
       },
-      { retried_pass: 0, retried_fail: 0 },
+      { retried_pass: 0, retried_fail: 0, retained_first_error: 0, retry_without_first_error: 0 },
     ),
+    consistency: consistencyRows(rows),
     model_calls: rows.reduce((sum, row) => sum + Number(row.model_calls ?? 0), 0),
     tokens: rows.reduce((sum, row) => sum + Number(row.tokens ?? 0), 0),
     elapsed_ms: rows.reduce((sum, row) => sum + Number(row.elapsed_ms ?? 0), 0),
@@ -402,8 +565,43 @@ async function main() {
   process.env.COACHING_PIPELINE = "1";
   process.env.LONGITUDINAL_PLANNING = "1";
   const passes = [];
+  const runId = `${probeLabel}-${randomUUID()}`;
+  const archiveRoot = `docs/${probeLabel}-runs`;
+  const archiveNotes = [
+    "Month requests do not set temperature or seed. That setting is the provider default and is not in the saved request body.",
+    "Session, weekly, load, and head traces store model_settings.temperature and model_attempts, including the first validation error after a successful retry.",
+    "The summary JSON is not the raw archive. Raw files live under this run directory and are checked before the summary is written.",
+  ];
+  const archived = [];
+  const monthReports: Array<{ pass: string; months: ReturnType<typeof monthDigest> }> = [];
   for (const pass of ["A1", "A2"]) {
-    passes.push(await databasePass(pass));
+    const result = await databasePass(pass);
+    passes.push(result);
+    const snapshot = await readProbeSnapshot();
+    const scrubbed = JSON.parse(scrub(JSON.stringify(snapshot))) as Awaited<ReturnType<typeof readProbeSnapshot>>;
+    const calls = result.weeks.reduce((sum: number, week) => sum + Number((week as { model_calls?: number }).model_calls ?? 0), 0);
+    const tokens = result.weeks.reduce((sum: number, week) => sum + Number((week as { tokens?: number }).tokens ?? 0), 0);
+    const elapsed = result.weeks.reduce((sum: number, week) => sum + Number((week as { elapsed_ms?: number }).elapsed_ms ?? 0), 0);
+    archived.push(
+      archiveProbePass({
+        root: archiveRoot,
+        runId,
+        pass,
+        generationLogs: scrubbed.logs,
+        weeks: scrubbed.weeks,
+        months: scrubbed.months,
+        evaluations: scrubbed.evaluations,
+        calls,
+        tokens,
+        elapsed_ms: elapsed,
+        notes: archiveNotes,
+      }),
+    );
+    monthReports.push({ pass, months: monthDigest(scrubbed.months) });
+  }
+  const integrity = verifyProbeArchives({ root: archiveRoot, runId, passes: ["A1", "A2"] });
+  if (!integrity.ok) {
+    throw new ProbeSafetyError(`raw archive incomplete: ${integrity.missing.join(" | ")}`);
   }
   const report = {
     plan_lab: {
@@ -413,6 +611,16 @@ async function main() {
       scenarios: SCENARIOS.map((scenario) => scenario.id),
       passes: passes.length,
       summary: summarize(passes),
+      archive: {
+        run_id: runId,
+        root: archiveRoot,
+        raw_saved: true,
+        summary_is_not_raw: true,
+        a1_intact_after_a2: true,
+        missing: integrity.missing,
+        passes: archived.map((row) => ({ pass: row.manifest.pass, dir: row.dir, files: row.manifest.files.map((file) => file.relative) })),
+      },
+      months: monthReports,
       runs: passes,
     },
   };

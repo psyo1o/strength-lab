@@ -7,6 +7,14 @@ import type { TokenUsage } from "./trace";
 
 export type CoachValidation = { ok: true } | { ok: false; errors: string[] };
 
+export type CoachAttemptLog = {
+  attempt: number;
+  raw: unknown;
+  json: unknown;
+  validation_errors: string[];
+  reason: string | null;
+};
+
 export type CoachCall = {
   ok: boolean;
   json: unknown;
@@ -15,10 +23,27 @@ export type CoachCall = {
   latencyMs: number;
   reason: string | null;
   retryCount: number;
+  /** Errors from the attempt that was returned. Empty when that attempt passed. */
   validationErrors: string[];
+  /** Errors from the first failed attempt. Kept when a later attempt passes. */
+  firstValidationErrors: string[];
+  attempts: CoachAttemptLog[];
+  temperature: number | null;
   usage: TokenUsage | null;
   promptVersion: string;
 };
+
+export function coachAttemptRecord(asked: CoachCall): {
+  first_validation_errors: string[];
+  model_attempts: CoachAttemptLog[];
+  model_settings: { model: string; temperature: number | null };
+} {
+  return {
+    first_validation_errors: asked.firstValidationErrors,
+    model_attempts: asked.attempts,
+    model_settings: { model: asked.model, temperature: asked.temperature },
+  };
+}
 
 type Attempt = {
   ok: boolean;
@@ -178,7 +203,19 @@ export async function askCoach(input: {
   let lastRaw: unknown = null;
   let lastJson: unknown = null;
   let errors: string[] = [];
+  let firstValidationErrors: string[] = [];
+  const attempts: CoachAttemptLog[] = [];
   const started = Date.now();
+  const remember = (next: string[]) => {
+    if (firstValidationErrors.length === 0 && next.length > 0) firstValidationErrors = next;
+  };
+  const finish = (row: Omit<CoachCall, "temperature" | "firstValidationErrors" | "attempts" | "promptVersion">): CoachCall => ({
+    ...row,
+    temperature,
+    firstValidationErrors,
+    attempts,
+    promptVersion: input.promptVersion,
+  });
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const user =
@@ -239,10 +276,25 @@ export async function askCoach(input: {
     if (!attemptResult.ok) {
       if (attempt === 1 && (attemptResult.reason === "bad_json" || attemptResult.reason === "truncated")) {
         errors = [`${attemptResult.reason}: return one JSON object that matches the schema`];
+        remember(errors);
         lastJson = attemptResult.raw;
+        attempts.push({
+          attempt,
+          raw: attemptResult.raw,
+          json: null,
+          validation_errors: errors,
+          reason: attemptResult.reason,
+        });
         continue;
       }
-      return {
+      attempts.push({
+        attempt,
+        raw: attemptResult.raw,
+        json: null,
+        validation_errors: errors,
+        reason: attemptResult.reason,
+      });
+      return finish({
         ok: false,
         json: null,
         raw: lastRaw,
@@ -252,13 +304,19 @@ export async function askCoach(input: {
         retryCount: attempt - 1,
         validationErrors: errors,
         usage,
-        promptVersion: input.promptVersion,
-      };
+      });
     }
     lastJson = attemptResult.json;
     const verdict = input.validate ? input.validate(attemptResult.json) : { ok: true as const };
     if (verdict.ok) {
-      return {
+      attempts.push({
+        attempt,
+        raw: attemptResult.raw,
+        json: attemptResult.json,
+        validation_errors: [],
+        reason: null,
+      });
+      return finish({
         ok: true,
         json: attemptResult.json,
         raw: attemptResult.raw,
@@ -268,12 +326,19 @@ export async function askCoach(input: {
         retryCount: attempt - 1,
         validationErrors: [],
         usage,
-        promptVersion: input.promptVersion,
-      };
+      });
     }
     errors = verdict.errors;
+    remember(errors);
+    attempts.push({
+      attempt,
+      raw: attemptResult.raw,
+      json: attemptResult.json,
+      validation_errors: errors,
+      reason: "schema",
+    });
     if (attempt === 2) {
-      return {
+      return finish({
         ok: false,
         json: attemptResult.json,
         raw: attemptResult.raw,
@@ -283,11 +348,10 @@ export async function askCoach(input: {
         retryCount: 1,
         validationErrors: errors,
         usage,
-        promptVersion: input.promptVersion,
-      };
+      });
     }
   }
-  return {
+  return finish({
     ok: false,
     json: lastJson,
     raw: lastRaw,
@@ -297,6 +361,5 @@ export async function askCoach(input: {
     retryCount: 1,
     validationErrors: errors,
     usage,
-    promptVersion: input.promptVersion,
-  };
+  });
 }

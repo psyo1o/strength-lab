@@ -6,7 +6,7 @@ import type { DayIntent, DayPrescriptionRecord, SessionDraft, WeekDraft, WeeklyI
 import { parseWeeklyIntent } from "../weekly-intent";
 import { durationRuleText, headReviewErrors, loadDecisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
-import { askCoach } from "./llm";
+import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
 import {
@@ -275,8 +275,10 @@ async function writeSession(input: {
         input_summary: { day: input.day.day, primary_training: input.day.primary_training, revision: input.revisionNumber },
         output: asked.json,
         raw_output: asked.raw,
+        model_input: user,
         validation_result: "fail",
         validation_errors: asked.validationErrors,
+        ...coachAttemptRecord(asked),
         retry_count: asked.retryCount,
         failure_reason: asked.reason,
         deterministic: false,
@@ -306,8 +308,10 @@ async function writeSession(input: {
         input_summary: { day: input.day.day, primary_training: input.day.primary_training },
         output: asked.json,
         raw_output: asked.raw,
+        model_input: user,
         validation_result: "fail",
         validation_errors: adopted.errors,
+        ...coachAttemptRecord(asked),
         retry_count: asked.retryCount,
         failure_reason: "schema",
         deterministic: false,
@@ -336,8 +340,10 @@ async function writeSession(input: {
       output: { day: input.day.day, warmup_ko: adopted.session.warmup_ko, format: adopted.session.conditioning?.format },
       raw_output: asked.raw,
       parsed_output: asked.json,
+      model_input: user,
       validation_result: "pass",
       validation_errors: [],
+      ...coachAttemptRecord(asked),
       retry_count: asked.retryCount,
       failure_reason: null,
       deterministic: false,
@@ -577,8 +583,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       output: weeklyFromModel ? { block_phase: plan.block_phase, days: plan.days.map((day) => day.primary_training) } : weekly.json,
       raw_output: weekly.raw,
       parsed_output: weeklyFromModel ? plan.days : null,
+      model_input: weeklyUser,
       validation_result: weeklyFromModel ? "pass" : "fail",
       validation_errors: weekly.validationErrors,
+      ...coachAttemptRecord(weekly),
       retry_count: weekly.retryCount,
       failure_reason: weeklyFromModel ? null : weekly.reason,
       deterministic: false,
@@ -693,8 +701,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         input_hash: inputHash(weeklyRetryUser),
         output: weeklyFromModel ? { block_phase: plan.block_phase } : weeklyRetry.json,
         raw_output: weeklyRetry.raw,
+        model_input: weeklyRetryUser,
         validation_result: weeklyFromModel ? "pass" : "fail",
         validation_errors: weeklyRetry.validationErrors,
+        ...coachAttemptRecord(weeklyRetry),
         retry_count: weeklyRetry.retryCount,
         failure_reason: weeklyFromModel ? null : weeklyRetry.reason,
         deterministic: false,
@@ -902,6 +912,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       parsed_output: loadSource === "model" ? loadDecisions : null,
       validation_result: loadSource === "model" ? "pass" : "fail",
       validation_errors: loadAsked.validationErrors,
+      ...coachAttemptRecord(loadAsked),
       retry_count: loadAsked.retryCount,
       failure_reason: loadSource === "model" ? null : loadAsked.reason,
       deterministic: loadSource !== "model",
@@ -1241,8 +1252,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         output: { review, decision: headDecision },
         raw_output: asked.raw,
         parsed_output: source === "model" ? asked.json : review,
+        model_input: user,
         validation_result: source === "model" ? "pass" : "fail",
         validation_errors: asked.validationErrors,
+        ...coachAttemptRecord(asked),
         retry_count: asked.retryCount,
         failure_reason: source === "model" ? null : asked.reason,
         deterministic: source !== "model",

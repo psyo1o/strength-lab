@@ -528,6 +528,21 @@ export function parseMonthDirection(value: unknown): MonthDirection | null {
   });
 }
 
+/**
+ * deload + 531 is not a legal month. Week 4 of a 531 month is the deload phase.
+ * A recovery month uses scheme deload and DELOAD_RECOVERY. The pair is rejected, not rewritten.
+ */
+export function schemeMethodMismatch(direction: Pick<MonthDirection, "scheme" | "strength_method">): string {
+  const method = direction.strength_method || "missing";
+  if (direction.scheme === "deload" && method === "531") {
+    return "scheme deload does not allow strength_method 531; a recovery month uses DELOAD_RECOVERY; a 531 month uses scheme 531 and only week 4 is a deload";
+  }
+  if (direction.scheme === "531" && method === "DELOAD_RECOVERY") {
+    return "scheme 531 does not allow strength_method DELOAD_RECOVERY; a recovery month uses scheme deload and DELOAD_RECOVERY; a 531 month uses strength_method 531";
+  }
+  return `scheme ${direction.scheme} does not match strength_method ${method}`;
+}
+
 export function monthSchemaErrors(direction: MonthDirection, raw: unknown): string[] {
   const errors: string[] = [];
   const banned = bannedKey(raw, new Set([...BANNED_KEYS, ...MONTH_BANNED_KEYS]));
@@ -536,7 +551,7 @@ export function monthSchemaErrors(direction: MonthDirection, raw: unknown): stri
   const expectedScheme = legacySchemeForMethod(direction.strength_method);
   if (!direction.strength_method) errors.push("missing strength_method");
   else if (!expectedScheme) errors.push(`${direction.strength_method} is not an implemented strength method`);
-  else if (expectedScheme !== direction.scheme) errors.push("scheme does not match strength_method");
+  else if (expectedScheme !== direction.scheme) errors.push(schemeMethodMismatch(direction));
   if (direction.long_conditioning_weeks.length !== 2) errors.push("long conditioning must be two weeks");
   if (new Set(direction.long_conditioning_weeks).size !== 2) errors.push("long conditioning weeks repeat");
   const weeks = new Set(direction.week_themes.map((row) => row.week_index));

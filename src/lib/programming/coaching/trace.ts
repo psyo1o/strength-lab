@@ -84,6 +84,11 @@ export type AgentTrace = {
   decision?: string | null;
   /** Code normalization applied before validation. Not a model retry. */
   normalizations?: unknown;
+  /** First failed attempt. Present even when a later attempt passes and validation_errors is empty. */
+  first_validation_errors?: string[];
+  model_attempts?: unknown;
+  model_settings?: { model: string; temperature: number | null };
+  model_input?: unknown;
 };
 
 export function newRunId(): string {
