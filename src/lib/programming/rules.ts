@@ -1072,6 +1072,78 @@ export function similarityViolations(draft: WeekDraft, recent: readonly StoredSt
   });
 }
 
+function scoredStructureView(structure: StoredStructure) {
+  return {
+    format: structure.format,
+    stimulus: structure.stimulus,
+    movement_pattern: [...structure.movement_patterns].sort().join("+"),
+    volume: structure.volume,
+  };
+}
+
+export type SimilarityDecision = {
+  score: number;
+  threshold: number;
+  compared_scope: "same_week" | "recent";
+  candidate_day: string;
+  compared_day: string;
+  compared_week_id: number | null;
+  compared_week_start: string | null;
+  matched: SimilarityFeature[];
+  judgment: "too_similar";
+  candidate: ReturnType<typeof scoredStructureView>;
+  compared: ReturnType<typeof scoredStructureView>;
+};
+
+/**
+ * Hits only. The score, the matched features, and both sessions' four fields.
+ * The threshold and the comparison itself stay in similarityDiagnostics.
+ */
+export function similarityDecisionLog(draft: WeekDraft, recent: readonly StoredStructure[]): SimilarityDecision[] {
+  const fresh = draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null && !row.benchmark);
+  const decisions: SimilarityDecision[] = [];
+  for (let index = 0; index < fresh.length; index += 1) {
+    const candidate = fresh[index]!;
+    for (let other = index + 1; other < fresh.length; other += 1) {
+      const compared = fresh[other]!;
+      const hit = comparison(candidate, compared, "same_week");
+      if (!hit.similar) continue;
+      decisions.push({
+        score: hit.score,
+        threshold: hit.threshold,
+        compared_scope: hit.compared_scope,
+        candidate_day: hit.candidate_day,
+        compared_day: hit.compared_day,
+        compared_week_id: null,
+        compared_week_start: null,
+        matched: hit.matched,
+        judgment: "too_similar",
+        candidate: scoredStructureView(candidate),
+        compared: scoredStructureView(compared),
+      });
+    }
+    for (const prior of recent) {
+      if (prior.benchmark) continue;
+      const hit = comparison(candidate, prior, "recent");
+      if (!hit.similar) continue;
+      decisions.push({
+        score: hit.score,
+        threshold: hit.threshold,
+        compared_scope: hit.compared_scope,
+        candidate_day: hit.candidate_day,
+        compared_day: hit.compared_day,
+        compared_week_id: prior.source_week_id ?? null,
+        compared_week_start: prior.source_week_start ?? null,
+        matched: hit.matched,
+        judgment: "too_similar",
+        candidate: scoredStructureView(candidate),
+        compared: scoredStructureView(prior),
+      });
+    }
+  }
+  return decisions;
+}
+
 export type WeekBurden = {
   lower_strength_sessions: number;
   lower_strength_volume: number;

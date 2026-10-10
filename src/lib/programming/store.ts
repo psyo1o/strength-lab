@@ -328,6 +328,7 @@ function insertGenerationLogs(
     responses: GenerationWrite["responses"];
     createdAt: number;
     generationSource?: string | null;
+    fallbackReason?: string | null;
     logContext?: Record<string, unknown>;
   },
 ): void {
@@ -354,6 +355,7 @@ function insertGenerationLogs(
           run: {
             ...(input.logContext ?? {}),
             generation_source: input.generationSource ?? null,
+            fallback_reason: input.fallbackReason ?? null,
           },
           body: response.raw,
         }),
@@ -449,6 +451,7 @@ function insertMonthRow(
     responses: input.responses,
     createdAt: input.generatedAt,
     generationSource: input.generationSource,
+    fallbackReason: input.fallbackReason,
     logContext: input.logContext,
   });
   return id;
@@ -619,6 +622,7 @@ function insertWeekRow(
     responses: input.responses,
     createdAt: input.generatedAt,
     generationSource: input.generationSource,
+    fallbackReason: input.fallbackReason,
     logContext: input.logContext,
   });
   return weekId;
@@ -675,7 +679,7 @@ export function listRecentStructures(weekStart: string): StoredStructure[] {
   const from = addDays(weekStart, -40);
   const rows = getSqlite()
     .prepare(
-      `SELECT s.day_key, s.format, s.time_domain, s.stimulus, s.movement_patterns, s.movements, s.equipment,
+      `SELECT w.id AS week_id, w.week_start, s.day_key, s.format, s.time_domain, s.stimulus, s.movement_patterns, s.movements, s.equipment,
               s.rep_structure, s.work_rest_structure, s.duration_min, s.volume, s.intensity, s.benchmark, s.long_conditioning
        FROM wod_structures s
        JOIN programming_weeks w ON w.id = s.week_id
@@ -698,6 +702,8 @@ export function listRecentStructures(weekStart: string): StoredStructure[] {
     intensity: row.intensity as StoredStructure["intensity"],
     benchmark: Number(row.benchmark) === 1,
     long_conditioning: Number(row.long_conditioning) === 1,
+    source_week_id: Number(row.week_id),
+    source_week_start: String(row.week_start),
   }));
 }
 

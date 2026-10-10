@@ -18,6 +18,7 @@ import {
   lowerBodyFatigueRule,
   retryRepairPlan,
   sessionFieldTrace,
+  similarityDecisionLog,
   similarityDiagnostics,
   structureValidationErrors,
   TIME_DOMAIN_RANGES,
@@ -769,7 +770,11 @@ async function authorWithRetries<T>(input: {
       latencyMs: completed.latencyMs,
       responseFormat: completed.responseFormat,
       normalizations: attemptNormalizations,
-      diagnostics: accepted?.diagnostics ?? null,
+      diagnostics:
+        accepted?.diagnostics ??
+        (!completed.ok && completed.reason === "bad_json"
+          ? { failure_stage: "json_parse", error_type: "unreadable_json" }
+          : null),
       errors: attemptErrors,
     });
     if (!completed.ok) {
@@ -1333,14 +1338,35 @@ export async function authorMonth(input: {
     maxTokens: MONTH_MAX_TOKENS,
     format: monthResponseFormat(),
     accept: (json) => {
-      if (!json || typeof json !== "object") return { ok: false, reason: "bad_json", detail: "unreadable JSON" };
+      if (!json || typeof json !== "object") {
+        return {
+          ok: false,
+          reason: "bad_json",
+          detail: "unreadable JSON",
+          diagnostics: { failure_stage: "json_parse", error_type: "unreadable_json" },
+        };
+      }
       const direction = parseMonthDirection(json);
       if (!direction) {
         const detail = monthShapeDetail(json);
-        return { ok: false, reason: "schema", detail, errors: [detail] };
+        return {
+          ok: false,
+          reason: "schema",
+          detail,
+          errors: [detail],
+          diagnostics: { failure_stage: "month_shape", error_type: "parseMonthDirection" },
+        };
       }
       const schemaErrors = monthSchemaErrors(direction, json);
-      if (schemaErrors.length) return { ok: false, reason: "schema", detail: schemaErrors[0]!, errors: schemaErrors };
+      if (schemaErrors.length) {
+        return {
+          ok: false,
+          reason: "schema",
+          detail: schemaErrors[0]!,
+          errors: schemaErrors,
+          diagnostics: { failure_stage: "month_schema", error_type: "monthSchemaErrors" },
+        };
+      }
       const repaired = repairMonthLanguage(direction);
       const english = englishKoPath(repaired.direction);
       if (english) {
@@ -1350,6 +1376,7 @@ export async function authorMonth(input: {
           detail: english,
           errors: [english],
           normalizations: repaired.normalizations,
+          diagnostics: { failure_stage: "language", error_type: "english_ko" },
         };
       }
       return { ok: true, value: repaired.direction, normalizations: repaired.normalizations };
@@ -1492,7 +1519,7 @@ export function wodFromIntentPrompt(input: {
         previous_output_violated: input.retryErrors.slice(0, 4),
         failure_briefs: constraintFailureBriefs(input.retryErrors),
         previous_draft: input.previousDraft ?? null,
-        repair: `Apply each failure_brief. duration_min chooses time_domain: ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long. Copy that domain onto the session, set expected_duration to duration_min, and set long_conditioning true only when the domain is long. A duration outside ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.long.max} has no legal domain; change that duration into one bucket. Copy a null session-level field only from the conditioning object on that same day. Keep every day the briefs do not name.`,
+        repair: `Apply each failure_brief. duration_min chooses time_domain: ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long. Copy that domain onto the session, set expected_duration to duration_min, and set long_conditioning true only when the domain is long. A duration outside ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.long.max} has no legal domain; change that duration into one bucket. Copy a null session-level field only from the conditioning object on that same day. Keep every day the briefs do not name. If a failure_brief names same-week similarity, change at least one matched feature on the named day. A new movement name or an equipment-only change is not that change. Do not break fatigue, method sets, or another rule to force the difference.`,
       }
     : null;
   return {
@@ -1520,6 +1547,7 @@ export function wodFromIntentPrompt(input: {
       "Squat and deadlift use lower_body_sets. Bench and ohp use upper_body_sets.",
       "Do not place a heavy pull the day after a heavy squat, or a heavy squat the day after a heavy deadlift.",
       "Same intent still changes format, work/rest, or combination. Do not only rename a movement.",
+      "Before each training day, check every other training day in this same week. Do not share all four of format, stimulus, movement_pattern, and volume. A new movement name or an equipment-only change is not enough.",
       "Progression may keep strength_lift and the method sets.",
       "Korean for every *_ko field, focus, and scheme_note.",
       "Top-level JSON is { intent, sessions } with mon through sun.",
@@ -1542,6 +1570,14 @@ export function wodFromIntentPrompt(input: {
         { time_domain: "medium", duration_min: 30, why: "30 is long, not medium" },
         { time_domain: "long", duration_min: 60, why: "60 is outside 30–40" },
       ],
+    },
+    same_week_structure: {
+      check: "Before writing each training day, compare it with every other training day in this same week.",
+      banned: "Do not repeat a session that shares all four of format, stimulus, movement_pattern, and volume with another day in this week.",
+      not_enough: "A new movement name, or an equipment-only change, is not a difference.",
+      differentiate: "Change the stimulus, the structure, or the volume so those four are not all the same. Also share at most 3 of format, time_domain, stimulus, movement_pattern, equipment, and volume.",
+      keep: "Keep weekly_intent, the strength method sets, fatigue limits, the long-conditioning count, rest rules, and the other safety rules.",
+      do_not: "Do not insert an unrelated movement and do not break another rule in order to look different.",
     },
     recent_structures: (input.recent ?? []).slice(-8).map((row) => ({
       format: row.format,
@@ -1639,6 +1675,7 @@ export async function authorWeek(input: {
       previousErrors = judged.ok ? [] : judged.errors;
       const diagnostics = {
         similarity: draft ? similarityDiagnostics(draft, input.recent) : null,
+        similarity_decision: draft ? similarityDecisionLog(draft, input.recent) : [],
         errors: judged.ok ? [] : judged.errors,
         failed_constraints: judged.ok ? [] : structureValidationErrors(judged.errors),
         failure_briefs: judged.ok ? [] : constraintFailureBriefs(judged.errors),
