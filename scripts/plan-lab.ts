@@ -18,6 +18,10 @@
  *   PROBE_MODE=db PROBE_LABEL=stage23 npx tsx scripts/plan-lab.ts
  * Stage 23.1 uses the same 12 weeks. Raw files under docs/stage23.1-runs are gitignored:
  *   PROBE_MODE=db PROBE_LABEL=stage23.1 npx tsx scripts/plan-lab.ts
+ * Phase C reviews those stored weeks. A confirmed revision is written back on the 2099 week.
+ *   PROBE_MODE=db PROBE_LABEL=phaseC PHASE_C=1 npx tsx scripts/plan-lab.ts
+ * PROBE_FLAGS=off leaves COACHING_PIPELINE and LONGITUDINAL_PLANNING unset.
+ * Any other value turns both on for the probe process only.
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
@@ -26,6 +30,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { archiveProbePass, verifyProbeArchives } from "../src/lib/programming/probe-archive";
+import { phaseCTotals, type PhaseCRun } from "../src/lib/programming/coaching/phase-c/run";
 import { amountUnit, prescriptionAmountIssue } from "../src/lib/programming/coaching/stage13/units";
 import { isAdoptedModelSession } from "../src/lib/programming/coaching/stage13/validators";
 import { evaluationStatus } from "../src/lib/programming/model";
@@ -250,7 +255,14 @@ async function databasePass(pass: string) {
         record: !previousActual ? "missing" : previousActual.class_summary ? "summary" : "no_record",
       },
     });
+    let phaseC: unknown = null;
+    if (process.env.PHASE_C === "1") {
+      const { reviewActiveWeek } = await import("../src/lib/programming/coaching/phase-c/active");
+      console.error(`pass ${pass} ${scenario.id} phase C`);
+      phaseC = await reviewActiveWeek({ weekStart: scenario.weekStart, key: key ?? "" });
+    }
     console.error(`pass ${pass} ${scenario.id} done before=${(lock?.before ?? []).length} after=${(lock?.after ?? []).length} calls=${modelCalls}`);
+    weeks[weeks.length - 1] = { ...(weeks[weeks.length - 1] as object), phase_c: phaseC };
   }
   return { pass, weeks };
 }
@@ -647,10 +659,18 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
       },
     ),
     consistency: consistencyRows(rows),
+    phase_c: (() => {
+      const runs = rows.flatMap((row) => (row.phase_c ? [row.phase_c as PhaseCRun] : []));
+      return runs.length ? phaseCTotals(runs) : null;
+    })(),
     model_calls: rows.reduce((sum, row) => sum + Number(row.model_calls ?? 0), 0),
     tokens: rows.reduce((sum, row) => sum + Number(row.tokens ?? 0), 0),
     elapsed_ms: rows.reduce((sum, row) => sum + Number(row.elapsed_ms ?? 0), 0),
-    flags: { COACHING_PIPELINE: "1", LONGITUDINAL_PLANNING: "1" },
+    flags: {
+      COACHING_PIPELINE: process.env.COACHING_PIPELINE === "1" ? "1" : "0",
+      LONGITUDINAL_PLANNING: process.env.LONGITUDINAL_PLANNING === "1" ? "1" : "0",
+      PHASE_C: process.env.PHASE_C === "1" ? "1" : "0",
+    },
   };
 }
 
@@ -668,13 +688,18 @@ async function main() {
     return;
   }
   const probeLabel = process.env.PROBE_LABEL?.trim() || "stage19";
-  if (!/^[a-z0-9.-]+$/.test(probeLabel) || probeLabel.includes("..") || probeLabel.startsWith(".")) {
+  if (!/^[A-Za-z0-9.-]+$/.test(probeLabel) || probeLabel.includes("..") || probeLabel.startsWith(".")) {
     throw new ProbeSafetyError("PROBE_LABEL is not a file label");
   }
   process.env.DATABASE_PATH = `/tmp/${probeLabel}-phaseb.db`;
   process.env.STRENGTH_LAB_PROBE = "1";
-  process.env.COACHING_PIPELINE = "1";
-  process.env.LONGITUDINAL_PLANNING = "1";
+  if (process.env.PROBE_FLAGS === "off") {
+    delete process.env.COACHING_PIPELINE;
+    delete process.env.LONGITUDINAL_PLANNING;
+  } else {
+    process.env.COACHING_PIPELINE = "1";
+    process.env.LONGITUDINAL_PLANNING = "1";
+  }
   const passes = [];
   const runId = `${probeLabel}-${randomUUID()}`;
   const archiveRoot = `docs/${probeLabel}-runs`;
