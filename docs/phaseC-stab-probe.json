@@ -1,0 +1,2618 @@
+{
+  "plan_lab": {
+    "mode": "db",
+    "model": "gpt-5.4-nano",
+    "structure": "95a63b551c495b80",
+    "scenarios": [
+      "W1",
+      "W2",
+      "W3",
+      "W4",
+      "S1",
+      "S2"
+    ],
+    "passes": 2,
+    "summary": {
+      "weeks_attempted": 12,
+      "skeleton_saved": 12,
+      "skeleton_save_rate": 1,
+      "weeks_matching_after_repair": 12,
+      "lock_violations_before": 90,
+      "lock_violations_after": 0,
+      "lock_before_kinds": {
+        "duration": 20,
+        "volume": 70
+      },
+      "lock_after_kinds": {},
+      "regenerated_days": 72,
+      "fitted_days": 0,
+      "unresolved_days": 0,
+      "failed_weeks": 0,
+      "day_final_sources": {
+        "MODEL": 0,
+        "MODEL_REVISED": 0,
+        "MODEL_ADJUSTED": 0,
+        "HEAD_ADJUSTED": 0,
+        "DETERMINISTIC_ADJUSTMENT": 0,
+        "FALLBACK": 72,
+        "FAILED": 0
+      },
+      "model_weeks": 0,
+      "fallback_weeks": 12,
+      "session_failure_kinds": {},
+      "normalizations": {
+        "unit_seen": 0,
+        "unit_converted": 0,
+        "unit_unconverted": 0,
+        "display_rewrites": 0
+      },
+      "session_rewrite": {
+        "retried_pass": 0,
+        "retried_fail": 0,
+        "retained_first_error": 0,
+        "retry_without_first_error": 0
+      },
+      "unit_quality": {
+        "sessions": 0,
+        "first_attempt_clean": 0,
+        "double_under_errors": 0,
+        "row_errors": 0,
+        "other_unit_errors": 0,
+        "adopted_pass": 0,
+        "not_success": 72,
+        "time_based_accepted": 0,
+        "prescription_revise": 0,
+        "prescription_unclear": 0
+      },
+      "consistency": {
+        "mismatches": [],
+        "mismatch_count": 0
+      },
+      "phase_c": {
+        "weeks": 12,
+        "decisions": {
+          "APPROVE_ORIGINAL": 0,
+          "APPROVE_REVISED": 0,
+          "PARTIAL_REVISION": 0,
+          "NEEDS_REVIEW": 12
+        },
+        "proposal_days": 0,
+        "changed_days": 0,
+        "validation_pass": 0,
+        "validation_fail": 12,
+        "calls": 48,
+        "tokens": 0,
+        "elapsed_ms": 3409,
+        "model_failures": 12
+      },
+      "model_calls": 0,
+      "tokens": 0,
+      "elapsed_ms": 9926,
+      "flags": {
+        "COACHING_PIPELINE": "1",
+        "LONGITUDINAL_PLANNING": "1",
+        "PHASE_C": "1"
+      }
+    },
+    "archive": {
+      "run_id": "phaseC-stab-a5387a1b-a9fe-41b0-bdeb-523c1fd0187d",
+      "root": "docs/phaseC-stab-runs",
+      "raw_saved": true,
+      "summary_is_not_raw": true,
+      "a1_intact_after_a2": true,
+      "missing": [],
+      "passes": [
+        {
+          "pass": "A1",
+          "dir": "docs/phaseC-stab-runs/phaseC-stab-a5387a1b-a9fe-41b0-bdeb-523c1fd0187d/A1",
+          "files": [
+            "generation-logs.json",
+            "weeks.json",
+            "months.json",
+            "evaluations.json",
+            "usage.json"
+          ]
+        },
+        {
+          "pass": "A2",
+          "dir": "docs/phaseC-stab-runs/phaseC-stab-a5387a1b-a9fe-41b0-bdeb-523c1fd0187d/A2",
+          "files": [
+            "generation-logs.json",
+            "weeks.json",
+            "months.json",
+            "evaluations.json",
+            "usage.json"
+          ]
+        }
+      ]
+    },
+    "months": [
+      {
+        "pass": "A1",
+        "months": [
+          {
+            "month_start": "2099-06-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_previous_month",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-07-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-08-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          }
+        ]
+      },
+      {
+        "pass": "A2",
+        "months": [
+          {
+            "month_start": "2099-06-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_previous_month",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-07-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-08-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          }
+        ]
+      }
+    ],
+    "runs": [
+      {
+        "pass": "A1",
+        "weeks": [
+          {
+            "id": "W1",
+            "week": "2099-07-06",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 901,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 689,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-06-29",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            },
+            "phase_c": {
+              "week_start": "2099-07-06",
+              "input_hash": "24ecb0eaa781fadd",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 314,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "W2",
+            "week": "2099-07-13",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 5
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 776,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 665,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-06",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "low",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-13",
+              "input_hash": "3f0650a1efa136cf",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "ski:200m",
+                    "row:12/10cal",
+                    "sit_up:8"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 239,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "W3",
+            "week": "2099-07-20",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "wed duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 661,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 538,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-13",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 3,
+              "completed_days": 3,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-20",
+              "input_hash": "89a443885c667dec",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 268,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "W4",
+            "week": "2099-07-27",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "wed duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 814,
+            "log_count": 45,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 991,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-20",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-27",
+              "input_hash": "2395828eee37d80b",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "ring_row:8",
+                    "push_up:6"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 264,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "S1",
+            "week": "2099-08-03",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 933,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 619,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-27",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            },
+            "phase_c": {
+              "week_start": "2099-08-03",
+              "input_hash": "d510edefdac86529",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "power_clean:3",
+                    "push_up:6"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "power_clean:3",
+                    "push_up:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "fan_bike:10/8cal",
+                    "double_under:30"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 281,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "S2",
+            "week": "2099-08-10",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 747,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 650,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-08-03",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-08-10",
+              "input_hash": "a2f3c24aa278ea0f",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "ski:200m",
+                    "row:12/10cal",
+                    "sit_up:8"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 268,
+              "failure_reason": "http_error"
+            }
+          }
+        ]
+      },
+      {
+        "pass": "A2",
+        "weeks": [
+          {
+            "id": "W1",
+            "week": "2099-07-06",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 976,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 669,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-06-29",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            },
+            "phase_c": {
+              "week_start": "2099-07-06",
+              "input_hash": "24ecb0eaa781fadd",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 282,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "W2",
+            "week": "2099-07-13",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 5
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 738,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 655,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-06",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "low",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-13",
+              "input_hash": "3f0650a1efa136cf",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "burpee:8",
+                    "pull_up:5",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "ski:200m",
+                    "row:12/10cal",
+                    "sit_up:8"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 327,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "W3",
+            "week": "2099-07-20",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "wed duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 732,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 615,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-13",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 3,
+              "completed_days": 3,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-20",
+              "input_hash": "89a443885c667dec",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 310,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "W4",
+            "week": "2099-07-27",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "wed duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 826,
+            "log_count": 45,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 1086,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-20",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-07-27",
+              "input_hash": "2395828eee37d80b",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 10분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "ring_row:8",
+                    "push_up:6"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 283,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "S1",
+            "week": "2099-08-03",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "thu duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 968,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 722,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-07-27",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            },
+            "phase_c": {
+              "week_start": "2099-08-03",
+              "input_hash": "d510edefdac86529",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "db_press:8",
+                    "sit_up:10"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "power_clean:3",
+                    "push_up:6"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "power_clean:3",
+                    "push_up:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "fan_bike:10/8cal",
+                    "double_under:30"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "row:12/10cal",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 314,
+              "failure_reason": "http_error"
+            }
+          },
+          {
+            "id": "S2",
+            "week": "2099-08-10",
+            "status": "http_error",
+            "generation_source": "fallback",
+            "fallback_reason": "http_error",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "deterministic",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 6
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 854,
+            "log_count": 44,
+            "model_calls": 0,
+            "tokens": 0,
+            "log_latency_ms": 686,
+            "session_failures": {
+              "failed_days": 6,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 6,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": [
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail",
+                "fail"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 0,
+              "rules": {}
+            },
+            "previous_actual": {
+              "week": "2099-08-03",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            },
+            "phase_c": {
+              "week_start": "2099-08-10",
+              "input_hash": "a2f3c24aa278ea0f",
+              "original": [
+                {
+                  "day": "mon",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "tue",
+                  "movements": [
+                    "kb_swing:10",
+                    "burpee:6"
+                  ],
+                  "work_rest": "캡 12분 안에 마칩니다."
+                },
+                {
+                  "day": "wed",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 18분 안에 마칩니다."
+                },
+                {
+                  "day": "thu",
+                  "movements": [
+                    "wall_ball:10",
+                    "box_jump:8"
+                  ],
+                  "work_rest": "캡 14분 안에 마칩니다."
+                },
+                {
+                  "day": "fri",
+                  "movements": [
+                    "pull_up:6",
+                    "burpee:8"
+                  ],
+                  "work_rest": "캡 16분 안에 마칩니다."
+                },
+                {
+                  "day": "sat",
+                  "movements": [
+                    "ski:200m",
+                    "row:12/10cal",
+                    "sit_up:8"
+                  ],
+                  "work_rest": "캡 36분 안에 마칩니다."
+                }
+              ],
+              "model": "gpt-5.4-nano",
+              "duplicate": false,
+              "decision": "NEEDS_REVIEW",
+              "rationale": "헤드 코치 호출이 실패해 원본을 유지합니다.",
+              "reviews": [
+                {
+                  "role": "programming",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "strength_fatigue",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                },
+                {
+                  "role": "execution",
+                  "findings": [],
+                  "failure_reason": "http_error",
+                  "validation_errors": [
+                    "days: expected an array"
+                  ]
+                }
+              ],
+              "proposals": [],
+              "accepted": [],
+              "rejected": [],
+              "changes": [],
+              "validation": {
+                "ok": false,
+                "errors": [
+                  "http_error"
+                ],
+                "attempts": 1
+              },
+              "confirmed": null,
+              "calls": 4,
+              "tokens": 0,
+              "elapsed_ms": 259,
+              "failure_reason": "http_error"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
