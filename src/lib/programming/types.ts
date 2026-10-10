@@ -465,6 +465,9 @@ export type StoredStructure = {
   intensity: IntensityBand;
   benchmark: boolean;
   long_conditioning: boolean;
+  /** Set when the row was loaded from an earlier week. Not a scored feature. */
+  source_week_id?: number;
+  source_week_start?: string;
 };
 
 export function isScheme(value: unknown): value is Scheme {

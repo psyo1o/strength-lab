@@ -18,6 +18,7 @@ import {
   lowerBodyFatigueRule,
   retryRepairPlan,
   sessionFieldTrace,
+  similarityDecisionLog,
   similarityDiagnostics,
   structureValidationErrors,
   TIME_DOMAIN_RANGES,
@@ -769,7 +770,11 @@ async function authorWithRetries<T>(input: {
       latencyMs: completed.latencyMs,
       responseFormat: completed.responseFormat,
       normalizations: attemptNormalizations,
-      diagnostics: accepted?.diagnostics ?? null,
+      diagnostics:
+        accepted?.diagnostics ??
+        (!completed.ok && completed.reason === "bad_json"
+          ? { failure_stage: "json_parse", error_type: "unreadable_json" }
+          : null),
       errors: attemptErrors,
     });
     if (!completed.ok) {
@@ -1333,14 +1338,35 @@ export async function authorMonth(input: {
     maxTokens: MONTH_MAX_TOKENS,
     format: monthResponseFormat(),
     accept: (json) => {
-      if (!json || typeof json !== "object") return { ok: false, reason: "bad_json", detail: "unreadable JSON" };
+      if (!json || typeof json !== "object") {
+        return {
+          ok: false,
+          reason: "bad_json",
+          detail: "unreadable JSON",
+          diagnostics: { failure_stage: "json_parse", error_type: "unreadable_json" },
+        };
+      }
       const direction = parseMonthDirection(json);
       if (!direction) {
         const detail = monthShapeDetail(json);
-        return { ok: false, reason: "schema", detail, errors: [detail] };
+        return {
+          ok: false,
+          reason: "schema",
+          detail,
+          errors: [detail],
+          diagnostics: { failure_stage: "month_shape", error_type: "parseMonthDirection" },
+        };
       }
       const schemaErrors = monthSchemaErrors(direction, json);
-      if (schemaErrors.length) return { ok: false, reason: "schema", detail: schemaErrors[0]!, errors: schemaErrors };
+      if (schemaErrors.length) {
+        return {
+          ok: false,
+          reason: "schema",
+          detail: schemaErrors[0]!,
+          errors: schemaErrors,
+          diagnostics: { failure_stage: "month_schema", error_type: "monthSchemaErrors" },
+        };
+      }
       const repaired = repairMonthLanguage(direction);
       const english = englishKoPath(repaired.direction);
       if (english) {
@@ -1350,6 +1376,7 @@ export async function authorMonth(input: {
           detail: english,
           errors: [english],
           normalizations: repaired.normalizations,
+          diagnostics: { failure_stage: "language", error_type: "english_ko" },
         };
       }
       return { ok: true, value: repaired.direction, normalizations: repaired.normalizations };
@@ -1490,8 +1517,9 @@ export function wodFromIntentPrompt(input: {
     ? {
         instruction: `Previous output violated: ${input.retryErrors[0]}`,
         previous_output_violated: input.retryErrors.slice(0, 4),
+        failure_briefs: constraintFailureBriefs(input.retryErrors),
         previous_draft: input.previousDraft ?? null,
-        repair: "Change only the day named by the violation. Keep the weekly intent. Do not rewrite the other days.",
+        repair: `Apply each failure_brief. duration_min chooses time_domain: ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long. Copy that domain onto the session, set expected_duration to duration_min, and set long_conditioning true only when the domain is long. A duration outside ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.long.max} has no legal domain; change that duration into one bucket. Copy a null session-level field only from the conditioning object on that same day. Keep every day the briefs do not name. If a failure_brief names same-week similarity, change at least one matched feature on the named day. A new movement name or an equipment-only change is not that change. Do not break fatigue, method sets, or another rule to force the difference.`,
       }
     : null;
   return {
@@ -1513,14 +1541,44 @@ export function wodFromIntentPrompt(input: {
       "No invented kilograms. Strength is percent_of_tm only.",
       "A rest day has rest true, warmup_min 0, empty warmup_ko, and null work.",
       "Training days need conditioning. duration_min chooses time_domain: 1–12 short, 13–29 medium, 30–40 long.",
+      "Do not label 20 or 25 as short. 20 and 25 are medium. Do not label 30, 35, or 40 as short or medium. Those are long. 60 is outside every domain. Change that duration. Do not call it long.",
+      "Session time_domain equals conditioning.time_domain. expected_duration equals duration_min. long_conditioning is true only when time_domain is long. Copy a missing session field from conditioning. Do not leave it null when conditioning already has the value.",
       "Long conditioning matches weekly_requirements. Not on a heavy squat or deadlift, and not the day after one.",
       "Squat and deadlift use lower_body_sets. Bench and ohp use upper_body_sets.",
       "Do not place a heavy pull the day after a heavy squat, or a heavy squat the day after a heavy deadlift.",
       "Same intent still changes format, work/rest, or combination. Do not only rename a movement.",
+      "Before each training day, check every other training day in this same week. Do not share all four of format, stimulus, movement_pattern, and volume. A new movement name or an equipment-only change is not enough.",
       "Progression may keep strength_lift and the method sets.",
       "Korean for every *_ko field, focus, and scheme_note.",
       "Top-level JSON is { intent, sessions } with mon through sun.",
     ],
+    time_domain_rules: {
+      order: "Pick duration_min first. Then set time_domain from that number. The server does not rewrite a wrong label.",
+      short: `${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} minutes.`,
+      medium: `${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} minutes. 14, 16, 18, 20, and 25 are medium.`,
+      long: `${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes. 30, 35, and 40 are long.`,
+    },
+    time_domain_examples: {
+      valid: [
+        { time_domain: "short", duration_min: 12 },
+        { time_domain: "medium", duration_min: 20 },
+        { time_domain: "long", duration_min: 35 },
+      ],
+      invalid: [
+        { time_domain: "short", duration_min: 20, why: "20 is medium, not short" },
+        { time_domain: "short", duration_min: 35, why: "35 is long, not short" },
+        { time_domain: "medium", duration_min: 30, why: "30 is long, not medium" },
+        { time_domain: "long", duration_min: 60, why: "60 is outside 30–40" },
+      ],
+    },
+    same_week_structure: {
+      check: "Before writing each training day, compare it with every other training day in this same week.",
+      banned: "Do not repeat a session that shares all four of format, stimulus, movement_pattern, and volume with another day in this week.",
+      not_enough: "A new movement name, or an equipment-only change, is not a difference.",
+      differentiate: "Change the stimulus, the structure, or the volume so those four are not all the same. Also share at most 3 of format, time_domain, stimulus, movement_pattern, equipment, and volume.",
+      keep: "Keep weekly_intent, the strength method sets, fatigue limits, the long-conditioning count, rest rules, and the other safety rules.",
+      do_not: "Do not insert an unrelated movement and do not break another rule in order to look different.",
+    },
     recent_structures: (input.recent ?? []).slice(-8).map((row) => ({
       format: row.format,
       time_domain: row.time_domain,
@@ -1617,6 +1675,7 @@ export async function authorWeek(input: {
       previousErrors = judged.ok ? [] : judged.errors;
       const diagnostics = {
         similarity: draft ? similarityDiagnostics(draft, input.recent) : null,
+        similarity_decision: draft ? similarityDecisionLog(draft, input.recent) : [],
         errors: judged.ok ? [] : judged.errors,
         failed_constraints: judged.ok ? [] : structureValidationErrors(judged.errors),
         failure_briefs: judged.ok ? [] : constraintFailureBriefs(judged.errors),

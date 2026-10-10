@@ -319,6 +319,7 @@ async function writeProgrammingWeek(
         timeoutMs: options.timeoutMs,
       })
     : null;
+  // Branch table: docs/generation-paths.md. Change this split only together with that file.
   if (coachingPipelineEnabled()) {
     if (weekStart === LIVE_CLASS_WEEK) {
       throw new Error("operational week 2026-10-05 is off limits for the coaching pipeline");

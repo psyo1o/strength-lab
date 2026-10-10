@@ -41,6 +41,7 @@ export function coachModel(agent: CoachAgentName, env: NodeJS.ProcessEnv = proce
   return MONTH_PLAN_OPENAI_MODEL;
 }
 
+/** Off unless the value is exactly "1". Paths are listed in docs/generation-paths.md; update that file in the same commit. */
 export function coachingPipelineEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.COACHING_PIPELINE === "1";
 }
