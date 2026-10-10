@@ -1,6 +1,6 @@
 # 운영 실측 반영 — v3 4절 보고
 
-운영 NAS, 운영 DB, 배포, feature flag, 회원 계획 재생성은 이 워크스페이스에서 하지 않았다. 2026-10-07 v6 모델 응답, 비교 대상 주, 월간 응답 원문은 아직 없다. 그 원문이 오기 전에는 코드 추적과 2099 격리 재현만 했다. 2099 건수를 운영 사실로 바꾸어 읽지 않는다.
+운영 NAS, 운영 DB, 배포, feature flag, 회원 계획 재생성은 이 워크스페이스에서 하지 않았다. 2026-10-11 읽기 전용 추출(개인정보 제거, trainingMaxKg는 `[REDACTED]`)으로 주 id 8 응답, 비교 후보, 주 id 2 응답, 월간 행을 재채점했다. 월간 모델 응답 원문은 그 추출에도 없다. 원본 JSON은 gitignore인 `docs/ops-path-fix-runs/`에만 두었다. 2099 건수를 운영 사실로 바꾸어 읽지 않는다.
 
 유사도 임계값, 검증 우회, too_similar를 성공으로 세는 처리, fallback 사유를 지우는 처리는 하지 않았다. 운영 원문으로 재현되지 않은 경로의 프로덕션 코드는 바꾸지 않았다.
 
@@ -27,7 +27,7 @@ id 8의 v6은 커밋 `90e63b8`(2026-10-07, PR #47)의 `weekly-program-v6`이다.
 
 - 점수는 `format`, `time_domain`, `stimulus`, `movement_pattern`, `equipment`, `volume`이다. 각 가중치 1. `rep_structure`, `work_rest_structure`, `duration`, `intensity`는 가중치 0이라 점수에 들어가지 않는다. 임계값은 4다.
 - 운동 이름은 특징이 아니다. `featureValue`는 `movements`를 읽지 않는다. 이름·key를 바꿔도 점수는 그대로다. 운동 이름 별칭 표는 이 함수에 없다. 서로 다른 운동이 같은 점수를 받는 이유는 별칭 병합이 아니라, 이름이 점수 밖에 있기 때문이다. 장비 표기는 점수에 들어간다. 장비를 바꾸면 그 항목만 점수가 내려간다.
-- 비교 대상은 `listRecentStructures`다. `status='active'`이고 `week_start`가 대상 주보다 이르며 40일 창 안인 `wod_structures`다. 같은 주와 superseded 행은 빠진다. active인 fallback 주의 구조는 들어간다. 회원에게 실제로 보여 준 주와 비교하려는 범위다. 2026-10-07이 2026-09-28 active 구조와 비교했는지는 원문이 있어야 확정된다. 24행 전체가 비교에 쓰였는지는 아니다. 쿼리는 active만 읽는다.
+- 비교 대상은 `listRecentStructures`다. `status='active'`이고 `week_start`가 대상 주보다 이르며 40일 창 안인 `wod_structures`다. 같은 주와 superseded 행은 빠진다. active인 fallback 주의 구조는 들어간다. `class_weeks`는 이 쿼리에 없다.
 - `judgeWeek` 순서는 schema, 중량, 처방, 피로, 요일 패턴, 같은 주 규칙, 유사도, 한국어다. 첫 실패가 저장 사유다. 유사도가 첫 실패일 때만 `fallback_reason`이 `too_similar`다.
 - 파서는 운동 배열을 구조에 남긴다. 비교 단계에서 빠지는 정보는 운동 이름이다. 그 제외는 주석과 설정에 적혀 있다.
 - 모델이 too_similar로 거절되면 저장 출처는 `fallback`이고 사유는 `too_similar`다. 저장되는 세션 본문은 그 모델 JSON이 아니다. flag가 꺼진 경로는 규칙으로 만든 주를 저장한다. 사유는 모델 거절을 가리키고, 채택된 본문과 따로 남는다.
@@ -39,11 +39,52 @@ id 8의 v6은 커밋 `90e63b8`(2026-10-07, PR #47)의 `weekly-program-v6`이다.
 - 2099-07-13 모델 JSON이 직전 active 주와 점수 특징을 맞추고 운동 이름만 `renamed-only-row`로 바꾸면, `judgeWeek`의 첫 사유는 `too_similar`다. 진단의 `compared_scope`는 `recent`이고 점수는 4 이상이다. `ensureProgrammingWeek` 저장 결과는 `generation_source=fallback`, `fallback_reason=too_similar`, `prompt_version=wod-from-intent-v1`, attempt 2다. 저장된 초안에 그 운동 key는 없다. 생성 로그 2행 모두 같은 진단과 `generation_source=fallback`을 가진다.
 - 같은 직전 주에 대해, 이미 구조가 다른 합법 주의 운동 이름만 바꾸면 유사도 hit가 없고 저장 출처는 `model`이다. attempt 1, `fallback_reason`은 null이다.
 
-운영 10-07이 이 경우인지는 응답 JSON과 당시 active 주 구조가 와야 가른다. 점수 특징이 4개 이상 같으면 검사기는 설계대로 거절한 것이고, 수정 대상은 모델이 낸 주의 구조다. 비교 대상이 superseded이거나 창 밖이거나, 서로 다른 운동이 별칭으로 한 특징으로 합쳐진 것이 원문에서 보이면 그때 그 비교만 고친다.
+### 운영 10-07 응답 1을 현재 검사기에 넣은 결과
+
+원본은 읽기 전용 추출이다. 커밋하지 않고 `docs/ops-path-fix-runs/`에만 두었다. 재채점은 현재 `judgeWeek`와 `similarityMatch`다. 임계값은 4다. 최근 구조를 빈 배열로 두고 응답 1과 응답 2를 넣었다. 둘 다 파싱되고, 앞 단계(schema, 중량, 처방, 피로, 요일, 같은 주 규칙)를 통과한 뒤 첫 사유가 `too_similar`다. 오류는 한 줄이다.
+
+`thu and sat are structurally similar score=4 matched=format,stimulus,movement_pattern,volume`
+
+비교 범위는 `same_week`다. 목요일과 토요일은 format `amrap`, stimulus `technical`, movement_pattern `engine+gymnastic`, volume `low`가 같다. time_domain은 medium과 short로 다르고, 장비도 다르다. 운동 이름도 다르다. 이름은 점수에 없다. 같은 주 안의 다른 요일 쌍은 4 미만이다. 응답 2도 이 쌍만 4점이다.
+
+`structural_repetition_30d`가 `{format:null, count:0}`인 것과 이 거절은 다른 계산이다. 그 필드는 `summary.ts`가 지난 세션의 format 횟수를 세고, 3회 미만이면 format을 null로 둔다. 입력의 `previous_week`는 null이고 `bias_30d.format`은 비어 있다. 같은 주 요일끼리의 검사는 그 값과 상관없이 돈다.
+
+후보별 점수는 응답 1의 각 훈련일과 `wod_structures` 24행을 `similarityMatch`로 대조했다. 24행은 programming week id 1, 2, 3, 8에 6개씩이다. 네 주 모두 `week_start`는 `2026-10-05`다. id 1–3은 superseded fallback이고 id 8은 이번 거절 뒤에 저장된 active fallback이다.
+
+| 후보 | 쿼리에 들어가는가 | 응답 1과의 점수 |
+|---|---|---|
+| week id 1, timeout, superseded | 아니오. 같은 `week_start`이고 status가 superseded | 4점 이상 0건. 최고는 토요일 대 id 1의 화·목·금·토, 3점(`format`, `time_domain`, `volume`) |
+| week id 2, schema, superseded | 아니오. 같은 주, superseded | 4점 2건. 응답 금요일 대 fallback 월요일, 응답 화요일 대 fallback 화요일. 맞춘 항목은 `format`, `time_domain`, `stimulus`, `volume` |
+| week id 3, http_error, superseded | 아니오. id 2와 같은 fallback 구조 | id 2와 같은 2건 |
+| week id 8, 저장된 fallback | 아니오. 대상 주 자신이고, 판정 시점에는 아직 이 행이 없음 | id 2와 같은 2건 |
+| class_weeks 2026-09-28, 2026-10-05 | 아니오. `listRecentStructures`는 `class_weeks`를 읽지 않음 | 구조 행이 아니라 점수 계산을 하지 않음 |
+
+2099 임시 DB에 같은 관계를 넣었다. `2099-10-05` 한 주에 superseded 3행과 active 1행, 구조 24행. `listRecentStructures("2099-10-05")`는 0건이다. `listRecentStructures("2099-10-12")`는 active 행의 6건만 반환한다.
+
+그래서 운영 로그의 `too_similar`는 직전 주나 superseded fallback을 잘못 넣은 결과가 아니다. 응답 1 안의 목요일과 토요일이 점수 4라서 거절됐다. 검사기는 수정하지 않는다. 모델이 같은 주에 그 네 특징을 두 번 썼다.
+
+### 운영 v5 schema 원문
+
+주 id 2, `2026-10-07 10:21` KST, `weekly-program-v5`. 응답 2건은 파싱되는 JSON이다. 당시 코드는 `76fe52e`(10:06 KST)다. purpose 필수(`1634500`, 11:14 KST)와 v6(`90e63b8`, 11:28 KST)보다 앞이다. 그 커밋의 `judgeWeek`로 다시 넣었다.
+
+- 1차 첫 오류: `wed time domain does not match duration`. 수요일은 `time_domain=short`, `duration_min=14`다. short 구간은 1–12다. 이어서 `fri describes strength without a lift`, `sat rest still describes work`.
+- 2차 첫 오류: `week invents kg`. 목요일 운동 `name_ko`에 `9kg`/`6kg`가 있다. 1차의 월볼 amount에 있던 같은 표기는 그날 장비의 amount라 v5가 건너뛴다. 이어서 월요일과 수요일도 short에 14분이다.
+
+저장 사유 `schema`는 이 첫 오류와 같다. v5는 schema가 있으면 그 단계에서 반환하므로 유사도까지 가지 않았다.
+
+현재 코드로 같은 JSON을 넣으면 더 앞에서 거절된다. `1634500` 이후 `conditioning.purpose`가 필수라, 두 응답 모두 `mon conditioning.purpose must be 1–2 Korean sentences`가 첫 오류다. 그 필드는 10:21에 아직 없었다. 운영 건의 재현은 v5 커밋의 시간 구간 오류와 휴식일·중량 문구다. 파서는 수정하지 않았다.
 
 ## 2. 월간 JSON 오류: 실제 원인, 재현 여부, 수정 여부
 
-월간 응답 원문은 아직 없다. 파서와 사유 라벨은 수정하지 않았다. 아래 격리 결과는 운영 2026-10 월의 원인이 아니다.
+월간 응답 원문은 추출본에도 없다. `month_logs`는 0건이고 `model_name`은 null이다. 실패한 본문을 다시 넣을 수 없다. 파서는 수정하지 않았다.
+
+행은 `month_start=2026-10-01`, scheme 531, `generation_source=fallback`, `fallback_reason=bad_json`, `generated_at=1791134749400`이다. 이 시각은 2026-10-05 02:25 KST이고, 주 id 1 timeout과 같다. 저장된 `direction_json`은 `b949277`의 `fallbackMonth(null)`과 같다. focus는 "저장한 1RM으로 5/3/1 블록을 엽니다", why는 "이전 월 평가가 없어 5/3/1 블록을 한 달 동안 유지합니다.", scheme 기본값은 531이다. 모델이 쓴 방향은 남아 있지 않다.
+
+그 시각의 코드는 `b949277`(2026-10-04 23:16 KST)이고, 생성 로그 테이블을 만든 `63f3498`(2026-10-06 17:07 KST)보다 앞이다. `authorMonth`는 키가 없으면 `no_model`이다. 이 행은 `bad_json`이므로 호출은 있었다. 그 함수의 `bad_json`은 둘을 한 라벨로 적었다. HTTP 본문이 JSON이 아닌 경우, 메시지 JSON이 깨진 경우, `parseMonthDirection`이 null인 경우다. 응답 원문과 model name, attempt 횟수는 저장하지 않았다. `attemptTwice`는 최대 두 번 호출하고 마지막 사유만 반환했다.
+
+이후 마이그레이션 `migrateProgrammingGenerations`는 그 열들이 없던 행에 `prompt_version='monthly-program-v1'`, `model_name=NULL`, `generation_attempt=1`을 채운다. 추출본의 그 세 값은 이 기본값과 같다. v1 프롬프트가 돌았다는 뜻으로 쓰지 않는다. 로그 0건은 테이블이 생기기 전의 생성이다.
+
+`1c7baba`(2026-10-06 18:59 KST)부터 모양 실패는 `schema`이고, 읽히지 않는 JSON만 `bad_json`이다. 10-05 02:25 행은 그 분리 전이다. 원문이 없으므로 깨진 JSON인지 키 누락인지 가리지 않는다. 현재 코드의 2099 재현을 이 행의 원인으로 단정하지 않는다.
 
 현재 `authorMonth`(`9b88b20`)는 이렇게 나눈다.
 
@@ -82,16 +123,18 @@ id 8의 v6은 커밋 `90e63b8`(2026-10-07, PR #47)의 `weekly-program-v6`이다.
 - `src/lib/programming/model.ts`의 `wodFromIntentPrompt`
 - `scripts/plan-lab.ts`의 `PROBE_FLAGS=off`
 
-이번 라운드에 추가한 파일은 `tests/programming-ops-observed.test.ts`다. `SIMILARITY_CONFIG`, `judgeWeek`, `authorMonth`, `listRecentStructures`는 읽기만 한다.
+이번 라운드에 추가한 파일은 `tests/programming-ops-observed.test.ts`다. `SIMILARITY_CONFIG`, `judgeWeek`, `authorMonth`, `listRecentStructures`는 읽기만 한다. 운영 원본 JSON은 `docs/ops-path-fix-runs/`에만 있고 gitignore라 커밋하지 않았다.
 
 ## 5. 실행한 테스트와 통과·실패 수
 
 이번 라운드에서 실행했다.
 
 - `./node_modules/.bin/tsc --noEmit`: 통과
-- `./node_modules/.bin/vitest run`: 50 files, 336 tests, 실패 0
+- `./node_modules/.bin/vitest run`: 50 files, 337 tests, 실패 0
 
-336에는 기존 331과 이번 파일 5개가 들어 있다. 다섯 개는 운동 이름이 점수 밖인 것, 40일 active 비교 집합, 이름이 다른 합법 주의 모델 채택, 직전 active 주와 맞춘 주의 `too_similar` 저장, 월간 `bad_json`/`schema`/재시도 채택이다.
+337에는 직전 336과, 운영 응답 1의 목·토 4점과 주 id 1 최고 3점을 고정한 테스트 1개가 들어 있다.
+
+운영 원문 재채점은 그 테스트와 별도로, 현재 코드의 `judgeWeek`/`similarityMatch`와 v5 커밋 `76fe52e`의 `judgeWeek`로 돌렸다. 임시 DB는 `2099-10-05`만 썼다.
 
 Phase C 스위트는 이번 라운드에 다시 실행하지 않았다. 프로덕션 diff가 없기 때문이다. 이전 라운드에서 Phase C 커밋 `48e6265` 위에 P3 수정만 임시로 올려 돌린 결과는 tsc 통과, vitest 50 files, 345 tests, 실패 0이었다. 그 임시 커밋은 푸시하지 않았다. Phase C 브랜치는 `48e6265`다.
 
@@ -130,7 +173,7 @@ P1·P2는 프로덕션 수정이 없어 전후 건수가 같다. P3 12주 실측
 
 ## 7. 모델 생성 성공과 최종 채택 건수
 
-운영: 모델이 응답한 호출 4건, 채택된 주(`generation_source=model`) 0건. active 주 id 8은 응답이 정상 JSON이고 채택은 fallback `too_similar`다. 월간 active는 fallback `bad_json`이다.
+운영: 모델이 응답한 주간 호출 4건, 채택된 주(`generation_source=model`) 0건. active 주 id 8은 응답 1·2가 정상 JSON이고, 현재 검사에서 둘 다 같은 주 목·토 4점으로 `too_similar`다. 채택된 본문은 fallback이다. 월간 active는 fallback `bad_json`이고 응답 원문은 없다.
 
 2099 12주: 응답은 있었고 채택된 모델 주는 0이다. JSON 파싱 성공과 채택은 다르다.
 
@@ -146,18 +189,17 @@ P1·P2는 프로덕션 수정이 없어 전후 건수가 같다. P3 12주 실측
 
 ## 10. 해결되지 않은 문제와 후속 조치
 
-- 운영 10-07 v6 응답과 비교 대상 주가 없다. too_similar가 검사기 오류인지 모델이 낸 구조의 반복인지는 미해결이다. 원문이 오면 그 JSON과 당시 active `wod_structures`만으로 다시 판정한다. 점수 특징이 4개 이상 같으면 검사기는 수정하지 않는다.
-- 월간 응답 원문이 없다. `bad_json`이 읽히지 않는 JSON인지, `1c7baba` 이전의 모양 실패 라벨인지, 마이그레이션이 채운 `monthly-program-v1`인지 미해결이다. 원문이 오기 전에 파서를 고치지 않는다.
+- 주간 `too_similar`의 원인은 재현됐다. 응답 1의 목요일과 토요일이 같은 주에서 4점이다. 후보 주 1–3과 class_weeks는 그 판정의 비교 대상이 아니다. 검사기는 수정하지 않았다.
+- 월간 응답 원문은 여전히 없다. 로그가 없는 이유는 2026-10-05 02:25 KST에 생성 로그 테이블이 없었기 때문이다. `bad_json`이 깨진 JSON인지 모양 실패인지는 그 코드가 둘을 한 라벨로 적었고 본문을 남기지 않아 미해결이다. 파서는 수정하지 않는다.
+- v5 schema는 `76fe52e`에서 재현됐다. 1차 첫 오류는 수요일 short와 14분이다. 현재 코드는 그 뒤에 생긴 purpose 필수 때문에 더 앞에서 거절한다. 그 차이를 운영 원인으로 소급하지 않는다.
 - wod-from-intent-v1 12주는 모델 채택 0이다. 격리 테스트 문제로 남긴다. 운영 장애의 원인으로 적지 않는다.
 - 9b88b20의 운영 생성 결과는 아직 없다. 배포 이후 요청이 0건이다.
-- 2026-10-12 주는 수정 확인용 운영 실험으로 쓰지 않는다. 확인은 2099에서 한다.
-
-후속은 사용자가 읽기 전용으로 넘기는 세 원문이다. 그 전에 임계값을 내리거나 fallback을 숨기는 변경은 하지 않는다.
+- 2026-10-12 주는 수정 확인용 운영 실험으로 쓰지 않는다.
 
 ## 세 가지 답
 
-1. 기본 생성 경로의 스키마 오류가 해결됐는가? 아니오. 운영의 schema 1건은 배포 전 v5이고 상세 원문이 없다. 2099 12주의 wod-from-intent 스키마 경로는 모델 주 0, fallback 12(schema 10, rule_break 2)다. 재시도 지시만 고쳤고 해결로 보지 않는다. 이 경로는 운영 사실이 아니다.
+1. 기본 생성 경로의 스키마 오류가 해결됐는가? 운영 v5 1건은 원인 문장까지 재현됐다. 해결 대상인 코드 결함은 아니었다. 1차 첫 오류는 수요일 `short`와 14분이다. 2099 12주의 wod-from-intent 경로는 모델 주 0, fallback 12(schema 10, rule_break 2)로 남아 있다. 그 경로는 운영 사실이 아니다.
 
-2. fallback이 발생한다면 그 원인이 정확히 기록되는가? 현재 코드와 2099 저장 행에서는 그렇다. 주간은 `too_similar`, `schema`, `rule_break`, `http_error`, `no_model`이 첫 실패 단계와 같이 저장되고, fallback은 모델 성공 수에 들어가지 않는다. 운영 active 주 id 8의 사유는 `too_similar`다. 월간 현재 코드는 읽히지 않는 JSON만 `bad_json`이고 키·모양 실패는 `schema`다. 운영 월 행의 `bad_json`이 그 현재 의미인지는 원문이 없어 아직 확정하지 않는다.
+2. fallback이 발생한다면 그 원인이 정확히 기록되는가? 주 id 8은 그렇다. 저장 사유 `too_similar`는 응답 1의 같은 주 목·토 4점과 일치한다. 다만 v6 로그에는 점수와 비교 요일이 없고, 이번 재채점에서 그 문장을 복원했다. 월간 `bad_json`은 당시 코드가 깨진 JSON과 모양 실패를 한 라벨로 적었고 본문을 남기지 않았다. 그 행의 세부 유형은 기록되어 있지 않다.
 
-3. Phase B·C 및 기존 검증 규칙에 회귀 문제가 없는가? 이번 라운드 프로덕션 변경은 없다. 이 브랜치 vitest 336개는 실패 0이고 기존 Phase B 검사를 포함한다. Phase C 승인·수정·거절 스위트는 이번 라운드에 다시 실행하지 않았다. 이전 임시 적용의 345개 실패 0은 P3 diff에 대한 결과로 남아 있다. 임계값과 잠금, stimulus 반복, 하체 간격은 그대로다. flag를 켠 12주 라이브 프로브는 이번 커밋 이후 실행하지 않았다.
+3. Phase B·C 및 기존 검증 규칙에 회귀 문제가 없는가? 이번 라운드 프로덕션 변경은 없다. 이 브랜치 vitest 337개는 실패 0이고 기존 Phase B 검사를 포함한다. 임계값은 4다. Phase C 승인·수정·거절 스위트는 이번 라운드에 다시 실행하지 않았다. 이전 임시 적용의 345개 실패 0은 P3 diff에 대한 결과로 남아 있다. flag를 켠 12주 라이브 프로브는 이번 커밋 이후 실행하지 않았다.

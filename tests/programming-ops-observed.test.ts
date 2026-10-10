@@ -23,6 +23,19 @@ import {
   type WeekDraft,
 } from "../src/lib/programming/types";
 
+function scored(partial: Pick<StoredStructure, "day" | "format" | "time_domain" | "stimulus" | "movement_patterns" | "equipment" | "volume">): StoredStructure {
+  return {
+    ...partial,
+    movements: [{ key: "name-not-scored", amount: "8", name_ko: "이름" }],
+    rep_structure: "반복",
+    work_rest_structure: "쉼",
+    duration_min: 12,
+    intensity: "moderate",
+    benchmark: false,
+    long_conditioning: false,
+  };
+}
+
 const KEY = "sk-ops-observed-test";
 const NOW = Date.parse("2099-07-06T01:00:00.000Z");
 const OLD_WEEK = "2099-05-26";
@@ -145,6 +158,45 @@ describe("ops-observed weekly similarity and monthly json labels", () => {
     expect(changedScore.score).toBeLessThan(SIMILARITY_CONFIG.threshold);
     expect(structurallySimilar(monday, changed)).toBe(false);
     expect(changedScore.matched).not.toEqual(expect.arrayContaining(["format", "time_domain", "stimulus", "equipment", "volume"]));
+  });
+
+  it("scores the 2026-10-07 response as thursday against saturday inside the same week", () => {
+    const thursday = scored({
+      day: "thu",
+      format: "amrap",
+      time_domain: "medium",
+      stimulus: "technical",
+      movement_patterns: ["engine", "gymnastic"],
+      equipment: ["ski", "bodyweight"],
+      volume: "low",
+    });
+    const saturday = scored({
+      day: "sat",
+      format: "amrap",
+      time_domain: "short",
+      stimulus: "technical",
+      movement_patterns: ["gymnastic", "engine"],
+      equipment: ["jump_rope", "bodyweight"],
+      volume: "low",
+    });
+    expect(similarityMatch(thursday, saturday)).toEqual({
+      score: 4,
+      matched: ["format", "stimulus", "movement_pattern", "volume"],
+    });
+    const olderSaturday = scored({
+      day: "sat",
+      format: "amrap",
+      time_domain: "short",
+      stimulus: "high_rep",
+      movement_patterns: ["gymnastic"],
+      equipment: ["bodyweight", "rings"],
+      volume: "low",
+    });
+    expect(similarityMatch(saturday, olderSaturday)).toEqual({
+      score: 3,
+      matched: ["format", "time_domain", "volume"],
+    });
+    expect(SIMILARITY_CONFIG.threshold).toBe(4);
   });
 
   it("compares only active weeks inside the forty day window", async () => {
