@@ -1490,8 +1490,9 @@ export function wodFromIntentPrompt(input: {
     ? {
         instruction: `Previous output violated: ${input.retryErrors[0]}`,
         previous_output_violated: input.retryErrors.slice(0, 4),
+        failure_briefs: constraintFailureBriefs(input.retryErrors),
         previous_draft: input.previousDraft ?? null,
-        repair: "Change only the day named by the violation. Keep the weekly intent. Do not rewrite the other days.",
+        repair: `Apply each failure_brief. duration_min chooses time_domain: ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long. Copy that domain onto the session, set expected_duration to duration_min, and set long_conditioning true only when the domain is long. A duration outside ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.long.max} has no legal domain; change that duration into one bucket. Copy a null session-level field only from the conditioning object on that same day. Keep every day the briefs do not name.`,
       }
     : null;
   return {
@@ -1513,6 +1514,8 @@ export function wodFromIntentPrompt(input: {
       "No invented kilograms. Strength is percent_of_tm only.",
       "A rest day has rest true, warmup_min 0, empty warmup_ko, and null work.",
       "Training days need conditioning. duration_min chooses time_domain: 1–12 short, 13–29 medium, 30–40 long.",
+      "Do not label 20 or 25 as short. 20 and 25 are medium. Do not label 30, 35, or 40 as short or medium. Those are long. 60 is outside every domain. Change that duration. Do not call it long.",
+      "Session time_domain equals conditioning.time_domain. expected_duration equals duration_min. long_conditioning is true only when time_domain is long. Copy a missing session field from conditioning. Do not leave it null when conditioning already has the value.",
       "Long conditioning matches weekly_requirements. Not on a heavy squat or deadlift, and not the day after one.",
       "Squat and deadlift use lower_body_sets. Bench and ohp use upper_body_sets.",
       "Do not place a heavy pull the day after a heavy squat, or a heavy squat the day after a heavy deadlift.",
@@ -1521,6 +1524,25 @@ export function wodFromIntentPrompt(input: {
       "Korean for every *_ko field, focus, and scheme_note.",
       "Top-level JSON is { intent, sessions } with mon through sun.",
     ],
+    time_domain_rules: {
+      order: "Pick duration_min first. Then set time_domain from that number. The server does not rewrite a wrong label.",
+      short: `${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} minutes.`,
+      medium: `${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} minutes. 14, 16, 18, 20, and 25 are medium.`,
+      long: `${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes. 30, 35, and 40 are long.`,
+    },
+    time_domain_examples: {
+      valid: [
+        { time_domain: "short", duration_min: 12 },
+        { time_domain: "medium", duration_min: 20 },
+        { time_domain: "long", duration_min: 35 },
+      ],
+      invalid: [
+        { time_domain: "short", duration_min: 20, why: "20 is medium, not short" },
+        { time_domain: "short", duration_min: 35, why: "35 is long, not short" },
+        { time_domain: "medium", duration_min: 30, why: "30 is long, not medium" },
+        { time_domain: "long", duration_min: 60, why: "60 is outside 30–40" },
+      ],
+    },
     recent_structures: (input.recent ?? []).slice(-8).map((row) => ({
       format: row.format,
       time_domain: row.time_domain,

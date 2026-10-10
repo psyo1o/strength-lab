@@ -566,6 +566,17 @@ export const TIME_DOMAIN_RANGES = {
   long: { min: 30, max: 40 },
 } as const;
 
+/**
+ * The one domain that contains this duration, or null when it is outside every bucket.
+ * Unlike the coaching stamp, a duration such as 60 is not called long.
+ */
+export function timeDomainForDuration(minutes: number): "short" | "medium" | "long" | null {
+  if (minutes >= TIME_DOMAIN_RANGES.short.min && minutes <= TIME_DOMAIN_RANGES.short.max) return "short";
+  if (minutes >= TIME_DOMAIN_RANGES.medium.min && minutes <= TIME_DOMAIN_RANGES.medium.max) return "medium";
+  if (minutes >= TIME_DOMAIN_RANGES.long.min && minutes <= TIME_DOMAIN_RANGES.long.max) return "long";
+  return null;
+}
+
 const DAY_LABEL: Record<DayKey, string> = {
   mon: "Monday",
   tue: "Tuesday",
@@ -1534,6 +1545,29 @@ export function structureValidationErrors(errors: readonly string[]): Structured
         repair_scope: "intent_only",
       });
     }
+    const domainRange = message.match(/time_domain=(\w+) duration=(\d+) is outside/);
+    if (domainRange) {
+      const days = keysFromLabels(message.split(":")[0] ?? "");
+      return structured(message, {
+        rule: "time_domain_range",
+        constraint: "time_domain",
+        priority: REPAIR_PRIORITY.schema,
+        severity: "hard",
+        current: Number(domainRange[2]),
+        affected_session: days,
+        affected_features: ["conditioning.duration_min", "conditioning.time_domain", "time_domain", "expected_duration", "conditioning.long_conditioning"],
+      });
+    }
+    if (message.includes("long flag does not match")) {
+      return structured(message, {
+        rule: "long_conditioning_flag",
+        constraint: "time_domain",
+        priority: REPAIR_PRIORITY.schema,
+        severity: "hard",
+        affected_session: keysFromLabels(message.split(":")[0] ?? ""),
+        affected_features: ["conditioning.long_conditioning", "conditioning.time_domain"],
+      });
+    }
     const keyed = message.match(/^(mon|tue|wed|thu|fri|sat|sun) /);
     const named = message.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/);
     const days = keysFromLabels(keyed?.[1] ?? message.split(":")[0] ?? "");
@@ -1585,6 +1619,33 @@ function failureBrief(error: StructuredValidationError): string {
     }
     if (error.rule === "korean_naming") {
       return `Previous attempt wrote ${error.affected_features[0] ?? "a Korean field"} with too little Korean. name_ko and every *_ko field are natural Korean names and sentences without kilograms or English abbreviations. Keep the English identity in key.`;
+    }
+    if (error.rule === "time_domain_range") {
+      const day = error.affected_session[0] ?? "that day";
+      const labeled = error.message.match(/time_domain=(\w+)/)?.[1] ?? "the previous label";
+      const minutes = error.current;
+      const required = minutes == null ? null : timeDomainForDuration(minutes);
+      const ranges = `${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long`;
+      if (required && minutes != null) {
+        return `Previous attempt set time_domain=${labeled} on ${day} while duration_min=${minutes}. duration_min chooses time_domain: ${ranges}. ${minutes} is ${required}, not ${labeled}. Set conditioning.time_domain and the session time_domain to ${required}, set expected_duration to ${minutes}, and set long_conditioning ${required === "long" ? "true" : "false"}. Do not rewrite other days.`;
+      }
+      return `Previous attempt set time_domain=${labeled} on ${day} while duration_min=${minutes ?? "unknown"} is outside ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.long.max}. No legal time_domain contains that duration. Change duration_min into one bucket (${ranges}), then set time_domain from the new duration. Do not label an out-of-range duration as long. Do not rewrite other days.`;
+    }
+    if (error.rule === "long_conditioning_flag") {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt set long_conditioning incorrectly on ${day}. long_conditioning is true only when time_domain is long (${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes). Set the flag from the domain after duration_min. Do not rewrite other days.`;
+    }
+    if (error.rule === "schema" && (error.message.includes("missing session fields") || error.message.includes("missing duration or load bands"))) {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt left ${day} incomplete: ${error.message}. Copy metcon_format, time_domain, stimulus, equipment, volume, intensity, and expected_duration from that day's conditioning object. Leave a field null only when conditioning does not have it. time_domain still has to match duration_min. Do not rewrite other days.`;
+    }
+    if (error.rule === "schema" && error.message.includes("does not match")) {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt disagreed with itself on ${day}: ${error.message}. Session-level copies must equal that day's conditioning object. expected_duration equals duration_min, and both time_domain fields are the domain duration_min chooses. Do not overwrite a duration that is already inside its labeled domain. Do not rewrite other days.`;
+    }
+    if (error.rule === "schema" && error.message.includes("warmup is not")) {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt set warmup_min outside 8–12 on ${day}. Set warmup_min to a minute from 8 through 12. A rest day stays at 0. Do not rewrite other days.`;
     }
     if (error.rule === "schema" && error.affected_session.length) {
       return `Previous attempt left ${error.affected_session.join(", ")} incomplete: ${error.message}. Fill every session-level field on that day from its own strength and conditioning objects. Do not rewrite other days.`;
