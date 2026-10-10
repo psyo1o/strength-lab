@@ -1,6 +1,29 @@
 # wod-from-intent-v1 스키마 오류 — v2 9절 보고
 
-운영 NAS, 운영 DB, 배포, feature flag 변경, 회원 계획 재생성은 하지 않았다. 아래 건수는 2099 임시 DB와 단위 테스트다. 운영 사실로 바꾸어 읽지 않는다.
+운영 NAS, 운영 DB, 배포, feature flag 변경, 회원 계획 재생성은 이 워크스페이스에서 하지 않았다. 1절 이후의 건수는 2099 임시 DB와 단위 테스트다. 그 숫자를 운영 사실로 바꾸어 읽지 않는다.
+
+## 실제 운영 로그에서 확인한 사실
+
+출처는 2026-10-11 KST 읽기 전용 점검이다. NAS의 운영 DB를 sqlite 읽기 전용으로 보고, 컨테이너 환경 변수만 확인했다. 쓰기, 생성, 재시작, flag 변경은 없었다. 회원 정보와 키 값은 없다.
+
+배포본은 `ghcr.io/psyo1o/strength-lab:9b88b20`이다. 컨테이너는 2026-10-10 05:28 KST에 시작했고 재시작 0회다. 그 시각 이후 운영 생성 요청은 0건이다. docker logs는 Next.js 시작 6줄뿐이다.
+
+1. 운영에서 실제 사용 중인 생성 경로. 컨테이너 env, `.env`, `docker-compose.nas.yml` 어디에도 `COACHING_PIPELINE`, `LONGITUDINAL_PLANNING`, `PHASE_C`가 없다. 코드 기본값인 꺼짐으로 돈다. `MONTH_PLAN_MODEL_KEY`는 있다. 운영 DB의 prompt_version은 주간 `weekly-program-v1` 1건, `v5` 2건, `v6` 1건, 월간 `monthly-program-v1` 1건이다. generation_logs는 v5 4건, v6 2건이다. `wod-from-intent-v1`은 prompt_version과 raw_json 모두 0건이다.
+2. 운영 schema 오류. `programming_weeks` id 2, 2026-10-05 주, 2026-10-07 10:21 KST, `weekly-program-v5`, attempt 2, `fallback_reason=schema` 1건. 모델 응답 로그 2건은 파싱되는 JSON(sessions 7개)이었다. 상세 오류 원문은 DB에 없다. 이 행은 9b88b20 배포 전 기록이다.
+3. 운영 fallback. 2026-10-05 주는 저장된 행이 모두 fallback이다. id 1은 v1 timeout(superseded, 로그 테이블 이전). id 2는 v5 schema(superseded). id 3은 v5 http_error(superseded)이고 응답 2건 모두 `status 500 "forced-failure"`, 지연 2ms라 주입된 실패다. id 8은 v6 too_similar이고 현재 active다. 모델 응답 JSON 2건(17.1초, 24.1초)이 있고 결과는 fallback이다. 월간 2026-10-01은 fallback / bad_json, active, scheme 531이다.
+4. 모델 성공과 실패. generation_logs 6건은 모두 2026-10-07 KST다. 모델이 응답한 호출 4건(id 1, 2, 5, 6)은 전부 fallback으로 끝났다. HTTP 실패 2건은 주입된 500이다. HTTP 429와 크레딧 관련 기록은 DB와 docker logs 모두 0건이다. `generation_source=model`인 주는 0건이다. 10-08 이후 운영 주 생성 기록은 없다.
+5. 회원 계획. 현재 active인 2026-10-05 주(id 8)는 기본 세션이다. 이유는 too_similar이고 프롬프트는 v6이다. 월간 계획도 fallback(bad_json)이다. 2026-10-12 이후 programming_weeks와 class_weeks는 없다. class_weeks는 2026-09-28과 2026-10-05 두 주뿐이다.
+6. 로그로 판단할 수 없는 것. v5 schema와 v6 too_similar의 필드·유사도 원문은 DB에 없다. `wod-from-intent-v1`으로 운영 회원 계획이 fallback됐다는 말은 운영 사실로 확인되지 않았다. 그건 2099 테스트 관측이다. 9b88b20으로 운영 생성이 한 번도 돌지 않아, 배포된 코드가 운영에서 어떤 주를 만드는지는 로그로 알 수 없다.
+
+### 9b88b20 코드에서 확인한 경로
+
+`src/lib/programming/engine.ts`의 flag 분기는 9b88b20과 이 브랜치가 같다. 이 PR은 그 파일을 바꾸지 않았다.
+
+`COACHING_PIPELINE`이 `"1"`이 아니면 `coachingPipelineEnabled()`는 false다. 운영 env에는 그 변수가 없으므로 이 분기를 탄다. 그 분기는 `authorWeeklyIntent` 다음에 `authorWeek`를 호출하고, `weeklyIntent`를 항상 넘긴다. `authorWeek`는 intent가 있으면 `wodFromIntentPrompt`를 쓰고, 그 버전 문자열은 `wod-from-intent-v1`이다. 모델을 호출했으면(`no_model`이 아니면) 저장되는 `prompt_version`도 `wod-from-intent-v1`이다. `weekly-program-v10`은 모델을 호출하지 않았을 때의 표식이다. 운영에 남아 있는 v1·v5·v6은 이 배포 이전에 저장된 행이다.
+
+`too_similar`는 여전히 fallback을 만든다. `judgeWeek`는 schema, 중량, 처방, 피로, 요일 패턴, 같은 주 규칙 다음에 유사도를 본다. 그 단계가 첫 실패이면 `fallback_reason`은 `too_similar`다. 임계값은 `SIMILARITY_CONFIG.threshold` 4이고 이 PR에서 바꾸지 않았다. 앞 단계에 오류가 있으면 저장 이유는 그 앞 단계다. 2099 프로브에서 유사도 메시지가 있어도 최종 이유가 schema 또는 rule_break였던 것은 그 순서 때문이며, 그 건수는 운영 건수가 아니다.
+
+현재 active 주(id 8)의 too_similar는 `weekly-program-v6` 엔진이 2026-10-07에 만든 결과다. 9b88b20의 `wod-from-intent-v1`이 만든 결과가 아니다.
 
 기준선 flag 끔 원본은 `phaseC-stab-off-cded0bfe-b93a-4a51-bc5b-a64f189ce649`이다. `phaseC-stab-5411454a`는 flag를 켠 코칭 실행이라 이 비교의 스키마 기준선이 아니다. 이번 실행은 `ops-path-fix-1b9cb659-7550-442f-817b-55cb0d5b88a1`이다. 요약은 `docs/ops-path-fix-probe.json`.
 
@@ -24,7 +47,7 @@
 
 재시도가 같은 라벨을 반복한 코드 원인은 따로 있다. `wodFromIntentPrompt`의 2차 본문은 오류 문장 4개만 보냈고, `constraintFailureBriefs`는 진단에만 남았다. 범위 오류의 지시문은 "세션 필드를 채워라"였다.
 
-flag 차이. `COACHING_PIPELINE=1`이면 `writeProgrammingWeek`가 `coachWeek`로 가고 `wod-from-intent-v1`을 타지 않는다. 그 경로는 duration으로 time_domain을 서버가 찍는다. flag가 꺼지면 `authorWeeklyIntent` 다음 `authorWeek`가 `wod-from-intent-v1`을 호출하고, 모델이 쓴 time_domain을 `judgeWeek`가 거절한다. 직전 flag 켠 12주(`phaseC-stab-5411454a`, `PHASE_C`도 1)는 모델 주 10, fallback 주 2, 일 출처 MODEL 65 / MODEL_REVISED 5 / FALLBACK 2다. 그 숫자는 이번 수정 전 코칭 경로 기준선이다. 이번 작업은 그 경로를 다시 실행하지 않았다.
+flag를 켠 2099 기준선(`phaseC-stab-5411454a`, `PHASE_C`도 1)은 모델 주 10, fallback 주 2, 일 출처 MODEL 65 / MODEL_REVISED 5 / FALLBACK 2다. 그 숫자는 테스트다. 이번 작업은 그 경로를 다시 실행하지 않았다. 운영 flag가 꺼져 있다는 사실과, 꺼진 코드가 `wod-from-intent-v1`을 탄다는 사실은 위의 운영 절과 코드 확인에 있다.
 
 ## 2. 수정 내용
 
@@ -96,21 +119,21 @@ time_domain 메시지가 줄었다고 생성 품질이 좋아졌다고 보지 �
 
 해결하지 못한 문제. flag 끈 12주가 여전히 전부 fallback이다. 재시도 지시를 고쳐도 이 샘플의 모델은 검증을 통과하는 주를 내지 못했다. 세션 필드 누락은 기준선 26메시지에서 35로 늘었다.
 
-재현되지 않은 문제. 정상 JSON을 파서나 변환이 떨어뜨리는 경로는 원본 로그에서 나오지 않았다. 재시도 성공분을 버리고 첫 실패를 저장하는 경로는 테스트에서 재현되지 않았고, 코드는 2차 성공을 채택한다. 운영 로그의 schema·fallback 건수는 재현 대상이 아니다. 이 환경은 NAS에 접속하지 못한다.
+재현되지 않은 문제. 정상 JSON을 파서나 변환이 떨어뜨리는 경로는 2099 원본에서 나오지 않았다. 재시도 성공분을 버리고 첫 실패를 저장하는 경로는 테스트에서 재현되지 않았고, 코드는 2차 성공을 채택한다. 운영의 v5 schema 1건은 상세 원문이 없어, 2099에서 본 time_domain 불일치와 같은 실패인지 확인할 수 없다.
 
-추가 확인. 운영 생성 로그가 와야 운영 주가 이 경로의 fallback인지 알 수 있다. 콜 경로 12주는 이번 수정 후 다시 돌리지 않았다. flag가 켜지면 이 프롬프트를 타지 않고, Phase C 단위 테스트는 임시 적용본에서 통과했다.
+추가 확인. 9b88b20으로 운영 생성이 돈 뒤에야 배포본의 `wod-from-intent-v1` 결과를 볼 수 있다. 그때까지 운영 active 주의 원인은 v6 too_similar다. 콜 경로 12주는 이번 수정 후 다시 돌리지 않았다. flag가 켜지면 이 프롬프트를 타지 않고, Phase C 단위 테스트는 임시 적용본에서 통과했다.
 
 ## 6. 적용 상태
 
 - 코드 수정: 했다. 브랜치 `cursor/ops-path-schema-fca8`, 드래프트 PR #63. Phase C PR #62와 합치지 않았다.
 - 테스트: 이 브랜치 331/331 통과. Phase C 임시 적용 345/345 통과. 12주 프로브는 끝났고 모델 주 0이다.
 - 배포: 하지 않았다.
-- feature flag: 운영 값과 코드 기본값은 바꾸지 않았다. 프로브 프로세스만 `PROBE_FLAGS=off`로 두 flag가 꺼진 상태에서 실행됐다.
+- feature flag: 코드 기본값은 바꾸지 않았다. 운영 env에는 세 flag가 없고, 읽기 전용 점검이 그 사실을 확인했다. 이 작업은 그 값을 쓰지 않았다. 2099 프로브만 `PROBE_FLAGS=off`로 두 flag가 꺼진 프로세스에서 실행됐다.
 
 ## 세 가지 답
 
 1. 기본 생성 경로의 스키마 오류가 해결됐는가? 아니오. 재시도 지시가 비어 있던 부분은 고쳤고, 관측된 time_domain 범위 밖 메시지는 85에서 11로 줄었다. 12주 모델 성공은 0이고 fallback은 12주다. 남은 최종 원인은 schema 10주, rule_break 2주다. 해결됐다고 보지 않는다.
 
-2. fallback이 발생한다면 그 원인이 정확히 기록되는가? 예. 저장된 `fallback_reason`이 schema, rule_break, http_error, no_model로 갈린다. 이번 12주는 schema 10, rule_break 2다. `generation_source`는 fallback이라 모델 성공 수에 들어가지 않는다. 429 문자열은 0건이다.
+2. fallback이 발생한다면 그 원인이 정확히 기록되는가? 예. 2099 12주는 schema 10, rule_break 2다. `generation_source`는 fallback이라 모델 성공 수에 들어가지 않는다. 유사도가 첫 실패이면 저장 이유는 `too_similar`다. 운영 active 주(id 8)도 `too_similar`로 남아 있다. 그 주는 v6 기록이지 이번 2099 건수가 아니다. 운영 429는 0건이다.
 
 3. Phase B·C 및 기존 검증 규칙에 회귀 문제가 없는가? 단위 테스트에서는 없다. 이 브랜치 331개, Phase C 임시 적용 345개가 실패 0이다. 잠금 위반은 수정 전후 모두 0→0이다. 구간, 유사도 임계값, stimulus 반복, 하체 간격은 완화하지 않았다. flag 켠 12주 라이브 프로브는 이번 커밋 이후 다시 실행하지 않았다.
