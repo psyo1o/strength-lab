@@ -3,7 +3,7 @@ import { insertCoachTraces } from "../../store";
 import { getProgrammingWeek } from "../../store";
 import { getSqlite } from "../../../db/client";
 import { inputHash } from "../trace";
-import { fingerprint, type PhaseCPacket } from "./logic";
+import { applyAcceptedPatches, fingerprint, type PhaseCPacket } from "./logic";
 import { PHASE_C_REVIEW_VERSION, runPhaseCReview, type PhaseCRun } from "./run";
 import type { MonthDirection } from "../../types";
 
@@ -55,16 +55,38 @@ function storedRun(raw: string): PhaseCRun | null {
   return output;
 }
 
-export function findPhaseCRun(weekStart: string, hash: string): PhaseCRun | null {
+function loggedRuns(weekStart: string): PhaseCRun[] {
   const rows = getSqlite()
     .prepare(
       `SELECT raw_json FROM programming_generation_logs
        WHERE scope = 'week' AND scope_key = ? AND prompt_version = ?`,
     )
     .all(weekStart, PHASE_C_REVIEW_VERSION) as Array<{ raw_json: string }>;
-  for (const row of rows) {
+  return rows.flatMap((row) => {
     const run = storedRun(row.raw_json);
-    if (run?.input_hash === hash) return { ...run, duplicate: true, calls: 0, tokens: 0, elapsed_ms: 0 };
+    return run ? [run] : [];
+  });
+}
+
+export function findPhaseCRun(weekStart: string, hash: string): PhaseCRun | null {
+  for (const run of loggedRuns(weekStart)) {
+    if (run.input_hash === hash) return { ...run, duplicate: true, calls: 0, tokens: 0, elapsed_ms: 0 };
+  }
+  return null;
+}
+
+function confirmedRun(weekStart: string, packet: PhaseCPacket): PhaseCRun | null {
+  const current = JSON.stringify(
+    packet.days.map((day) => ({
+      day: day.day,
+      movements: (day.session.conditioning?.movements ?? []).map((row) => `${row.key}:${row.amount}`),
+      work_rest: day.session.conditioning?.work_rest_structure ?? null,
+    })),
+  );
+  for (const run of loggedRuns(weekStart)) {
+    if (run.confirmed && JSON.stringify(run.confirmed) === current) {
+      return { ...run, duplicate: true, calls: 0, tokens: 0, elapsed_ms: 0 };
+    }
   }
   return null;
 }
@@ -93,8 +115,39 @@ export function persistPhaseCRun(input: { weekStart: string; planId: number; run
 }
 
 /**
- * Reviews one stored 2099 week. Writes a generation log. Does not update the week row.
- * A second call with the same sessions returns the stored review and does not call the model.
+ * Writes an adopted revision onto the 2099 week draft.
+ * The review log keeps the original snapshot. Live weeks are never updated.
+ */
+export function writeConfirmedWeek(weekStart: string, run: PhaseCRun): boolean {
+  if (!weekStart.startsWith("2099-") || weekStart === LIVE_CLASS_WEEK) return false;
+  if (run.decision !== "APPROVE_REVISED" && run.decision !== "PARTIAL_REVISION") return false;
+  if (!run.changes.length || !run.confirmed) return false;
+  const packet = packetFromWeek(weekStart);
+  const accepted = run.accepted.flatMap((row) => {
+    const day = packet.days.find((item) => item.day === row.day)?.day;
+    return day ? [{ role: row.role, day }] : [];
+  });
+  const applied = applyAcceptedPatches({ packet, proposals: run.proposals, accepted });
+  if (!applied.ok) return false;
+  const week = getProgrammingWeek(weekStart);
+  if (!week) return false;
+  const draft = structuredClone(week.draft);
+  for (const session of applied.sessions) {
+    const target = draft.sessions.find((row) => row.day === session.day);
+    if (!target?.conditioning || !session.conditioning) continue;
+    target.conditioning.movements = session.conditioning.movements;
+    target.conditioning.work_rest_structure = session.conditioning.work_rest_structure;
+  }
+  const changed = getSqlite()
+    .prepare(`UPDATE programming_weeks SET plan_json = ? WHERE id = ? AND week_start LIKE '2099-%'`)
+    .run(JSON.stringify(draft), week.id);
+  return changed.changes > 0;
+}
+
+/**
+ * Reviews one stored 2099 week and writes the generation log.
+ * An adopted revision replaces the conditioning on that 2099 week. The log keeps the original.
+ * A second call with the same sessions, or with the already confirmed sessions, does not call the model.
  */
 export async function reviewActiveWeek(input: {
   weekStart: string;
@@ -103,11 +156,12 @@ export async function reviewActiveWeek(input: {
 }): Promise<PhaseCRun> {
   const packet = packetFromWeek(input.weekStart);
   const hash = inputHash(fingerprint(packet));
-  const prior = findPhaseCRun(input.weekStart, hash);
+  const prior = findPhaseCRun(input.weekStart, hash) ?? confirmedRun(input.weekStart, packet);
   if (prior) return prior;
   const week = getProgrammingWeek(input.weekStart);
   const run = await runPhaseCReview({ packet, key: input.key, fetchImpl: input.fetchImpl });
   persistPhaseCRun({ weekStart: input.weekStart, planId: week?.id ?? 0, run });
+  writeConfirmedWeek(input.weekStart, run);
   return run;
 }
 

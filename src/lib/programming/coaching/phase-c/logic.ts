@@ -3,8 +3,7 @@ import { intervalFieldErrors } from "../contract";
 import { movementCatalog } from "../pieces";
 import type { SkeletonDay } from "../../planning/types";
 import type { DayIntent, SessionDraft } from "../../types";
-import { intervalFitIssues, prescriptionAmountIssue } from "../stage13/units";
-import { MOVEMENT_EQUIPMENT } from "../stage13/units";
+import { MOVEMENT_EQUIPMENT, amountUnit, intervalFitIssues, prescriptionAmountIssue } from "../stage13/units";
 
 export const PHASE_C_ROLES = ["programming", "strength_fatigue", "execution"] as const;
 export type PhaseCRole = (typeof PHASE_C_ROLES)[number];
@@ -95,7 +94,9 @@ function cleanAmount(value: string): string {
 }
 
 function integer(value: unknown): number | null {
-  return typeof value === "number" && Number.isInteger(value) ? value : null;
+  if (typeof value === "number" && Number.isInteger(value)) return value;
+  if (typeof value === "string" && /^-?\d+$/.test(value.trim())) return Number(value.trim());
+  return null;
 }
 
 function dayOf(value: unknown): DayKey | null {
@@ -433,6 +434,136 @@ function confirmSession(session: SessionDraft, day: PhaseCDayPacket): string[] {
     errors.push(...intervalFieldErrors(clock).map((error) => `${day.day}: ${error}`));
   }
   return errors;
+}
+
+const EMPTY_EFFECT = "기대 효과를 적지 않았다.";
+
+function renamesLegalUnit(packet: PhaseCPacket, proposal: PhaseCProposal): boolean {
+  if (proposal.target !== "amount") return false;
+  const piece = packet.days.find((day) => day.day === proposal.day)?.session.conditioning;
+  if (!piece) return false;
+  if (prescriptionAmountIssue(proposal.movement_key, proposal.before, piece.duration_min).status !== "ok") return false;
+  const before = amountUnit(proposal.before);
+  const after = amountUnit(proposal.after);
+  return Boolean(before && after && before !== after);
+}
+
+/** Why a proposal cannot be adopted. Null means the patch is specific and passes the existing checks. */
+export function proposalBlockReason(packet: PhaseCPacket, proposal: PhaseCProposal): string | null {
+  if (proposal.duration_min != null) return `${proposal.day}: duration_min은 잠겨 있어 거절합니다.`;
+  if (proposal.skeleton_impact === "risk") return "뼈대 위험을 적어 거절합니다.";
+  if (proposal.expected_effect === EMPTY_EFFECT) return "기대 효과가 없어 원본을 유지합니다.";
+  if (proposal.uncertainty.startsWith("형식 오류")) return "형식 오류라 수정안으로 보지 않습니다.";
+  if (proposal.target === "amount" && proposal.before === proposal.after) return "바뀌는 양이 없습니다.";
+  if (renamesLegalUnit(packet, proposal)) return "Phase B가 허용한 양의 단위만 바꾸는 안은 거절합니다.";
+  const applied = applyAcceptedPatches({
+    packet,
+    proposals: [proposal],
+    accepted: [{ role: proposal.role, day: proposal.day }],
+  });
+  if (!applied.ok) return applied.errors.join(" ");
+  return null;
+}
+
+export function coverRejected(
+  proposals: readonly PhaseCProposal[],
+  rejected: PhaseCHeadChoice["rejected"],
+  reason: string,
+): PhaseCHeadChoice["rejected"] {
+  const next = [...rejected];
+  for (const proposal of proposals) {
+    if (next.some((row) => row.role === proposal.role && row.day === proposal.day)) continue;
+    next.push({ role: proposal.role, day: proposal.day, reason });
+  }
+  return next;
+}
+
+export type PhaseCSettlement = {
+  decision: PhaseCDecisionName;
+  rationale: string;
+  accepted: Array<{ role: PhaseCRole; day: DayKey }>;
+  rejected: PhaseCHeadChoice["rejected"];
+  changes: AppliedChange[];
+  sessions: SessionDraft[] | null;
+  validation: { ok: boolean; errors: string[] };
+};
+
+/**
+ * Closes a head NEEDS_REVIEW hedge.
+ * A concrete patch that passes the existing checks is adopted.
+ * A weak or conflicting patch is rejected and the original stays.
+ * A silent coach or an unresolved high-severity finding stays NEEDS_REVIEW.
+ */
+export function settleNeedsReview(input: {
+  packet: PhaseCPacket;
+  reviews: readonly PhaseCSpecialistReview[];
+  proposals: readonly PhaseCProposal[];
+  choice: PhaseCHeadChoice;
+}): PhaseCSettlement {
+  const blocks = new Map<PhaseCProposal, string | null>();
+  for (const proposal of input.proposals) {
+    const named = input.choice.rejected.find((row) => row.role === proposal.role && row.day === proposal.day);
+    blocks.set(proposal, named ? named.reason : proposalBlockReason(input.packet, proposal));
+  }
+  const byDay = new Map<string, PhaseCProposal[]>();
+  for (const proposal of input.proposals) {
+    const list = byDay.get(proposal.day) ?? [];
+    list.push(proposal);
+    byDay.set(proposal.day, list);
+  }
+  for (const rows of byDay.values()) {
+    const open = rows.filter((proposal) => blocks.get(proposal) == null);
+    if (open.length < 2) continue;
+    for (const proposal of open) blocks.set(proposal, "같은 날의 수정안이 서로 달라 원본을 유지합니다.");
+  }
+  const adoptable = input.proposals.filter((proposal) => blocks.get(proposal) == null);
+  const rejected = input.proposals.flatMap((proposal) => {
+    const reason = blocks.get(proposal);
+    return reason ? [{ role: proposal.role, day: proposal.day, reason }] : [];
+  });
+  const silentCoach = input.reviews.some((review) => review.failure_reason != null && review.findings.length === 0);
+  const highOpen = input.reviews.some((review) =>
+    review.findings.some((finding) => finding.severity === "high" && finding.proposal == null && !finding.uncertainty.startsWith("형식 오류")),
+  );
+  const hold = silentCoach || highOpen;
+  if (hold || adoptable.length === 0) {
+    const decision = hold ? "NEEDS_REVIEW" : "APPROVE_ORIGINAL";
+    const note = hold ? "자동으로 닫지 못했습니다." : "원본을 승인하고 채택하지 않은 안은 거절했습니다.";
+    return {
+      decision,
+      rationale: `${input.choice.rationale} 결정 기준에 따라 ${note}`,
+      accepted: [],
+      rejected: decision === "APPROVE_ORIGINAL" ? coverRejected(input.proposals, rejected, input.choice.rationale) : rejected,
+      changes: [],
+      sessions: decision === "APPROVE_ORIGINAL" ? input.packet.days.map((day) => day.session) : null,
+      validation: { ok: true, errors: [] },
+    };
+  }
+  const applied = applyAcceptedPatches({
+    packet: input.packet,
+    proposals: input.proposals,
+    accepted: adoptable.map((proposal) => ({ role: proposal.role, day: proposal.day })),
+  });
+  if (!applied.ok) {
+    return {
+      decision: "NEEDS_REVIEW",
+      rationale: `${input.choice.rationale} 결정 기준에 따라 수정안이 검증을 통과하지 않아 원본을 유지합니다.`,
+      accepted: [],
+      rejected,
+      changes: [],
+      sessions: null,
+      validation: { ok: false, errors: applied.errors },
+    };
+  }
+  return {
+    decision: rejected.length ? "PARTIAL_REVISION" : "APPROVE_REVISED",
+    rationale: `${input.choice.rationale} 결정 기준에 따라 구체적인 수정안을 반영했습니다.`,
+    accepted: adoptable.map((proposal) => ({ role: proposal.role, day: proposal.day })),
+    rejected,
+    changes: applied.changes,
+    sessions: applied.sessions,
+    validation: { ok: true, errors: [] },
+  };
 }
 
 export function fingerprint(packet: PhaseCPacket): string {

@@ -18,8 +18,10 @@
  *   PROBE_MODE=db PROBE_LABEL=stage23 npx tsx scripts/plan-lab.ts
  * Stage 23.1 uses the same 12 weeks. Raw files under docs/stage23.1-runs are gitignored:
  *   PROBE_MODE=db PROBE_LABEL=stage23.1 npx tsx scripts/plan-lab.ts
- * Phase C reviews those stored weeks. It does not rewrite the week row.
+ * Phase C reviews those stored weeks. A confirmed revision is written back on the 2099 week.
  *   PROBE_MODE=db PROBE_LABEL=phaseC PHASE_C=1 npx tsx scripts/plan-lab.ts
+ * PROBE_FLAGS=off leaves COACHING_PIPELINE and LONGITUDINAL_PLANNING unset.
+ * Any other value turns both on for the probe process only.
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
@@ -664,7 +666,11 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
     model_calls: rows.reduce((sum, row) => sum + Number(row.model_calls ?? 0), 0),
     tokens: rows.reduce((sum, row) => sum + Number(row.tokens ?? 0), 0),
     elapsed_ms: rows.reduce((sum, row) => sum + Number(row.elapsed_ms ?? 0), 0),
-    flags: { COACHING_PIPELINE: "1", LONGITUDINAL_PLANNING: "1" },
+    flags: {
+      COACHING_PIPELINE: process.env.COACHING_PIPELINE === "1" ? "1" : "0",
+      LONGITUDINAL_PLANNING: process.env.LONGITUDINAL_PLANNING === "1" ? "1" : "0",
+      PHASE_C: process.env.PHASE_C === "1" ? "1" : "0",
+    },
   };
 }
 
@@ -687,8 +693,13 @@ async function main() {
   }
   process.env.DATABASE_PATH = `/tmp/${probeLabel}-phaseb.db`;
   process.env.STRENGTH_LAB_PROBE = "1";
-  process.env.COACHING_PIPELINE = "1";
-  process.env.LONGITUDINAL_PLANNING = "1";
+  if (process.env.PROBE_FLAGS === "off") {
+    delete process.env.COACHING_PIPELINE;
+    delete process.env.LONGITUDINAL_PLANNING;
+  } else {
+    process.env.COACHING_PIPELINE = "1";
+    process.env.LONGITUDINAL_PLANNING = "1";
+  }
   const passes = [];
   const runId = `${probeLabel}-${randomUUID()}`;
   const archiveRoot = `docs/${probeLabel}-runs`;

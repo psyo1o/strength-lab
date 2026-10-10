@@ -18,4 +18,6 @@ next-env.d.ts
 docs/stage23-runs/
 docs/stage23.1-runs/
 docs/phaseC-runs/
+docs/phaseC-stab-runs/
+docs/phaseC-stab-off-runs/
 docs/probe-raw/

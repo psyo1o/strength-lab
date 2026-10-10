@@ -311,6 +311,174 @@ describe("phase C coach review", () => {
     await expect(reviewActiveWeek({ weekStart: "2026-10-05", key: "test-key", fetchImpl })).rejects.toThrow(/refuses/);
   });
 
+  it("adopts a concrete proposal when the head coach only withholds it", async () => {
+    const run = await runPhaseCReview({
+      packet: packet(),
+      key: "test-key",
+      fetchImpl: scripted([pass("programming"), pass("strength_fatigue"), clockProposal(), head("NEEDS_REVIEW", [])]),
+    });
+    expect(run.decision).toBe("APPROVE_REVISED");
+    expect(run.changes[0]?.after).toBe("45초 일하고 30초 쉽니다.");
+    expect(run.original[0]?.work_rest).toBe("30초 일하고 30초 쉽니다.");
+    expect(run.confirmed?.[0]?.work_rest).toBe("45초 일하고 30초 쉽니다.");
+    expect(run.accepted).toEqual([{ role: "execution", day: "mon" }]);
+  });
+
+  it("keeps a head coach rejection that arrived as NEEDS_REVIEW", async () => {
+    const run = await runPhaseCReview({
+      packet: packet(),
+      key: "test-key",
+      fetchImpl: scripted([
+        pass("programming"),
+        pass("strength_fatigue"),
+        clockProposal(),
+        head("NEEDS_REVIEW", [], [{ role: "execution", day: "mon", reason: "작업 창을 늘리면 의도한 밀도보다 느슨해집니다." }]),
+      ]),
+    });
+    expect(run.decision).toBe("APPROVE_ORIGINAL");
+    expect(run.changes).toEqual([]);
+    expect(run.rejected[0]?.reason).toMatch(/밀도/);
+    expect(run.confirmed).toEqual(run.original);
+  });
+
+  it("rejects a unit rename and records the reason while keeping the original", async () => {
+    const rename = {
+      role: "execution",
+      days: [
+        {
+          day: "mon",
+          verdict: "SUGGEST_REVISION",
+          problem: "단위가 섞여 있다",
+          severity: "moderate",
+          evidence: "double_under 30sec",
+          intent_impact: "단위를 맞춘다",
+          uncertainty: "개인 속도",
+          proposal: {
+            target: "amount",
+            movement_key: "double_under",
+            before: "30sec",
+            after: "30reps",
+            reason: "초와 횟수가 섞여 라운드 시간이 불명확하다",
+            expected_effect: "단위가 횟수로 맞는다",
+            downside: "30회가 30초에 들어가는지 모른다",
+            skeleton_impact: "none",
+          },
+        },
+      ],
+    };
+    const run = await runPhaseCReview({
+      packet: packet(),
+      key: "test-key",
+      fetchImpl: scripted([pass("programming"), pass("strength_fatigue"), rename, head("NEEDS_REVIEW", [])]),
+    });
+    expect(run.decision).toBe("APPROVE_ORIGINAL");
+    expect(run.changes).toEqual([]);
+    expect(run.confirmed).toEqual(run.original);
+    expect(run.rejected[0]?.reason).toMatch(/단위/);
+  });
+
+  it("rejects both proposals when the same day has two concrete changes", async () => {
+    const burpee = {
+      role: "execution",
+      days: [
+        {
+          day: "mon",
+          verdict: "SUGGEST_REVISION",
+          problem: "버피 8회가 30초 창에 남는다",
+          severity: "moderate",
+          evidence: "작업 30초, 버피 8",
+          intent_impact: "창 안에서 끝낸다",
+          uncertainty: "페이스",
+          proposal: {
+            target: "amount",
+            movement_key: "burpee",
+            before: "8",
+            after: "6",
+            reason: "30초 작업 안에 버피가 끝나지 않는다",
+            expected_effect: "같은 작업 창에서 두 동작을 끝낸다",
+            downside: "버피 자극이 줄어든다",
+            skeleton_impact: "none",
+          },
+        },
+      ],
+    };
+    const run = await runPhaseCReview({
+      packet: packet(),
+      key: "test-key",
+      fetchImpl: scripted([
+        pass("programming"),
+        clockProposal("strength_fatigue"),
+        burpee,
+        head("NEEDS_REVIEW", []),
+      ]),
+    });
+    expect(run.decision).toBe("APPROVE_ORIGINAL");
+    expect(run.changes).toEqual([]);
+    expect(run.rejected).toHaveLength(2);
+    expect(run.confirmed).toEqual(run.original);
+  });
+
+  it("stores an adopted revision on the 2099 week and keeps the original in the log", async () => {
+    freshDb();
+    const db = getSqlite();
+    const now = Date.now();
+    const plan = { intent: { why_ko: "축적", focus: "volume", scheme_note: "유지" }, sessions: [session()] };
+    const month = db
+      .prepare(
+        `INSERT INTO programming_months (
+          month_start, scheme, direction_json, input_summary_json, generation_source, generated_at, engine_version, created_at,
+          prompt_version, rules_version, generation_timestamp, input_summary_version
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "2099-07-01",
+        "volume",
+        JSON.stringify({ scheme: "volume", strength_method: "ACCUMULATION", focus_ko: "축적", why_ko: "볼륨" }),
+        "{}",
+        "model",
+        now,
+        "test",
+        now,
+        "test",
+        "test",
+        now,
+        "test",
+      );
+    db.prepare(
+      `INSERT INTO programming_weeks (
+        month_id, week_index, week_start, intent_json, plan_json, display_json, input_summary_json, generation_source,
+        generated_at, engine_version, created_at, prompt_version, rules_version, generation_timestamp, input_summary_version
+      ) VALUES (?, 1, ?, ?, ?, ?, ?, 'fallback', ?, 'test', ?, 'test', 'test', ?, 'test')`,
+    ).run(
+      month.lastInsertRowid,
+      "2099-07-06",
+      JSON.stringify({ why_ko: "축적", focus: "volume", scheme_note: "유지", plan: { days: [] } }),
+      JSON.stringify(plan),
+      "{}",
+      "{}",
+      now,
+      now,
+      now,
+    );
+    const before = db.prepare(`SELECT plan_json FROM programming_weeks WHERE week_start = ?`).get("2099-07-06") as { plan_json: string };
+    const run = await reviewActiveWeek({
+      weekStart: "2099-07-06",
+      key: "test-key",
+      fetchImpl: scripted([pass("programming"), pass("strength_fatigue"), clockProposal(), head("APPROVE_REVISED", [{ role: "execution", day: "mon" }])]),
+    });
+    const again = await reviewActiveWeek({ weekStart: "2099-07-06", key: "test-key", fetchImpl: async () => chat(pass("programming")) });
+    const after = db.prepare(`SELECT plan_json FROM programming_weeks WHERE week_start = ?`).get("2099-07-06") as { plan_json: string };
+    const log = db.prepare(`SELECT raw_json FROM programming_generation_logs WHERE scope_key = ?`).get("2099-07-06") as { raw_json: string };
+    const stored = JSON.parse(log.raw_json) as { output?: { original?: Array<{ work_rest?: string }>; confirmed?: Array<{ work_rest?: string }> } };
+    expect(run.decision).toBe("APPROVE_REVISED");
+    expect(JSON.parse(after.plan_json).sessions[0].conditioning.work_rest_structure).toBe("45초 일하고 30초 쉽니다.");
+    expect(JSON.parse(before.plan_json).sessions[0].conditioning.work_rest_structure).toBe("30초 일하고 30초 쉽니다.");
+    expect(stored.output?.original?.[0]?.work_rest).toBe("30초 일하고 30초 쉽니다.");
+    expect(stored.output?.confirmed?.[0]?.work_rest).toBe("45초 일하고 30초 쉽니다.");
+    expect(again.duplicate).toBe(true);
+    expect(again.calls).toBe(0);
+  });
+
   it("keeps the valid days when one day in the same review is malformed", async () => {
     const tue = session();
     tue.day = "tue";

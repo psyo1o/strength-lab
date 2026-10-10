@@ -3,13 +3,16 @@ import { JSON_OBJECT } from "../contract";
 import { askCoach } from "../llm";
 import { coachModel } from "../models";
 import { inputHash, newRunId } from "../trace";
+import { prescriptionAmountIssue } from "../stage13/units";
 import {
   applyAcceptedPatches,
+  coverRejected,
   fingerprint,
   parseHeadChoice,
   parseSpecialistReview,
   proposalsFrom,
   salvageSpecialistReview,
+  settleNeedsReview,
   type AppliedChange,
   type PhaseCDecisionName,
   type PhaseCPacket,
@@ -19,7 +22,7 @@ import {
 } from "./logic";
 import type { SessionDraft } from "../../types";
 
-export const PHASE_C_REVIEW_VERSION = "phase-c-review-v1";
+export const PHASE_C_REVIEW_VERSION = "phase-c-review-v2";
 const MODEL = "gpt-5.4-nano";
 const MAX_HEAD_APPLY_ATTEMPTS = 2;
 
@@ -30,9 +33,9 @@ const ROLE_AGENT = {
 } as const;
 
 const ROLE_PROMPT = {
-  programming: "phase-c-programming-v1",
-  strength_fatigue: "phase-c-strength-fatigue-v1",
-  execution: "phase-c-execution-v1",
+  programming: "phase-c-programming-v2",
+  strength_fatigue: "phase-c-strength-fatigue-v2",
+  execution: "phase-c-execution-v2",
 } as const;
 
 const SCHEMA = [
@@ -48,6 +51,8 @@ const SCHEMA = [
   "interval_clock sets integer work_sec and rest_sec from 10 to 90.",
   "Do not change duration_min, volume, intensity, format, or the strength lift. Those stay locked.",
   "reason, expected_effect, downside, and skeleton_impact (none or risk) are required on a proposal.",
+  "phase_b_prescription ok means the stored amount already passed the programming check. double_under 30sec and row 30sec are clear work.",
+  "Do not suggest a revision only because units differ. Name the performance problem and a better amount in the same unit, or one real replacement.",
 ].join(" ");
 
 const HEAD_SCHEMA = [
@@ -81,9 +86,12 @@ function systemPrompt(role: PhaseCRole): string {
 const HEAD_PROMPT = [
   "You are the head coach. You decide. You do not regenerate the WOD.",
   "Read the specialist findings. Keep the original when it meets the intent.",
-  "Adopt a proposal only when the change is specific and the gain is larger than the loss.",
-  "If coaches disagree, record who you rejected and why.",
-  "If you cannot confirm a safe change, return NEEDS_REVIEW and accept nothing.",
+  "Return APPROVE_ORIGINAL when no serious problem needs a change, or a proposal does not clearly beat the original. The original does not need every coach to agree.",
+  "Put every proposal you do not adopt in rejected with a reason. A rejection keeps the original. It is not a failed week.",
+  "Return APPROVE_REVISED or PARTIAL_REVISION when the target, the before value, and the after value are specific, the reason names a performance problem, skeleton_impact is none, and the structure is valid.",
+  "Mild uncertainty about an athlete's pace is not a reason to withhold that change, and it is not a reason to return NEEDS_REVIEW.",
+  "If coaches disagree on the same day and neither proposal is clearly better, reject both and return APPROVE_ORIGINAL.",
+  "Return NEEDS_REVIEW only for a serious validation failure, missing information that blocks a decision, a proposal structure that cannot be recovered, a model response that stayed malformed, or an unresolved high-severity conflict.",
   HEAD_SCHEMA,
 ].join(" ");
 
@@ -150,7 +158,10 @@ function packetView(packet: PhaseCPacket) {
         intensity: day.session.conditioning?.intensity ?? null,
         work_rest_structure: day.session.conditioning?.work_rest_structure ?? null,
         equipment: day.session.conditioning?.equipment ?? [],
-        movements: day.session.conditioning?.movements ?? [],
+        movements: (day.session.conditioning?.movements ?? []).map((row) => ({
+          ...row,
+          phase_b_prescription: prescriptionAmountIssue(row.key, row.amount, day.session.conditioning?.duration_min ?? null).status,
+        })),
         strength_lift: day.session.strength?.lift ?? null,
       },
     })),
@@ -210,7 +221,7 @@ export async function runPhaseCReview(input: {
       key: input.key,
       fetchImpl: input.fetchImpl,
       timeoutMs: input.timeoutMs ?? 120_000,
-      maxTokens: 1800,
+      maxTokens: 3200,
       promptVersion: ROLE_PROMPT[role],
       runId: newRunId(),
       temperature: 0.2,
@@ -288,8 +299,8 @@ export async function runPhaseCReview(input: {
       key: input.key,
       fetchImpl: input.fetchImpl,
       timeoutMs: input.timeoutMs ?? 120_000,
-      maxTokens: 1400,
-      promptVersion: "phase-c-head-v1",
+      maxTokens: 1800,
+      promptVersion: "phase-c-head-v2",
       runId: newRunId(),
       temperature: 0.2,
       systemPrompt: HEAD_PROMPT,
@@ -329,18 +340,42 @@ export async function runPhaseCReview(input: {
       choiceErrors = lastChoice.errors;
       continue;
     }
-    if (lastChoice.choice.decision === "APPROVE_ORIGINAL" || lastChoice.choice.decision === "NEEDS_REVIEW") {
+    if (lastChoice.choice.decision === "APPROVE_ORIGINAL") {
       return {
         ...base,
-        decision: lastChoice.choice.decision,
+        decision: "APPROVE_ORIGINAL",
         rationale: lastChoice.choice.rationale,
         reviews,
         proposals,
         accepted: [],
-        rejected: lastChoice.choice.rejected,
+        rejected: coverRejected(proposals, lastChoice.choice.rejected, lastChoice.choice.rationale),
         changes: [],
         validation: { ok: true, errors: [], attempts: attempts + 1 },
-        confirmed: lastChoice.choice.decision === "APPROVE_ORIGINAL" ? original : null,
+        confirmed: original,
+        calls,
+        tokens,
+        elapsed_ms: Date.now() - started,
+        failure_reason: null,
+      };
+    }
+    if (lastChoice.choice.decision === "NEEDS_REVIEW") {
+      const settled = settleNeedsReview({
+        packet: input.packet,
+        reviews,
+        proposals,
+        choice: lastChoice.choice,
+      });
+      return {
+        ...base,
+        decision: settled.decision,
+        rationale: settled.rationale,
+        reviews,
+        proposals,
+        accepted: settled.accepted,
+        rejected: settled.rejected,
+        changes: settled.changes,
+        validation: { ...settled.validation, attempts: attempts + 1 },
+        confirmed: settled.sessions ? snapshot(settled.sessions) : null,
         calls,
         tokens,
         elapsed_ms: Date.now() - started,
