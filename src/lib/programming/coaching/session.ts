@@ -6,11 +6,9 @@ import { judgeWeek, similarityScore, toStructure, type WeekCheckContext } from "
 import { strengthIsHeavy } from "../schemes";
 import type { WeekActual } from "../summary";
 import {
-  EQUIPMENT,
   STIMULI,
   type ConditioningDraft,
   type DayIntent,
-  type Equipment,
   type IntensityBand,
   type MonthDirection,
   type SessionDraft,
@@ -24,7 +22,7 @@ import {
 } from "../types";
 import { timeDomainFromMinutes } from "./canonical";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
-import { catalogMovement, type CatalogLoad, type CatalogUnit } from "./movement-catalog";
+import { catalogMovement, equipmentForKeys, type CatalogLoad, type CatalogUnit } from "./movement-catalog";
 import { movementCatalog, recipePool, roleFor, type Recipe } from "./pieces";
 
 const DAY_KO: Record<DayKey, string> = {
@@ -219,12 +217,7 @@ export function sessionFromCoachJson(input: {
       ...(load ? { load } : {}),
     });
   }
-  if (!Array.isArray(piece.equipment) || piece.equipment.length === 0) return null;
-  const equipment: Equipment[] = [];
-  for (const item of piece.equipment) {
-    if (typeof item !== "string" || !(EQUIPMENT as readonly string[]).includes(item)) return null;
-    equipment.push(item as Equipment);
-  }
+  const equipment = equipmentForKeys(movements.map((movement) => movement.key));
   if (longPiece && timeDomainFromMinutes(minutes) !== "long") return null;
   if (!longPiece && timeDomainFromMinutes(minutes) === "long") return null;
   const recipe: Recipe = {

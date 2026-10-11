@@ -1,15 +1,14 @@
 import { schemaBrief } from "./contract";
-import { catalogPromptLines } from "./movement-catalog";
 import type { CoachAgentName } from "./models";
 
 export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v2";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v2";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
 export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v2";
-export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v3";
+export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v4";
 export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v2";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
-export const HEAD_COACH_PROMPT_VERSION = "head-coach-v7";
+export const HEAD_COACH_PROMPT_VERSION = "head-coach-v8";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
 export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
 export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
@@ -83,9 +82,9 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     objective: "Write the conditioning piece for that day only.",
     inputs: "That day's intent, structures to avoid, and the locked duration range when one exists.",
     decision_principles:
-      "Choose format, duration, stimulus, movements, equipment, volume, and intensity. Do not rename a movement to escape a similar structure.",
+      "Choose format, duration, stimulus, movements, volume, and intensity. Do not return equipment. Do not rename a movement to escape a similar structure.",
     constraints:
-      "Do not return warmup_ko, strength notes, sets, kilograms, or time_domain. duration_min is the piece length. One day only. Movements come from the catalog. amount is an integer inside a closed range when the catalog lists one. unit is one of that key's allowed units. Do not invent a range. When edit_list is present, apply each item exactly. Do not change a movement, amount, format, duration, or day that is not in edit_list. When day_recovery names cells, return only those cells. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
+      "Do not return warmup_ko, strength notes, sets, kilograms, time_domain, or equipment. The server fills equipment from the catalog. duration_min is the piece length. One day only. Movements come from movement_catalog in the user message. amount is an integer inside a closed range when the catalog lists one. unit is one of that key's allowed units. Do not invent a range. When edit_list is present, apply each item exactly. Do not change a movement, amount, format, duration, or day that is not in edit_list. When day_recovery names cells, return only those cells. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
     output_schema: "Keys: day, notes_ko, conditioning. conditioning matches the conditioning object in the session schema.",
     failure_behavior: "A bad piece is rejected. Other days and the strength and warmup of this day stay.",
   },
@@ -160,7 +159,7 @@ export function coachSystemPrompt(agent: CoachAgentName): string {
   ];
   if (agent === "conditioning" || agent === "head") {
     sections.push(
-      `MOVEMENT CATALOG\n${catalogPromptLines()}\nChoose only these keys and units. A closed range is the allowed count. A line that says range unconfirmed has no numeric band. Do not invent one. Rx is a reference, not a required load.`,
+      "MOVEMENT CATALOG\nThe user message field movement_catalog lists the keys for this day or this week. Choose only those keys and units. A closed range is the allowed count. A line that says range unconfirmed has no numeric band. Do not invent one. Rx is a reference, not a required load. Do not return equipment.",
     );
   }
   return sections.join("\n\n");

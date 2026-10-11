@@ -136,7 +136,6 @@ export function recoveryDrift(input: {
     if (scalars.has(key)) continue;
     if (beforePiece[key] !== afterPiece[key]) changed.push(`conditioning.${key}`);
   }
-  if (JSON.stringify(beforePiece.equipment ?? null) !== JSON.stringify(afterPiece.equipment ?? null)) changed.push("conditioning.equipment");
   const beforeMoves = Array.isArray(beforePiece.movements) ? beforePiece.movements : [];
   const afterMoves = Array.isArray(afterPiece.movements) ? afterPiece.movements : [];
   if (beforeMoves.length !== afterMoves.length) changed.push("conditioning.movements");

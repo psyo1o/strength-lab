@@ -50,7 +50,7 @@
 3. 훈련일마다 전문 코치 셋. 휴식일은 세션 모델을 부르지 않고 트레이스 사유가 `rest`다.
 4. 스키마에 실패한 영역만 하루 복구 1회 (`MAX_DAY_SCHEMA_RECOVERIES`).
 5. 부하 코치 `load-coach-v2`. 세트와 킬로그램은 모델이 쓰지 않는다. 스트렝스 숫자는 `strengthFor` 방법 표다.
-6. 피로·변이, stage13 전문 코치 검토(생성기가 아님), 헤드 `head-coach-v7`.
+6. 피로·변이, stage13 전문 코치 검토(생성기가 아님), 헤드 `head-coach-v8`.
 7. `runAdjustmentPass`. 칸 수정은 서버가 그 칸만 쓴다. 예전 `action` 목록만 전문 코치를 다시 부르고 `compareEditList`로 한 번 비교한다.
 8. `finalWeekReport`. 하드 오류가 남으면 헤드의 APPROVE와 APPROVE_WITH_NOTE는 채택되지 않는다.
 
@@ -67,7 +67,7 @@
 | 역할 | 에이전트 | 프롬프트 | 출력 |
 |---|---|---|---|
 | 스트렝스 | `strength_coach` | `strength-coach-v2` | `day`, `strength_note_ko` |
-| 컨디셔닝 | `conditioning_coach` | `conditioning-coach-v3` | `day`, `notes_ko`, `conditioning` |
+| 컨디셔닝 | `conditioning_coach` | `conditioning-coach-v4` | `day`, `notes_ko`, `conditioning` |
 | 워밍업 | `warmup_coach` | `warmup-coach-v2` | `day`, `warmup_ko` |
 
 세 호출이 끝난 뒤에만 하루를 합친다. 집계 트레이스 `session_coach` (`session-coach-v4`)는 `deterministic: true`라 plan-lab 호출 수에 들어가지 않는다.
@@ -84,9 +84,9 @@
 
 기준 파일은 `data/movement-catalog.json`이다. 버전 `0.4.0-draft`, 동작 138개. 읽는 코드는 `src/lib/programming/coaching/movement-catalog.ts`다.
 
-모델이 고르는 칸은 `movement`, 정수 `amount`, `unit`, `load`다. 화면이 읽는 수량은 `MovementDraft.amount` 문자열이다. `displayAmount`가 표시 문자열을 만든다. 셀 형태 행은 `amount`를 숫자로 유지하고 `key`를 채운다.
+모델이 고르는 칸은 `movement`, 정수 `amount`, `unit`, `load`다. 화면이 읽는 수량은 `MovementDraft.amount` 문자열이다. `displayAmount`가 표시 문자열을 만든다. 셀 형태 행은 `amount`를 숫자로 유지하고 `key`를 채운다. 장비 목록은 카탈로그 동작의 `equipment`로 서버가 덮어쓴다. 모델이 낸 장비와 장비 보유 여부는 거절 사유가 아니다. 장비 탭은 제휴 상품이다.
 
-코드가 검사하는 것은 key 존재, 허용 단위, 닫힌 범위 이탈이다. 닫힌 범위는 `N–M` 또는 `N-M`뿐이다. null, 한 숫자, 주석이 붙은 범위는 단위만 본다. 범위를 만들지 않는다. Rx는 프롬프트 참고다.
+사용자 JSON의 `movement_catalog`는 그날 `movement_pattern`과 스트렝스 리프트에 맞는 동작만 담는다. 코드가 검사하는 것은 key 존재, 허용 단위, 닫힌 범위 이탈이다. 닫힌 범위는 `N–M` 또는 `N-M`뿐이다. null, 한 숫자, 주석이 붙은 범위는 단위만 본다. 범위를 만들지 않는다. Rx는 프롬프트 참고다.
 
 `proposed_key`의 대상이 카탈로그 key일 때만 셀 출력이 그 key로 저장된다. 모호한 연결은 `squat`→`back_squat`, `clean`→`squat_clean`, `snatch`→`squat_snatch`다. 대상 key가 없으면 기존 key를 유지한다. 레거시 레시피 key는 자동으로 다시 쓰지 않는다. 문자열 `amount`만 있는 예전 행은 범위 검사하지 않는다.
 

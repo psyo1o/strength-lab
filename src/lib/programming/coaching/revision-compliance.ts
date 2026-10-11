@@ -1,6 +1,5 @@
 import type { SessionDraft } from "../types";
 import type { MovementEdit } from "./review";
-import { MOVEMENT_EQUIPMENT } from "./stage13/units";
 
 type Move = { key: string; amount: string };
 
@@ -87,20 +86,6 @@ function sameMoves(expected: readonly Move[], actual: readonly Move[], edits: re
   });
 }
 
-function equipmentOk(before: readonly string[], after: readonly string[], removed: readonly string[], added: readonly string[]): boolean {
-  if (before.join("|") === after.join("|")) return true;
-  const swing = new Set<string>();
-  for (const key of [...removed, ...added]) {
-    const gear = MOVEMENT_EQUIPMENT[key];
-    if (gear) swing.add(gear);
-  }
-  const beforeSet = new Set(before);
-  const afterSet = new Set(after);
-  for (const item of beforeSet) if (!afterSet.has(item) && !swing.has(item)) return false;
-  for (const item of afterSet) if (!beforeSet.has(item) && !swing.has(item)) return false;
-  return true;
-}
-
 /**
  * One comparison. The edit list is the expected change.
  * A mismatch is not adopted. This does not start another review.
@@ -137,11 +122,6 @@ export function compareEditList(input: {
   const fields = ["format", "duration_min", "stimulus", "volume", "intensity", "time_domain"] as const;
   for (const field of fields) {
     if (left[field] !== right[field]) return { ok: false, expected, actual, reason: `conditioning.${field} changed` };
-  }
-  const removed = input.edits.flatMap((edit) => (edit.action === "replace" || edit.action === "delete" ? [edit.target_movement ?? ""] : []));
-  const added = input.edits.flatMap((edit) => (edit.action === "replace" || edit.action === "add" ? [edit.new_movement ?? ""] : []));
-  if (!equipmentOk(left.equipment, right.equipment, removed, added)) {
-    return { ok: false, expected, actual, reason: "equipment changed outside the edit" };
   }
   return { ok: true, expected, actual, reason: null };
 }

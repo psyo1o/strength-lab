@@ -1,4 +1,4 @@
-import { coerceMovementRow } from "../movement-catalog";
+import { coerceMovementRow, equipmentForKeys } from "../movement-catalog";
 import { movementCatalog } from "../pieces";
 import { TIME_DOMAIN_RANGES, rewriteMonthLanguageTokens } from "../../rules";
 import { MOVEMENT_UNITS, amountUnit, parsedAmount, prescriptionAmountIssue, unitError, type AmountUnit } from "./units";
@@ -101,7 +101,19 @@ export function normalizeSessionPayload(value: unknown, options?: NormalizeOptio
     });
     if (acceptInvention) movement.amount = converted.amount;
   });
+  piece.equipment = equipmentForKeys(movementKeys(piece.movements));
   return { json, normalizations };
+}
+
+function movementKeys(rows: unknown[]): string[] {
+  const keys: string[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const movement = row as { key?: unknown; movement?: unknown };
+    if (typeof movement.key === "string" && movement.key) keys.push(movement.key);
+    else if (typeof movement.movement === "string" && movement.movement) keys.push(movement.movement);
+  }
+  return keys;
 }
 
 function rewriteDisplayFields(body: Record<string, unknown>, prefix: string, normalizations: SessionNormalization[]) {

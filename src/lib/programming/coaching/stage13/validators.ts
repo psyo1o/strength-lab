@@ -2,7 +2,7 @@ import { sessionCoachErrors } from "../contract";
 import { judgeWeek, TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rules";
 import type { DayIntent, MonthDirection, SessionDraft, WeekDraft, WeekIndex } from "../../types";
 import { COACHING_POLICY, isCoachingSignal } from "./policy";
-import { MOVEMENT_EQUIPMENT, intervalFitIssues, prescriptionAmountIssue } from "./units";
+import { intervalFitIssues, prescriptionAmountIssue } from "./units";
 import { longConditioningCountAllowed } from "../stage15/week-policy";
 import { deloadHeavyConditioningErrors } from "../stage15/week-structure";
 import { weekPlanErrors, type WeekRules } from "./rules";
@@ -52,12 +52,6 @@ function movementsOf(value: unknown): Array<{ key: string; amount: string }> {
   });
 }
 
-function equipmentOf(value: unknown): string[] {
-  if (!value || typeof value !== "object") return [];
-  const equipment = (value as { conditioning?: { equipment?: unknown } }).conditioning?.equipment;
-  return Array.isArray(equipment) ? equipment.filter((item): item is string => typeof item === "string") : [];
-}
-
 function intensityClash(value: unknown): string[] {
   if (!value || typeof value !== "object") return [];
   const piece = (value as { conditioning?: { intensity?: unknown; stimulus?: unknown } }).conditioning;
@@ -66,18 +60,6 @@ function intensityClash(value: unknown): string[] {
     return ["conditioning intensity light contradicts stimulus heavy"];
   }
   return [];
-}
-
-function equipmentClash(value: unknown): string[] {
-  const have = new Set(equipmentOf(value));
-  const errors: string[] = [];
-  for (const movement of movementsOf(value)) {
-    const need = MOVEMENT_EQUIPMENT[movement.key];
-    if (need && !have.has(need)) {
-      errors.push(`${movement.key} requires equipment ${need}`);
-    }
-  }
-  return errors;
 }
 
 function pieceMinutes(value: unknown): number | null {
@@ -110,7 +92,7 @@ export function sessionSelfReport(value: unknown, intent: DayIntent): SessionSel
   return {
     ...contract,
     intensity: [...contract.intensity, ...intensityClash(value)],
-    equipment: [...contract.equipment, ...equipmentClash(value)],
+    equipment: contract.equipment,
     unit: prescriptionErrors(value).map((issue) => `${intent.day} field conditioning.movements.amount: ${issue}`),
   };
 }

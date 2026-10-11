@@ -9,7 +9,6 @@ import {
   type StructureHit,
 } from "./analyzers";
 import type { WeekRules } from "./rules";
-import { MOVEMENT_EQUIPMENT } from "./units";
 
 export type SpecialistName = "strength" | "conditioning" | "recovery" | "variation" | "practical" | "fun";
 
@@ -214,14 +213,6 @@ export function practicalReview(sessions: readonly SessionDraft[]): SpecialistRe
     if (session.conditioning.movements.length === 0) {
       findings.push(`${session.day} has no movements`);
       days.push(session.day);
-    }
-    const have = new Set(session.conditioning.equipment);
-    for (const movement of session.conditioning.movements) {
-      const need = MOVEMENT_EQUIPMENT[movement.key];
-      if (need && !have.has(need)) {
-        findings.push(`${session.day} ${movement.key} needs ${need}, which the class cannot use together`);
-        days.push(session.day);
-      }
     }
   }
   return review({

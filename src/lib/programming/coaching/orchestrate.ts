@@ -4,7 +4,7 @@ import { judgeWeek, parseWeekDraft, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import type { DayIntent, DayPrescriptionRecord, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
-import { durationRuleText, headReviewErrors, loadDecisionErrors, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -21,7 +21,7 @@ import { normalizeSessionPayload, type SessionNormalization } from "./stage13/no
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
 import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRevisionSpecs } from "./day-recovery";
-import { applyCellsToCoachJson, isCellPayload, patchStoredMovement } from "./movement-catalog";
+import { applyCellsToCoachJson, catalogLine, catalogPromptLinesFor, isCellPayload, movementsForSlice, movementsForWeek, patchStoredMovement, type CatalogSlice } from "./movement-catalog";
 import { askSpecialist, type SpecialistArea } from "./specialist-generate";
 import { analyzeProgression, analyzeWeekStructure } from "./stage13/analyzers";
 import { heavyLowerStressDays } from "./stage13/specialists";
@@ -97,7 +97,30 @@ function lockedSkeletonDay(input: CoachWeekInput, day: DayKey) {
   return skeleton.days.find((row) => row.day === day) ?? null;
 }
 
-function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayIntent, revision: SessionRevision | null, revisionNumber: number, rules: WeekRules) {
+function sliceFor(day: DayIntent, extraKeys: readonly string[]): CatalogSlice {
+  return {
+    movementPattern: day.movement_pattern,
+    strengthLift: day.strength_lift,
+    primaryTraining: day.primary_training,
+    extraKeys,
+  };
+}
+
+function movementKeysOf(value: unknown): string[] {
+  if (!value || typeof value !== "object") return [];
+  const movements = (value as { conditioning?: { movements?: unknown } }).conditioning?.movements;
+  if (!Array.isArray(movements)) return [];
+  const keys: string[] = [];
+  for (const row of movements) {
+    if (!row || typeof row !== "object") continue;
+    const item = row as { key?: unknown; movement?: unknown };
+    if (typeof item.key === "string" && item.key) keys.push(item.key);
+    else if (typeof item.movement === "string" && item.movement) keys.push(item.movement);
+  }
+  return keys;
+}
+
+function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayIntent, revision: SessionRevision | null, revisionNumber: number, rules: WeekRules, extraKeys: readonly string[]) {
   const locked = lockedSkeletonDay(input, day.day);
   const lockedRange = locked && locked.conditioning.duration_class !== "rest" ? TIME_DOMAIN_RANGES[locked.conditioning.duration_class] : null;
   return {
@@ -157,6 +180,7 @@ function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayInte
     revision_number: revisionNumber,
     revision,
     ...(revision?.edits?.length ? { edit_list: revision.edits } : {}),
+    movement_catalog: catalogPromptLinesFor(sliceFor(day, extraKeys)),
   };
 }
 
@@ -334,7 +358,9 @@ async function writeSession(input: {
   areaTraces: AgentTrace[];
 }> {
   const started = Date.now();
-  const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber, input.rules);
+  const existingKeys = movementKeysOf(input.draft.sessions.find((session) => session.day === input.day.day) ?? null);
+  const catalogKeys = movementsForSlice(sliceFor(input.day, existingKeys)).map((row) => row.key);
+  const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber, input.rules, existingKeys);
   const normalizations: SessionNormalization[] = [];
   let normalizedJson: unknown = null;
   const selfTraces = (json: unknown) =>
@@ -382,6 +408,7 @@ async function writeSession(input: {
       day: input.day.day,
       revisionNumber: input.revisionNumber,
       validate: validateArea(area),
+      format: area === "conditioning" ? conditioningDayFormat(catalogKeys) : undefined,
     });
     areaTraces.push(asked.trace);
     if (!asked.ok) {
@@ -427,7 +454,7 @@ async function writeSession(input: {
         weekId: input.week.weekStart,
         day: input.day.day,
         revisionNumber: 1,
-        format: area === "conditioning" ? recoveryCellFormat() : undefined,
+        format: area === "conditioning" ? recoveryCellFormat([...new Set([...catalogKeys, ...movementKeysOf(areaInvalid.get(area))])]) : undefined,
         schemaNote: area === "conditioning" ? "Return cells only: catalog_key, field, value. The server writes only that cell." : undefined,
         validate: (json) => {
           if (area === "conditioning" && isCellPayload(json)) {
@@ -634,6 +661,14 @@ function headUser(input: CoachWeekInput, plan: WeeklyIntentPlan, draft: WeekDraf
     fatigue,
     variation,
     previous_actual: input.previousActual?.class_summary ?? null,
+    movement_catalog: movementsForWeek(
+      plan.days
+        .filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest")
+        .map((day) => sliceFor(day, [])),
+      draft.sessions.flatMap((session) => session.conditioning?.movements.map((movement) => movement.key) ?? []),
+    )
+      .map(catalogLine)
+      .join("\n"),
   };
 }
 
@@ -1447,6 +1482,14 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       promptVersion: HEAD_COACH_PROMPT_VERSION,
       runId,
       retryContext: { agent: "head", revision_number: revisionNumber },
+      format: headReviewFormat(
+        movementsForWeek(
+          plan.days
+            .filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest")
+            .map((day) => sliceFor(day, [])),
+          draft.sessions.flatMap((session) => session.conditioning?.movements.map((movement) => movement.key) ?? []),
+        ).map((row) => row.key),
+      ),
       validate: (json) => {
         const errors = headReviewErrors(json);
         if (errors.length) return { ok: false, errors };

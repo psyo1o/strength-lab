@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { EQUIPMENT, type Equipment } from "../types";
 
 /** Units stored on a catalog row. The same four the session already displays. */
 export type CatalogUnit = "reps" | "cal" | "m" | "sec";
@@ -255,20 +256,118 @@ export function cellEditErrors(row: unknown, index: number): string[] {
   return errors;
 }
 
-export function catalogPromptLines(): string {
-  return standardMovements()
-    .map((row) => {
-      const ranges = row.units
-        .map((unit) => {
-          const span = row.ranges?.[unit];
-          return span ? `${unit} ${span}` : `${unit} range unconfirmed`;
-        })
-        .join(", ");
-      const rx = row.rx?.male || row.rx?.female ? `rx male ${row.rx.male ?? "unconfirmed"} / female ${row.rx.female ?? "unconfirmed"}` : "rx unconfirmed";
-      const link = row.proposed_key ? ` link ${row.proposed_key}` : "";
-      return `${row.key} (${row.name_ko}): ${ranges}. ${rx}.${link}`;
+export function catalogLine(row: CatalogMovement): string {
+  const ranges = row.units
+    .map((unit) => {
+      const span = row.ranges?.[unit];
+      return span ? `${unit} ${span}` : `${unit} range unconfirmed`;
     })
-    .join("\n");
+    .join(", ");
+  const rx = row.rx?.male || row.rx?.female ? `rx male ${row.rx.male ?? "unconfirmed"} / female ${row.rx.female ?? "unconfirmed"}` : "rx unconfirmed";
+  const link = row.proposed_key ? ` link ${row.proposed_key}` : "";
+  return `${row.key} (${row.name_ko}): ${ranges}. ${rx}.${link}`;
+}
+
+export function catalogPromptLines(): string {
+  return standardMovements().map(catalogLine).join("\n");
+}
+
+/** Catalog gear that is already a display enum value. Unknown catalog gear is not invented into the enum. */
+export function catalogGear(key: string): Equipment | null {
+  const row = catalogMovement(key) ?? catalogMovement(linkedCatalogKey(key).key);
+  const raw = row?.equipment;
+  if (!raw || raw === "-") return null;
+  return (EQUIPMENT as readonly string[]).includes(raw) ? (raw as Equipment) : null;
+}
+
+/** Display list for a piece. The model does not supply this. */
+export function equipmentForKeys(keys: readonly string[]): Equipment[] {
+  const out: Equipment[] = [];
+  for (const key of keys) {
+    const gear = catalogGear(key);
+    if (gear && !out.includes(gear)) out.push(gear);
+  }
+  return out;
+}
+
+export type CatalogSlice = {
+  movementPattern?: string | null;
+  strengthLift?: string | null;
+  primaryTraining?: string | null;
+  extraKeys?: readonly string[];
+};
+
+const SPECIFIC_PATTERNS = new Set(["squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic"]);
+
+const LIFT_PATTERN: Record<string, string> = {
+  squat: "squat",
+  deadlift: "hinge",
+  bench: "press",
+  ohp: "press",
+};
+
+const PRIMARY_PATTERN: Record<string, string> = {
+  lower_strength: "squat",
+  upper_strength: "press",
+  upper_pull: "pull",
+  posterior_chain: "hinge",
+  olympic_strength: "olympic",
+  olympic_technique: "olympic",
+  gymnastics_skill: "gymnastic",
+  aerobic: "engine",
+  recovery: "gymnastic",
+};
+
+function addPattern(pattern: string, fragments: Set<string>, categories: Set<string>) {
+  if (pattern === "squat") {
+    fragments.add("squat");
+    fragments.add("lunge");
+  } else if (pattern === "hinge") fragments.add("hinge");
+  else if (pattern === "press") fragments.add("push");
+  else if (pattern === "pull") {
+    fragments.add("pull");
+    fragments.add("core");
+  } else if (pattern === "olympic") categories.add("weightlifting");
+  else if (pattern === "engine") {
+    categories.add("monostructural");
+    fragments.add("cycle");
+    fragments.add("run");
+  } else if (pattern === "gymnastic") categories.add("gymnastics");
+}
+
+/** Movements that match one day's pattern and strength block, plus any key already on the piece. */
+export function movementsForSlice(slice: CatalogSlice): CatalogMovement[] {
+  const fragments = new Set<string>();
+  const categories = new Set<string>();
+  const pattern = slice.movementPattern ?? "none";
+  if (SPECIFIC_PATTERNS.has(pattern)) addPattern(pattern, fragments, categories);
+  else {
+    const via = PRIMARY_PATTERN[slice.primaryTraining ?? ""];
+    if (via) addPattern(via, fragments, categories);
+    else {
+      for (const broad of ["gymnastic", "engine", "squat", "hinge", "press", "pull"]) addPattern(broad, fragments, categories);
+    }
+  }
+  const lift = LIFT_PATTERN[slice.strengthLift ?? ""];
+  if (lift) addPattern(lift, fragments, categories);
+  const extra = new Set(slice.extraKeys ?? []);
+  return standardMovements().filter((row) => {
+    if (extra.has(row.key)) return true;
+    if (categories.has(row.category)) return true;
+    return row.pattern.split("+").some((token) => fragments.has(token));
+  });
+}
+
+export function catalogPromptLinesFor(slice: CatalogSlice): string {
+  return movementsForSlice(slice).map(catalogLine).join("\n");
+}
+
+export function movementsForWeek(slices: readonly CatalogSlice[], extraKeys: readonly string[] = []): CatalogMovement[] {
+  const keys = new Set<string>(extraKeys);
+  for (const slice of slices) {
+    for (const row of movementsForSlice(slice)) keys.add(row.key);
+  }
+  return standardMovements().filter((row) => keys.has(row.key));
 }
 
 /** Write one cell on a stored movement. Other fields stay. */

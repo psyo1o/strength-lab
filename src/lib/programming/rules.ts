@@ -3,6 +3,7 @@ import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { isWodPurpose } from "../wod/purpose";
 import { completeMonthDirection } from "./month-direction";
 import { strengthIsHeavy } from "./schemes";
+import { equipmentForKeys } from "./coaching/movement-catalog";
 import { safetyViolations } from "./coaching/stage15/safety-policy";
 import { benchmarkCountAllowed, longConditioningCountAllowed } from "./coaching/stage15/week-policy";
 import { exampleSets, legacySchemeForMethod, prescriptionGuide, validateStrengthPrescription } from "./strength-methods";
@@ -244,7 +245,6 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
   const timeDomain = value.time_domain;
   const stimulus = value.stimulus;
   const patterns = parseStringList(value.movement_patterns, MOVEMENT_PATTERNS);
-  const equipment = parseStringList(value.equipment, EQUIPMENT);
   const rep = asString(value.rep_structure);
   const rest = asString(value.work_rest_structure);
   const duration = asInt(value.duration_min);
@@ -252,7 +252,7 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
   const intensity = value.intensity;
   const longPiece = asBool(value.long_conditioning);
   const purpose = asString(value.purpose);
-  if (benchmark == null || patterns == null || equipment == null || !rep || !rest || duration == null || longPiece == null) {
+  if (benchmark == null || patterns == null || !rep || !rest || duration == null || longPiece == null) {
     return null;
   }
   if (!purpose || !isWodPurpose(purpose)) return null;
@@ -271,6 +271,8 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     if (!key || !amount || !name) return null;
     movements.push({ key, amount, name_ko: name });
   }
+  const listed = parseStringList(value.equipment, EQUIPMENT);
+  const equipment = listed ?? equipmentForKeys(movements.map((movement) => movement.key));
   return {
     benchmark,
     format,
@@ -394,9 +396,6 @@ function explainWeekShape(raw: Record<string, unknown>): string[] {
     if (typeof row.day === "string") days.add(row.day);
     if (isRecord(row.strength) && typeof row.strength.lift === "string" && !(LIFT_VALUES as readonly string[]).includes(row.strength.lift)) {
       errors.push(`${day} lift ${row.strength.lift} is not allowed`);
-    }
-    if (isRecord(row.conditioning) && !Array.isArray(row.conditioning.equipment)) {
-      errors.push(`${day} conditioning.equipment is missing`);
     }
     if (isRecord(row.conditioning)) {
       const purpose = typeof row.conditioning.purpose === "string" ? row.conditioning.purpose : "";
@@ -832,7 +831,6 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if (session.expected_duration == null || session.volume == null || session.intensity == null) {
       errors.push(`${session.day} is missing duration or load bands`);
     }
-    if (session.equipment.length === 0) errors.push(`${session.day} lists no equipment`);
     if (session.strength) {
       if (!session.strength_purpose || !session.strength_volume || !session.strength_intensity) {
         errors.push(`${dayLabel(session.day)}: strength is present but strength_purpose, strength_volume, or strength_intensity is null`);

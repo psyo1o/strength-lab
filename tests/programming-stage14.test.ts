@@ -453,7 +453,7 @@ describe("stage14 head decision", () => {
     expect(stages.decision.decision).toBe("APPROVE_WITH_NOTE");
   });
 
-  it("case 9 revises a class that cannot run the equipment together", () => {
+  it("case 9 does not revise because the model omitted equipment", () => {
     const stages = decide({
       sessions: [
         session("mon", {
@@ -480,8 +480,7 @@ describe("stage14 head decision", () => {
         rest("sun"),
       ],
     });
-    expect(stages.decision.decision).toBe("REVISE");
-    expect(stages.decision.issues.some((row) => row.priority === "P0" && row.owner === "practical")).toBe(true);
+    expect(stages.decision.issues.filter((row) => row.owner === "practical" && row.priority === "P0")).toHaveLength(0);
   });
 
   it("case 10 does not revise three minor notes", () => {

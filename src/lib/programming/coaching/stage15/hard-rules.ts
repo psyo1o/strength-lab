@@ -45,7 +45,9 @@ export function classifyProgramError(error: string): HardFinding | { hard: false
   if (/unit|sec\b|reps|cal\b/i.test(error) && /invalid|received|amount/i.test(error)) {
     return { code: "UNIT_INVALID", category: "UNIT", message: error, days };
   }
-  if (/requires equipment|equipment/i.test(error)) return { code: "EQUIPMENT_INVALID", category: "EQUIPMENT", message: error, days };
+  if (/requires equipment|lists no equipment|conditioning\.equipment|EQUIPMENT_INVALID/i.test(error)) {
+    return { hard: false, message: error };
+  }
   if (/not implemented|sets do not match|fatigue cut|method/i.test(error)) {
     return { code: "METHOD_VIOLATION", category: "METHOD", message: error, days };
   }

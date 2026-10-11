@@ -3,7 +3,6 @@ import { IMPLEMENTED_STRENGTH_METHODS } from "../strength-methods";
 import { TIME_DOMAIN_RANGES } from "../rules";
 import {
   COACHING_STIMULI,
-  EQUIPMENT,
   PRIMARY_TRAININGS,
   SECONDARY_TRAININGS,
   STIMULI,
@@ -130,13 +129,12 @@ export function schemaBrief(agent: CoachAgentName): string {
     const catalog = movementCatalog().map((row) => `${row.key}=${row.name_ko}`).join(", ");
     return [
       "JSON object for one day. Keys: day, warmup_ko, notes_ko, conditioning.",
-      "conditioning keys: format, duration_min, stimulus, movements, equipment, volume, intensity.",
-      "Do not return time_domain, kilograms, percentages, or sets.",
+      "conditioning keys: format, duration_min, stimulus, movements, volume, intensity.",
+      "Do not return time_domain, kilograms, percentages, sets, or equipment. The server fills equipment from the movement catalog.",
       enumLine("format", WOD_FORMATS),
       enumLine("stimulus", STIMULI),
       enumLine("volume", VOLUME_BANDS),
       enumLine("intensity", INTENSITY_BANDS),
-      enumLine("equipment", EQUIPMENT),
       "movements is an array of {key, amount, name_ko}. 2 to 4 items, or 1 only when primary_training is aerobic and the day is not long.",
       "interval_work_sec and interval_rest_sec are integers only when format is intervals. Otherwise both are null.",
       "amount is the work. duration_min is the piece cap. double_under 30sec and row 30sec are clear work durations. row 12reps is not a natural row amount.",
@@ -154,13 +152,14 @@ export function schemaBrief(agent: CoachAgentName): string {
     return [
       "JSON object for one day. Keys: day, notes_ko, conditioning.",
       "Do not return warmup_ko, strength_note_ko, sets, kilograms, or time_domain.",
-      "conditioning keys: format, duration_min, stimulus, movements, equipment, volume, intensity, interval_work_sec, interval_rest_sec.",
+      "conditioning keys: format, duration_min, stimulus, movements, volume, intensity, interval_work_sec, interval_rest_sec.",
+      "Do not return equipment. The server fills it from the movement catalog for display.",
       "Each movement is movement, amount, unit, and load. movement is a catalog key. amount is an integer inside that key's closed range when one is listed. unit is one of that key's allowed units. load is {male, female} or null. The server stores those cells and builds the display amount.",
+      "The user message field movement_catalog lists the keys for this day. Choose only those keys.",
       enumLine("format", WOD_FORMATS),
       enumLine("stimulus", STIMULI),
       enumLine("volume", VOLUME_BANDS),
       enumLine("intensity", INTENSITY_BANDS),
-      enumLine("equipment", EQUIPMENT),
       enumLine("unit", EDIT_UNITS),
       "notes_ko is Korean.",
     ].join("\n");
@@ -256,7 +255,7 @@ const weeklyDaySchema = strictObject(
   ],
 );
 
-function conditioningMovementSchema(): Record<string, unknown> {
+function conditioningMovementSchema(keys: readonly string[] = standardCatalogKeys()): Record<string, unknown> {
   const load = {
     anyOf: [
       strictObject(
@@ -268,7 +267,7 @@ function conditioningMovementSchema(): Record<string, unknown> {
   };
   return strictObject(
     {
-      movement: stringEnum(standardCatalogKeys()),
+      movement: stringEnum(keys),
       amount: { type: "integer" },
       unit: stringEnum(EDIT_UNITS),
       load,
@@ -278,7 +277,8 @@ function conditioningMovementSchema(): Record<string, unknown> {
 }
 
 /** Live recovery replies name cells. A full session is still accepted by the validator for older fixtures. */
-export function recoveryCellFormat(): ResponseFormat {
+export function recoveryCellFormat(keys: readonly string[] = standardCatalogKeys()): ResponseFormat {
+  const allowed = keys.length > 0 ? keys : standardCatalogKeys();
   return schemaOf(
     "conditioning_recovery_cells",
     strictObject(
@@ -287,7 +287,7 @@ export function recoveryCellFormat(): ResponseFormat {
           type: "array",
           items: strictObject(
             {
-              catalog_key: stringEnum(standardCatalogKeys()),
+              catalog_key: stringEnum(allowed),
               field: stringEnum(["movement", "amount", "unit", "load"]),
               value: TEXT,
             },
@@ -296,6 +296,83 @@ export function recoveryCellFormat(): ResponseFormat {
         },
       },
       ["cells"],
+    ),
+  );
+}
+
+function conditioningFields(keys: readonly string[]) {
+  const movement = conditioningMovementSchema(keys);
+  return strictObject(
+    {
+      format: stringEnum(WOD_FORMATS),
+      duration_min: { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max },
+      stimulus: stringEnum(STIMULI),
+      movements: { type: "array", items: movement },
+      volume: stringEnum(VOLUME_BANDS),
+      intensity: stringEnum(INTENSITY_BANDS),
+      interval_work_sec: { type: ["integer", "null"] },
+      interval_rest_sec: { type: ["integer", "null"] },
+    },
+    ["format", "duration_min", "stimulus", "movements", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
+  );
+}
+
+/** Conditioning response for one day. Equipment is not a model field. */
+export function conditioningDayFormat(keys: readonly string[]): ResponseFormat {
+  const allowed = keys.length > 0 ? keys : standardCatalogKeys();
+  return schemaOf(
+    "conditioning_coach_day",
+    strictObject(
+      {
+        day: stringEnum(DAY_ORDER),
+        notes_ko: TEXT,
+        conditioning: conditioningFields(allowed),
+      },
+      ["day", "notes_ko", "conditioning"],
+    ),
+  );
+}
+
+export function headReviewFormat(keys: readonly string[]): ResponseFormat {
+  const allowed = keys.length > 0 ? keys : standardCatalogKeys();
+  return schemaOf(
+    "head_coach_review",
+    strictObject(
+      {
+        status: stringEnum(HEAD_STATUSES),
+        note_ko: TEXT,
+        revisions: {
+          type: "array",
+          items: strictObject(
+            {
+              day: stringEnum(DAY_ORDER),
+              block: stringEnum(EDIT_BLOCKS),
+              catalog_key: stringEnum(allowed),
+              field: stringEnum(["movement", "amount", "unit", "load"]),
+              value: TEXT,
+              reason: TEXT,
+            },
+            ["day", "block", "catalog_key", "field", "value", "reason"],
+          ),
+        },
+        adjustments: {
+          type: "array",
+          items: strictObject(
+            {
+              target: TEXT,
+              reason: TEXT,
+              priority: { type: "string", enum: ["P0", "P1", "P2", "P3"] },
+              current_value: TEXT,
+              proposed_value: TEXT,
+              preserve: { type: "array", items: TEXT },
+              rationale: TEXT,
+              confidence: { type: "number" },
+            },
+            ["target", "reason", "priority", "current_value", "proposed_value", "preserve", "rationale", "confidence"],
+          ),
+        },
+      },
+      ["status", "note_ko", "revisions", "adjustments"],
     ),
   );
 }
@@ -389,13 +466,12 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
               duration_min: { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max },
               stimulus: stringEnum(STIMULI),
               movements: { type: "array", items: movement },
-              equipment: { type: "array", items: stringEnum(EQUIPMENT) },
               volume: stringEnum(VOLUME_BANDS),
               intensity: stringEnum(INTENSITY_BANDS),
               interval_work_sec: { type: ["integer", "null"] },
               interval_rest_sec: { type: ["integer", "null"] },
             },
-            ["format", "duration_min", "stimulus", "movements", "equipment", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
+            ["format", "duration_min", "stimulus", "movements", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
           ),
         },
         ["day", "warmup_ko", "notes_ko", "conditioning"],
@@ -408,33 +484,7 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
   if (agent === "warmup") {
     return schemaOf("warmup_coach_day", strictObject({ day: stringEnum(DAY_ORDER), warmup_ko: TEXT }, ["day", "warmup_ko"]));
   }
-  if (agent === "conditioning") {
-    const movement = conditioningMovementSchema();
-    return schemaOf(
-      "conditioning_coach_day",
-      strictObject(
-        {
-          day: stringEnum(DAY_ORDER),
-          notes_ko: TEXT,
-          conditioning: strictObject(
-            {
-              format: stringEnum(WOD_FORMATS),
-              duration_min: { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max },
-              stimulus: stringEnum(STIMULI),
-              movements: { type: "array", items: movement },
-              equipment: { type: "array", items: stringEnum(EQUIPMENT) },
-              volume: stringEnum(VOLUME_BANDS),
-              intensity: stringEnum(INTENSITY_BANDS),
-              interval_work_sec: { type: ["integer", "null"] },
-              interval_rest_sec: { type: ["integer", "null"] },
-            },
-            ["format", "duration_min", "stimulus", "movements", "equipment", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
-          ),
-        },
-        ["day", "notes_ko", "conditioning"],
-      ),
-    );
-  }
+  if (agent === "conditioning") return conditioningDayFormat(standardCatalogKeys());
   if (agent === "variation_judge") {
     return schemaOf(
       "variation_judge",
@@ -768,14 +818,6 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
     });
   }
   errors.push(...intervalFieldErrors(piece));
-  if (!Array.isArray(piece.equipment) || piece.equipment.length === 0) {
-    errors.push(`conditioning.equipment: expected a non-empty array; allowed: [${EQUIPMENT.join(", ")}]`);
-  } else {
-    piece.equipment.forEach((item, index) => {
-      const issue = enumError(`conditioning.equipment[${index}]`, item, EQUIPMENT);
-      if (issue) errors.push(issue);
-    });
-  }
   return errors;
 }
 
