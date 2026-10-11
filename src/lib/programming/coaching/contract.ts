@@ -202,6 +202,7 @@ export function schemaBrief(agent: CoachAgentName): string {
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
     "Each revision: day, reason, correction_instruction, priority, constraints, target_coach, preserve, allowed_changes, forbidden_changes.",
     "target_coach is strength_coach, conditioning_coach, warmup_coach, or null. null means the adjustment is a field patch.",
+    "Movement checks use those arrays. allowed_changes replace_movement:<catalog_key> removes that movement and adds one other catalog movement. Changing only its amount does not replace it. allowed_changes only_movement:<catalog_key> may change only that movement and its amount. preserve keep_movement:<catalog_key> keeps that movement and its amount. A catalog key named only in prose is not adopted.",
     "Each adjustment: target, reason, priority, current_value, proposed_value, preserve, rationale, confidence.",
     "target is day.conditioning.intensity, day.conditioning.volume, day.conditioning.duration_min, or day.conditioning.format.",
     "priority is P0, P1, P2, or P3. preserve is an array of strings and includes weekly_strength_progression when the lift must stay.",

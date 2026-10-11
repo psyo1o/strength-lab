@@ -45,6 +45,7 @@ import { mergeHeadWithCode } from "./stage14/merge";
 import type { HeadDecision } from "./stage14/types";
 import { parseHeadAdjustments, runAdjustmentPass } from "./stage16/pass";
 import type { AdjustmentRequest } from "./stage16/types";
+import { checkRevisionCompliance, type ComplianceFeedback } from "./revision-compliance";
 import { parseHeadReview, type HeadCoachReview, type SessionRevision } from "./review";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
@@ -1550,16 +1551,22 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     revisions: [],
     note_ko: headPass.note,
   };
-  const coachSpecs = modelRevisions
-    .filter((row) => row.target_coach && headPass.touched[row.day] !== "head")
-    .slice(0, COACHING_POLICY.max_head_revisions);
+  const coachSpecs = modelRevisions.filter((row) => row.target_coach && headPass.touched[row.day] !== "head");
   let revisions = 0;
   const rewritten: DayKey[] = [];
-  for (const spec of coachSpecs) {
+  const pending = coachSpecs.map((spec) => ({ spec, failures: 0, feedback: null as ComplianceFeedback | null }));
+  let specIndex = 0;
+  while (specIndex < pending.length && revisions < COACHING_POLICY.max_head_revisions) {
+    const item = pending[specIndex]!;
+    const spec = item.spec;
     const dayIntent = plan.days.find((row) => row.day === spec.day);
-    if (!dayIntent || dayIntent.primary_training === "rest" || !spec.target_coach) continue;
+    if (!dayIntent || dayIntent.primary_training === "rest" || !spec.target_coach) {
+      specIndex += 1;
+      continue;
+    }
     const area: SpecialistArea = spec.target_coach === "strength_coach" ? "strength" : spec.target_coach === "warmup_coach" ? "warmup" : "conditioning";
     revisions += 1;
+    const revision: SessionRevision = item.feedback ? { ...spec, compliance_feedback: item.feedback } : spec;
     const written = await writeSession({
       week,
       plan,
@@ -1567,19 +1574,97 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       day: dayIntent,
       runId,
       revisionNumber: revisions,
-      revision: spec,
+      revision,
       timeoutMs,
       rules,
       areas: [area],
     });
     traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
     for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);
-    if (written.source === "model") {
+    if (written.source !== "model") {
+      noteFailure(written.trace.failure_reason);
+      specIndex += 1;
+      continue;
+    }
+    const before = draft.sessions.find((session) => session.day === spec.day);
+    const after = written.draft.sessions.find((session) => session.day === spec.day);
+    const otherDaysChanged = written.draft.sessions.some((session) => {
+      if (session.day === spec.day) return false;
+      const prior = draft.sessions.find((row) => row.day === session.day);
+      return JSON.stringify(prior) !== JSON.stringify(session);
+    });
+    const compliance = checkRevisionCompliance({
+      revision: spec,
+      before,
+      after,
+      otherDaysChanged,
+      targetCoach: spec.target_coach,
+    });
+    const room = COACHING_POLICY.max_head_revisions - revisions;
+    const outcome = compliance.ok ? "success" : room > 0 ? "rejected" : "unresolved";
+    const feedback: ComplianceFeedback = {
+      reason: compliance.reason ?? outcome,
+      required_changes: compliance.required_changes,
+      actual_changes: compliance.actual_changes,
+      preserve_violations: compliance.preserve_violations,
+      allowed_violations: compliance.allowed_violations,
+    };
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        day: spec.day,
+        agent_name: "revision_compliance",
+        agent_type: "validator",
+        model: null,
+        prompt_version: HEAD_COACH_PROMPT_VERSION,
+        input_hash: inputHash({
+          day: spec.day,
+          target_coach: spec.target_coach,
+          allowed_changes: spec.allowed_changes ?? [],
+          preserve: spec.preserve ?? [],
+          correction_instruction: spec.correction_instruction,
+        }),
+        input_summary: { day: spec.day, target_coach: spec.target_coach, attempt: item.failures + 1 },
+        output: {
+          spec_id: inputHash({ day: spec.day, target_coach: spec.target_coach, correction_instruction: spec.correction_instruction }),
+          day: spec.day,
+          target_coach: spec.target_coach,
+          required_changes: compliance.required_changes,
+          actual_changes: compliance.actual_changes,
+          preserve_violations: compliance.preserve_violations,
+          allowed_violations: compliance.allowed_violations,
+          failure_reason: compliance.ok ? null : feedback.reason,
+          retry_count: item.failures,
+          result: outcome,
+          applicable: compliance.applicable,
+        },
+        validation_result: compliance.ok ? "pass" : "fail",
+        validation_errors: compliance.ok ? [] : [feedback.reason],
+        retry_count: item.failures,
+        failure_reason: compliance.ok ? null : feedback.reason,
+        deterministic: true,
+        decision: outcome,
+        revision_number: revisions,
+        token_usage: null,
+      }),
+    );
+    if (compliance.ok) {
       draft = written.draft;
       daySources[spec.day] = "model";
-      rewritten.push(spec.day);
-    } else {
-      noteFailure(written.trace.failure_reason);
+      if (!rewritten.includes(spec.day)) rewritten.push(spec.day);
+      unresolvedDays.delete(spec.day);
+      specIndex += 1;
+      continue;
+    }
+    item.failures += 1;
+    item.feedback = feedback;
+    if (room === 0) {
+      if (daySources[spec.day] !== "model") {
+        const prior = unresolvedDays.get(spec.day) ?? [];
+        unresolvedDays.set(spec.day, [...prior, feedback.reason]);
+      }
+      break;
     }
   }
   const revisionScope = coachSpecs.length > 0 ? affectedDays(rewritten.length ? rewritten : coachSpecs.map((row) => row.day)) : null;

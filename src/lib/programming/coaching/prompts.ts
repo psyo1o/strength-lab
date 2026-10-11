@@ -8,7 +8,7 @@ export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v1";
 export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v1";
 export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v1";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
-export const HEAD_COACH_PROMPT_VERSION = "head-coach-v4";
+export const HEAD_COACH_PROMPT_VERSION = "head-coach-v5";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
 export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
 export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
@@ -115,7 +115,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest field change, then APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. Similarity alone stays minor. Three minor notes do not revise. Name a field change only when the benefit is greater than the cost. Low confidence prefers APPROVE_WITH_NOTE unless the code already marked a safety issue. APPROVE does not override unresolved hard errors. BLOCK means the week cannot be adopted. Do not ask for a new week.",
     constraints:
-      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. A field change goes in adjustments and does not name a target_coach. A day rewrite sets target_coach to strength_coach, conditioning_coach, or warmup_coach, names that day, and leaves adjustments empty. Do not name a coach, a day, or a range the server did not allow. Do not return a new week.",
+      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. A field change goes in adjustments and does not name a target_coach. A day rewrite sets target_coach to strength_coach, conditioning_coach, or warmup_coach, names that day, and leaves adjustments empty. Put replace_movement:<catalog_key> in allowed_changes when that movement must be replaced. An amount change is not a replacement. Put only_movement:<catalog_key> when only that movement and its amount may change. Put keep_movement:<catalog_key> in preserve when that movement must stay. A catalog key named only in prose is not adopted. Do not name a coach, a day, or a range the server did not allow. Do not return a new week.",
     output_schema: "Use the head schema in the OUTPUT SCHEMA block. adjustments is the only change the server applies.",
     failure_behavior: "Unreadable reviews keep the code decision. The server does not call the generator again. A failed final validation is not stored as the active week.",
   },

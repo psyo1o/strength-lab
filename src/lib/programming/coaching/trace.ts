@@ -53,6 +53,7 @@ export type AgentName =
   | "revision_router"
   | "revision_scope"
   | "revision_rejected"
+  | "revision_compliance"
   | "approval_refused"
   | "final_validator";
 

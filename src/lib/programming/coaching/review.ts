@@ -16,6 +16,14 @@ export type SessionRevision = {
   preserve?: string[];
   allowed_changes?: string[];
   forbidden_changes?: string[];
+  /** Carried to the next specialist call after a compliance rejection. Not a head JSON field. */
+  compliance_feedback?: {
+    reason: string;
+    required_changes: string[];
+    actual_changes: string[];
+    preserve_violations: string[];
+    allowed_violations: string[];
+  };
 };
 
 export type HeadCoachReview = {

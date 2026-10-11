@@ -241,7 +241,7 @@ async function run(mode: Mode) {
 describe("day recovery units", () => {
   it("keeps threshold 4 and rejects a coach, a day, and a range", () => {
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
-    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v4");
+    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v5");
     expect(headStanceOf({ status: "BLOCK" })).toBe("ACCEPT_WITH_NOTE");
     expect(parseHeadReview({ status: "BLOCK", note_ko: "채택하지 않습니다.", revisions: [] })?.status).toBe("BLOCK");
     const rejected = rejectedRevisionSpecs(
