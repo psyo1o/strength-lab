@@ -342,9 +342,11 @@ export function applyCellsToCoachJson(json: unknown, cells: readonly RecoveryCel
     if (cell.field === "amount") {
       const decided = amountDecision(cell.catalog_key, cell.value);
       if (!decided.ok) return decided;
+      const cellShaped = typeof movement.movement === "string" && typeof movement.unit === "string" && typeof movement.amount === "number";
       movement.amount_value = decided.amount;
       movement.unit = decided.unit;
-      movement.amount = displayAmount(decided.amount, decided.unit);
+      if (movement.key == null || movement.key === "") movement.key = typeof movement.movement === "string" ? movement.movement : cell.catalog_key;
+      movement.amount = cellShaped ? decided.amount : displayAmount(decided.amount, decided.unit);
     } else if (cell.field === "unit") {
       const unit = cell.value as CatalogUnit;
       const current = typeof movement.amount_value === "number" ? movement.amount_value : parseCellAmount(String(movement.amount ?? "")).amount ?? 0;

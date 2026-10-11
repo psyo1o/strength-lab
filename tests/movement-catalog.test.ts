@@ -62,4 +62,21 @@ describe("movement catalog", () => {
     expect(piece.conditioning.movements[0]?.amount).toBe("12");
     expect(applyCellsToCoachJson(before, [{ catalog_key: "double_under", field: "amount", value: "60cal" }]).ok).toBe(false);
   });
+
+  it("keeps a cell-shaped row numeric so the key is still read", () => {
+    const before = {
+      conditioning: {
+        movements: [
+          { movement: "ring_row", amount: 10, unit: "reps", load: null },
+          { movement: "toes_to_bar", amount: 8, unit: "reps", load: null },
+        ],
+      },
+    };
+    const patched = applyCellsToCoachJson(before, [{ catalog_key: "toes_to_bar", field: "amount", value: "12" }]);
+    expect(patched.ok).toBe(true);
+    if (!patched.ok) return;
+    const movements = (patched.json as { conditioning: { movements: Array<Record<string, unknown>> } }).conditioning.movements;
+    expect(movements[0]).toMatchObject({ movement: "ring_row", amount: 10 });
+    expect(movements[1]).toMatchObject({ key: "toes_to_bar", movement: "toes_to_bar", amount: 12, unit: "reps" });
+  });
 });
