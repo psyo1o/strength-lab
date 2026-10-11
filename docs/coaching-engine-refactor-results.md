@@ -14,7 +14,7 @@
 | 월 API | `ensureProgrammingMonth` / `regenerateProgrammingMonth` | `authorMonth` | `monthSchemaErrors` | `programming_months` |
 | 오늘 화면 | `sharedToday`가 저장된 요일을 고름 | 일을 따로 생성하지 않음 | 저장된 주 | `class_weeks` |
 | admin | `ensureProgrammingWeek` / `regenerateProgrammingWeek`에 `key` 또는 `key: null` | 키 규칙과 같음 | 같음 | 같음 |
-| plan-lab | `regenerateProgrammingWeek(week, { key })`, 2099, `PROBE_FLAGS` | 문자열 키면 코칭 | 같음 | 임시 DB. 이 작업에서는 실행하지 않음 |
+| plan-lab | `regenerateProgrammingWeek(week, { key })`, 2099, `PROBE_FLAGS` | 문자열 키면 코칭 | 같음 | 임시 DB. W1 한 패스를 실행함. 채택 0 |
 
 ### 이 브랜치 이전의 구조적 결함
 
@@ -72,23 +72,44 @@ admin의 저장 동작은 `ensureProgrammingWeek` / `regenerateProgrammingWeek`�
 
 ## 실제 모델
 
-아직 실행하지 않음. A–C 모킹이 통과한 뒤에 2099 한 주를 돌린다. 채택 수, fallback 수, 호출 수, 토큰은 그 실행 뒤에만 적는다. 0으로 두지 않는다.
+`scripts/plan-lab.ts`로 2099 임시 DB에서 `gpt-5.4-nano` 한 주를 돌렸다. `PROBE_FLAGS=off`, `PROBE_SCENARIOS=W1`, `PROBE_PASSES=A1`. 첫 호출은 HTTP 429가 아니어서 멈추지 않았다. 숫자는 `docs/coaching-engine-refactor-probe.json`이다. 원본 아카이브는 `docs/coaching-engine-d-runs/`이고 git에 넣지 않는다.
+
+채택된 모델 주는 0이다. `2099-07-06`은 `fallback_after_model_failure:5/6`이다. 월요일 컨디셔닝이 schema다. 헤드는 `APPROVE_WITH_NOTE`이고 수정 명세를 넘기지 않았다. `regeneration_calls`는 0이다. 이 결과로는 D를 통과로 보지 않는다. Phase C와 12주 프로브는 실행하지 않았다.
+
+선행 주 `2099-06-29`도 같은 실행에서 만들어졌고 `fallback_after_model_failure:4/6`이다. 월 행 둘은 `model` / `monthly-program-v4`다. 월 로그의 토큰은 없다.
 
 ## 지시서 13절
 
+지킨 항목:
+
+3. 전문 코치 출력 분리 — 스키마와 호출이 나뉘고, 2099에서 채택된 출력 17건은 다른 영역 키를 쓰지 않았다.
+6. 기존 검증 유지 — 임계값 4. 주 JSON과 코칭 스키마 모두 모킹으로 `too_similar` 저장을 확인했다. 프로브에서 임계값을 낮추지 않았다.
+10. 운영 데이터와 배포 — 변경하지 않음.
+
 완료로 적지 않는 항목:
 
-1. 단일 오케스트레이터 — 저장되는 주는 `runCoachingOrchestrator`를 지난다. `dry-run-week`는 위의 예외다.
-2. 월·주·일 책임 — 일 생성은 세 전문 코치다. 월 행은 여전히 `authorMonth` / `monthly-program-v4`다. 이 항목은 완료가 아니다.
-3. 전문 코치 출력 분리 — 모킹 테스트로 확인했다.
-4. 헤드의 부분 수정 — 모킹으로 그 날만 재생성하고 범위만 재검증한다. 실제 모델이 수정 명세를 냈는지는 프로브 전이다.
-5. 배치 조정 우선 — 필드 조정이 전문 코치 재생성보다 먼저다. 요일을 바꾼 뒤 해당 코치만 재검증하는 새 정책은 없다. 완료가 아니다.
-6. 기존 검증 유지 — 임계값 4. 주 JSON과 코칭 스키마 모두 모킹으로 `too_similar` 저장을 확인했다.
-7. 호출 예산과 토큰 — 모킹 예산은 지킨다. 실제 호출 집계는 없다. 완료가 아니다.
-8. 기본 경로의 모델 채택 — 실제 프로브 없음. 완료가 아니다.
-9. 회귀 — 이 브랜치 `vitest run` 350은 통과했다. Phase C 브랜치는 실행하지 않음. 12주 프로브는 없다. 완료가 아니다.
-10. 운영 데이터와 배포 — 변경하지 않음.
+1. 단일 오케스트레이터 — 저장되는 주는 `runCoachingOrchestrator`를 지난다. `dry-run-week`는 저장하지 않는 예외라 이 항목을 완료로 적지 않는다.
+2. 월·주·일 책임 — 일 생성은 세 전문 코치다. 월 행은 여전히 `authorMonth` / `monthly-program-v4`다.
+4. 헤드의 부분 수정 — 모킹으로 그 날만 재생성하고 범위만 재검증한다. 2099 헤드는 수정 명세를 내지 않았다. 실제 경로의 재생성은 확인되지 않았다.
+5. 배치 조정 우선 — 필드 조정이 전문 코치 재생성보다 먼저다. 요일을 바꾼 뒤 해당 코치만 재검증하는 새 정책은 없다.
+7. 호출 예산과 토큰 — 모킹 예산은 지킨다. W1은 모델 호출 22, 실패 호출 2, 토큰 176730이다. 월 로그 토큰은 null이다. 12주 집계는 없다.
+8. 기본 경로의 모델 채택 — 플래그를 끈 2099 주는 채택 0이다.
+9. 회귀 — 이 브랜치 `vitest run` 350은 통과했다. Phase C와 12주 프로브는 D가 통과하지 않아 실행하지 않음.
 
 ## 14절 요약
 
-구조, 검증, 미해결, 운영 안전은 작업 보고와 같다. 운영 경로 전환과 배포는 별도 승인이다. `2026-10-05`와 `2026-10-12`는 이 작업에서 생성하지 않았다.
+### 구조 변경
+
+저장되는 주는 `runCoachingOrchestrator`를 지난다. 키 없음은 `no-model` 초안이다. 문자열 키는 세 전문 코치와 헤드다. 월 행은 `authorMonth`다. `dry-run-week`는 저장하지 않는 예외다.
+
+### 실제 검증
+
+모킹 350 통과. 2099 모델 주 채택 0. W1 fallback 사유 `fallback_after_model_failure:5/6`. 호출 22, 실패 호출 2, 토큰 176730. 헤드 수정 횟수 0. 스켈레톤은 플래그가 꺼져 잠기지 않았다.
+
+### 미해결 문제
+
+월요일 컨디셔닝 amount가 단위 이름만 있어 schema다. 하루 실패가 주 출처를 fallback으로 만든다. 실제 헤드가 수정 명세를 넘긴 사례가 없다. 월 행과 배치 교환 정책, Phase C, 12주가 남아 있다.
+
+### 운영 안전
+
+운영 DB, flag, 배포, 병합은 바꾸지 않았다. `2026-10-05`와 `2026-10-12`는 생성하지 않았다.

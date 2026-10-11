@@ -1,17 +1,66 @@
 {
-  "probe": "not_run",
-  "reason": "모킹 스위트는 통과했다. 2099 한 주 프로브는 이 파일의 다음 갱신에서만 적는다. 첫 모델 호출은 아직 없다.",
+  "probe": "one_week",
+  "passed": false,
+  "reason": "2099-07-06의 generation_source는 fallback이다. 훈련일 6일 중 5일만 모델이다. 월요일 컨디셔닝이 schema로 거절됐다. 채택된 모델 주는 0이다. 첫 호출은 429가 아니다. E(Phase C, 12주)는 실행하지 않았다.",
   "script": "scripts/plan-lab.ts",
-  "database": null,
-  "model": null,
-  "weeks": null,
-  "adopted_model_weeks": null,
-  "fallback_weeks": null,
-  "model_calls": null,
-  "tokens": null,
-  "tokens_unsupported": null,
-  "elapsed_ms": null,
-  "http_429": null,
-  "a1": null,
-  "a2": null
+  "command": "PROBE_MODE=db PROBE_LABEL=coaching-engine-d PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1",
+  "database": "/tmp/coaching-engine-d-phaseb.db",
+  "model": "gpt-5.4-nano",
+  "flags": {
+    "COACHING_PIPELINE": "0",
+    "LONGITUDINAL_PLANNING": "0"
+  },
+  "http_429": false,
+  "adopted_model_weeks": 0,
+  "fallback_weeks": 2,
+  "head_target_coach_revisions": 0,
+  "weeks": [
+    {
+      "week": "2099-06-29",
+      "role": "predecessor",
+      "generation_source": "fallback",
+      "fallback_reason": "fallback_after_model_failure:4/6",
+      "prompt_version": "coaching-pipeline-v6",
+      "model_calls": 21,
+      "failed_api_calls": 2,
+      "tokens": 71329,
+      "failed_days": ["mon", "wed"],
+      "failed_day_reason": "conditioning schema"
+    },
+    {
+      "week": "2099-07-06",
+      "role": "W1",
+      "generation_source": "fallback",
+      "fallback_reason": "fallback_after_model_failure:5/6",
+      "prompt_version": "coaching-pipeline-v6",
+      "week_status": "VALIDATED",
+      "model_calls": 22,
+      "failed_api_calls": 2,
+      "tokens": 176730,
+      "elapsed_ms": 99922,
+      "day_sources": ["FALLBACK", "MODEL", "MODEL_REVISED", "MODEL", "MODEL", "MODEL"],
+      "failed_days": ["mon"],
+      "failed_day_reason": "conditioning schema: push_up and sit_up amount was the word reps, which the unit check does not store",
+      "head_status": "APPROVE_WITH_NOTE",
+      "regeneration_calls": 0,
+      "specialist_cross_writes": 0
+    }
+  ],
+  "months": [
+    {
+      "month_start": "2099-06-01",
+      "generation_source": "model",
+      "prompt_version": "monthly-program-v4",
+      "tokens": null
+    },
+    {
+      "month_start": "2099-07-01",
+      "generation_source": "model",
+      "prompt_version": "monthly-program-v4",
+      "tokens": null
+    }
+  ],
+  "plan_lab_summary_file": "docs/coaching-engine-d-probe.json",
+  "raw_archive": "docs/coaching-engine-d-runs",
+  "e_ran": false
 }
