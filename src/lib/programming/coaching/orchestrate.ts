@@ -525,6 +525,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     previousActual: input.previousActual,
     recentPlans: input.recentPlans,
     recentStructures: input.recentStructures,
+    inputSummary: input.inputSummary,
   });
   const weeklyStarted = Date.now();
   const weekly = await askCoach({

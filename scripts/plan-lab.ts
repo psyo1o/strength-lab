@@ -194,11 +194,12 @@ async function databasePass(pass: string) {
     const logs = raw
       .prepare(`SELECT raw_json, latency_ms, model_name FROM programming_generation_logs WHERE scope_key = ?`)
       .all(scenario.weekStart) as Array<{ raw_json: string; latency_ms: number; model_name: string | null }>;
-    let tokens = 0;
+    let tokens: number | null = null;
     let modelCalls = 0;
     for (const log of logs) {
-      const parsed = JSON.parse(log.raw_json) as { token_usage?: { total_tokens?: number }; deterministic?: boolean; source?: string };
-      tokens += parsed.token_usage?.total_tokens ?? 0;
+      const parsed = JSON.parse(log.raw_json) as { token_usage?: { total_tokens?: number } | null; deterministic?: boolean; source?: string };
+      const total = parsed.token_usage?.total_tokens;
+      if (typeof total === "number") tokens = (tokens ?? 0) + total;
       if (parsed.deterministic === false && parsed.source === "model") modelCalls += 1;
     }
     const sessionFailures = classifySessionLogs(logs.map((log) => log.raw_json));
@@ -651,7 +652,10 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
     ),
     consistency: consistencyRows(rows),
     model_calls: rows.reduce((sum, row) => sum + Number(row.model_calls ?? 0), 0),
-    tokens: rows.reduce((sum, row) => sum + Number(row.tokens ?? 0), 0),
+    tokens: rows.some((row) => typeof row.tokens === "number")
+      ? rows.reduce((sum, row) => sum + (typeof row.tokens === "number" ? row.tokens : 0), 0)
+      : null,
+    tokens_unsupported: rows.every((row) => row.tokens == null),
     elapsed_ms: rows.reduce((sum, row) => sum + Number(row.elapsed_ms ?? 0), 0),
     flags: {
       COACHING_PIPELINE: process.env.COACHING_PIPELINE === "1" ? "1" : "0",
@@ -702,7 +706,10 @@ async function main() {
     const snapshot = await readProbeSnapshot();
     const scrubbed = JSON.parse(scrub(JSON.stringify(snapshot))) as Awaited<ReturnType<typeof readProbeSnapshot>>;
     const calls = result.weeks.reduce((sum: number, week) => sum + Number((week as { model_calls?: number }).model_calls ?? 0), 0);
-    const tokens = result.weeks.reduce((sum: number, week) => sum + Number((week as { tokens?: number }).tokens ?? 0), 0);
+    const tokenValues = result.weeks.map((week) => (week as { tokens?: number | null }).tokens);
+    const tokens = tokenValues.every((value) => typeof value !== "number")
+      ? null
+      : tokenValues.reduce((sum: number, value) => sum + (typeof value === "number" ? value : 0), 0);
     const elapsed = result.weeks.reduce((sum: number, week) => sum + Number((week as { elapsed_ms?: number }).elapsed_ms ?? 0), 0);
     archived.push(
       archiveProbePass({

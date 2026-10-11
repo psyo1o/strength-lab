@@ -234,21 +234,20 @@ describe("coaching pipeline", () => {
     }
   });
 
-  it("stores a keyless 2099 week as fallback and keeps the coach trace", async () => {
+  it("stores a keyless 2099 week as no_model even when the coaching flag is on", async () => {
     process.env.COACHING_PIPELINE = "1";
     const week = await ensureProgrammingWeek("2099-07-06", { nowMs: NOW, key: null });
     expect(week.weekStart).not.toBe("2026-10-05");
     expect(week.generationSource).toBe("fallback");
     expect(week.fallbackReason).toBe("no_model");
+    expect(week.promptVersion).toBe("weekly-program-v10");
     expect(week.intent.plan?.intent_source).toBe("fallback");
     expect(week.intent.plan?.original_intent_source).toBe("fallback");
     expect(week.intent.plan?.fallback_used).toBe(true);
     const logs = (await import("../src/lib/db/client")).getSqlite()
       .prepare("SELECT agent FROM (SELECT json_extract(raw_json, '$.agent_name') AS agent FROM programming_generation_logs WHERE scope = 'week' AND scope_key = ?)")
-      .all("2099-07-06") as Array<{ agent: string }>;
-    expect(logs.map((row) => row.agent)).toEqual(
-      expect.arrayContaining(["weekly_coach", "session_coach", "load_coach", "fatigue_engine", "variation_engine", "head_coach"]),
-    );
+      .all("2099-07-06") as Array<{ agent: string | null }>;
+    expect(logs.map((row) => row.agent)).not.toContain("weekly_coach");
     delete process.env.COACHING_PIPELINE;
   });
 

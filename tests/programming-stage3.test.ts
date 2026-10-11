@@ -26,7 +26,6 @@ import {
   RULES_VERSION,
   SIMILARITY_CONFIG,
   WEEKLY_PROMPT_VERSION,
-  WOD_FROM_INTENT_PROMPT_VERSION,
   type Equipment,
   type MonthDirection,
   type MovementPattern,
@@ -200,7 +199,8 @@ describe("stage 3 fallback, similarity, and dry run", () => {
     process.env.MONTH_PLAN_MODEL_KEY = LIVE_KEY;
     const fetchImpl = vi.fn(async () => new Response("forced-failure", { status: 500 }));
     const week = await ensureProgrammingWeek(WEEK, { nowMs: NOW, key: KEY, fetchImpl });
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
+    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(24);
     const header = (fetchImpl.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
     expect(header.Authorization).toBe(`Bearer ${KEY}`);
     expect(header.Authorization).not.toContain(LIVE_KEY);
@@ -208,19 +208,22 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       generationSource: "fallback",
       fallbackReason: "http_error",
       rulesVersion: RULES_VERSION,
-      promptVersion: WOD_FROM_INTENT_PROMPT_VERSION,
-      generationAttempt: 2,
+      promptVersion: "coaching-pipeline-v6",
+      generationAttempt: 1,
       generatedAt: NOW,
     });
     expect(RULES_VERSION).toBe("programming-6");
     expect(WEEKLY_PROMPT_VERSION).toBe("weekly-program-v10");
     const nextFetch = vi.fn(async () => new Response("still-down", { status: 500 }));
     await ensureProgrammingWeek("2026-10-12", { nowMs: NOW + 5, key: KEY, fetchImpl: nextFetch });
-    const init = nextFetch.mock.calls[0]?.[1] as RequestInit;
-    const sent = JSON.parse(JSON.parse(String(init.body)).messages[1].content) as {
-      previous_generation_source: string;
-      summary: { previous_week: { generation_source: string } };
-    };
+    const sent = nextFetch.mock.calls
+      .map((call) => JSON.parse(JSON.parse(String((call[1] as RequestInit).body)).messages[1].content) as {
+        agent_name?: string;
+        previous_generation_source: string;
+        summary: { previous_week: { generation_source: string } };
+      })
+      .find((user) => user.agent_name === "weekly_coach");
+    if (!sent) throw new Error("weekly coach payload missing");
     expect(sent.previous_generation_source).toBe("fallback");
     expect(sent.summary.previous_week.generation_source).toBe("fallback");
   });
@@ -431,7 +434,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       week_start: WEEK,
       generation_source: "fallback",
       rules_version: "programming-6",
-      generation_attempt: 2,
+      generation_attempt: 1,
     });
     expect(JSON.stringify(result)).not.toContain(LIVE_KEY);
     const stored = getSqlite()

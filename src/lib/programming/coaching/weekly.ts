@@ -96,6 +96,7 @@ export function weeklyCoachPayload(input: {
   previousActual?: WeekActual | null;
   recentPlans?: readonly WeeklyIntentPlan[];
   recentStructures?: readonly { format: string; stimulus: string | null; movement_patterns: readonly string[]; duration_min: number }[];
+  inputSummary?: unknown;
 }): unknown {
   const month = input.month.coaching_plan ?? deterministicMonthlyPlan(input.month, input.previousActual);
   const summary = input.previousActual?.class_summary;
@@ -124,6 +125,11 @@ export function weeklyCoachPayload(input: {
       })),
     })),
     recent_structures: (input.recentStructures ?? []).slice(-12),
+    summary: input.inputSummary ?? null,
+    previous_generation_source:
+      input.inputSummary && typeof input.inputSummary === "object" && "previous_week" in input.inputSummary
+        ? ((input.inputSummary as { previous_week?: { generation_source?: string } | null }).previous_week?.generation_source ?? null)
+        : null,
     note: "Return seven day purposes under the key days. Do not name movements. week_rules are immutable. A repeated weekday layout is not required. Change the order when fatigue, benchmark, long-day, or the block phase changes. Do not copy the same Monday-to-Sunday map just because an earlier week used it.",
   };
 }

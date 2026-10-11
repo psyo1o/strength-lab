@@ -1,0 +1,17 @@
+{
+  "probe": "not_run",
+  "reason": "A단계 단위 테스트 일부가 아직 실패한다. 실패를 통과로 바꾸기 위해 실제 모델을 호출하지 않았다. 첫 모델 호출은 없다.",
+  "script": "scripts/plan-lab.ts",
+  "database": null,
+  "model": null,
+  "weeks": null,
+  "adopted_model_weeks": null,
+  "fallback_weeks": null,
+  "model_calls": null,
+  "tokens": null,
+  "tokens_unsupported": null,
+  "elapsed_ms": null,
+  "http_429": null,
+  "a1": null,
+  "a2": null
+}

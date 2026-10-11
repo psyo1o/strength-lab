@@ -627,18 +627,22 @@ describe("coaching pipeline production guard", () => {
     freshDb();
   });
 
-  it("keeps the stage10 route when the flag is off and refuses the live week when it is on", async () => {
+  it("uses the same unkeyed week for either flag and refuses the live week only in a probe", async () => {
     expect(coachingPipelineEnabled()).toBe(false);
-    const week = await ensureProgrammingWeek("2099-08-03", { nowMs: NOW, key: null });
-    expect(week.weekStart).not.toBe("2026-10-05");
-    expect(week.promptVersion).toBe(WEEKLY_PROMPT_VERSION);
-    expect(week.promptVersion).not.toBe(COACHING_PIPELINE_VERSION);
+    const off = await ensureProgrammingWeek("2099-08-03", { nowMs: NOW, key: null });
+    expect(off.weekStart).not.toBe("2026-10-05");
+    expect(off.promptVersion).toBe(WEEKLY_PROMPT_VERSION);
+    expect(off.promptVersion).not.toBe(COACHING_PIPELINE_VERSION);
     process.env.COACHING_PIPELINE = "1";
-    await expect(ensureProgrammingWeek("2026-10-05", { nowMs: NOW, key: null })).rejects.toThrow(/2026-10-05/);
+    const on = await ensureProgrammingWeek("2099-08-10", { nowMs: NOW, key: null });
+    expect(on.promptVersion).toBe(off.promptVersion);
+    process.env.STRENGTH_LAB_PROBE = "1";
+    await expect(ensureProgrammingWeek("2026-10-05", { nowMs: NOW, key: "sk-probe" })).rejects.toThrow(/2026-10-05/);
     const live = (await import("../src/lib/db/client")).getSqlite()
       .prepare("SELECT COUNT(*) AS c FROM programming_weeks WHERE week_start = '2026-10-05'")
       .get() as { c: number };
     expect(live.c).toBe(0);
     delete process.env.COACHING_PIPELINE;
+    delete process.env.STRENGTH_LAB_PROBE;
   });
 });

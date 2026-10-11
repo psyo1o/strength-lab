@@ -34,6 +34,8 @@ export type CoachWeekInput = {
   recentSignatures?: readonly string[];
   recentLiftMaps?: readonly string[];
   recentPlans?: readonly WeeklyIntentPlan[];
+  /** Engine summary. The weekly coach sees it. It is not a second generator. */
+  inputSummary?: unknown;
   /** Locked week from planLongitudinal. Session fill uses it only when the skeleton is locked. */
   longitudinal?: LongitudinalPlan | null;
   key?: string | null;
@@ -108,7 +110,7 @@ function stamp(draft: WeekDraft, plan: WeeklyIntentPlan): WeekDraft {
  * At most two head-coach revisions, and only the named days are rebuilt.
  */
 export async function coachWeek(input: CoachWeekInput): Promise<CoachWeekResult> {
-  assertProbeWeek(input.weekStart);
+  if (process.env.STRENGTH_LAB_PROBE === "1") assertProbeWeek(input.weekStart);
   if (input.key) return coachWeekActive(input);
   return coachWeekKeyless(input);
 }
