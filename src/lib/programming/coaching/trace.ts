@@ -52,6 +52,8 @@ export type AgentName =
   | "head_coach"
   | "revision_router"
   | "revision_scope"
+  | "revision_rejected"
+  | "approval_refused"
   | "final_validator";
 
 export type TokenUsage = {

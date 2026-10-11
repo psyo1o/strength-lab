@@ -24,7 +24,7 @@ function clone(sessions: readonly SessionDraft[]): SessionDraft[] {
 
 export function headStanceOf(review: Pick<HeadCoachReview, "status">): HeadStance {
   if (review.status === "APPROVE") return "ACCEPT";
-  if (review.status === "APPROVE_WITH_NOTE") return "ACCEPT_WITH_NOTE";
+  if (review.status === "APPROVE_WITH_NOTE" || review.status === "BLOCK") return "ACCEPT_WITH_NOTE";
   return "ADJUST";
 }
 

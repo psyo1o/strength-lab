@@ -20,7 +20,9 @@ import { authorMonth, authorWeek, authorWeeklyIntent, evaluationStatus, monthPro
 import { realizeWeekFromIntent } from "./realize-intent";
 import { planWeeklyIntent, weeklyIntentFrom, type WeeklyIntentContext } from "./weekly-intent";
 import { projectWeek } from "./project";
-import { judgeWeek, sessionLoad } from "./rules";
+import { daysInText } from "./coaching/stage15/hard-rules";
+import { replaceDays } from "./coaching/session";
+import { judgeWeek, sessionLoad, similarityViolations } from "./rules";
 import {
   getMonthlyEvaluationForStart,
   getProgrammingMonth,
@@ -650,7 +652,11 @@ async function writeProgrammingWeek(
         display: rejectedDisplay,
         inputSummaryJson: JSON.stringify(summary),
         generationSource: coached.generation_source,
-        fallbackReason: "final_validation_failed",
+        fallbackReason: coached.fallback_reason
+          ? coached.fallback_reason.includes("final_validation_failed")
+            ? coached.fallback_reason
+            : `${coached.fallback_reason};final_validation_failed`
+          : "final_validation_failed",
         generatedAt: nowMs,
         modelName: coached.model_name,
         promptVersion: coached.prompt_version,
@@ -722,32 +728,52 @@ async function writeProgrammingWeek(
         recentLiftMaps,
       });
       if (!judged.ok && judged.reason === "too_similar") {
-        const realized = realizeWeekFromIntent({
-          month: month.direction,
-          weekIndex,
-          plan: {
-            ...coached.plan,
-            intent_source: "fallback",
-            original_intent_source: coached.plan.original_intent_source,
-            fallback_used: true,
-            realization: "intent",
-          },
-          recent,
-          previousActual: summary.previous_week?.actual ?? null,
-          recentLiftMaps,
-        });
-        const realizedCheck = judgeWeek(
-          { ...realized, intent: { why_ko: realized.intent.why_ko, focus: realized.intent.focus, scheme_note: realized.intent.scheme_note } },
-          month.direction,
-          weekIndex,
-          recent,
-          { previousActual: summary.previous_week?.actual ?? null, recentLiftMaps },
-        );
-        storedDraft = realizedCheck.ok
-          ? realized
-          : fallbackWeek(month.direction, weekIndex, "too_similar", recent, summary.previous_week?.actual ?? null, recentLiftMaps).draft;
-        storedSource = "fallback";
-        storedReason = "too_similar";
+        const named = [...new Set(similarityViolations(coached.draft, recent).flatMap((error) => daysInText(error)))];
+        const context = { previousActual: summary.previous_week?.actual ?? null, recentLiftMaps };
+        let repaired: typeof coached.draft | null = null;
+        for (let salt = 40; salt < 48 && repaired == null && named.length > 0; salt += 1) {
+          const rebuilt = replaceDays({
+            month: month.direction,
+            weekIndex,
+            plan: coached.plan,
+            draft: coached.draft,
+            days: named,
+            actual: context.previousActual,
+            recent,
+            recentLiftMaps,
+            salt,
+          });
+          const check = judgeWeek(rebuilt.draft, month.direction, weekIndex, recent, context);
+          if (check.ok) repaired = rebuilt.draft;
+        }
+        if (repaired) {
+          storedDraft = repaired;
+          storedSource = "fallback";
+          storedReason = "too_similar";
+        } else {
+          const failedId = recordFailedProgrammingWeek({
+            monthId: month.id,
+            weekIndex,
+            weekStart,
+            draft: withLongitudinal(coached.draft, longitudinal),
+            display: projectWeek(coached.draft, weekIndex, "rules", month.direction.strength_method),
+            inputSummaryJson: JSON.stringify(summary),
+            generationSource: "fallback",
+            fallbackReason: "too_similar",
+            generatedAt: nowMs,
+            modelName: coached.model_name,
+            promptVersion: coached.prompt_version,
+            rulesVersion: RULES_VERSION,
+            inputSummaryVersion: INPUT_SUMMARY_VERSION,
+            generationAttempt: coached.revision_count + 1,
+            responses: [],
+            logContext: options.logContext,
+          });
+          insertCoachTraces({ scopeKey: weekStart, planId: failedId, createdAt: nowMs, traces: coached.traces });
+          const failed = listProgrammingWeekAttempts(weekStart).find((row) => row.id === failedId);
+          if (failed) return failed;
+          throw new Error("similarity repair failed and the similar week was not stored");
+        }
       }
     }
     const display = projectWeek(

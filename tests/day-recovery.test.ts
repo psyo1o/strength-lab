@@ -1,0 +1,380 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { beforeEach, describe, expect, it } from "vitest";
+import { resetDbConnection } from "../src/lib/db/client";
+import { DAY_ORDER, type DayKey } from "../src/lib/month-plan/types";
+import { dryRunWeek } from "../src/lib/programming/admin-tools";
+import { dayRecoveryPayload, rejectedRevisionSpecs } from "../src/lib/programming/coaching/day-recovery";
+import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
+import { coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
+import { HEAD_COACH_PROMPT_VERSION, STAGE16_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
+import { parseHeadReview } from "../src/lib/programming/coaching/review";
+import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
+import { headStanceOf } from "../src/lib/programming/coaching/stage16/pass";
+import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
+import { ensureProgrammingWeek } from "../src/lib/programming/engine";
+import { fallbackMonth } from "../src/lib/programming/fallback";
+import { getProgrammingWeek } from "../src/lib/programming/store";
+import { SIMILARITY_CONFIG, WEEKLY_PROMPT_VERSION, type MonthDirection, type SessionDraft, type WeeklyIntentPlan } from "../src/lib/programming/types";
+
+const NOW = Date.parse("2099-07-06T01:00:00.000Z");
+const KEY = "sk-day-recovery";
+const WEEK = "2099-07-06";
+
+type Mode = "recover" | "always_bad" | "keep_valid" | "bad_coach" | "bad_range" | "block" | "approve";
+
+function freshDb() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-day-recovery-"));
+  process.env.DATABASE_PATH = path.join(dir, "app.db");
+  process.env.AUTH_SECRET = "test-secret-at-least-32-characters-long";
+  delete process.env.MONTH_PLAN_MODEL_KEY;
+  delete process.env.COACHING_PIPELINE;
+  delete process.env.LONGITUDINAL_PLANNING;
+  delete process.env.STRENGTH_LAB_PROBE;
+  resetDbConnection();
+}
+
+function month531(): MonthDirection {
+  return fallbackMonth({ summary_ko: "5/3/1 블록을 네 주 유지합니다.", next_scheme: "531", strength_method: "531" });
+}
+
+function chat(content: unknown, status = 200) {
+  return new Response(
+    JSON.stringify({
+      choices: [{ finish_reason: "stop", message: { content: typeof content === "string" ? content : JSON.stringify(content) } }],
+      usage: { prompt_tokens: 100, completion_tokens: 40, total_tokens: 140 },
+    }),
+    { status, headers: { "Content-Type": "application/json" } },
+  );
+}
+
+function weeklyJson(plan: WeeklyIntentPlan) {
+  return {
+    block_phase: plan.block_phase,
+    emphasis: plan.emphasis,
+    why_ko: plan.why_ko,
+    focus: plan.focus,
+    scheme_note: plan.scheme_note,
+    adjustment_ko: plan.adjustment_ko,
+    days: plan.days,
+  };
+}
+
+function sessionJson(session: SessionDraft) {
+  const piece = session.conditioning;
+  if (!piece) return { day: session.day, notes_ko: "휴식입니다.", conditioning: null };
+  return {
+    day: session.day,
+    notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
+    conditioning: {
+      format: piece.format,
+      duration_min: piece.duration_min,
+      stimulus: piece.stimulus,
+      movements: piece.movements,
+      equipment: piece.equipment,
+      volume: piece.volume,
+      intensity: piece.intensity,
+      interval_work_sec: piece.format === "intervals" ? 30 : null,
+      interval_rest_sec: piece.format === "intervals" ? 30 : null,
+    },
+  };
+}
+
+function repsOnly(session: SessionDraft) {
+  const full = sessionJson(session);
+  const conditioning = full.conditioning as { movements?: Array<{ amount?: string }> } | null;
+  if (conditioning?.movements) {
+    conditioning.movements = conditioning.movements.map((movement) => ({ ...movement, amount: "reps" }));
+  }
+  return full;
+}
+
+function agentOf(user: Record<string, unknown>): string {
+  if (typeof user.agent_name === "string") return user.agent_name;
+  const context = user.context;
+  if (context && typeof context === "object" && "agent" in context) {
+    const agent = String((context as { agent?: unknown }).agent);
+    if (agent === "conditioning" || agent === "strength" || agent === "warmup") return `${agent}_coach`;
+    return `context:${agent}`;
+  }
+  const original = user.original_input;
+  if (original && typeof original === "object" && typeof (original as { agent_name?: unknown }).agent_name === "string") {
+    return String((original as { agent_name: string }).agent_name);
+  }
+  return "unknown";
+}
+
+function dayOf(user: Record<string, unknown>): string {
+  const direct = (user.day_intent as { day?: string } | undefined)?.day;
+  if (direct) return direct;
+  const original = user.original_input as { day_intent?: { day?: string } } | undefined;
+  return original?.day_intent?.day ?? "";
+}
+
+function headBody(mode: Mode, plan: WeeklyIntentPlan) {
+  const training = plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest").map((day) => day.day);
+  const rest = plan.days.find((day) => day.primary_training === "rest" || day.recovery_role === "rest")?.day ?? "sun";
+  if (mode === "block") {
+    return { status: "BLOCK", note_ko: "이 주는 채택할 수 없습니다.", revisions: [], adjustments: [] };
+  }
+  if (mode === "bad_coach") {
+    return {
+      status: "REVISE",
+      note_ko: "담당이 아닌 코치입니다.",
+      revisions: [
+        {
+          day: training[0] ?? "mon",
+          reason: "부하 코치는 이 날을 고치지 않습니다.",
+          correction_instruction: "컨디셔닝 코치만 고칠 수 있습니다.",
+          priority: "high",
+          constraints: "주간 뼈대는 유지합니다.",
+          target_coach: "load_coach",
+          preserve: ["weekly_strength_progression"],
+          allowed_changes: ["conditioning"],
+          forbidden_changes: ["other_days"],
+        },
+      ],
+      adjustments: [],
+    };
+  }
+  if (mode === "bad_range") {
+    return {
+      status: "REVISE",
+      note_ko: "허용되지 않은 범위입니다.",
+      revisions: [
+        {
+          day: rest,
+          reason: "휴식일은 수정 대상이 아닙니다.",
+          correction_instruction: "훈련일만 고치세요.",
+          priority: "high",
+          constraints: "월간 방법은 바꾸지 않습니다.",
+          target_coach: "conditioning_coach",
+          preserve: ["weekly_strength_progression"],
+          allowed_changes: ["monthly_training_method"],
+          forbidden_changes: ["other_days"],
+        },
+      ],
+      adjustments: [],
+    };
+  }
+  if (mode === "keep_valid") {
+    return {
+      status: "REVISE",
+      note_ko: "월요일 컨디셔닝만 다시 봅니다.",
+      revisions: [
+        {
+          day: "mon",
+          reason: "이 날의 수량을 다시 확인합니다.",
+          correction_instruction: "같은 목적을 유지하고 수량만 고치세요.",
+          priority: "high",
+          constraints: "스트렝스와 워밍업은 유지합니다.",
+          target_coach: "conditioning_coach",
+          preserve: ["weekly_strength_progression", "warmup"],
+          allowed_changes: ["conditioning"],
+          forbidden_changes: ["locked_weekly_structure"],
+        },
+      ],
+      adjustments: [],
+    };
+  }
+  return { status: "APPROVE", note_ko: "이번 주는 유지합니다.", revisions: [], adjustments: [] };
+}
+
+function harness(mode: Mode) {
+  const month = month531();
+  const plan = planCoachedWeek({ month, weekIndex: 1 });
+  const built = assembleLegalWeek({ month, weekIndex: 1, plan });
+  const calls: Array<{ agent: string; day: string; user: Record<string, unknown> }> = [];
+  const fetchImpl = async (_url: string, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body)) as { messages?: Array<{ role: string; content: string }> };
+    const user = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
+    const agent = agentOf(user);
+    const day = dayOf(user);
+    calls.push({ agent, day, user });
+    if (agent === "monthly_coach" || agent === "context:monthly") {
+      const monthly = deterministicMonthlyPlan(month);
+      return chat({ ...monthly, fatigue_tolerance: "moderate", variety_requirement: "moderate" });
+    }
+    if (agent === "weekly_coach" || agent === "context:weekly") return chat(weeklyJson(plan));
+    if (agent === "strength_coach") return chat({ day, strength_note_ko: `모델 ${day} 스트렝스 목적을 유지합니다.` });
+    if (agent === "warmup_coach") return chat({ day, warmup_ko: `모델 ${day} 준비 동작을 먼저 합니다.` });
+    if (agent === "conditioning_coach") {
+      const session = built.draft.sessions.find((row) => row.day === day);
+      if (!session) return chat({ day });
+      const context = user.context as { revision_number?: number } | undefined;
+      const original = user.original_input as { revision_number?: number; day_recovery?: unknown } | undefined;
+      const revision = Number(user.revision_number ?? context?.revision_number ?? original?.revision_number ?? 0);
+      const recovery = user.day_recovery ?? original?.day_recovery;
+      if (mode === "recover" && day === "mon" && !recovery) return chat(repsOnly(session));
+      if (mode === "always_bad" && day === "mon") return chat(repsOnly(session));
+      if (mode === "keep_valid" && day === "mon" && revision > 0 && !recovery) return chat(repsOnly(session));
+      return chat(sessionJson(session));
+    }
+    if (agent === "load_coach" || agent === "context:load") {
+      return chat({
+        decisions: plan.days
+          .filter((row) => row.primary_training !== "rest" && row.recovery_role !== "rest")
+          .map((row) => ({ day: row.day, action: "hold", reason_ko: "방법 표를 유지합니다.", target_effort: "moderate", relative_intensity: "same" })),
+      });
+    }
+    if (agent === "head_coach" || agent === "context:head") return chat(headBody(mode, plan));
+    return chat({ status: "APPROVE", note_ko: "이번 주는 유지합니다.", revisions: [], adjustments: [] });
+  };
+  const input: CoachWeekInput = {
+    month,
+    weekIndex: 1,
+    weekStart: WEEK,
+    key: KEY,
+    fetchImpl,
+    timeoutMs: 1000,
+  };
+  return { fetchImpl, calls, plan, input };
+}
+
+async function run(mode: Mode) {
+  const built = harness(mode);
+  const result = await coachWeek(built.input);
+  return { ...built, result };
+}
+
+describe("day recovery units", () => {
+  it("keeps threshold 4 and rejects a coach, a day, and a range", () => {
+    expect(SIMILARITY_CONFIG.threshold).toBe(4);
+    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v4");
+    expect(headStanceOf({ status: "BLOCK" })).toBe("ACCEPT_WITH_NOTE");
+    expect(parseHeadReview({ status: "BLOCK", note_ko: "채택하지 않습니다.", revisions: [] })?.status).toBe("BLOCK");
+    const rejected = rejectedRevisionSpecs(
+      {
+        revisions: [
+          { day: "sun", target_coach: "load_coach", allowed_changes: ["monthly_training_method"] },
+          { day: "mon", target_coach: "conditioning_coach", allowed_changes: ["conditioning"] },
+        ],
+      },
+      ["mon"],
+    );
+    expect(rejected.map((row) => row.index)).toEqual([0, 0, 0]);
+    expect(rejected.some((row) => row.reason.includes("load_coach"))).toBe(true);
+    expect(rejected.some((row) => row.reason.includes("monthly_training_method"))).toBe(true);
+    const payload = dayRecoveryPayload({
+      area: "conditioning",
+      monthly: null,
+      weeklyGoal: null,
+      dayIntent: null,
+      existing: null,
+      errors: ["push_up amount received reps"],
+      invalid: { conditioning: { movements: [{ key: "push_up", amount: "reps" }] } },
+      priorAttempts: 1,
+      neighbors: [],
+    });
+    expect(JSON.stringify(payload)).toContain("reps");
+    expect(payload.preserve).toEqual(expect.arrayContaining(["warmup_ko"]));
+    expect(payload.allowed_changes).toEqual(["conditioning"]);
+  });
+});
+
+describe("day recovery orchestrator", () => {
+  it("keeps the other days when monday stays unresolved", async () => {
+    const { result, calls } = await run("always_bad");
+    const training = result.plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest");
+    expect(result.day_sources.mon).toBe("fallback");
+    expect(result.day_records?.mon?.day_status).toBe("FAILED");
+    expect(result.day_records?.mon?.final_prescription).toBeNull();
+    expect(result.day_records?.tue?.day_status).toBe("MODEL");
+    expect(result.draft.sessions.find((session) => session.day === "tue")?.warmup_ko).toContain("모델");
+    expect(result.generation_source).not.toBe("model");
+    expect(result.final_validation?.ok).toBe(false);
+    expect(result.final_status).not.toBe("APPROVE");
+    expect(result.traces.some((trace) => trace.agent_name === "approval_refused")).toBe(true);
+    const monday = calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon");
+    expect(monday.length).toBe(4);
+    expect(monday.filter((call) => call.user.day_recovery).length).toBe(1);
+    expect(calls.filter((call) => call.agent === "conditioning_coach" && call.day === "tue")).toHaveLength(1);
+    expect(calls.filter((call) => call.agent === "strength_coach")).toHaveLength(training.length);
+    expect(calls.filter((call) => call.agent === "warmup_coach")).toHaveLength(training.length);
+    const recovery = monday.find((call) => call.user.day_recovery);
+    expect(JSON.stringify(recovery?.user.day_recovery)).toContain("reps");
+    expect(JSON.stringify(recovery?.user.day_recovery)).toContain("validation_errors");
+  });
+
+  it("replaces only monday after the conditioning coach fixes the missing count", async () => {
+    const { result, calls } = await run("recover");
+    const recovery = calls.find((call) => call.agent === "conditioning_coach" && call.day === "mon" && call.user.day_recovery);
+    expect(JSON.stringify(recovery?.user.day_recovery)).toContain("reps");
+    expect(result.day_sources.mon).toBe("model");
+    expect(result.day_records?.mon?.final_source).toBe("MODEL_REVISED");
+    expect(result.day_records?.mon?.revision_reason).toBe("schema recovery");
+    expect(JSON.stringify(result.draft.sessions.find((session) => session.day === "mon")?.conditioning?.movements)).not.toContain('"amount":"reps"');
+    expect(result.draft.sessions.find((session) => session.day === "tue")?.warmup_ko).toContain("모델");
+    expect(calls.filter((call) => call.agent === "conditioning_coach" && call.day !== "mon" && Number(call.user.revision_number ?? 0) > 0)).toHaveLength(0);
+    expect(result.traces.filter((trace) => trace.agent_name === "conditioning_coach" && trace.day === "mon" && trace.revision_number === 1 && trace.validation_result === "pass")).toHaveLength(1);
+    expect(result.generation_source).toBe("model");
+    expect(result.final_validation?.ok).toBe(true);
+    expect(result.final_status).toBe("APPROVE");
+    expect(result.traces.filter((trace) => trace.agent_name === "session_coach").every((trace) => trace.token_usage == null)).toBe(true);
+    expect(result.token_usage?.total_tokens).toBeGreaterThan(0);
+  });
+
+  it("does not overwrite a valid monday when the later revision is invalid", async () => {
+    const { result } = await run("keep_valid");
+    const monday = result.draft.sessions.find((session) => session.day === "mon");
+    const original = result.day_records?.mon?.original_model_output;
+    expect(monday?.warmup_ko).toContain("모델");
+    expect(JSON.stringify(monday?.conditioning?.movements)).toBe(JSON.stringify(original?.conditioning?.movements));
+    expect(JSON.stringify(monday?.conditioning?.movements)).not.toContain('"amount":"reps"');
+    expect(result.day_records?.mon?.day_status).not.toBe("FAILED");
+    expect(result.draft.sessions.find((session) => session.day === "tue")?.warmup_ko).toContain("모델 tue");
+    expect(result.traces.some((trace) => trace.agent_name === "conditioning_coach" && trace.day === "mon" && (trace.revision_number ?? 0) > 0 && trace.validation_result === "fail")).toBe(true);
+  });
+
+  it("rejects a bad coach and a bad range without another specialist call", async () => {
+    const coach = await run("bad_coach");
+    const training = coach.result.plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest");
+    expect(coach.result.traces.some((trace) => trace.agent_name === "revision_rejected" && JSON.stringify(trace.output).includes("load_coach"))).toBe(true);
+    expect(coach.calls.filter((call) => call.agent === "conditioning_coach")).toHaveLength(training.length);
+    expect(coach.result.revision_count).toBe(0);
+    const range = await run("bad_range");
+    expect(range.result.traces.some((trace) => trace.agent_name === "revision_rejected")).toBe(true);
+    expect(range.calls.filter((call) => call.agent === "conditioning_coach")).toHaveLength(training.length);
+    expect(range.result.revision_count).toBe(0);
+  });
+
+  it("refuses BLOCK even when every day is a valid model session", async () => {
+    const { result } = await run("block");
+    expect(result.day_sources.mon).toBe("model");
+    expect(result.generation_source).not.toBe("model");
+    expect(result.final_validation?.ok).toBe(false);
+    expect(result.final_status).toBe("FINALIZE_WITH_WARNING");
+    expect(result.fallback_reason).toContain("head_block");
+    expect(result.traces.some((trace) => trace.agent_name === "approval_refused")).toBe(true);
+    expect(result.draft.sessions.filter((session) => !session.rest).every((session) => session.warmup_ko.includes("모델"))).toBe(true);
+  });
+});
+
+describe("day recovery storage", () => {
+  beforeEach(() => freshDb());
+
+  it("writes nothing on preview and stores only a validated week", async () => {
+    const preview = await dryRunWeek({ nowMs: NOW, weekStart: WEEK, key: null });
+    expect(preview.wrote).toBe(false);
+    expect(preview.prompt_version).toBe(WEEKLY_PROMPT_VERSION);
+    expect(getProgrammingWeek(WEEK)).toBeNull();
+
+    const adopted = harness("recover");
+    const saved = await ensureProgrammingWeek(WEEK, { nowMs: NOW, key: KEY, fetchImpl: adopted.fetchImpl });
+    expect(saved.promptVersion).toBe(STAGE16_PIPELINE_VERSION);
+    expect(saved.generationSource).toBe("model");
+    expect(saved.status).toBe("active");
+    expect(getProgrammingWeek(WEEK)?.id).toBe(saved.id);
+    expect(saved.draft.sessions.find((session) => session.day === "tue")?.warmup_ko).toContain("모델");
+  });
+
+  it("does not store an unresolved week as the active program", async () => {
+    const unresolved = harness("always_bad");
+    const saved = await ensureProgrammingWeek(WEEK, { nowMs: NOW, key: KEY, fetchImpl: unresolved.fetchImpl });
+    expect(saved.status).toBe("failed");
+    expect(saved.generationSource).not.toBe("model");
+    expect(getProgrammingWeek(WEEK)).toBeNull();
+    expect(DAY_ORDER).toHaveLength(7);
+  });
+});

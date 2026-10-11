@@ -35,7 +35,7 @@ export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals"] as const;
 export const LOAD_ACTIONS = ["progress", "hold", "cut"] as const;
 export const TARGET_EFFORTS = ["easy", "moderate", "hard"] as const;
 export const RELATIVE_INTENSITIES = ["up", "same", "down"] as const;
-export const HEAD_STATUSES = ["APPROVE", "APPROVE_WITH_NOTE", "REVISE"] as const;
+export const HEAD_STATUSES = ["APPROVE", "APPROVE_WITH_NOTE", "REVISE", "BLOCK"] as const;
 export const REVISION_PRIORITIES = ["high", "medium", "low"] as const;
 export const WEEK_ROLES = ["accumulation", "progression", "intensification", "deload", "absorb", "long_support", "peak", "emphasis"] as const;
 
@@ -195,9 +195,10 @@ export function schemaBrief(agent: CoachAgentName): string {
   return [
     "JSON object. Keys: status, note_ko, revisions, adjustments.",
     enumLine("status", HEAD_STATUSES),
-    "APPROVE means there is no coaching issue worth acting on. revisions and adjustments are empty.",
-    "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout.",
-    "REVISE names a field change. It does not regenerate the week or the session. Put that change in adjustments.",
+    "APPROVE means there is no coaching issue worth acting on. revisions and adjustments are empty. APPROVE cannot override a hard validation error.",
+    "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout. It does not ignore a hard validation error.",
+    "REVISE names one day and one specialist. It does not regenerate the week. A field change goes in adjustments and does not name a target_coach.",
+    "BLOCK means the week cannot be adopted. revisions and adjustments are empty. Unresolved hard errors stay unresolved.",
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
     "Each revision: day, reason, correction_instruction, priority, constraints, target_coach, preserve, allowed_changes, forbidden_changes.",
     "target_coach is strength_coach, conditioning_coach, warmup_coach, or null. null means the adjustment is a field patch.",
@@ -764,15 +765,15 @@ export function headReviewErrors(value: unknown): string[] {
     errors.push("revisions: expected an array");
     return errors;
   }
-  if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE") && value.revisions.length > 0) {
-    errors.push("revisions: APPROVE and APPROVE_WITH_NOTE require an empty array");
+  if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE" || value.status === "BLOCK") && value.revisions.length > 0) {
+    errors.push("revisions: APPROVE, APPROVE_WITH_NOTE, and BLOCK require an empty array");
   }
   if (value.status === "REVISE" && value.revisions.length === 0) {
     errors.push("revisions: REVISE requires at least one day");
   }
   if (Array.isArray(value.adjustments)) {
-    if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE") && value.adjustments.length > 0) {
-      errors.push("adjustments: APPROVE and APPROVE_WITH_NOTE require an empty array");
+    if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE" || value.status === "BLOCK") && value.adjustments.length > 0) {
+      errors.push("adjustments: APPROVE, APPROVE_WITH_NOTE, and BLOCK require an empty array");
     }
     value.adjustments.forEach((row, index) => {
       if (!isRecord(row)) {

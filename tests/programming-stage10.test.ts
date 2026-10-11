@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDbConnection } from "../src/lib/db/client";
 import { DAY_ORDER } from "../src/lib/month-plan/types";
 import { ensureProgrammingMonth, ensureProgrammingWeek, readOnlyWeekSummary } from "../src/lib/programming/engine";
+import { getProgrammingWeek } from "../src/lib/programming/store";
 import { fallbackMonth } from "../src/lib/programming/fallback";
 import { authorWeek } from "../src/lib/programming/model";
 import { realizeWeekFromIntent, structuralSignature } from "../src/lib/programming/realize-intent";
@@ -284,7 +285,9 @@ describe("stage 10 weekly intent", () => {
     );
     const week = await ensureProgrammingWeek("2099-02-02", { nowMs: NOW, key: KEY, fetchImpl });
     expect(week.generationSource).toBe("fallback");
-    expect(week.fallbackReason).toBe("schema");
+    expect(week.status).toBe("failed");
+    expect(week.fallbackReason).toContain("schema");
+    expect(getProgrammingWeek("2099-02-02")).toBeNull();
     expect(week.weekStart).toBe("2099-02-02");
   });
 

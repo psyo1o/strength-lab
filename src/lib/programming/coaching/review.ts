@@ -19,7 +19,7 @@ export type SessionRevision = {
 };
 
 export type HeadCoachReview = {
-  status: "APPROVE" | "APPROVE_WITH_NOTE" | "REVISE";
+  status: "APPROVE" | "APPROVE_WITH_NOTE" | "REVISE" | "BLOCK";
   revisions: SessionRevision[];
   note_ko: string;
 };
@@ -94,10 +94,10 @@ export function hardSessionRevisions(draft: WeekDraft): SessionRevision[] {
 export function parseHeadReview(value: unknown): HeadCoachReview | null {
   if (!value || typeof value !== "object") return null;
   const body = value as Record<string, unknown>;
-  if (body.status !== "APPROVE" && body.status !== "APPROVE_WITH_NOTE" && body.status !== "REVISE") return null;
+  if (body.status !== "APPROVE" && body.status !== "APPROVE_WITH_NOTE" && body.status !== "REVISE" && body.status !== "BLOCK") return null;
   if (typeof body.note_ko !== "string" || !body.note_ko.trim()) return null;
   if (!Array.isArray(body.revisions)) return null;
-  if (body.status === "APPROVE" || body.status === "APPROVE_WITH_NOTE") {
+  if (body.status === "APPROVE" || body.status === "APPROVE_WITH_NOTE" || body.status === "BLOCK") {
     return { status: body.status, revisions: [], note_ko: body.note_ko.trim() };
   }
   const revisions: SessionRevision[] = [];

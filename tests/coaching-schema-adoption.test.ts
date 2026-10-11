@@ -156,6 +156,7 @@ describe("coaching schema adoption", () => {
     expect(saved.fallbackReason).toBe("too_similar");
     expect(saved.promptVersion).toBe(STAGE16_PIPELINE_VERSION);
     expect(saved.draft.sessions.some((session) => session.warmup_ko.includes("유사복사토큰"))).toBe(false);
+    expect(saved.draft.sessions.some((session) => session.warmup_ko.includes("모델"))).toBe(true);
     expect(judged.ok).toBe(true);
   });
 });
