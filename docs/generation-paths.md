@@ -72,7 +72,7 @@
 | 역할 | 에이전트 | 프롬프트 | 출력 키 |
 |---|---|---|---|
 | 스트렝스 | `strength_coach` | `strength-coach-v2` | `day`, `strength_note_ko` |
-| 컨디셔닝 | `conditioning_coach` | `conditioning-coach-v4` | `day`, `notes_ko`, `conditioning` |
+| 컨디셔닝 | `conditioning_coach` | `conditioning-coach-v5` | `day`, `notes_ko`, `conditioning` |
 | 워밍업 | `warmup_coach` | `warmup-coach-v2` | `day`, `warmup_ko` |
 
 다른 영역의 키를 쓰면 그 호출은 거절된다. 세트와 킬로그램은 모델이 쓰지 않는다. 스트렝스 세트는 `strengthFor` 방법 표다. `strength_note_ko`는 채택 뒤 `session.strength_purpose`에 복사된다. 서버가 `time_domain`과 `movement_pattern`을 찍는다. `movement_pattern`은 그 날 intent 값이고, `mixed`와 `none`은 `engine`이다.
@@ -91,7 +91,7 @@
 
 헤드 상태 REVISE의 라이브 `revisions`는 칸 목록이다. 항목은 `day`, `block`, `catalog_key`, `field`, `value`, `reason`이다. `field`는 `movement`, `amount`, `unit`, `load`다. 코드는 그 칸만 세션에 넣고 나머지 칸은 그대로 둔다. 전문 코치를 다시 부르지 않는다. 지시 자체도 카탈로그로 먼저 검사한다. 없는 key, 허용되지 않은 단위, 닫힌 범위 밖 수량은 스키마 오류다. 예전 `action` 항목(`replace`, `change_amount`, `delete`, `add`)은 파서가 그대로 받는다. 문장만 있고 `action`도 `field`도 없으면 `editItemErrors`가 `prose-only revision`을 반환한다. 이것은 스키마 오류다. `askCoach`가 헤드를 그 호출 안에서 한 번 더 묻는다. 두 번째도 문장이면 헤드 출처는 fallback이고 `modelRevisions`는 비고, 전문 코치를 다시 부르지 않는다. 코드 판정이 남는다. 세 번째 헤드 호출은 없다. 조정만 있는 REVISE는 `revisions`가 빈 배열이고 `adjustments`에 필드 변경이 있다. 생성기를 부르지 않는다. 병합이 그 빈 목록을 노트로 내려도 필드 변경은 적용한다.
 
-`action` 편집이 있으면 같은 날·같은 `target_coach`로 묶고, `COACHING_POLICY.max_head_revisions`인 2개만 `writeSession`으로 다시 부른다. 칸 편집은 이 예산에 넣지 않는다. 사용자 JSON의 `edit_list`가 그 목록이다. 전문 코치 프롬프트(`strength-coach-v2`, `conditioning-coach-v4`, `warmup-coach-v2`)는 목록에 있는 항목만 적용하고 나머지는 바꾸지 말라고 적는다. 장비 목록이 바뀌는 것은 `compareEditList`의 불일치가 아니다. `recoveryDrift`도 장비 변경을 거부하지 않는다. 헤드를 다시 부르지 않는다. 필드 조정이 이미 그 날을 고쳤으면 (`headPass.touched[day] === "head"`) 재생성하지 않는다.
+`action` 편집이 있으면 같은 날·같은 `target_coach`로 묶고, `COACHING_POLICY.max_head_revisions`인 2개만 `writeSession`으로 다시 부른다. 칸 편집은 이 예산에 넣지 않는다. 사용자 JSON의 `edit_list`가 그 목록이다. 전문 코치 프롬프트(`strength-coach-v2`, `conditioning-coach-v5`, `warmup-coach-v2`)는 목록에 있는 항목만 적용하고 나머지는 바꾸지 말라고 적는다. 장비 목록이 바뀌는 것은 `compareEditList`의 불일치가 아니다. `recoveryDrift`도 장비 변경을 거부하지 않는다. 헤드를 다시 부르지 않는다. 필드 조정이 이미 그 날을 고쳤으면 (`headPass.touched[day] === "head"`) 재생성하지 않는다.
 
 스키마를 통과한 재생성은 `compareEditList`로 목록과 그 날의 컨디셔닝 동작을 한 번 비교한다. 맞는 출력만 그 날을 바꾼다. 다르면 전문 코치를 다시 부르지 않는다. 그 날에 이미 채택된 모델 세션이 있으면 그 세션을 유지하고, 그 실패만으로 주를 깨지 않는다. 채택된 모델 세션이 없으면 그 날은 미해결이고 주를 채택하지 않는다. 다른 날의 세션은 바꾸지 않는다. 기본 세션으로 실패를 덮지 않는다. 비교는 컨디셔닝 동작의 키와 수량이다. 스트렝스, 워밍업, 형식, 시간, 자극, 양, 강도, 시간 영역이 바뀌면 불일치로 본다. 장비는 빠진 동작과 넣은 동작의 장비만 달라질 수 있다.
 
@@ -119,7 +119,7 @@
 
 ## 검증과 재시도
 
-`judgeWeek`의 첫 실패 단계가 저장 사유가 될 수 있다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 유사도 임계값은 4다. 운동 이름만 바꾸는 것은 구분이 아니다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다.
+`judgeWeek`의 첫 실패 단계가 저장 사유가 될 수 있다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 유사도 임계값은 4다. 운동 이름만 바꾸는 것은 구분이 아니다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 하루를 채택하기 전에 이웃 훈련일과 `conditioning.stimulus`가 같으면 그 출력은 거절되고 컨디셔닝이 그 오류로 한 번 더 묻는다. 사용자 JSON의 `other_training_days`와 `same_week_limit`는 유사도 4를 미리 알린다. 점수가 4 이상이면 그 거절은 여기서 만들지 않는다. `judgeWeek`가 보고, 사유가 `too_similar`일 때만 엔진이 겹친 날을 바꾼다. 임계값과 `askCoach` 재시도 상한은 그대로다.
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 
@@ -144,7 +144,7 @@ plan-lab은 코치 트레이스 중 `deterministic === false`이고 `source === 
 | 주간 코치 트레이스 | 코치 로그 | `weekly-coach-v2` |
 | 일 집계 트레이스 | 코치 로그 | `session-coach-v4` |
 | 스트렝스 코치 | 코치 로그 | `strength-coach-v2` |
-| 컨디셔닝 코치 | 코치 로그 | `conditioning-coach-v4` |
+| 컨디셔닝 코치 | 코치 로그 | `conditioning-coach-v5` |
 | 워밍업 코치 | 코치 로그 | `warmup-coach-v2` |
 | 헤드 코치 | 코치 로그 | `head-coach-v8` |
 | 월 코치 트레이스 | 코치 로그 | `monthly-coach-v2` |

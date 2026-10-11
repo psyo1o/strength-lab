@@ -7,6 +7,7 @@ import { ensureProgrammingMonth, ensureProgrammingWeek, readOnlyWeekSummary } fr
 import { buildFallbackWeek, fallbackIntent, fallbackMonth } from "../src/lib/programming/fallback";
 import { authorMonth, wodFromIntentPrompt } from "../src/lib/programming/model";
 import {
+  adoptionCollisionErrors,
   judgeWeek,
   similarityDecisionLog,
   similarityMatch,
@@ -119,6 +120,9 @@ describe("oct 12 prep logs and same-week prompt", () => {
     expect(judged.reason).toBe("too_similar");
     expect(judged.errors.join(" ")).toContain("thu and sat are structurally similar score=4 matched=format,stimulus,movement_pattern,volume");
     expect(similarityViolations(draft, []).join(" ")).toContain("score=4");
+    const collisions = adoptionCollisionErrors(draft, "sat", []);
+    expect(collisions.join(" ")).toContain("score=4");
+    expect(adoptionCollisionErrors(draft, "thu", []).join(" ")).toContain("sat");
     const decision = similarityDecisionLog(draft, []).find((row) => row.candidate_day === "thu" && row.compared_day === "sat");
     expect(decision).toMatchObject({
       score: 4,
@@ -140,6 +144,19 @@ describe("oct 12 prep logs and same-week prompt", () => {
       },
     });
     expect(decision?.candidate.movement_pattern.split("+").sort()).toEqual([...thursday.movement_patterns].sort());
+  });
+
+  it("rejects a stimulus that repeats the previous training day", () => {
+    const month = month531();
+    const draft = buildFallbackWeek({ month, weekIndex: 1, intent: fallbackIntent(month, 1, "stimulus-repeat") });
+    const training = draft.sessions.filter((session) => !session.rest && session.conditioning);
+    const previous = training[0];
+    const current = training[1];
+    if (!previous?.conditioning || !current?.conditioning) throw new Error("training days missing");
+    current.conditioning = { ...current.conditioning, stimulus: previous.conditioning.stimulus };
+    expect(adoptionCollisionErrors(draft, current.day, [])).toContain(
+      `stimulus ${previous.conditioning.stimulus} repeats on ${current.day}`,
+    );
   });
 
   it("records the prior week id on a recent similarity decision", async () => {

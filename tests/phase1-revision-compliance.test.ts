@@ -401,7 +401,7 @@ describe("explicit edit list", () => {
     expect(headStanceOf({ status: "BLOCK" })).toBe("ACCEPT_WITH_NOTE");
     expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v8");
     expect(STRENGTH_COACH_PROMPT_VERSION).toBe("strength-coach-v2");
-    expect(CONDITIONING_COACH_PROMPT_VERSION).toBe("conditioning-coach-v4");
+    expect(CONDITIONING_COACH_PROMPT_VERSION).toBe("conditioning-coach-v5");
     expect(WARMUP_COACH_PROMPT_VERSION).toBe("warmup-coach-v2");
     expect(coachSystemPrompt("conditioning")).toContain("edit_list");
     expect(coachSystemPrompt("conditioning")).toContain("not in edit_list");

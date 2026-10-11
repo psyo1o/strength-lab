@@ -1,6 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { judgeWeek, parseWeekDraft, TIME_DOMAIN_RANGES } from "../rules";
+import { adoptionCollisionErrors, judgeWeek, parseWeekDraft, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import type { DayIntent, DayPrescriptionRecord, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
@@ -120,7 +120,30 @@ function movementKeysOf(value: unknown): string[] {
   return keys;
 }
 
-function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayIntent, revision: SessionRevision | null, revisionNumber: number, rules: WeekRules, extraKeys: readonly string[]) {
+function otherTrainingDays(draft: WeekDraft, day: DayKey) {
+  return DAY_ORDER.filter((key) => key !== day)
+    .map((key) => draft.sessions.find((session) => session.day === key))
+    .filter((session): session is SessionDraft => Boolean(session && !session.rest && session.conditioning))
+    .map((session) => ({
+      day: session.day,
+      format: session.conditioning!.format,
+      duration_min: session.conditioning!.duration_min,
+      time_domain: session.conditioning!.time_domain,
+      stimulus: session.conditioning!.stimulus,
+      volume: session.conditioning!.volume,
+      movement_pattern: session.conditioning!.movement_patterns,
+      equipment: session.conditioning!.equipment,
+    }));
+}
+
+function adjacentStimulus(days: ReturnType<typeof otherTrainingDays>, day: DayKey, direction: -1 | 1): string | null {
+  const index = DAY_ORDER.indexOf(day);
+  const candidates = days.filter((row) => (direction < 0 ? DAY_ORDER.indexOf(row.day) < index : DAY_ORDER.indexOf(row.day) > index));
+  const neighbor = direction < 0 ? candidates.at(-1) : candidates[0];
+  return neighbor?.stimulus ?? null;
+}
+
+function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayIntent, revision: SessionRevision | null, revisionNumber: number, rules: WeekRules, extraKeys: readonly string[], draft: WeekDraft) {
   const locked = lockedSkeletonDay(input, day.day);
   const lockedRange = locked && locked.conditioning.duration_class !== "rest" ? TIME_DOMAIN_RANGES[locked.conditioning.duration_class] : null;
   return {
@@ -173,7 +196,15 @@ function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayInte
       stimulus: row.stimulus,
       movement_patterns: row.movement_patterns,
       duration_min: row.duration_min,
+      time_domain: row.time_domain,
+      volume: row.volume,
+      equipment: row.equipment,
     })),
+    other_training_days: otherTrainingDays(draft, day.day),
+    previous_training_stimulus: adjacentStimulus(otherTrainingDays(draft, day.day), day.day, -1),
+    next_training_stimulus: adjacentStimulus(otherTrainingDays(draft, day.day), day.day, 1),
+    same_week_limit:
+      "conditioning.stimulus must differ from previous_training_stimulus and next_training_stimulus. The server rejects a repeated neighbor stimulus. Shared features among format, time_domain, stimulus, movement_pattern, equipment, and volume score 1 each. A score of 4 or more fails the week. The threshold stays 4. The server fills equipment from the movements. time_domain follows duration_min.",
     duration_rule: locked
       ? `${durationRuleText()} Locked ${locked.day}: conditioning.duration_min must be ${lockedRange?.min}-${lockedRange?.max} (${locked.conditioning.duration_class}). conditioning.volume must be at or below ${locked.volume_profile}.`
       : durationRuleText(),
@@ -235,6 +266,10 @@ function adoptDay(input: {
   }
   const sessions = input.draft.sessions.map((row) => (row.day === input.day.day ? session : row));
   const candidate = stamp({ ...input.draft, sessions }, input.plan);
+  const collisions = adoptionCollisionErrors(candidate, input.day.day).filter((error) => error.startsWith("stimulus "));
+  if (collisions.length) {
+    return { ok: false, errors: collisions, json: normalized.json, normalizations: normalized.normalizations };
+  }
   return { ok: true, draft: candidate, session, json: normalized.json, normalizations: normalized.normalizations };
 }
 
@@ -360,7 +395,7 @@ async function writeSession(input: {
   const started = Date.now();
   const existingKeys = movementKeysOf(input.draft.sessions.find((session) => session.day === input.day.day) ?? null);
   const catalogKeys = movementsForSlice(sliceFor(input.day, existingKeys)).map((row) => row.key);
-  const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber, input.rules, existingKeys);
+  const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber, input.rules, existingKeys, input.draft);
   const normalizations: SessionNormalization[] = [];
   let normalizedJson: unknown = null;
   const selfTraces = (json: unknown) =>

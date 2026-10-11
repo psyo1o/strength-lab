@@ -1135,6 +1135,28 @@ export function similarityViolations(draft: WeekDraft, recent: readonly StoredSt
   });
 }
 
+/**
+ * Errors this day would add against the other training days and recent weeks.
+ * Threshold stays SIMILARITY_CONFIG.threshold.
+ */
+export function adoptionCollisionErrors(draft: WeekDraft, day: DayKey, recent: readonly StoredStructure[] = []): string[] {
+  const ordered = DAY_ORDER.map((key) => draft.sessions.find((session) => session.day === key)).filter(
+    (session): session is SessionDraft => Boolean(session && !session.rest && session.conditioning),
+  );
+  const index = ordered.findIndex((session) => session.day === day);
+  if (index < 0) return [];
+  const stimulus = ordered[index]?.conditioning?.stimulus;
+  const errors: string[] = [];
+  for (const neighbor of [ordered[index - 1], ordered[index + 1]]) {
+    const other = neighbor?.conditioning?.stimulus;
+    if (stimulus && other && stimulus === other) errors.push(`stimulus ${stimulus} repeats on ${day}`);
+  }
+  for (const line of similarityViolations(draft, recent)) {
+    if (line.startsWith(`${day} `) || line.includes(` and ${day} `)) errors.push(line);
+  }
+  return [...new Set(errors)];
+}
+
 function scoredStructureView(structure: StoredStructure) {
   return {
     format: structure.format,
