@@ -41,7 +41,11 @@ function chat(content: unknown, status = 200) {
 function specialistFetch(input: { alignDay?: { day: DayKey; format: string; duration_min: number; stimulus: string; equipment: string[]; volume: string; intensity: string } | null }) {
   return async (_url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body)) as { messages?: Array<{ role: string; content: string }> };
-    const user = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
+    const parsed = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
+    const user =
+      parsed.original_input && typeof parsed.original_input === "object" && !Array.isArray(parsed.original_input)
+        ? (parsed.original_input as Record<string, unknown>)
+        : parsed;
     const agent = typeof user.agent_name === "string" ? user.agent_name : "";
     const month = getProgrammingMonth(monthStartOf(WEEK))?.direction ?? fallbackMonth({ summary_ko: "5/3/1 블록을 네 주 유지합니다.", next_scheme: "531", strength_method: "531" });
     const weekIndex = (typeof user.week_index === "number" ? user.week_index : weekIndexFromStart(NEXT)) as WeekIndex;

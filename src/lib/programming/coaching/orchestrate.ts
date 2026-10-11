@@ -2,7 +2,7 @@ import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
 import { adoptionCollisionErrors, judgeWeek, parseWeekDraft, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
-import type { DayIntent, DayPrescriptionRecord, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
+import { SIMILARITY_CONFIG, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
@@ -415,10 +415,12 @@ async function writeSession(input: {
   const areaErrors = new Map<SpecialistArea, string[]>();
   const areaInvalid = new Map<SpecialistArea, unknown>();
   let failed: { errors: string[]; retry: number; reason: string | null; json: unknown } | null = null;
+  let conditioningAttempts = 0;
   const validateArea = (area: SpecialistArea) => (json: unknown) => {
     const shape = areaShapeErrors(area, json, input.day);
     if (shape.length) return { ok: false as const, errors: shape };
     if (area !== "conditioning") return { ok: true as const };
+    conditioningAttempts += 1;
     const merged = mergeSpecialists({
       day: input.day,
       base,
@@ -429,7 +431,21 @@ async function writeSession(input: {
     const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json: merged.json });
     normalizations.push(...adopted.normalizations);
     normalizedJson = adopted.json;
-    return adopted.ok ? { ok: true as const } : { ok: false as const, errors: adopted.errors };
+    if (!adopted.ok) return { ok: false as const, errors: adopted.errors };
+    const similar = adoptionCollisionErrors(adopted.draft, input.day.day, input.week.recentStructures ?? []).filter(
+      (error) => error.includes("structurally similar") || error.includes("matches a recent structure"),
+    );
+    if (similar.length && conditioningAttempts < 2) {
+      return {
+        ok: false as const,
+        errors: similar.map((error) => {
+          const score = Number(error.match(/score=(\d+)/)?.[1] ?? "4");
+          const need = Math.max(1, score - (SIMILARITY_CONFIG.threshold - 1));
+          return `${error}. Change at least ${need} matched features so the score is below 4. Renaming a movement does not change a feature. The threshold stays 4.`;
+        }),
+      };
+    }
+    return { ok: true as const };
   };
   for (const area of areas) {
     const asked = await askSpecialist({

@@ -218,7 +218,13 @@ function fetchFor(script: Script) {
   const calls: string[] = [];
   const fetchImpl = async (_url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body)) as { messages?: Array<{ role: string; content: string }> };
-    const user = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
+    const parsed = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
+    const topAgent = agentOf(parsed);
+    const nested = parsed.original_input;
+    const user =
+      (topAgent === "context:conditioning" || topAgent === "unknown") && nested && typeof nested === "object" && !Array.isArray(nested)
+        ? (nested as Record<string, unknown>)
+        : parsed;
     const agent = agentOf(user);
     calls.push(agent);
     const revision = Number(user.revision_number ?? (user.context as { revision_number?: number } | undefined)?.revision_number ?? 0);

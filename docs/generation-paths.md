@@ -119,7 +119,7 @@
 
 ## 검증과 재시도
 
-`judgeWeek`의 첫 실패 단계가 저장 사유가 될 수 있다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 유사도 임계값은 4다. 운동 이름만 바꾸는 것은 구분이 아니다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 하루를 채택하기 전에 이웃 훈련일과 `conditioning.stimulus`가 같으면 그 출력은 거절되고 컨디셔닝이 그 오류로 한 번 더 묻는다. 사용자 JSON의 `other_training_days`와 `same_week_limit`는 유사도 4를 미리 알린다. 점수가 4 이상이면 그 거절은 여기서 만들지 않는다. `judgeWeek`가 보고, 사유가 `too_similar`일 때만 엔진이 겹친 날을 바꾼다. 임계값과 `askCoach` 재시도 상한은 그대로다.
+`judgeWeek`의 첫 실패 단계가 저장 사유가 될 수 있다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 유사도 임계값은 4다. 운동 이름만 바꾸는 것은 구분이 아니다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 하루를 채택하기 전에 이웃 훈련일과 `conditioning.stimulus`가 같으면 그 출력은 거절된다. 같은 주나 최근 구조와 유사도 점수가 4 이상이면 첫 컨디셔닝 출력도 거절되고, 기존 재시도 한 번이 겹친 특징 수를 받는다. 두 번째도 4 이상이면 그 세션은 남기고 `judgeWeek`가 본다. 사유가 `too_similar`일 때만 엔진이 겹친 날을 바꾼다. 임계값과 `askCoach` 재시도 상한은 그대로다.
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 
