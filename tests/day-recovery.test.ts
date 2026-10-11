@@ -270,6 +270,36 @@ describe("day recovery units", () => {
     expect(JSON.stringify(payload)).toContain("reps");
     expect(payload.preserve).toEqual(expect.arrayContaining(["warmup_ko"]));
     expect(payload.allowed_changes).toEqual(["conditioning"]);
+    const named = dayRecoveryPayload({
+      area: "conditioning",
+      monthly: null,
+      weeklyGoal: null,
+      dayIntent: null,
+      existing: null,
+      errors: ["wed field conditioning.movements.amount: prescription: push_up field conditioning.movements.amount received 10회/라운드; expected unit one of: reps. The prescription is not clear enough."],
+      invalid: { conditioning: { movements: [{ key: "push_up", amount: "10회/라운드" }] } },
+      priorAttempts: 2,
+      neighbors: [],
+    });
+    const namedEdit = (named.field_edits as Array<{ field: string; current_value: string; required_format: string }>)[0];
+    expect(namedEdit?.field).toBe("conditioning.movements.push_up.amount");
+    expect(namedEdit?.current_value).toBe("10회/라운드");
+    expect(namedEdit?.required_format).toContain("reps");
+    const clock = dayRecoveryPayload({
+      area: "conditioning",
+      monthly: null,
+      weeklyGoal: null,
+      dayIntent: null,
+      existing: null,
+      errors: ["interval_work_sec: received 180; allowed: integer 10–90 when format is intervals"],
+      invalid: { conditioning: { movements: [{ key: "row", amount: "500m" }] } },
+      priorAttempts: 1,
+      neighbors: [],
+    });
+    const clockEdit = (clock.field_edits as Array<{ field: string; current_value: string; required_format: string }>)[0];
+    expect(clockEdit?.field).toBe("interval_work_sec");
+    expect(clockEdit?.current_value).toBe("180");
+    expect(clockEdit?.required_format).toContain("10–90");
   });
 });
 

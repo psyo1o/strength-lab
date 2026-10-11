@@ -29,6 +29,21 @@ export function sameErrorSet(left: readonly string[], right: readonly string[]):
   return norm(left) === norm(right);
 }
 
+/** Pull a field path and the received value out of a validator sentence. */
+export function fieldEditFromError(error: string): { field: string; value: string } {
+  const received = error.match(/received\s+([^;]+)/);
+  const value = received?.[1]?.trim() || error;
+  const named = error.match(/prescription:\s*([A-Za-z0-9_]+)\s+field\s+(\S+)/);
+  if (named) {
+    const key = named[1];
+    const path = named[2].replace(/[.:]+$/, "");
+    const field = path.endsWith("amount") ? path.replace(/amount$/, `${key}.amount`) : `${path}.${key}`;
+    return { field, value };
+  }
+  const prefix = error.match(/^([^:]+):\s*received/);
+  return { field: prefix?.[1]?.trim() || "validation", value };
+}
+
 export function failedFieldValues(json: unknown): { field: string; value: string }[] {
   if (!json || typeof json !== "object") return [];
   const conditioning = (json as { conditioning?: { movements?: { key?: string; amount?: unknown }[] } }).conditioning;
@@ -94,13 +109,15 @@ export function dayRecoveryPayload(input: {
   neighbors: unknown;
 }): Record<string, unknown> {
   const fields = failedFieldValues(input.invalid);
-  const fieldEdits = (fields.length ? fields : input.errors.map((error) => ({ field: "validation", value: error }))).map((row) => ({
-    field: row.field,
-    current_value: row.value,
-    required_format: row.field.includes("amount")
-      ? "A count and a unit. Reps are 10 or 10reps. Calories are 12cal or 12/10cal. Distance is 500m. Seconds are 30sec. The word reps alone is not a count."
-      : "Use the specialist schema for this field. Do not invent a value.",
-  }));
+  const fromErrors = input.errors.map((error) => ({ ...fieldEditFromError(error), error }));
+  const rows = fields.length ? fields.map((row) => ({ ...row, error: "" })) : fromErrors;
+  const fieldEdits = rows.map((row) => {
+    const allowed = row.error.match(/(?:allowed|expected):\s*([^.]*)/)?.[1]?.trim();
+    const amount = row.field.includes("amount")
+      ? `A count and a unit.${allowed ? ` Expected: ${allowed}.` : ""} Reps are 10 or 10reps. Calories are 12cal or 12/10cal. Distance is 500m. Seconds are 30sec. The word reps alone is not a count.`
+      : allowed || "Use the specialist schema for this field. Do not invent a value.";
+    return { field: row.field, current_value: row.value, required_format: amount };
+  });
   const preserve =
     input.area === "conditioning"
       ? ["day_role", "strength_note_ko", "warmup_ko", "training_goal"]
