@@ -11,6 +11,7 @@ import {
   judgeWeek,
   similarityDecisionLog,
   similarityMatch,
+  similarityRetryText,
   similarityViolations,
 } from "../src/lib/programming/rules";
 import { refreshSessionFields } from "../src/lib/programming/session-fields";
@@ -123,6 +124,12 @@ describe("oct 12 prep logs and same-week prompt", () => {
     const collisions = adoptionCollisionErrors(draft, "sat", []);
     expect(collisions.join(" ")).toContain("score=4");
     expect(adoptionCollisionErrors(draft, "thu", []).join(" ")).toContain("sat");
+    expect(adoptionCollisionErrors(draft, "thu", [], ["sat"]).join(" ")).not.toContain(" and sat ");
+    const retry = similarityRetryText(draft, [], "thu and sat are structurally similar score=4 matched=format,stimulus,movement_pattern,volume");
+    expect(retry.startsWith("thu and sat are structurally similar score=4 matched=format,stimulus,movement_pattern,volume")).toBe(true);
+    expect(retry).toContain(`format=${thursday.format} matches sat format=${saturday.format}`);
+    expect(retry).toContain("Change at least 1");
+    expect(retry).toContain("The threshold stays 4.");
     const decision = similarityDecisionLog(draft, []).find((row) => row.candidate_day === "thu" && row.compared_day === "sat");
     expect(decision).toMatchObject({
       score: 4,

@@ -124,20 +124,21 @@ export function sampleAmount(key: string): string {
   return range ? String(range.min) : "10";
 }
 
-function parseCellAmount(value: string): { amount: number | null; unit: CatalogUnit | null } {
+function parseCellAmount(value: string): { amount: number | null; unit: CatalogUnit | null; bare: boolean } {
   const text = value.replace(/\s/g, "").toLowerCase();
-  if (!text || text.includes("/")) return { amount: null, unit: null };
+  const bare = /^\d+$/.test(text);
+  if (!text || text.includes("/")) return { amount: null, unit: null, bare: false };
   const unit: CatalogUnit | null = text.endsWith("cal")
     ? "cal"
     : text.endsWith("sec")
       ? "sec"
       : text.endsWith("m")
         ? "m"
-        : text.endsWith("reps") || /^\d+$/.test(text)
+        : text.endsWith("reps") || bare
           ? "reps"
           : null;
   const match = text.match(/^\d+/);
-  return { amount: match ? Number(match[0]) : null, unit };
+  return { amount: match ? Number(match[0]) : null, unit, bare };
 }
 
 /** A single count. A closed range is checked. A null, single sample, or annotated note is not. */
@@ -146,15 +147,17 @@ export function amountDecision(key: string, value: string): { ok: true; amount: 
   if (!row) return { ok: false, reason: `unknown movement ${key}` };
   const parsed = parseCellAmount(value);
   if (parsed.amount == null || parsed.unit == null) return { ok: false, reason: `${row.key} amount is not a count` };
-  if (parsed.unit === "reps" && !row.units.includes("reps")) {
+  const sole = row.units.length === 1 ? row.units[0]! : null;
+  const unit: CatalogUnit = parsed.bare && sole && sole !== "reps" ? sole : parsed.unit;
+  if (unit === "reps" && !row.units.includes("reps")) {
     return { ok: false, reason: `${row.key} amount needs unit ${row.units.join(" or ")}` };
   }
-  if (!row.units.includes(parsed.unit)) return { ok: false, reason: `${row.key} does not allow ${parsed.unit}` };
-  const range = rangeFor(row.key, parsed.unit);
+  if (!row.units.includes(unit)) return { ok: false, reason: `${row.key} does not allow ${unit}` };
+  const range = rangeFor(row.key, unit);
   if (range && (parsed.amount < range.min || parsed.amount > range.max)) {
     return { ok: false, reason: `${row.key} ${parsed.amount} is outside ${range.min}–${range.max}` };
   }
-  return { ok: true, amount: parsed.amount, unit: parsed.unit };
+  return { ok: true, amount: parsed.amount, unit };
 }
 
 export function checkCellEdit(edit: CellEdit): { ok: true } | { ok: false; reason: string } {

@@ -1135,13 +1135,62 @@ export function similarityViolations(draft: WeekDraft, recent: readonly StoredSt
   });
 }
 
+function featureChangeHint(feature: SimilarityFeature): string {
+  if (feature === "format") return "Set conditioning.format to a different format.";
+  if (feature === "time_domain") {
+    return `time_domain follows duration_min (${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long). Change duration_min into a different bucket.`;
+  }
+  if (feature === "stimulus") return "Set conditioning.stimulus to a different stimulus that also differs from the neighboring training days.";
+  if (feature === "movement_pattern") return "movement_pattern is derived from the movements. Change the movements so the pattern list differs.";
+  if (feature === "equipment") return "equipment is filled by the server from the movements. Change to movements whose catalog equipment differs. Do not return equipment.";
+  if (feature === "volume") return "Set conditioning.volume to a different volume.";
+  return "";
+}
+
+/** Retry text. The canonical score line stays at the front so later parsers still match it. */
+export function similarityRetryText(draft: WeekDraft, recent: readonly StoredStructure[], error: string): string {
+  const score = Number(error.match(/score=(\d+)/)?.[1] ?? String(SIMILARITY_CONFIG.threshold));
+  const need = Math.max(1, score - (SIMILARITY_CONFIG.threshold - 1));
+  const matched = (error.match(/matched=([a-z_,]*)/)?.[1] ?? "")
+    .split(",")
+    .filter((feature): feature is SimilarityFeature => feature in SIMILARITY_CONFIG.features && (SIMILARITY_CONFIG.features[feature as SimilarityFeature] ?? 0) > 0);
+  const same = error.match(/^(mon|tue|wed|thu|fri|sat|sun) and (mon|tue|wed|thu|fri|sat|sun) are structurally similar/);
+  const recentHit = error.match(/^(mon|tue|wed|thu|fri|sat|sun) matches a recent structure/);
+  const leftDay = (same?.[1] ?? recentHit?.[1]) as DayKey | undefined;
+  const rightDay = same?.[2] as DayKey | undefined;
+  const fresh = draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null);
+  const left = leftDay ? fresh.find((row) => row.day === leftDay) : undefined;
+  const right = rightDay
+    ? fresh.find((row) => row.day === rightDay)
+    : left
+      ? recent.find((prior) => {
+          if (prior.benchmark) return false;
+          const hit = similarityMatch(left, prior);
+          return hit.score === score && hit.matched.join(",") === matched.join(",");
+        })
+      : undefined;
+  const values = matched.map((feature) => {
+    const yours = left ? featureValue(left, feature) : "?";
+    const theirs = right ? featureValue(right, feature) : "?";
+    return `${feature}=${yours || "empty"} matches ${right?.day ?? "recent"} ${feature}=${theirs || "empty"}`;
+  });
+  const levers = matched.map((feature) => featureChangeHint(feature)).filter(Boolean);
+  return `${error}. ${values.join("; ")}. Change at least ${need} of those matched features so the score is below ${SIMILARITY_CONFIG.threshold}. ${levers.join(" ")} Renaming a movement does not change a feature. The threshold stays ${SIMILARITY_CONFIG.threshold}.`;
+}
+
 /**
  * Errors this day would add against the other training days and recent weeks.
  * Threshold stays SIMILARITY_CONFIG.threshold.
  */
-export function adoptionCollisionErrors(draft: WeekDraft, day: DayKey, recent: readonly StoredStructure[] = []): string[] {
+export function adoptionCollisionErrors(
+  draft: WeekDraft,
+  day: DayKey,
+  recent: readonly StoredStructure[] = [],
+  ignoreDays: readonly DayKey[] = [],
+): string[] {
+  const ignored = new Set(ignoreDays.filter((key) => key !== day));
   const ordered = DAY_ORDER.map((key) => draft.sessions.find((session) => session.day === key)).filter(
-    (session): session is SessionDraft => Boolean(session && !session.rest && session.conditioning),
+    (session): session is SessionDraft => Boolean(session && !session.rest && session.conditioning && !ignored.has(session.day)),
   );
   const index = ordered.findIndex((session) => session.day === day);
   if (index < 0) return [];
@@ -1152,6 +1201,8 @@ export function adoptionCollisionErrors(draft: WeekDraft, day: DayKey, recent: r
     if (stimulus && other && stimulus === other) errors.push(`stimulus ${stimulus} repeats on ${day}`);
   }
   for (const line of similarityViolations(draft, recent)) {
+    const same = line.match(/^(mon|tue|wed|thu|fri|sat|sun) and (mon|tue|wed|thu|fri|sat|sun) are structurally similar/);
+    if (same && (ignored.has(same[1] as DayKey) || ignored.has(same[2] as DayKey))) continue;
     if (line.startsWith(`${day} `) || line.includes(` and ${day} `)) errors.push(line);
   }
   return [...new Set(errors)];

@@ -34,6 +34,11 @@ describe("movement catalog", () => {
     expect(checkCellEdit({ catalog_key: "double_under", field: "amount", value: "30" })).toEqual({ ok: true });
     expect(checkCellEdit({ catalog_key: "double_under", field: "amount", value: "400" }).ok).toBe(false);
     expect(checkCellEdit({ catalog_key: "front_squat", field: "amount", value: "3" })).toEqual({ ok: true });
+    expect(checkCellEdit({ catalog_key: "fan_bike", field: "amount", value: "12" })).toEqual({ ok: true });
+    expect(checkCellEdit({ catalog_key: "fan_bike", field: "amount", value: "9" }).ok).toBe(false);
+    expect(checkCellEdit({ catalog_key: "fan_bike", field: "amount", value: "12reps" }).ok).toBe(false);
+    expect(checkCellEdit({ catalog_key: "dumbbell_farmers_carry", field: "amount", value: "40" }).ok).toBe(false);
+    expect(checkCellEdit({ catalog_key: "dumbbell_farmers_carry", field: "amount", value: "40m" })).toEqual({ ok: true });
     expect(displayAmount(12, "cal")).toBe("12cal");
     expect(linkedCatalogKey("squat").key).toBe("back_squat");
     expect(linkedCatalogKey("clean").key).toBe("squat_clean");

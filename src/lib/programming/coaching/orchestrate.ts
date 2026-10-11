@@ -1,8 +1,8 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { adoptionCollisionErrors, judgeWeek, parseWeekDraft, TIME_DOMAIN_RANGES } from "../rules";
+import { adoptionCollisionErrors, judgeWeek, parseWeekDraft, similarityRetryText, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
-import { SIMILARITY_CONFIG, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
+import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
@@ -143,9 +143,24 @@ function adjacentStimulus(days: ReturnType<typeof otherTrainingDays>, day: DayKe
   return neighbor?.stimulus ?? null;
 }
 
-function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayIntent, revision: SessionRevision | null, revisionNumber: number, rules: WeekRules, extraKeys: readonly string[], draft: WeekDraft) {
+function sessionUser(
+  input: CoachWeekInput,
+  plan: WeeklyIntentPlan,
+  day: DayIntent,
+  revision: SessionRevision | null,
+  revisionNumber: number,
+  rules: WeekRules,
+  extraKeys: readonly string[],
+  draft: WeekDraft,
+  ignoreDays: readonly DayKey[] = [],
+) {
   const locked = lockedSkeletonDay(input, day.day);
   const lockedRange = locked && locked.conditioning.duration_class !== "rest" ? TIME_DOMAIN_RANGES[locked.conditioning.duration_class] : null;
+  const writtenDays = otherTrainingDays(draft, day.day).filter((row) => !ignoreDays.includes(row.day));
+  const previousStimulus = adjacentStimulus(writtenDays, day.day, -1);
+  const nextStimulus = adjacentStimulus(writtenDays, day.day, 1);
+  const blockedStimuli = new Set([previousStimulus, nextStimulus].filter((value): value is string => Boolean(value)));
+  const allowedStimuli = STIMULI.filter((stimulus) => !blockedStimuli.has(stimulus));
   return {
     agent_name: "session_coach",
     monthly_plan: input.month.coaching_plan ?? null,
@@ -200,11 +215,10 @@ function sessionUser(input: CoachWeekInput, plan: WeeklyIntentPlan, day: DayInte
       volume: row.volume,
       equipment: row.equipment,
     })),
-    other_training_days: otherTrainingDays(draft, day.day),
-    previous_training_stimulus: adjacentStimulus(otherTrainingDays(draft, day.day), day.day, -1),
-    next_training_stimulus: adjacentStimulus(otherTrainingDays(draft, day.day), day.day, 1),
-    same_week_limit:
-      "conditioning.stimulus must differ from previous_training_stimulus and next_training_stimulus. The server rejects a repeated neighbor stimulus. Shared features among format, time_domain, stimulus, movement_pattern, equipment, and volume score 1 each. A score of 4 or more fails the week. The threshold stays 4. The server fills equipment from the movements. time_domain follows duration_min.",
+    other_training_days: writtenDays,
+    previous_training_stimulus: previousStimulus,
+    next_training_stimulus: nextStimulus,
+    same_week_limit: `conditioning.stimulus must be ${allowedStimuli.join(" or ") || STIMULI.join(" or ")}. previous_training_stimulus is ${previousStimulus ?? "none"}. next_training_stimulus is ${nextStimulus ?? "none"}. The server rejects a repeated neighbor stimulus. Shared features among format, time_domain, stimulus, movement_pattern, equipment, and volume score 1 each. A score of 4 or more fails the week. The threshold stays 4. The server fills equipment from the movements. time_domain follows duration_min.`,
     duration_rule: locked
       ? `${durationRuleText()} Locked ${locked.day}: conditioning.duration_min must be ${lockedRange?.min}-${lockedRange?.max} (${locked.conditioning.duration_class}). conditioning.volume must be at or below ${locked.volume_profile}.`
       : durationRuleText(),
@@ -233,12 +247,23 @@ function judgeContext(input: CoachWeekInput) {
   };
 }
 
+function stimulusRetryText(error: string, draft: WeekDraft, day: DayKey, ignoreDays: readonly DayKey[]): string {
+  const current = error.match(/^stimulus (\w+) repeats/)?.[1] ?? "";
+  const others = otherTrainingDays(draft, day).filter((row) => !ignoreDays.includes(row.day));
+  const neighbors = [adjacentStimulus(others, day, -1), adjacentStimulus(others, day, 1)].filter((value): value is string => Boolean(value));
+  const blocked = new Set([current, ...neighbors]);
+  const allowed = STIMULI.filter((stimulus) => !blocked.has(stimulus));
+  const choices = (allowed.length ? allowed : STIMULI.filter((stimulus) => stimulus !== current)).join(" or ");
+  return `${error}. Neighboring training stimulus is ${neighbors.join(" and ") || "none"}. Set conditioning.stimulus to ${choices}. A new movement name is not a stimulus change.`;
+}
+
 function adoptDay(input: {
   week: CoachWeekInput;
   plan: WeeklyIntentPlan;
   draft: WeekDraft;
   day: DayIntent;
   json: unknown;
+  ignoreDays?: readonly DayKey[];
 }):
   | { ok: true; draft: WeekDraft; session: SessionDraft; json: unknown; normalizations: SessionNormalization[] }
   | { ok: false; errors: string[]; json: unknown; normalizations: SessionNormalization[] } {
@@ -266,9 +291,15 @@ function adoptDay(input: {
   }
   const sessions = input.draft.sessions.map((row) => (row.day === input.day.day ? session : row));
   const candidate = stamp({ ...input.draft, sessions }, input.plan);
-  const collisions = adoptionCollisionErrors(candidate, input.day.day).filter((error) => error.startsWith("stimulus "));
+  const ignoreDays = input.ignoreDays ?? [];
+  const collisions = adoptionCollisionErrors(candidate, input.day.day, [], ignoreDays).filter((error) => error.startsWith("stimulus "));
   if (collisions.length) {
-    return { ok: false, errors: collisions, json: normalized.json, normalizations: normalized.normalizations };
+    return {
+      ok: false,
+      errors: collisions.map((error) => stimulusRetryText(error, candidate, input.day.day, ignoreDays)),
+      json: normalized.json,
+      normalizations: normalized.normalizations,
+    };
   }
   return { ok: true, draft: candidate, session, json: normalized.json, normalizations: normalized.normalizations };
 }
@@ -381,6 +412,7 @@ async function writeSession(input: {
   timeoutMs: number;
   rules: WeekRules;
   areas?: readonly SpecialistArea[];
+  ignoreDays?: readonly DayKey[];
 }): Promise<{
   draft: WeekDraft;
   source: "model" | "fallback";
@@ -395,7 +427,8 @@ async function writeSession(input: {
   const started = Date.now();
   const existingKeys = movementKeysOf(input.draft.sessions.find((session) => session.day === input.day.day) ?? null);
   const catalogKeys = movementsForSlice(sliceFor(input.day, existingKeys)).map((row) => row.key);
-  const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber, input.rules, existingKeys, input.draft);
+  const ignoreDays = input.ignoreDays ?? [];
+  const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber, input.rules, existingKeys, input.draft, ignoreDays);
   const normalizations: SessionNormalization[] = [];
   let normalizedJson: unknown = null;
   const selfTraces = (json: unknown) =>
@@ -428,21 +461,17 @@ async function writeSession(input: {
       warmupPlaceholder: "당일 본 운동을 위한 준비 동작입니다.",
     });
     if (!merged.ok) return { ok: false as const, errors: merged.errors };
-    const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json: merged.json });
+    const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json: merged.json, ignoreDays });
     normalizations.push(...adopted.normalizations);
     normalizedJson = adopted.json;
     if (!adopted.ok) return { ok: false as const, errors: adopted.errors };
-    const similar = adoptionCollisionErrors(adopted.draft, input.day.day, input.week.recentStructures ?? []).filter(
+    const similar = adoptionCollisionErrors(adopted.draft, input.day.day, input.week.recentStructures ?? [], ignoreDays).filter(
       (error) => error.includes("structurally similar") || error.includes("matches a recent structure"),
     );
     if (similar.length && conditioningAttempts < 2) {
       return {
         ok: false as const,
-        errors: similar.map((error) => {
-          const score = Number(error.match(/score=(\d+)/)?.[1] ?? "4");
-          const need = Math.max(1, score - (SIMILARITY_CONFIG.threshold - 1));
-          return `${error}. Change at least ${need} matched features so the score is below 4. Renaming a movement does not change a feature. The threshold stays 4.`;
-        }),
+        errors: similar.map((error) => similarityRetryText(adopted.draft, input.week.recentStructures ?? [], error)),
       };
     }
     return { ok: true as const };
@@ -581,7 +610,7 @@ async function writeSession(input: {
       }),
     };
   }
-  const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json: merged.json });
+  const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json: merged.json, ignoreDays });
   normalizations.push(...adopted.normalizations);
   if (!adopted.ok) {
     const adoptUnresolved = input.revisionNumber === 0;
@@ -1138,7 +1167,9 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const unresolvedDays = new Map<DayKey, string[]>();
   let headModelStatus: HeadCoachReview["status"] | null = null;
   let draft = stamp(built.draft, plan);
-  for (const day of trainingDays(plan)) {
+  const queue = trainingDays(plan);
+  for (let index = 0; index < queue.length; index += 1) {
+    const day = queue[index]!;
     const written = await writeSession({
       week,
       plan,
@@ -1149,6 +1180,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       revision: null,
       timeoutMs,
       rules,
+      ignoreDays: queue.slice(index + 1).map((row) => row.day),
     });
     traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
     for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);
