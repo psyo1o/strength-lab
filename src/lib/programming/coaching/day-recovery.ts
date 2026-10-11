@@ -97,6 +97,68 @@ export function rejectedRevisionSpecs(value: unknown, trainingDays: readonly Day
   return rejected;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+/**
+ * A schema-valid recovery may change only the named fields.
+ * This does not call the model again.
+ */
+export function recoveryDrift(input: {
+  before: unknown;
+  after: unknown;
+  fields: readonly { field: string }[];
+}): { ok: true } | { ok: false; changed: string[] } {
+  const movementAmounts = new Set<string>();
+  const indexAmounts = new Set<number>();
+  const scalars = new Set<string>();
+  for (const row of input.fields) {
+    const keyed = row.field.match(/movements\.([A-Za-z0-9_]+)\.amount$/);
+    if (keyed && !/^\d+$/.test(keyed[1])) movementAmounts.add(keyed[1]);
+    const indexed = row.field.match(/movements\[(\d+)\]\.amount$/);
+    if (indexed) indexAmounts.add(Number(indexed[1]));
+    if (/(?:^|\.)interval_work_sec$/.test(row.field)) scalars.add("interval_work_sec");
+    if (/(?:^|\.)interval_rest_sec$/.test(row.field)) scalars.add("interval_rest_sec");
+    if (/(?:^|\.)notes_ko$/.test(row.field)) scalars.add("notes_ko");
+  }
+  const changed: string[] = [];
+  const left = asRecord(input.before);
+  const right = asRecord(input.after);
+  if (!left || !right) return { ok: false, changed: ["recovery output is missing"] };
+  if (left.day !== right.day) changed.push("day");
+  if (!scalars.has("notes_ko") && left.notes_ko !== right.notes_ko) changed.push("notes_ko");
+  const beforePiece = asRecord(left.conditioning);
+  const afterPiece = asRecord(right.conditioning);
+  if (!beforePiece || !afterPiece) return { ok: false, changed: [...changed, "conditioning"] };
+  for (const key of ["format", "duration_min", "stimulus", "volume", "intensity", "interval_work_sec", "interval_rest_sec"] as const) {
+    if (scalars.has(key)) continue;
+    if (beforePiece[key] !== afterPiece[key]) changed.push(`conditioning.${key}`);
+  }
+  if (JSON.stringify(beforePiece.equipment ?? null) !== JSON.stringify(afterPiece.equipment ?? null)) changed.push("conditioning.equipment");
+  const beforeMoves = Array.isArray(beforePiece.movements) ? beforePiece.movements : [];
+  const afterMoves = Array.isArray(afterPiece.movements) ? afterPiece.movements : [];
+  if (beforeMoves.length !== afterMoves.length) changed.push("conditioning.movements");
+  else {
+    beforeMoves.forEach((row, index) => {
+      const beforeMove = asRecord(row);
+      const afterMove = asRecord(afterMoves[index]);
+      if (!beforeMove || !afterMove) {
+        changed.push(`conditioning.movements[${index}]`);
+        return;
+      }
+      if (beforeMove.key !== afterMove.key) changed.push(`conditioning.movements[${index}].key`);
+      if (beforeMove.name_ko !== afterMove.name_ko) changed.push(`conditioning.movements[${index}].name_ko`);
+      const key = typeof beforeMove.key === "string" ? beforeMove.key : String(index);
+      if (!movementAmounts.has(key) && !indexAmounts.has(index) && beforeMove.amount !== afterMove.amount) {
+        changed.push(`conditioning.movements.${key}.amount`);
+      }
+    });
+  }
+  return changed.length ? { ok: false, changed } : { ok: true };
+}
+
 export function dayRecoveryPayload(input: {
   area: SpecialistArea;
   monthly: unknown;

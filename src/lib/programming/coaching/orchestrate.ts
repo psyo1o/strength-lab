@@ -20,7 +20,7 @@ import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rule
 import { normalizeSessionPayload, type SessionNormalization } from "./stage13/normalize";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
-import { dayRecoveryPayload, isTransientCoachFailure, rejectedRevisionSpecs } from "./day-recovery";
+import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRevisionSpecs } from "./day-recovery";
 import { askSpecialist, type SpecialistArea } from "./specialist-generate";
 import { analyzeProgression, analyzeWeekStructure } from "./stage13/analyzers";
 import { heavyLowerStressDays } from "./stage13/specialists";
@@ -401,22 +401,23 @@ async function writeSession(input: {
       const reason = areaReason.get(area) ?? failed?.reason ?? null;
       if (isTransientCoachFailure(reason)) continue;
       const errors = areaErrors.get(area) ?? failed?.errors ?? ["schema"];
+      const payload = dayRecoveryPayload({
+        area,
+        monthly: input.week.month.coaching_plan ?? input.week.month,
+        weeklyGoal: { why_ko: input.plan.why_ko, focus: input.plan.focus, block_phase: input.plan.block_phase },
+        dayIntent: input.day,
+        existing: base,
+        errors,
+        invalid: areaInvalid.get(area) ?? null,
+        priorAttempts: (areaTraces.find((trace) => trace.agent_name === `${area}_coach`)?.retry_count ?? 0) + 1,
+        neighbors: user.neighboring_days,
+      });
       const asked = await askSpecialist({
         area,
         user: {
           ...user,
           revision_number: 1,
-          day_recovery: dayRecoveryPayload({
-            area,
-            monthly: input.week.month.coaching_plan ?? input.week.month,
-            weeklyGoal: { why_ko: input.plan.why_ko, focus: input.plan.focus, block_phase: input.plan.block_phase },
-            dayIntent: input.day,
-            existing: base,
-            errors,
-            invalid: areaInvalid.get(area) ?? null,
-            priorAttempts: (areaTraces.find((trace) => trace.agent_name === `${area}_coach`)?.retry_count ?? 0) + 1,
-            neighbors: user.neighboring_days,
-          }),
+          day_recovery: payload,
         },
         key: input.week.key ?? "",
         fetchImpl: input.week.fetchImpl,
@@ -428,9 +429,15 @@ async function writeSession(input: {
         validate: validateArea(area),
       });
       areaTraces.push(asked.trace);
-      if (asked.ok) {
+      const edits = Array.isArray(payload.field_edits) ? (payload.field_edits as { field: string }[]) : [];
+      const drift = asked.ok ? recoveryDrift({ before: areaInvalid.get(area), after: asked.json, fields: edits }) : null;
+      if (asked.ok && drift?.ok) {
         parts[area] = asked.json;
         recovered = true;
+      } else if (asked.ok && drift && !drift.ok) {
+        const reasons = drift.changed.map((path) => `recovery changed ${path}`);
+        unresolvedErrors.push(...reasons);
+        failed = { errors: reasons, retry: asked.trace.retry_count, reason: "schema", json: asked.json };
       } else {
         const next = asked.trace.validation_errors?.length ? asked.trace.validation_errors : [asked.trace.failure_reason ?? "schema"];
         unresolvedErrors.push(...next);

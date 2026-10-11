@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetDbConnection } from "../src/lib/db/client";
 import { DAY_ORDER, type DayKey } from "../src/lib/month-plan/types";
 import { dryRunWeek } from "../src/lib/programming/admin-tools";
-import { dayRecoveryPayload, rejectedRevisionSpecs } from "../src/lib/programming/coaching/day-recovery";
+import { dayRecoveryPayload, recoveryDrift, rejectedRevisionSpecs } from "../src/lib/programming/coaching/day-recovery";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
 import { HEAD_COACH_PROMPT_VERSION, STAGE16_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
@@ -22,7 +22,7 @@ const NOW = Date.parse("2099-07-06T01:00:00.000Z");
 const KEY = "sk-day-recovery";
 const WEEK = "2099-07-06";
 
-type Mode = "recover" | "always_bad" | "keep_valid" | "bad_coach" | "bad_range" | "block" | "approve";
+type Mode = "recover" | "always_bad" | "keep_valid" | "bad_coach" | "bad_range" | "block" | "approve" | "field_fix" | "field_drift";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-day-recovery-"));
@@ -71,7 +71,7 @@ function sessionJson(session: SessionDraft) {
       format: piece.format,
       duration_min: piece.duration_min,
       stimulus: piece.stimulus,
-      movements: piece.movements,
+      movements: piece.movements.map((row) => ({ ...row })),
       equipment: piece.equipment,
       volume: piece.volume,
       intensity: piece.intensity,
@@ -87,6 +87,30 @@ function repsOnly(session: SessionDraft) {
   if (conditioning?.movements) {
     conditioning.movements = conditioning.movements.map((movement) => ({ ...movement, amount: "reps" }));
   }
+  return full;
+}
+
+function illegalAmount(session: SessionDraft) {
+  const full = sessionJson(session);
+  const conditioning = full.conditioning as { movements?: Array<{ key?: string; amount?: string }> } | null;
+  const movements = conditioning?.movements ?? [];
+  const target = movements.find((row) => row.key === "push_up") ?? movements[0];
+  if (target) target.amount = "10회/라운드";
+  return full;
+}
+
+function driftedRecovery(session: SessionDraft) {
+  const full = sessionJson(session);
+  full.notes_ko = "형식을 바꿉니다.";
+  const conditioning = full.conditioning as {
+    format?: string;
+    interval_work_sec?: number | null;
+    interval_rest_sec?: number | null;
+  } | null;
+  if (!conditioning) return full;
+  conditioning.format = conditioning.format === "amrap" ? "for_time" : "amrap";
+  conditioning.interval_work_sec = null;
+  conditioning.interval_rest_sec = null;
   return full;
 }
 
@@ -209,6 +233,8 @@ function harness(mode: Mode) {
       if (mode === "recover" && day === "mon" && !recovery) return chat(repsOnly(session));
       if (mode === "always_bad" && day === "mon") return chat(repsOnly(session));
       if (mode === "keep_valid" && day === "mon" && revision > 0 && !recovery) return chat(repsOnly(session));
+      if ((mode === "field_fix" || mode === "field_drift") && day === "mon" && !recovery) return chat(illegalAmount(session));
+      if (mode === "field_drift" && day === "mon" && recovery) return chat(driftedRecovery(session));
       return chat(sessionJson(session));
     }
     if (agent === "load_coach" || agent === "context:load") {
@@ -300,6 +326,55 @@ describe("day recovery units", () => {
     expect(clockEdit?.field).toBe("interval_work_sec");
     expect(clockEdit?.current_value).toBe("180");
     expect(clockEdit?.required_format).toContain("10–90");
+    const before = {
+      day: "wed",
+      notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
+      conditioning: {
+        format: "intervals",
+        duration_min: 12,
+        stimulus: "mixed",
+        movements: [{ key: "push_up", amount: "10회/라운드", name_ko: "푸시업" }],
+        equipment: ["bodyweight"],
+        volume: "moderate",
+        intensity: "moderate",
+        interval_work_sec: 180,
+        interval_rest_sec: 60,
+      },
+    };
+    const fixed = {
+      ...before,
+      conditioning: {
+        ...before.conditioning,
+        movements: [{ key: "push_up", amount: "10", name_ko: "푸시업" }],
+        interval_work_sec: 30,
+      },
+    };
+    expect(
+      recoveryDrift({
+        before,
+        after: fixed,
+        fields: [
+          { field: "conditioning.movements.push_up.amount" },
+          { field: "interval_work_sec" },
+        ],
+      }),
+    ).toEqual({ ok: true });
+    const drifted = {
+      ...fixed,
+      notes_ko: "형식을 바꿉니다.",
+      conditioning: { ...fixed.conditioning, format: "amrap", interval_work_sec: null, interval_rest_sec: null },
+    };
+    const drift = recoveryDrift({
+      before,
+      after: drifted,
+      fields: [{ field: "conditioning.movements.push_up.amount" }, { field: "interval_work_sec" }],
+    });
+    expect(drift.ok).toBe(false);
+    if (!drift.ok) {
+      expect(drift.changed).toEqual(expect.arrayContaining(["notes_ko", "conditioning.format", "conditioning.interval_rest_sec"]));
+      expect(drift.changed).not.toContain("conditioning.movements.push_up.amount");
+      expect(drift.changed).not.toContain("conditioning.interval_work_sec");
+    }
   });
 });
 
@@ -344,6 +419,46 @@ describe("day recovery orchestrator", () => {
     expect(result.final_status).toBe("APPROVE");
     expect(result.traces.filter((trace) => trace.agent_name === "session_coach").every((trace) => trace.token_usage == null)).toBe(true);
     expect(result.token_usage?.total_tokens).toBeGreaterThan(0);
+  });
+
+  it("adopts monday when recovery fixes only the named amount", async () => {
+    const { result, calls, plan } = await run("field_fix");
+    const legal = assembleLegalWeek({ month: month531(), weekIndex: 1, plan });
+    const original = legal.draft.sessions.find((session) => session.day === "mon");
+    const monday = result.draft.sessions.find((session) => session.day === "mon");
+    const recovery = calls.find((call) => call.agent === "conditioning_coach" && call.day === "mon" && call.user.day_recovery);
+    const fieldEdits = (recovery?.user.day_recovery as { field_edits?: Array<{ field?: string; current_value?: string }> } | undefined)?.field_edits ?? [];
+    const amountEdit = fieldEdits.find((row) => row.current_value === "10회/라운드");
+    expect(amountEdit?.field).toMatch(/conditioning\.movements\.[A-Za-z0-9_]+\.amount/);
+    expect(monday?.conditioning?.format).toBe(original?.conditioning?.format);
+    expect(monday?.conditioning?.movements?.map((row) => row.key)).toEqual(original?.conditioning?.movements?.map((row) => row.key));
+    expect(monday?.conditioning?.movements?.map((row) => row.amount)).toEqual(original?.conditioning?.movements?.map((row) => row.amount));
+    expect(JSON.stringify(monday?.conditioning)).not.toContain("10회/라운드");
+    expect(monday?.conditioning?.stimulus).toBe(original?.conditioning?.stimulus);
+    expect(result.day_sources.mon).toBe("model");
+    expect(result.day_records?.mon?.revision_reason).toBe("schema recovery");
+    expect(result.generation_source).toBe("model");
+    expect(result.draft.sessions.find((session) => session.day === "tue")?.warmup_ko).toContain("모델");
+    const mondayCalls = calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon");
+    expect(mondayCalls).toHaveLength(3);
+    expect(mondayCalls.filter((call) => call.user.day_recovery)).toHaveLength(1);
+  });
+
+  it("rejects a recovery that changes the format and the note", async () => {
+    const { result, calls } = await run("field_drift");
+    const mondayCalls = calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon");
+    expect(mondayCalls).toHaveLength(3);
+    expect(mondayCalls.filter((call) => call.user.day_recovery)).toHaveLength(1);
+    const sessionTrace = result.traces.find((trace) => trace.agent_name === "session_coach" && trace.day === "mon" && trace.validation_result === "fail");
+    const errors = sessionTrace?.validation_errors ?? [];
+    expect(errors).toEqual(expect.arrayContaining(["recovery changed conditioning.format", "recovery changed notes_ko"]));
+    expect(result.day_sources.mon).toBe("fallback");
+    expect(result.day_records?.mon?.day_status).toBe("FAILED");
+    expect(result.day_records?.mon?.final_prescription).toBeNull();
+    expect(JSON.stringify(result.draft.sessions.find((session) => session.day === "mon"))).not.toContain("형식을 바꿉니다.");
+    expect(result.draft.sessions.find((session) => session.day === "tue")?.warmup_ko).toContain("모델");
+    expect(result.generation_source).not.toBe("model");
+    expect(result.final_validation?.ok).toBe(false);
   });
 
   it("does not overwrite a valid monday when the later revision is invalid", async () => {
