@@ -21,6 +21,9 @@
  * PROBE_FLAGS=off leaves COACHING_PIPELINE and LONGITUDINAL_PLANNING unset.
  * The default probe still sets both to 1. Production defaults are not changed here.
  *   PROBE_MODE=db PROBE_LABEL=ops-path-fix PROBE_FLAGS=off npx tsx scripts/plan-lab.ts
+ * One scenario and one pass. The default is still every scenario and both passes.
+ * PROBE_SCENARIOS must be a prefix of W1,W2,W3,W4,S1,S2. The first model HTTP 429 stops the run.
+ *   PROBE_MODE=db PROBE_LABEL=coaching-engine-d PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
@@ -44,6 +47,7 @@ import {
 import { fallbackMonth } from "../src/lib/programming/fallback";
 import { planLongitudinal } from "../src/lib/programming/planning/plan";
 import { coachModel } from "../src/lib/programming/coaching/models";
+import { MONTH_PLAN_OPENAI_URL } from "../src/lib/month-plan/week-model";
 import type { WeekActual } from "../src/lib/programming/summary";
 import type { WeekIndex } from "../src/lib/programming/types";
 
@@ -101,6 +105,41 @@ function assertCalendar() {
   if (coachModel("weekly") !== "gpt-5.4-nano" || coachModel("session") !== "gpt-5.4-nano") {
     throw new ProbeSafetyError("plan lab must stay on gpt-5.4-nano");
   }
+}
+
+function probeScenarios() {
+  const raw = process.env.PROBE_SCENARIOS?.trim();
+  if (!raw) return SCENARIOS;
+  const ids = raw.split(",").map((id) => id.trim()).filter(Boolean);
+  const prefix = SCENARIOS.slice(0, ids.length);
+  if (ids.length === 0 || ids.some((id, index) => prefix[index]?.id !== id)) {
+    throw new ProbeSafetyError("PROBE_SCENARIOS must be a prefix of W1,W2,W3,W4,S1,S2");
+  }
+  return prefix;
+}
+
+function probePasses(): Array<"A1" | "A2"> {
+  const raw = process.env.PROBE_PASSES?.trim();
+  if (!raw) return ["A1", "A2"];
+  const passes = raw.split(",").map((pass) => pass.trim()).filter(Boolean);
+  if (passes.length === 0 || passes.some((pass) => pass !== "A1" && pass !== "A2")) {
+    throw new ProbeSafetyError("PROBE_PASSES must be A1, A2, or A1,A2");
+  }
+  return passes as Array<"A1" | "A2">;
+}
+
+function abortIfFirstModelCallIs429(): void {
+  const original = globalThis.fetch.bind(globalThis);
+  let armed = true;
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await original(input, init);
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    if (armed && url === MONTH_PLAN_OPENAI_URL) {
+      armed = false;
+      if (response.status === 429) throw new ProbeSafetyError("first model call returned HTTP 429; stopped");
+    }
+    return response;
+  };
 }
 
 function scrub(text: string): string {
@@ -173,9 +212,10 @@ async function databasePass(pass: string) {
     const seeded = await regenerateProgrammingWeek(predecessor, { key });
     if (seeded.weekStart !== predecessor) throw new ProbeSafetyError("predecessor write missed 2099-06-29");
   }
+  const scenarios = probeScenarios();
   const weeks: unknown[] = [];
-  for (let index = 0; index < SCENARIOS.length; index += 1) {
-    const scenario = SCENARIOS[index]!;
+  for (let index = 0; index < scenarios.length; index += 1) {
+    const scenario = scenarios[index]!;
     const previousWeek = index === 0 ? predecessor : SCENARIOS[index - 1]!.weekStart;
     assertProbePredecessor({ simulationWeek: scenario.weekStart, previousWeek });
     if (!probeMayWriteWeek(scenario.weekStart)) throw new ProbeSafetyError(`refusing ${scenario.weekStart}`);
@@ -690,6 +730,8 @@ async function main() {
     process.env.COACHING_PIPELINE = "1";
     process.env.LONGITUDINAL_PLANNING = "1";
   }
+  abortIfFirstModelCallIs429();
+  const passNames = probePasses();
   const passes = [];
   const runId = `${probeLabel}-${randomUUID()}`;
   const archiveRoot = `docs/${probeLabel}-runs`;
@@ -700,7 +742,7 @@ async function main() {
   ];
   const archived = [];
   const monthReports: Array<{ pass: string; months: ReturnType<typeof monthDigest> }> = [];
-  for (const pass of ["A1", "A2"]) {
+  for (const pass of passNames) {
     const result = await databasePass(pass);
     passes.push(result);
     const snapshot = await readProbeSnapshot();
@@ -728,7 +770,7 @@ async function main() {
     );
     monthReports.push({ pass, months: monthDigest(scrubbed.months) });
   }
-  const integrity = verifyProbeArchives({ root: archiveRoot, runId, passes: ["A1", "A2"] });
+  const integrity = verifyProbeArchives({ root: archiveRoot, runId, passes: passNames });
   if (!integrity.ok) {
     throw new ProbeSafetyError(`raw archive incomplete: ${integrity.missing.join(" | ")}`);
   }
@@ -737,7 +779,7 @@ async function main() {
       mode: "db",
       model: "gpt-5.4-nano",
       structure: digest,
-      scenarios: SCENARIOS.map((scenario) => scenario.id),
+      scenarios: probeScenarios().map((scenario) => scenario.id),
       passes: passes.length,
       summary: summarize(passes),
       archive: {
@@ -745,7 +787,7 @@ async function main() {
         root: archiveRoot,
         raw_saved: true,
         summary_is_not_raw: true,
-        a1_intact_after_a2: true,
+        a1_intact_after_a2: passNames.includes("A1") && passNames.includes("A2"),
         missing: integrity.missing,
         passes: archived.map((row) => ({ pass: row.manifest.pass, dir: row.dir, files: row.manifest.files.map((file) => file.relative) })),
       },
@@ -766,6 +808,23 @@ async function main() {
 
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "plan lab failed";
+  if (message.includes("HTTP 429")) {
+    const label = process.env.PROBE_LABEL?.trim() || "stage19";
+    const stopped = {
+      probe: "stopped",
+      reason: "first model call returned HTTP 429",
+      http_429: true,
+      model: "gpt-5.4-nano",
+      database: "2099-temp",
+      weeks: null,
+      adopted_model_weeks: null,
+      fallback_weeks: null,
+      model_calls: null,
+      tokens: null,
+    };
+    mkdirSync("docs", { recursive: true });
+    writeFileSync(`docs/${label}-probe.json`, `${JSON.stringify(stopped, null, 2)}\n`);
+  }
   console.error(scrub(message));
   process.exit(1);
 });

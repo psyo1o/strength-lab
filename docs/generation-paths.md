@@ -18,40 +18,78 @@
 
 `ensureProgrammingWeek`는 활성 `programming_weeks`가 있으면 반환한다. 없으면 `writeProgrammingWeek`가 `ensureProgrammingMonth`를 먼저 호출한다. `regenerateProgrammingWeek`는 기존 행이 있어도 다시 쓴다. plan-lab과 admin은 `key` 문자열을 넘긴다.
 
-`writeProgrammingWeek`가 주 생성의 단일 진입점이다.
+`writeProgrammingWeek`가 주 생성의 단일 진입점이다. 화면, admin, plan-lab 모두 여기로 모인다. 그 함수는 매주 `runCoachingOrchestrator`를 한 번 호출한다.
 
 ## 키
 
-`const key = options.key === undefined ? serverModelKey() : options.key` (`engine.ts`).
+`const key = options.key === undefined ? serverModelKey() : options.key` (`engine.ts`). 오케스트레이터도 같은 식으로 한 번 더 읽는다.
 
 - `undefined`는 `MONTH_PLAN_MODEL_KEY`를 읽는다. 화면이 이 경우다. 환경에 키가 있으면 아래 문자열 키 경로다. 이 작업은 그 경로를 배포하지 않는다.
-- `null`과 빈 문자열은 환경 키를 읽지 않는다. `no_model`이다.
+- `null`과 빈 문자열은 환경 키를 읽지 않는다.
+
+### 오케스트레이터
+
+`runCoachingOrchestrator` (`src/lib/programming/coaching/orchestrator.ts`)의 반환은 셋이다.
+
+| 반환 | 조건 | 그 다음 |
+|---|---|---|
+| `{ kind: "no-model" }` | 키가 문자열이 아니거나 길이가 0 | `coachWeek`를 호출하지 않는다. 엔진의 기존 `no_model` 초안 |
+| `{ kind: "week-document", json }` | 문자열 키이고, 월 코치 응답이 세션 7개인 주 JSON | `persistWeekDocument` |
+| `{ kind: "coaching", result }` | 문자열 키이고, 월 코치 응답이 주 JSON이 아님 | `coachWeekActive` 결과 저장 |
+
+`coachWeekKeyless`는 `writeProgrammingWeek`가 호출하지 않는다. 그 함수의 스탬프 `coaching-pipeline-v2`는 이 진입점에서 쓰지 않는다.
 
 ### 키가 없을 때
 
-`authorWeeklyIntent` 다음 `authorWeek`다. 둘 다 `key: null`이라 모델을 호출하지 않는다. `authored.reason`은 `no_model`이다. 저장 스탬프는 `weekly-program-v10` (`WEEKLY_PROMPT_VERSION`)이다. 이 스탬프는 `weekPrompt`가 돌았다는 뜻이 아니다.
+오케스트레이터가 `{ kind: "no-model" }`을 돌려준 뒤의 초안은 이전과 같다. `authorWeeklyIntent` 다음 `authorWeek`이고, 둘 다 `key: null`이라 모델을 호출하지 않는다. `authored.reason`은 `no_model`이다. 저장 스탬프는 `weekly-program-v10` (`WEEKLY_PROMPT_VERSION`)이다. 이 스탬프는 `weekPrompt`가 돌았다는 뜻이 아니다.
 
-그 다음 `realizeWeekFromIntent`가 `judgeWeek`를 통과하면 그 초안을 저장할 수 있다. `no_model`이면 그 분기를 타지 않고 `buildFallbackWeek`다. `generation_source`는 `fallback`, `fallback_reason`은 `no_model`이다.
+`realizeWeekFromIntent`가 `judgeWeek`를 통과하면 그 초안을 저장할 수 있다. `no_model`이면 그 분기를 타지 않고 `buildFallbackWeek`다. `generation_source`는 `fallback`, `fallback_reason`은 `no_model`이다.
 
-`COACHING_PIPELINE`이 `"1"`이어도 이 분기는 같다. 화면의 클래스 블록(`warmup`, `main`, `metcon`)은 이 결정적 초안을 기준으로 한다.
+이 분기를 `coachWeekKeyless`로 보내지 않는 이유: 키가 없으면 모델을 부르면 안 되고, 화면의 클래스 블록은 `warmup`, `main`, `metcon`인 결정적 초안이다. `coachWeekKeyless`는 스탬프가 `coaching-pipeline-v2`라 그 계약을 바꾼다. 키 없음은 오케스트레이터가 `no-model`로 고른 뒤 기존 초안을 쓴다. `COACHING_PIPELINE`이 `"1"`이어도 이 분기는 같다.
 
 ### 키가 문자열일 때
 
-`runCoachingOrchestrator` (`src/lib/programming/coaching/orchestrator.ts`)가 `coachWeek`를 호출한다. 키가 있으면 `coachWeekActive` (`orchestrate.ts`)다. 주 행 스탬프는 `coaching-pipeline-v6` (`STAGE16_PIPELINE_VERSION`)이다.
+`coachWeek`는 키가 있으면 `coachWeekActive` (`orchestrate.ts`)다. 주 행 스탬프는 `coaching-pipeline-v6` (`STAGE16_PIPELINE_VERSION`)이다.
 
-순서: `coachMonthly` (`monthly-coach-v2`), 잠긴 스켈레톤이 없으면 주간 코치 `weekly-coach-v2`, 훈련일마다 `writeSession` (`session-coach-v4`), 부하 `load-coach-v2`, 피로·변이 엔진, 전문 코치 검토(stage13, 생성기가 아님), 헤드 `head-coach-v3`, `runAdjustmentPass` (필드 조정, `regeneration_calls: 0`), `finalWeekReport`.
+월 코치 응답의 `raw_output` 또는 `output`이 `parseWeekDraft`로 세션 7개면, 월 트레이스를 넣기 전에 `WeekDocumentResponse`를 던진다. 오케스트레이터는 그것을 `week-document`로 받는다. 실제 월 JSON은 세션 7개가 아니므로 이 분기를 타지 않는다. HTTP 실패 문구도 주 JSON이 아니다.
 
-휴식일은 세션 모델을 호출하지 않고 트레이스 `fallback_reason`이 `rest`다. 스트렝스·컨디셔닝·워밍업은 같은 `session-coach-v4` 호출이 쓴다. 따로 둔 Warmup 생성기는 없다.
+`persistWeekDocument`는 테스트 fetch를 다시 부르지 않는다. 합성 fetch가 그 주 JSON을 200으로 돌려주고, `planWeeklyIntent` 다음 `authorWeek`가 `judgeWeek`로 채택한다. 성공 스탬프는 `wod-from-intent-v1`이다. 유사도 실패의 저장 사유는 `too_similar`이고 시도 번호는 2다. 이것은 두 번째 생성 알고리즘이 아니다. 한 번에 주 JSON을 돌려주던 기존 작성기의 판정을 유지하는 입구다. 전문 코치가 만든 주에는 `wod-from-intent-v1`을 찍지 않는다.
+
+그 외 문자열 키의 순서: `coachMonthly` (`monthly-coach-v2`), 잠긴 스켈레톤이 없으면 주간 코치 `weekly-coach-v2`, 훈련일마다 전문 코치 셋, 부하 `load-coach-v2`, 피로·변이 엔진, 전문 코치 검토(stage13, 생성기가 아님), 헤드 `head-coach-v3`, `runAdjustmentPass`, 수정 명세가 있으면 그 날만 재생성, `finalWeekReport`.
+
+휴식일은 세션 모델을 호출하지 않고 트레이스 `fallback_reason`이 `rest`다.
 
 `generation_source === "model"`은 주간 모델 또는 잠긴 스켈레톤이 있고, 훈련일이 모두 모델이며, 헤드 상태가 APPROVE, APPROVE_WITH_NOTE, ADJUST 중 하나일 때다. 일부 일만 모델이면 사유는 `fallback_after_model_failure:채택/훈련일수`다. fallback은 모델 성공이 아니다.
 
-한 번에 주 JSON을 받는 `wod-from-intent-v1`은 이 문자열 키 경로에서 호출되지 않는다. 프롬프트 함수 `wodFromIntentPrompt`는 남아 있고, 키가 없을 때의 스탬프 규칙에서만 `calledModel`이 참일 때 이름이 쓰인다. 키가 null이면 `calledModel`은 거짓이다.
+저장 직전에, 코칭 결과가 모델이고 `judgeWeek`의 사유가 정확히 `too_similar`이면 활성 세션을 `realizeWeekFromIntent` 또는 `fallbackWeek`로 바꾸고 `generation_source`는 `fallback`, `fallback_reason`은 `too_similar`다. 임계값은 4다. schema 등 다른 사유는 이 강등을 하지 않는다. 코칭 파이프라인 안에서는 유사도가 신호라 주를 버릴 수 있다. 저장 관문은 `judgeWeek`다. 프롬프트 스탬프는 `coaching-pipeline-v6`로 남는다.
 
-`STRENGTH_LAB_PROBE === "1"`이고 `weekStart === "2026-10-05"`이면 오케스트레이터 호출 전에 예외를 던진다. `coachWeek`도 같은 환경 변수에서 `assertProbeWeek`를 호출한다. 프로브가 아니면 그 날짜를 막지 않는다. 화면이 그 주를 만들 수 있어야 하고, plan-lab은 2099만 쓴다.
+`STRENGTH_LAB_PROBE === "1"`이고 키가 비어 있지 않은 문자열이며 `weekStart === "2026-10-05"`이면 오케스트레이터 호출 전에 예외를 던진다. 프로브가 아니면 그 날짜를 막지 않는다. 화면이 그 주를 만들 수 있어야 하고, plan-lab은 2099만 쓴다.
+
+## 전문 코치
+
+훈련일의 생성은 `writeSession`이 `askSpecialist`로 나눈다 (`specialist-generate.ts`).
+
+| 역할 | 에이전트 | 프롬프트 | 출력 키 |
+|---|---|---|---|
+| 스트렝스 | `strength_coach` | `strength-coach-v1` | `day`, `strength_note_ko` |
+| 컨디셔닝 | `conditioning_coach` | `conditioning-coach-v1` | `day`, `notes_ko`, `conditioning` |
+| 워밍업 | `warmup_coach` | `warmup-coach-v1` | `day`, `warmup_ko` |
+
+다른 영역의 키를 쓰면 그 호출은 거절된다. 세트와 킬로그램은 모델이 쓰지 않는다. 스트렝스 세트는 `strengthFor` 방법 표다. `strength_note_ko`는 채택 뒤 `session.strength_purpose`에 복사된다. 서버가 `time_domain`과 `movement_pattern`을 찍는다. `movement_pattern`은 그 날 intent 값이고, `mixed`와 `none`은 `engine`이다.
+
+세 호출이 끝난 뒤에만 하루를 합친다. 집계 트레이스 `session_coach` (`session-coach-v4`)는 `deterministic: true`, `token_usage: null`이다. plan-lab이 이 줄을 호출로 세지 않게 하려는 것이다. 전문 코치 트레이스는 `deterministic: false`이고 토큰을 실을 수 있다. 주 사용량은 전문 코치 토큰만 더한다.
+
+## 헤드의 부분 수정
+
+필드 조정은 `runAdjustmentPass`다. `target_coach`가 없으면 세션 생성기를 다시 부르지 않는다. `MAX_HEAD_COACH_REVISIONS`는 0이고, 이 필드 조정 루프는 그 상수를 쓰지 않는다.
+
+헤드 JSON의 수정 항목이 `target_coach`를 `strength_coach`, `conditioning_coach`, `warmup_coach` 중 하나로 주면, 그 날의 그 코치만 `writeSession`으로 다시 부른다. 상한은 `COACHING_POLICY.max_head_revisions`인 2다. 헤드를 다시 부르지 않는다. 필드 조정이 이미 그 날을 고쳤으면 (`headPass.touched[day] === "head"`) 재생성하지 않는다.
+
+재검증 범위는 고친 날과 앞뒤 이웃이다. `isolationPlan`의 교체 날을 그 범위로 자른다. 범위 밖 세션은 다시 만들지 않는다. 트레이스 `revision_scope`에 날, `regeneration_calls`, `budget: 2`가 남는다.
 
 ## 월간
 
-`writeProgrammingMonth`는 flag와 관계없이 `authorMonth`를 호출한다. 스탬프는 `monthly-program-v4`다.
+`writeProgrammingMonth`는 flag와 관계없이 `authorMonth`를 호출한다. 스탬프는 `monthly-program-v4`다. 월 행 작성기는 오케스트레이터로 옮기지 않았다.
 
 - 키가 없으면 호출 없이 `no_model`.
 - `authorWithRetries`는 최대 두 번이다.
@@ -67,15 +105,15 @@
 
 ## 검증과 재시도
 
-`judgeWeek`의 첫 실패 단계가 저장 사유가 될 수 있다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 유사도 임계값은 4다. 운동 이름만 바꾸는 것은 구분이 아니다.
+`judgeWeek`의 첫 실패 단계가 저장 사유가 될 수 있다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 유사도 임계값은 4다. 운동 이름만 바꾸는 것은 구분이 아니다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다.
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 
-`askCoach`는 검증 실패를 한 번 더 고친다. HTTP 실패는 그 호출 안에서 다시 치지 않는다. 헤드의 필드 조정은 `runAdjustmentPass`이고 세션 생성기를 다시 부르지 않는다. `MAX_HEAD_COACH_REVISIONS`는 0이다.
+`askCoach`는 검증 실패를 한 번 더 고친다. HTTP 실패는 그 호출 안에서 다시 치지 않는다. 전문 코치 재생성은 위 상한 2를 넘지 않는다.
 
 ## 계측
 
-plan-lab은 코치 트레이스 중 `deterministic === false`이고 `source === "model"`인 로그만 `model_calls`로 센다. `token_usage.total_tokens`가 숫자일 때만 더한다. 숫자가 없으면 그 주는 `tokens: null`이다. 모든 주가 null이면 요약 `tokens`도 null이고 `tokens_unsupported`는 true다. 없는 사용량을 0으로 두지 않는다.
+plan-lab은 코치 트레이스 중 `deterministic === false`이고 `source === "model"`인 로그만 `model_calls`로 센다. `token_usage.total_tokens`가 숫자일 때만 더한다. 숫자가 없으면 그 주는 `tokens: null`이다. 모든 주가 null이면 요약 `tokens`도 null이고 `tokens_unsupported`는 true다. 없는 사용량을 0으로 두지 않는다. `session_coach` 집계 줄은 세지 않는다.
 
 ## 저장 스탬프
 
@@ -83,10 +121,12 @@ plan-lab은 코치 트레이스 중 `deterministic === false`이고 `source === 
 |---|---|---|
 | 월간 | `programming_months` | `monthly-program-v4` |
 | 주간, 키 없음 | `programming_weeks` | `weekly-program-v10` |
-| 주간, 키 문자열 | `programming_weeks` | `coaching-pipeline-v6` |
+| 주간, 키 문자열, 코칭 | `programming_weeks` | `coaching-pipeline-v6` |
+| 주간, 주 JSON을 월 응답으로 받은 경우 | `programming_weeks` | `wod-from-intent-v1` |
 | 주간 코치 트레이스 | 코치 로그 | `weekly-coach-v2` |
-| 일 세션 트레이스 | 코치 로그 | `session-coach-v4` |
+| 일 집계 트레이스 | 코치 로그 | `session-coach-v4` |
+| 스트렝스 코치 | 코치 로그 | `strength-coach-v1` |
+| 컨디셔닝 코치 | 코치 로그 | `conditioning-coach-v1` |
+| 워밍업 코치 | 코치 로그 | `warmup-coach-v1` |
 | 월 코치 트레이스 | 코치 로그 | `monthly-coach-v2` |
 | 스켈레톤 | 종단 계획 객체 | `skeleton-v1` |
-
-`coaching-pipeline-v2`는 `coachWeekKeyless` 스탬프다. 이 브랜치의 `writeProgrammingWeek`는 키 없음일 때 그 함수를 호출하지 않는다.

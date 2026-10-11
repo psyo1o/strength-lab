@@ -3,12 +3,19 @@ import type { DayIntent, SessionDraft, WeekDraft } from "../types";
 import type { FatigueReport } from "./fatigue";
 import type { VariationReport } from "./variation";
 
+export type TargetCoach = "strength_coach" | "conditioning_coach" | "warmup_coach";
+
 export type SessionRevision = {
   day: DayKey;
   reason: string;
   correction_instruction: string;
   priority?: "high" | "medium" | "low";
   constraints?: string;
+  /** When set, only this coach rewrites this day. Absent means a field adjustment, not a regeneration. */
+  target_coach?: TargetCoach;
+  preserve?: string[];
+  allowed_changes?: string[];
+  forbidden_changes?: string[];
 };
 
 export type HeadCoachReview = {
@@ -101,12 +108,20 @@ export function parseHeadReview(value: unknown): HeadCoachReview | null {
     if (day !== "mon" && day !== "tue" && day !== "wed" && day !== "thu" && day !== "fri" && day !== "sat" && day !== "sun") return null;
     if (typeof item.reason !== "string" || typeof item.correction_instruction !== "string") return null;
     const priority = item.priority === "high" || item.priority === "medium" || item.priority === "low" ? item.priority : "medium";
+    const target = item.target_coach;
+    const target_coach =
+      target === "strength_coach" || target === "conditioning_coach" || target === "warmup_coach" ? target : undefined;
+    const list = (value: unknown) => (Array.isArray(value) ? value.filter((row): row is string => typeof row === "string") : undefined);
     revisions.push({
       day,
       reason: item.reason,
       correction_instruction: item.correction_instruction,
       priority,
       constraints: typeof item.constraints === "string" ? item.constraints : "",
+      target_coach,
+      preserve: list(item.preserve),
+      allowed_changes: list(item.allowed_changes),
+      forbidden_changes: list(item.forbidden_changes),
     });
   }
   if (revisions.length === 0) return null;

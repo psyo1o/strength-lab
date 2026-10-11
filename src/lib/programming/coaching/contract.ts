@@ -143,6 +143,25 @@ export function schemaBrief(agent: CoachAgentName): string {
       "warmup_ko and notes_ko are Korean.",
     ].join("\n");
   }
+  if (agent === "strength") {
+    return ["JSON object for one day. Keys: day, strength_note_ko.", "Do not return sets, kilograms, percentages, warmup_ko, or conditioning.", "strength_note_ko is Korean.", enumLine("day", DAY_ORDER)].join("\n");
+  }
+  if (agent === "conditioning") {
+    return [
+      "JSON object for one day. Keys: day, notes_ko, conditioning.",
+      "Do not return warmup_ko, strength_note_ko, sets, kilograms, or time_domain.",
+      "conditioning keys: format, duration_min, stimulus, movements, equipment, volume, intensity, interval_work_sec, interval_rest_sec.",
+      enumLine("format", WOD_FORMATS),
+      enumLine("stimulus", STIMULI),
+      enumLine("volume", VOLUME_BANDS),
+      enumLine("intensity", INTENSITY_BANDS),
+      enumLine("equipment", EQUIPMENT),
+      "notes_ko is Korean.",
+    ].join("\n");
+  }
+  if (agent === "warmup") {
+    return ["JSON object for one day. Keys: day, warmup_ko.", "warmup_ko prepares this day's strength and conditioning. Korean.", "Do not return conditioning, strength_note_ko, sets, or kilograms.", enumLine("day", DAY_ORDER)].join("\n");
+  }
   if (agent === "load") {
     return [
       "JSON object. Key: decisions.",
@@ -180,7 +199,8 @@ export function schemaBrief(agent: CoachAgentName): string {
     "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout.",
     "REVISE names a field change. It does not regenerate the week or the session. Put that change in adjustments.",
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
-    "Each revision: day, reason, correction_instruction, priority, constraints.",
+    "Each revision: day, reason, correction_instruction, priority, constraints, target_coach, preserve, allowed_changes, forbidden_changes.",
+    "target_coach is strength_coach, conditioning_coach, warmup_coach, or null. null means the adjustment is a field patch.",
     "Each adjustment: target, reason, priority, current_value, proposed_value, preserve, rationale, confidence.",
     "target is day.conditioning.intensity, day.conditioning.volume, day.conditioning.duration_min, or day.conditioning.format.",
     "priority is P0, P1, P2, or P3. preserve is an array of strings and includes weekly_strength_progression when the lift must stay.",
@@ -330,6 +350,39 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
       ),
     );
   }
+  if (agent === "strength") {
+    return schemaOf("strength_coach_day", strictObject({ day: stringEnum(DAY_ORDER), strength_note_ko: TEXT }, ["day", "strength_note_ko"]));
+  }
+  if (agent === "warmup") {
+    return schemaOf("warmup_coach_day", strictObject({ day: stringEnum(DAY_ORDER), warmup_ko: TEXT }, ["day", "warmup_ko"]));
+  }
+  if (agent === "conditioning") {
+    const movement = strictObject({ key: stringEnum(movementKeys()), amount: TEXT, name_ko: TEXT }, ["key", "amount", "name_ko"]);
+    return schemaOf(
+      "conditioning_coach_day",
+      strictObject(
+        {
+          day: stringEnum(DAY_ORDER),
+          notes_ko: TEXT,
+          conditioning: strictObject(
+            {
+              format: stringEnum(WOD_FORMATS),
+              duration_min: { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max },
+              stimulus: stringEnum(STIMULI),
+              movements: { type: "array", items: movement },
+              equipment: { type: "array", items: stringEnum(EQUIPMENT) },
+              volume: stringEnum(VOLUME_BANDS),
+              intensity: stringEnum(INTENSITY_BANDS),
+              interval_work_sec: { type: ["integer", "null"] },
+              interval_rest_sec: { type: ["integer", "null"] },
+            },
+            ["format", "duration_min", "stimulus", "movements", "equipment", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
+          ),
+        },
+        ["day", "notes_ko", "conditioning"],
+      ),
+    );
+  }
   if (agent === "variation_judge") {
     return schemaOf(
       "variation_judge",
@@ -394,8 +447,12 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
               correction_instruction: TEXT,
               priority: stringEnum(REVISION_PRIORITIES),
               constraints: TEXT,
+              target_coach: { anyOf: [{ type: "string", enum: ["strength_coach", "conditioning_coach", "warmup_coach"] }, { type: "null" }] },
+              preserve: { type: "array", items: TEXT },
+              allowed_changes: { type: "array", items: TEXT },
+              forbidden_changes: { type: "array", items: TEXT },
             },
-            ["day", "reason", "correction_instruction", "priority", "constraints"],
+            ["day", "reason", "correction_instruction", "priority", "constraints", "target_coach", "preserve", "allowed_changes", "forbidden_changes"],
           ),
         },
         adjustments: {

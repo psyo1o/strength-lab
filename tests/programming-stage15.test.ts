@@ -311,13 +311,14 @@ describe("stage15 router execution", () => {
         if (weeklyFetches < 3) return chat({ ...plan, days });
         return chat(plan);
       }
-      if (agent === "session_coach" || agent === "context:session") {
+      if (agent === "strength_coach" || agent === "conditioning_coach" || agent === "warmup_coach" || agent === "session_coach" || agent === "context:session") {
         const day = String((user.day_intent as { day?: string } | undefined)?.day ?? (user.context as { day?: string } | undefined)?.day ?? "mon");
         const built = assembleLegalWeek({ month: full, weekIndex, plan });
         const session = built.draft.sessions.find((row) => row.day === day);
+        if (agent === "strength_coach") return chat({ day, strength_note_ko: "이 날의 스트렝스 목적을 유지합니다." });
+        if (agent === "warmup_coach") return chat({ day, warmup_ko: "준비 동작을 먼저 합니다." });
         return chat({
           day,
-          warmup_ko: "준비 동작을 먼저 합니다.",
           notes_ko: "이 날의 목적을 유지합니다.",
           conditioning: session?.conditioning
             ? {
@@ -328,8 +329,10 @@ describe("stage15 router execution", () => {
                 equipment: session.conditioning.equipment,
                 volume: session.conditioning.volume,
                 intensity: session.conditioning.intensity,
+                interval_work_sec: session.conditioning.format === "intervals" ? 30 : null,
+                interval_rest_sec: session.conditioning.format === "intervals" ? 30 : null,
               }
-            : { format: "amrap", duration_min: 12, stimulus: "high_rep", movements: [], equipment: ["bodyweight"], volume: "moderate", intensity: "moderate" },
+            : { format: "amrap", duration_min: 12, stimulus: "high_rep", movements: [], equipment: ["bodyweight"], volume: "moderate", intensity: "moderate", interval_work_sec: null, interval_rest_sec: null },
         });
       }
       if (agent === "load_coach" || agent === "context:load") {

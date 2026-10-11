@@ -211,7 +211,7 @@ describe("stage 5B fallback quality and admin probes", () => {
       wrote: true,
       action: "save-forced-fallback",
       generation_source: "fallback",
-      generation_attempt: 2,
+      generation_attempt: 1,
       next_week_input: { previous_generation_source: "fallback" },
     });
     expect(forced.strength_method).not.toBe("531");

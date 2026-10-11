@@ -165,7 +165,9 @@ describe("long-term programming engine", () => {
       return user.agent_name ?? "";
     });
     expect(agents.indexOf("weekly_coach")).toBeGreaterThanOrEqual(0);
-    expect(agents.indexOf("session_coach")).toBeGreaterThan(agents.indexOf("weekly_coach"));
+    expect(agents.indexOf("conditioning_coach")).toBeGreaterThan(agents.indexOf("weekly_coach"));
+    expect(agents.indexOf("strength_coach")).toBeGreaterThan(agents.indexOf("weekly_coach"));
+    expect(agents.indexOf("warmup_coach")).toBeGreaterThan(agents.indexOf("weekly_coach"));
   });
 
   it("treats several matching structural axes as a near-copy, and lets the same movement through", () => {

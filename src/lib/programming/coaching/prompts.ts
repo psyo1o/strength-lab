@@ -4,6 +4,9 @@ import type { CoachAgentName } from "./models";
 export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v2";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v2";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
+export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v1";
+export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v1";
+export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v1";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
 export const HEAD_COACH_PROMPT_VERSION = "head-coach-v3";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
@@ -14,7 +17,10 @@ export const STAGE14_PIPELINE_VERSION = "coaching-pipeline-v4";
 export const STAGE15_PIPELINE_VERSION = "coaching-pipeline-v5";
 export const STAGE16_PIPELINE_VERSION = "coaching-pipeline-v6";
 
-/** Coaching concerns do not regenerate the week. Kept at 0 so a revise loop cannot start. */
+/**
+ * Field adjustments do not start a head loop. A revision that names target_coach
+ * uses COACHING_POLICY.max_head_revisions instead, and only for that day.
+ */
 export const MAX_HEAD_COACH_REVISIONS = 0;
 
 type PromptDoc = {
@@ -61,6 +67,35 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     output_schema: "Use the session schema in the OUTPUT SCHEMA block. duration_min is the piece, not the class window.",
     failure_behavior: "A bad day is rejected. The server designs that day. Other days stay as they are.",
   },
+  strength: {
+    role: "You are the strength coach for a single day.",
+    objective: "State the strength purpose for that day. The server writes the sets from the month method.",
+    inputs: "That day's intent, the monthly method, and whether a lift is required.",
+    decision_principles: "Keep the lift the weekly plan locked. Do not change another day's strength.",
+    constraints: "Do not return sets, kilograms, percentages, warmup_ko, or conditioning. Do not invent a load.",
+    output_schema: "Keys: day, strength_note_ko. strength_note_ko is Korean.",
+    failure_behavior: "A bad strength note is rejected. The server keeps the method table for that day.",
+  },
+  conditioning: {
+    role: "You are the conditioning coach for a single day.",
+    objective: "Write the conditioning piece for that day only.",
+    inputs: "That day's intent, structures to avoid, and the locked duration range when one exists.",
+    decision_principles:
+      "Choose format, duration, stimulus, movements, equipment, volume, and intensity. Do not rename a movement to escape a similar structure.",
+    constraints:
+      "Do not return warmup_ko, strength notes, sets, kilograms, or time_domain. duration_min is the piece length. One day only.",
+    output_schema: "Keys: day, notes_ko, conditioning. conditioning matches the conditioning object in the session schema.",
+    failure_behavior: "A bad piece is rejected. Other days and the strength and warmup of this day stay.",
+  },
+  warmup: {
+    role: "You are the warm-up coach for a single day.",
+    objective: "Write the preparation that connects to this day's strength and conditioning.",
+    inputs: "That day's intent and the strength and conditioning purposes. Not a generic list.",
+    decision_principles: "Prepare the joints and the first movement of the day. Do not add a second workout.",
+    constraints: "Do not return conditioning, sets, kilograms, or another day's warm-up.",
+    output_schema: "Keys: day, warmup_ko. warmup_ko is Korean.",
+    failure_behavior: "A bad warm-up is rejected. The server keeps a short preparation for that day only.",
+  },
   load: {
     role: "You are the load coach.",
     objective: "Decide whether this session progresses, holds, or backs off.",
@@ -80,7 +115,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest field change, then APPROVE, APPROVE_WITH_NOTE, or REVISE. Similarity alone stays minor. Three minor notes do not revise. Name a field change only when the benefit is greater than the cost. Low confidence prefers APPROVE_WITH_NOTE unless the code already marked a safety issue. Do not ask for a new week.",
     constraints:
-      "Status is APPROVE, APPROVE_WITH_NOTE, or REVISE. APPROVE and APPROVE_WITH_NOTE use an empty revisions array and an empty adjustments array. REVISE does not mean regenerate. Put the field patch in adjustments. revisions still names the day. Do not return a new week, new movements, or new sets.",
+      "Status is APPROVE, APPROVE_WITH_NOTE, or REVISE. APPROVE and APPROVE_WITH_NOTE use an empty revisions array and an empty adjustments array. A field change goes in adjustments and does not name a target_coach. A day rewrite sets target_coach to strength_coach, conditioning_coach, or warmup_coach and leaves adjustments empty. Do not return a new week.",
     output_schema: "Use the head schema in the OUTPUT SCHEMA block. adjustments is the only change the server applies.",
     failure_behavior: "Unreadable reviews keep the code decision. The server does not call the generator again. A failed final validation is not stored as the active week.",
   },

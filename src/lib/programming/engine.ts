@@ -286,6 +286,144 @@ export async function regenerateProgrammingWeek(weekStart: string, options: Engi
   return writeProgrammingWeek(weekStart, options, "regenerate");
 }
 
+/**
+ * A keyed response that is already a seven-day week. The monthly coach does not
+ * adopt it. The week author judges it, so model adoption and too_similar stay
+ * on the week validator. The caller's fetch is not used again.
+ */
+async function persistWeekDocument(input: {
+  json: unknown;
+  weekStart: string;
+  options: EngineOptions;
+  mode: "create" | "regenerate";
+  nowMs: number;
+  month: MonthRow;
+  monthGoal: string;
+  weekIndex: WeekIndex;
+  summary: ProgrammingSummary;
+  recent: ReturnType<typeof listRecentStructures>;
+  recentLiftMaps: readonly string[];
+  intentContext: WeeklyIntentContext;
+  longitudinal: Awaited<ReturnType<typeof planLongitudinal>> | null;
+  key: string;
+}): Promise<WeekRow> {
+  const synthetic: FetchLike = async () =>
+    new Response(
+      JSON.stringify({
+        choices: [{ finish_reason: "stop", message: { content: JSON.stringify(input.json) } }],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  const intentPlan = planWeeklyIntent(input.intentContext);
+  const authored = await authorWeek({
+    summary: input.summary,
+    month: input.month.direction,
+    weekIndex: input.weekIndex,
+    recent: input.recent,
+    recentLiftMaps: input.recentLiftMaps,
+    weeklyIntent: intentPlan,
+    key: input.key,
+    fetchImpl: synthetic,
+    timeoutMs: input.options.timeoutMs,
+  });
+  const realized = realizeWeekFromIntent({
+    month: input.month.direction,
+    weekIndex: input.weekIndex,
+    plan: {
+      ...intentPlan,
+      intent_source: "fallback",
+      original_intent_source: "fallback",
+      fallback_used: true,
+      realization: "intent",
+    },
+    recent: input.recent,
+    previousActual: input.summary.previous_week?.actual ?? null,
+    recentLiftMaps: input.recentLiftMaps,
+  });
+  const checkDraft: WeekDraft = {
+    ...realized,
+    intent: {
+      why_ko: realized.intent.why_ko,
+      focus: realized.intent.focus,
+      scheme_note: realized.intent.scheme_note,
+    },
+  };
+  const realizedJudged = judgeWeek(checkDraft, input.month.direction, input.weekIndex, input.recent, {
+    previousActual: input.summary.previous_week?.actual ?? null,
+    recentLiftMaps: input.recentLiftMaps,
+  });
+  const modelPlan = {
+    ...intentPlan,
+    intent_source: "fallback" as const,
+    original_intent_source: "fallback" as const,
+    fallback_used: false,
+    realization: "model" as const,
+  };
+  let draft: WeekDraft;
+  let display: PlannedWeek;
+  if (authored.ok) {
+    draft = {
+      ...authored.draft,
+      intent: {
+        why_ko: authored.draft.intent.why_ko,
+        focus: authored.draft.intent.focus,
+        scheme_note: authored.draft.intent.scheme_note,
+        plan: modelPlan,
+      },
+    };
+    display = projectWeek(authored.draft, input.weekIndex, "model", input.month.direction.strength_method);
+  } else if (authored.reason !== "no_model" && realizedJudged.ok) {
+    draft = realized;
+    display = projectWeek(realized, input.weekIndex, "rules", input.month.direction.strength_method);
+  } else {
+    const legacy = fallbackWeek(
+      input.month.direction,
+      input.weekIndex,
+      authored.reason,
+      input.recent,
+      input.summary.previous_week?.actual ?? null,
+      input.recentLiftMaps,
+    );
+    draft = {
+      ...legacy.draft,
+      intent: {
+        ...legacy.draft.intent,
+        plan: {
+          ...intentPlan,
+          intent_source: "fallback",
+          original_intent_source: "fallback",
+          fallback_used: true,
+          realization: "legacy_fallback",
+        },
+      },
+    };
+    display = legacy.display;
+  }
+  const calledModel = authored.ok || authored.reason !== "no_model";
+  const saved = insertProgrammingWeek({
+    monthId: input.month.id,
+    weekIndex: input.weekIndex,
+    weekStart: input.weekStart,
+    draft: withLongitudinal(draft, input.longitudinal),
+    display,
+    inputSummaryJson: JSON.stringify(input.summary),
+    mode: input.mode,
+    ...generationWrite(
+      calledModel ? WOD_FROM_INTENT_PROMPT_VERSION : WEEKLY_PROMPT_VERSION,
+      authored,
+      input.nowMs,
+      authored.ok ? null : authored.reason,
+      input.options.logContext,
+    ),
+  });
+  syncClassWeek(saved, input.nowMs);
+  const after = getProgrammingMonth(input.month.monthStart);
+  if (after && after.direction.monthly_goal !== input.monthGoal) {
+    throw new Error("weekly generation must not overwrite the monthly goal");
+  }
+  return saved;
+}
+
 async function writeProgrammingWeek(
   weekStart: string,
   options: EngineOptions,
@@ -321,9 +459,47 @@ async function writeProgrammingWeek(
         timeoutMs: options.timeoutMs,
       })
     : null;
-  // docs/generation-paths.md. COACHING_PIPELINE does not select a generator.
-  // A null key is no_model and does not read MONTH_PLAN_MODEL_KEY. A string key uses the coaching orchestrator.
-  if (typeof key !== "string" || key.length === 0) {
+  // docs/generation-paths.md. Every week enters runCoachingOrchestrator.
+  // COACHING_PIPELINE does not select a generator. A null key is no_model.
+  if (typeof key === "string" && key.length > 0 && process.env.STRENGTH_LAB_PROBE === "1" && weekStart === LIVE_CLASS_WEEK) {
+    throw new Error("operational week 2026-10-05 is off limits for the coaching pipeline");
+  }
+  const outcome = await runCoachingOrchestrator({
+    month: month.direction,
+    weekIndex,
+    weekStart,
+    previousActual: summary.previous_week?.actual ?? null,
+    recentStructures: recent,
+    recentSignatures: (intentContext.recentPlans ?? []).map((plan) => plan.days.map((day) => day.primary_training).join("|")),
+    recentPlans: intentContext.recentPlans,
+    recentLiftMaps,
+    longitudinal,
+    inputSummary: summary,
+    key,
+    fetchImpl: options.fetchImpl,
+    timeoutMs: options.timeoutMs,
+    nowMs,
+  });
+  if (outcome.kind === "week-document") {
+    if (typeof key !== "string" || key.length === 0) throw new Error("week document requires a model key");
+    return persistWeekDocument({
+      json: outcome.json,
+      weekStart,
+      options,
+      mode,
+      nowMs,
+      month,
+      monthGoal,
+      weekIndex,
+      summary,
+      recent,
+      recentLiftMaps,
+      intentContext,
+      longitudinal,
+      key,
+    });
+  }
+  if (outcome.kind === "no-model") {
     const intentAuthored = await authorWeeklyIntent({
       context: intentContext,
       key: null,
@@ -440,26 +616,8 @@ async function writeProgrammingWeek(
     }
     return saved;
   }
-  if (process.env.STRENGTH_LAB_PROBE === "1" && weekStart === LIVE_CLASS_WEEK) {
-    throw new Error("operational week 2026-10-05 is off limits for the coaching pipeline");
-  }
+  const coached = outcome.result;
   {
-    const coached = await runCoachingOrchestrator({
-      month: month.direction,
-      weekIndex,
-      weekStart,
-      previousActual: summary.previous_week?.actual ?? null,
-      recentStructures: recent,
-      recentSignatures: (intentContext.recentPlans ?? []).map((plan) => plan.days.map((day) => day.primary_training).join("|")),
-      recentPlans: intentContext.recentPlans,
-      recentLiftMaps,
-      longitudinal,
-      inputSummary: summary,
-      key,
-      fetchImpl: options.fetchImpl,
-      timeoutMs: options.timeoutMs,
-      nowMs,
-    });
     if (coached.rejected_draft) {
       const rejectedDisplay = projectWeek(coached.rejected_draft, weekIndex, "rules", month.direction.strength_method);
       const failedId = recordFailedProgrammingWeek({
@@ -555,22 +713,59 @@ async function writeProgrammingWeek(
       syncClassWeek(saved, nowMs);
       return saved;
     }
+    let storedDraft = coached.draft;
+    let storedSource = coached.generation_source;
+    let storedReason = coached.fallback_reason;
+    if (coached.generation_source === "model") {
+      const judged = judgeWeek(coached.draft, month.direction, weekIndex, recent, {
+        previousActual: summary.previous_week?.actual ?? null,
+        recentLiftMaps,
+      });
+      if (!judged.ok && judged.reason === "too_similar") {
+        const realized = realizeWeekFromIntent({
+          month: month.direction,
+          weekIndex,
+          plan: {
+            ...coached.plan,
+            intent_source: "fallback",
+            original_intent_source: coached.plan.original_intent_source,
+            fallback_used: true,
+            realization: "intent",
+          },
+          recent,
+          previousActual: summary.previous_week?.actual ?? null,
+          recentLiftMaps,
+        });
+        const realizedCheck = judgeWeek(
+          { ...realized, intent: { why_ko: realized.intent.why_ko, focus: realized.intent.focus, scheme_note: realized.intent.scheme_note } },
+          month.direction,
+          weekIndex,
+          recent,
+          { previousActual: summary.previous_week?.actual ?? null, recentLiftMaps },
+        );
+        storedDraft = realizedCheck.ok
+          ? realized
+          : fallbackWeek(month.direction, weekIndex, "too_similar", recent, summary.previous_week?.actual ?? null, recentLiftMaps).draft;
+        storedSource = "fallback";
+        storedReason = "too_similar";
+      }
+    }
     const display = projectWeek(
-      coached.draft,
+      storedDraft,
       weekIndex,
-      coached.generation_source === "model" ? "model" : "rules",
+      storedSource === "model" ? "model" : "rules",
       month.direction.strength_method,
     );
     const saved = insertProgrammingWeek({
       monthId: month.id,
       weekIndex,
       weekStart,
-      draft: withLongitudinal(coached.draft, longitudinal),
+      draft: withLongitudinal(storedDraft, longitudinal),
       display,
       inputSummaryJson: JSON.stringify(summary),
       mode,
-      generationSource: coached.generation_source,
-      fallbackReason: coached.fallback_reason,
+      generationSource: storedSource,
+      fallbackReason: storedReason,
       generatedAt: nowMs,
       modelName: coached.model_name,
       promptVersion: coached.prompt_version,
