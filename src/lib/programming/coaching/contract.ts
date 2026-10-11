@@ -37,6 +37,9 @@ export const TARGET_EFFORTS = ["easy", "moderate", "hard"] as const;
 export const RELATIVE_INTENSITIES = ["up", "same", "down"] as const;
 export const HEAD_STATUSES = ["APPROVE", "APPROVE_WITH_NOTE", "REVISE", "BLOCK"] as const;
 export const REVISION_PRIORITIES = ["high", "medium", "low"] as const;
+export const EDIT_ACTIONS = ["replace", "change_amount", "delete", "add"] as const;
+export const EDIT_BLOCKS = ["strength", "conditioning", "warmup"] as const;
+export const EDIT_UNITS = ["reps", "cal", "m", "sec"] as const;
 export const WEEK_ROLES = ["accumulation", "progression", "intensification", "deload", "absorb", "long_support", "peak", "emphasis"] as const;
 
 /** Class window and conditioning piece are different clocks. Non-long pieces stay at or under 20 minutes. */
@@ -197,19 +200,23 @@ export function schemaBrief(agent: CoachAgentName): string {
     enumLine("status", HEAD_STATUSES),
     "APPROVE means there is no coaching issue worth acting on. revisions and adjustments are empty. APPROVE cannot override a hard validation error.",
     "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout. It does not ignore a hard validation error.",
-    "REVISE names one day and one specialist. It does not regenerate the week. A field change goes in adjustments and does not name a target_coach.",
+    "REVISE is an edit list. It does not regenerate the week. A field change goes in adjustments and does not name a target_coach. A prose sentence is not a revision.",
     "BLOCK means the week cannot be adopted. revisions and adjustments are empty. Unresolved hard errors stay unresolved.",
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
-    "Each revision: day, reason, correction_instruction, priority, constraints, target_coach, preserve, allowed_changes, forbidden_changes.",
-    "target_coach is strength_coach, conditioning_coach, warmup_coach, or null. null means the adjustment is a field patch.",
-    "Movement checks use those arrays. allowed_changes replace_movement:<catalog_key> removes that movement and adds one other catalog movement. Changing only its amount does not replace it. allowed_changes only_movement:<catalog_key> may change only that movement and its amount. preserve keep_movement:<catalog_key> keeps that movement and its amount. A catalog key named only in prose is not adopted.",
+    "Each revision is one edit: day, target_coach, block, action, target_movement, new_movement, new_amount, new_unit, reason.",
+    "target_coach is strength_coach, conditioning_coach, or warmup_coach and must match block. block is strength, conditioning, or warmup.",
+    enumLine("action", EDIT_ACTIONS),
+    "replace: target_movement and new_movement are different catalog keys, new_amount is the count, new_unit is set.",
+    "change_amount: target_movement is a catalog key, new_movement is null, new_amount is the count, new_unit is set.",
+    "delete: target_movement is a catalog key, new_movement, new_amount, and new_unit are null.",
+    "add: target_movement is null, new_movement is a catalog key, new_amount is the count, new_unit is set.",
+    "new_amount is the count only, such as 8 or 12/10. new_unit is reps, cal, m, or sec. Use null for every field the action does not use. reason is Korean. A revision without these fields is a schema error.",
+    enumLine("catalog_key", movementKeys()),
     "Each adjustment: target, reason, priority, current_value, proposed_value, preserve, rationale, confidence.",
     "target is day.conditioning.intensity, day.conditioning.volume, day.conditioning.duration_min, or day.conditioning.format.",
     "priority is P0, P1, P2, or P3. preserve is an array of strings and includes weekly_strength_progression when the lift must stay.",
     enumLine("day", DAY_ORDER),
-    enumLine("priority", REVISION_PRIORITIES),
-    "correction_instruction is the required change for that day. constraints is a short limit the session coach must keep.",
-    "reason, correction_instruction, constraints, and note_ko are Korean.",
+    "reason and note_ko are Korean.",
   ].join("\n");
 }
 
@@ -445,16 +452,16 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           items: strictObject(
             {
               day: stringEnum(DAY_ORDER),
+              target_coach: stringEnum(["strength_coach", "conditioning_coach", "warmup_coach"]),
+              block: stringEnum(EDIT_BLOCKS),
+              action: stringEnum(EDIT_ACTIONS),
+              target_movement: { anyOf: [stringEnum(movementKeys()), { type: "null" }] },
+              new_movement: { anyOf: [stringEnum(movementKeys()), { type: "null" }] },
+              new_amount: { anyOf: [TEXT, { type: "null" }] },
+              new_unit: { anyOf: [stringEnum(EDIT_UNITS), { type: "null" }] },
               reason: TEXT,
-              correction_instruction: TEXT,
-              priority: stringEnum(REVISION_PRIORITIES),
-              constraints: TEXT,
-              target_coach: { anyOf: [{ type: "string", enum: ["strength_coach", "conditioning_coach", "warmup_coach"] }, { type: "null" }] },
-              preserve: { type: "array", items: TEXT },
-              allowed_changes: { type: "array", items: TEXT },
-              forbidden_changes: { type: "array", items: TEXT },
             },
-            ["day", "reason", "correction_instruction", "priority", "constraints", "target_coach", "preserve", "allowed_changes", "forbidden_changes"],
+            ["day", "target_coach", "block", "action", "target_movement", "new_movement", "new_amount", "new_unit", "reason"],
           ),
         },
         adjustments: {
@@ -755,6 +762,66 @@ export function loadDecisionErrors(value: unknown, days: readonly DayKey[]): str
   return errors;
 }
 
+function coachForBlock(block: string): string | null {
+  if (block === "strength") return "strength_coach";
+  if (block === "conditioning") return "conditioning_coach";
+  if (block === "warmup") return "warmup_coach";
+  return null;
+}
+
+function amountShape(unit: string, amount: string): boolean {
+  if (!/^\d+(\/\d+)?$/.test(amount)) return false;
+  if (amount.includes("/") && unit !== "cal") return false;
+  return true;
+}
+
+/** A revision that is only a sentence. The head must return the edit fields instead. */
+export function editItemErrors(row: unknown, index: number): string[] {
+  const prefix = `revisions[${index}]`;
+  if (!isRecord(row)) return [`${prefix}: expected an object`];
+  const errors: string[] = [];
+  if (typeof row.action !== "string") {
+    errors.push(`${prefix}: prose-only revision; return day, target_coach, block, action, target_movement, new_movement, new_amount, new_unit, and reason`);
+    return errors;
+  }
+  const day = enumError(`${prefix}.day`, row.day, DAY_ORDER);
+  const coach = enumError(`${prefix}.target_coach`, row.target_coach, ["strength_coach", "conditioning_coach", "warmup_coach"]);
+  const block = enumError(`${prefix}.block`, row.block, EDIT_BLOCKS);
+  const action = enumError(`${prefix}.action`, row.action, EDIT_ACTIONS);
+  if (day) errors.push(day);
+  if (coach) errors.push(coach);
+  if (block) errors.push(block);
+  if (action) errors.push(action);
+  const reason = textError(`${prefix}.reason`, row.reason, true);
+  if (reason) errors.push(reason);
+  if (!block && !coach && coachForBlock(String(row.block)) !== row.target_coach) {
+    errors.push(`${prefix}.target_coach: received ${received(row.target_coach)}; block ${String(row.block)} belongs to ${coachForBlock(String(row.block))}`);
+  }
+  const catalog = movementKeys();
+  const target = row.target_movement;
+  const next = row.new_movement;
+  const amount = row.new_amount;
+  const unit = row.new_unit;
+  const needsTarget = row.action === "replace" || row.action === "change_amount" || row.action === "delete";
+  const needsNext = row.action === "replace" || row.action === "add";
+  const needsAmount = row.action === "replace" || row.action === "change_amount" || row.action === "add";
+  if (needsTarget) {
+    const key = enumError(`${prefix}.target_movement`, target, catalog);
+    if (key) errors.push(key);
+  } else if (target != null) errors.push(`${prefix}.target_movement: add uses null`);
+  if (needsNext) {
+    const key = enumError(`${prefix}.new_movement`, next, catalog);
+    if (key) errors.push(key);
+  } else if (next != null) errors.push(`${prefix}.new_movement: ${String(row.action)} uses null`);
+  if (needsAmount) {
+    if (typeof amount !== "string" || typeof unit !== "string" || !EDIT_UNITS.includes(unit as (typeof EDIT_UNITS)[number]) || !amountShape(String(unit), amount)) {
+      errors.push(`${prefix}.new_amount: received ${received(amount)} ${received(unit)}; expected a count and reps, cal, m, or sec`);
+    }
+  } else if (amount != null || unit != null) errors.push(`${prefix}: delete sets new_amount and new_unit to null`);
+  if (row.action === "replace" && target === next) errors.push(`${prefix}: replace needs a different catalog key`);
+  return errors;
+}
+
 export function headReviewErrors(value: unknown): string[] {
   if (!isRecord(value)) return ["expected a head review object"];
   const errors: string[] = [];
@@ -769,8 +836,8 @@ export function headReviewErrors(value: unknown): string[] {
   if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE" || value.status === "BLOCK") && value.revisions.length > 0) {
     errors.push("revisions: APPROVE, APPROVE_WITH_NOTE, and BLOCK require an empty array");
   }
-  if (value.status === "REVISE" && value.revisions.length === 0) {
-    errors.push("revisions: REVISE requires at least one day");
+  if (value.status === "REVISE" && value.revisions.length === 0 && !(Array.isArray(value.adjustments) && value.adjustments.length > 0)) {
+    errors.push("revisions: REVISE requires an edit list. A field change belongs in adjustments.");
   }
   if (Array.isArray(value.adjustments)) {
     if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE" || value.status === "BLOCK") && value.adjustments.length > 0) {
@@ -787,19 +854,7 @@ export function headReviewErrors(value: unknown): string[] {
     });
   }
   value.revisions.forEach((row, index) => {
-    const prefix = `revisions[${index}]`;
-    if (!isRecord(row)) {
-      errors.push(`${prefix}: expected an object`);
-      return;
-    }
-    const day = enumError(`${prefix}.day`, row.day, DAY_ORDER);
-    const priority = enumError(`${prefix}.priority`, row.priority, REVISION_PRIORITIES);
-    if (day) errors.push(day);
-    if (priority) errors.push(priority);
-    for (const field of ["reason", "correction_instruction", "constraints"] as const) {
-      const issue = textError(`${prefix}.${field}`, row[field], true);
-      if (issue) errors.push(issue);
-    }
+    errors.push(...editItemErrors(row, index));
   });
   return errors;
 }

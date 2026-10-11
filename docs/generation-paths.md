@@ -55,7 +55,7 @@
 
 `persistWeekDocument`는 테스트 fetch를 다시 부르지 않는다. 합성 fetch가 그 주 JSON을 200으로 돌려주고, `planWeeklyIntent` 다음 `authorWeek`가 `judgeWeek`로 채택한다. 성공 스탬프는 `wod-from-intent-v1`이다. 유사도 실패의 저장 사유는 `too_similar`이고 시도 번호는 2다. 이것은 두 번째 생성 알고리즘이 아니다. 한 번에 주 JSON을 돌려주던 기존 작성기의 판정을 유지하는 입구다. 전문 코치가 만든 주에는 `wod-from-intent-v1`을 찍지 않는다.
 
-그 외 문자열 키의 순서: `coachMonthly` (`monthly-coach-v2`), 잠긴 스켈레톤이 없으면 주간 코치 `weekly-coach-v2`, 훈련일마다 전문 코치 셋, 스키마 실패인 영역만 하루 복구 1회, 부하 `load-coach-v2`, 피로·변이 엔진, 전문 코치 검토(stage13, 생성기가 아님), 헤드 `head-coach-v5`, `runAdjustmentPass`, 수정 명세가 있으면 그 날만 재생성하고 명세 준수를 통과한 출력만 그 날을 바꾼다, `finalWeekReport`. 하드 오류가 남으면 헤드의 APPROVE와 APPROVE_WITH_NOTE는 채택되지 않는다.
+그 외 문자열 키의 순서: `coachMonthly` (`monthly-coach-v2`), 잠긴 스켈레톤이 없으면 주간 코치 `weekly-coach-v2`, 훈련일마다 전문 코치 셋, 스키마 실패인 영역만 하루 복구 1회, 부하 `load-coach-v2`, 피로·변이 엔진, 전문 코치 검토(stage13, 생성기가 아님), 헤드 `head-coach-v6`, `runAdjustmentPass`, REVISE는 편집 목록이고 문장만 있으면 스키마 오류로 헤드를 한 번 더 묻는다, 목록을 받은 날만 그 코치가 다시 쓰고 `compareEditList`가 목록과 실제 변경을 한 번 비교해 맞는 출력만 그 날을 바꾼다, `finalWeekReport`. 하드 오류가 남으면 헤드의 APPROVE와 APPROVE_WITH_NOTE는 채택되지 않는다.
 
 휴식일은 세션 모델을 호출하지 않고 트레이스 `fallback_reason`이 `rest`다.
 
@@ -71,33 +71,27 @@
 
 | 역할 | 에이전트 | 프롬프트 | 출력 키 |
 |---|---|---|---|
-| 스트렝스 | `strength_coach` | `strength-coach-v1` | `day`, `strength_note_ko` |
-| 컨디셔닝 | `conditioning_coach` | `conditioning-coach-v1` | `day`, `notes_ko`, `conditioning` |
-| 워밍업 | `warmup_coach` | `warmup-coach-v1` | `day`, `warmup_ko` |
+| 스트렝스 | `strength_coach` | `strength-coach-v2` | `day`, `strength_note_ko` |
+| 컨디셔닝 | `conditioning_coach` | `conditioning-coach-v2` | `day`, `notes_ko`, `conditioning` |
+| 워밍업 | `warmup_coach` | `warmup-coach-v2` | `day`, `warmup_ko` |
 
 다른 영역의 키를 쓰면 그 호출은 거절된다. 세트와 킬로그램은 모델이 쓰지 않는다. 스트렝스 세트는 `strengthFor` 방법 표다. `strength_note_ko`는 채택 뒤 `session.strength_purpose`에 복사된다. 서버가 `time_domain`과 `movement_pattern`을 찍는다. `movement_pattern`은 그 날 intent 값이고, `mixed`와 `none`은 `engine`이다.
 
 세 호출이 끝난 뒤에만 하루를 합친다. 집계 트레이스 `session_coach` (`session-coach-v4`)는 `deterministic: true`, `token_usage: null`이다. plan-lab이 이 줄을 호출로 세지 않게 하려는 것이다. 전문 코치 트레이스는 `deterministic: false`이고 토큰을 실을 수 있다. 주 사용량은 전문 코치 토큰만 더한다.
 
-`revisionNumber === 0`이고 실패 사유가 `http_error`나 `timeout`이 아니면, 실패한 영역만 `askSpecialist`를 한 번 더 부른다 (`MAX_DAY_SCHEMA_RECOVERIES` 1). 그 호출의 사용자 JSON에 `day_recovery`가 있다. 이전 출력, `validation_errors`, 실패한 필드와 값, 기대 형식, 보존·허용 범위, 이웃 날이 들어간다. `askCoach`는 그 호출 안에서 검증 실패를 한 번 더 고친다. 같은 오류가 다시 나와도 세 번째 전문 코치 호출은 없다. 그 날은 `day_status` FAILED이고 `final_prescription`은 null이다. 다른 날의 세션은 유지한다. HTTP와 timeout은 이 복구를 타지 않는다. 헤드가 시킨 재생성(`revisionNumber > 0`)은 이 복구를 다시 타지 않는다. 그 재생성 결과가 무효면 직전 유효 세션을 유지한다.
+`revisionNumber === 0`이고 실패 사유가 `http_error`나 `timeout`이 아니면, 실패한 영역만 `askSpecialist`를 한 번 더 부른다 (`MAX_DAY_SCHEMA_RECOVERIES` 1). 그 호출의 사용자 JSON에 `day_recovery`가 있다. `field_edits`와 `failed_fields`는 같은 배열이다. 항목은 `field`, `current_value`, `required_format`이다. 지시는 그 필드 경로만 현재 값에서 필요한 형식으로 고치고 다른 필드·동작·날·주간 뼈대는 바꾸지 말라는 문장이다. 이전 출력, `validation_errors`, 보존·허용 범위, 이웃 날도 들어간다. `askCoach`는 그 호출 안에서 검증 실패를 한 번 더 고친다. 같은 오류가 다시 나와도 세 번째 전문 코치 호출은 없다. 그 날은 `day_status` FAILED이고 `final_prescription`은 null이다. 다른 날의 세션은 유지한다. HTTP와 timeout은 이 복구를 타지 않는다. 헤드가 시킨 재생성(`revisionNumber > 0`)은 이 복구를 다시 타지 않는다. 그 재생성 결과가 무효면 직전 유효 세션을 유지한다.
 
 ## 헤드의 부분 수정
 
 필드 조정은 `runAdjustmentPass`다. `target_coach`가 없으면 세션 생성기를 다시 부르지 않는다. `MAX_HEAD_COACH_REVISIONS`는 0이고, 이 필드 조정 루프는 그 상수를 쓰지 않는다.
 
-헤드 JSON의 수정 항목이 `target_coach`를 `strength_coach`, `conditioning_coach`, `warmup_coach` 중 하나로 주면, 그 날의 그 코치만 `writeSession`으로 다시 부른다. 상한은 `COACHING_POLICY.max_head_revisions`인 2다. 이 상한은 명세 위반 재호출과 같은 예산이다. 헤드를 다시 부르지 않는다. 필드 조정이 이미 그 날을 고쳤으면 (`headPass.touched[day] === "head"`) 재생성하지 않는다.
+헤드 상태 REVISE의 `revisions`는 편집 목록이다. 항목은 `day`, `target_coach`, `block`, `action`, `target_movement`, `new_movement`, `new_amount`, `new_unit`, `reason`이다. `action`은 `replace`, `change_amount`, `delete`, `add`다. 그 동작이 쓰지 않는 필드는 null이다. `reason`은 한글이다. `target_coach`는 `block`과 맞아야 한다. 문장만 있고 `action`이 없으면 `editItemErrors`가 `prose-only revision`을 반환한다. 이것은 스키마 오류다. `askCoach`가 헤드를 그 호출 안에서 한 번 더 묻는다. 두 번째도 문장이면 헤드 출처는 fallback이고 `modelRevisions`는 비고, 전문 코치를 다시 부르지 않는다. 코드 판정이 남는다. 세 번째 헤드 호출은 없다. 조정만 있는 REVISE는 `revisions`가 빈 배열이고 `adjustments`에 필드 변경이 있다. 생성기를 부르지 않는다. 병합이 그 빈 목록을 노트로 내려도 필드 변경은 적용한다.
 
-스키마를 통과해도 수정 명세를 통과해야 그 날을 바꾼다. 검사 함수는 `checkRevisionCompliance`다. 새 JSON 필드는 없다. 필수 변경·허용·보존은 기존 배열의 토큰이다.
+편집이 있으면 같은 날·같은 `target_coach`로 묶고, `COACHING_POLICY.max_head_revisions`인 2개만 `writeSession`으로 다시 부른다. 사용자 JSON의 `edit_list`가 그 목록이다. 전문 코치 프롬프트(`strength-coach-v2`, `conditioning-coach-v2`, `warmup-coach-v2`)는 목록에 있는 항목만 적용하고 나머지는 바꾸지 말라고 적는다. 헤드를 다시 부르지 않는다. 필드 조정이 이미 그 날을 고쳤으면 (`headPass.touched[day] === "head"`) 재생성하지 않는다.
 
-- `allowed_changes`의 `replace_movement:<catalog_key>`는 그 동작을 빼고 다른 카탈로그 동작 하나를 넣는 필수 변경이다. 수량만 바꾸면 거부한다.
-- `allowed_changes`의 `only_movement:<catalog_key>`는 그 동작과 그 수량만 바꿀 수 있다. 다른 동작의 변경은 거부한다.
-- `preserve`의 `keep_movement:<catalog_key>`는 그 동작과 수량을 남긴다.
-- 토큰이 없고 문장에도 카탈로그 키가 없으면 적용 대상이 아니다. 스키마를 통과하면 그 날을 채택한다.
-- 문장만 카탈로그 키를 가리키면 검증할 수 없는 명세다. 채택하지 않는다.
+스키마를 통과한 재생성은 `compareEditList`로 목록과 그 날의 컨디셔닝 동작을 한 번 비교한다. 맞는 출력만 그 날을 바꾼다. 다르면 전문 코치를 다시 부르지 않는다. 그 날에 이미 채택된 모델 세션이 있으면 그 세션을 유지하고, 그 실패만으로 주를 깨지 않는다. 채택된 모델 세션이 없으면 그 날은 미해결이고 주를 채택하지 않는다. 다른 날의 세션은 바꾸지 않는다. 기본 세션으로 실패를 덮지 않는다. 비교는 컨디셔닝 동작의 키와 수량이다. 스트렝스, 워밍업, 형식, 시간, 자극, 양, 강도, 시간 영역이 바뀌면 불일치로 본다. 장비는 빠진 동작과 넣은 동작의 장비만 달라질 수 있다.
 
-실패하면 그 출력을 세션과 바꾸지 않는다. 사유, 필수 변경, 실제 변경, 보존 위반, 허용 위반을 다음 호출의 `revision.compliance_feedback`에 싣는다. 상한 안에서 같은 명세를 다시 부른다. 상한에 성공하면 그 날만 바꾼다. 상한을 넘기면 재생성은 미해결이다. 그 날에 이미 채택된 모델 세션이 있으면 그 세션을 유지하고, 그 실패만으로 주를 깨지 않는다. 채택된 모델 세션이 없으면 그 날은 미해결이고 주를 채택하지 않는다. 다른 날의 세션은 바꾸지 않는다. 기본 세션으로 실패를 덮지 않는다.
-
-트레이스 `revision_compliance`에 명세 식별자, 대상 날과 코치, 필수 변경, 실제 변경, 보존 위반, 허용 위반, 실패 사유, 재시도 횟수, 결과(`success`, `rejected`, `unresolved`)를 남긴다. 이 검사의 `token_usage`는 null이다. 모델 키는 기록하지 않는다.
+트레이스 `revision_compliance`에 날, 담당 코치, 편집 목록, 기대 동작, 실제 동작, 실패 사유, 결과(`success`, `rejected`, `unresolved`)를 남긴다. `retry_count`는 0이고 `token_usage`는 null이다. 모델 키는 기록하지 않는다. 이 트레이스는 비교 기록이지 추가 모델 단계가 아니다.
 
 재검증 범위는 고친 날과 앞뒤 이웃이다. `isolationPlan`의 교체 날을 그 범위로 자른다. 미해결 날은 그 교체에서 뺀다. 범위 밖 세션은 다시 만들지 않는다. 트레이스 `revision_scope`에 날, `regeneration_calls`, `budget: 2`가 남는다.
 
@@ -125,7 +119,7 @@
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 
-`askCoach`는 검증 실패를 한 번 더 고친다. HTTP 실패는 그 호출 안에서 다시 치지 않는다. 하루 스키마 복구는 영역당 1회다. 헤드의 `target_coach` 재생성과 명세 위반 재호출은 합쳐서 위 상한 2를 넘지 않는다. `COACHING_POLICY.max_head_revisions`는 2에서 올리지 않았다. `MAX_DAY_SCHEMA_RECOVERIES`도 1에서 올리지 않았다.
+`askCoach`는 검증 실패를 한 번 더 고친다. 헤드의 문장형 REVISE도 이 한 번의 재요청이다. HTTP 실패는 그 호출 안에서 다시 치지 않는다. 하루 스키마 복구는 영역당 1회다. 헤드의 `target_coach` 재생성은 `COACHING_POLICY.max_head_revisions` 2를 넘지 않는다. 편집 목록과 출력이 달라도 그 날을 다시 부르지 않는다. `COACHING_POLICY.max_head_revisions`는 2에서 올리지 않았다. `MAX_DAY_SCHEMA_RECOVERIES`도 1에서 올리지 않았다. 유사도 임계값은 4다.
 
 ## 아직 오케스트레이터를 타지 않는 입구
 
@@ -145,9 +139,9 @@ plan-lab은 코치 트레이스 중 `deterministic === false`이고 `source === 
 | 주간, 주 JSON을 월 응답으로 받은 경우 | `programming_weeks` | `wod-from-intent-v1` |
 | 주간 코치 트레이스 | 코치 로그 | `weekly-coach-v2` |
 | 일 집계 트레이스 | 코치 로그 | `session-coach-v4` |
-| 스트렝스 코치 | 코치 로그 | `strength-coach-v1` |
-| 컨디셔닝 코치 | 코치 로그 | `conditioning-coach-v1` |
-| 워밍업 코치 | 코치 로그 | `warmup-coach-v1` |
-| 헤드 코치 | 코치 로그 | `head-coach-v5` |
+| 스트렝스 코치 | 코치 로그 | `strength-coach-v2` |
+| 컨디셔닝 코치 | 코치 로그 | `conditioning-coach-v2` |
+| 워밍업 코치 | 코치 로그 | `warmup-coach-v2` |
+| 헤드 코치 | 코치 로그 | `head-coach-v6` |
 | 월 코치 트레이스 | 코치 로그 | `monthly-coach-v2` |
 | 스켈레톤 | 종단 계획 객체 | `skeleton-v1` |

@@ -163,14 +163,14 @@ function headJson(script: Script, revision: number, days: DayKey[]) {
       note_ko: "해당 코치만 그 날을 다시 씁니다.",
       revisions: days.slice(0, count).map((target) => ({
         day: target,
-        reason: "이 날의 컨디셔닝이 인접한 하체 날과 겹칩니다.",
-        correction_instruction: "같은 목적을 유지하고 이 날의 컨디셔닝만 다시 고르세요.",
-        priority: "high",
-        constraints: "스트렝스 세트와 워밍업은 유지합니다.",
         target_coach: script.targetCoach,
-        preserve: ["weekly_strength_progression", "warmup"],
-        allowed_changes: ["movement_selection", "volume_within_approved_limits"],
-        forbidden_changes: ["locked_weekly_structure", "monthly_training_method"],
+        block: script.targetCoach === "strength_coach" ? "strength" : script.targetCoach === "warmup_coach" ? "warmup" : "conditioning",
+        action: "change_amount",
+        target_movement: "box_jump",
+        new_movement: null,
+        new_amount: "9",
+        new_unit: "reps",
+        reason: "이 동작의 수량만 바꿉니다.",
       })),
       adjustments: [],
     };
@@ -179,13 +179,11 @@ function headJson(script: Script, revision: number, days: DayKey[]) {
     return {
       status: "REVISE",
       note_ko: "문제 있는 날의 컨디셔닝 강도만 낮춥니다.",
-      revisions: [
+      revisions: script.head === "revise" ? [] : [
         {
           day,
           reason: "이 날의 자극이 다음 날 회복과 겹칩니다.",
           correction_instruction: "같은 목적을 유지하고 자극을 한 단계 낮추세요.",
-          priority: "high",
-          constraints: "동작은 카탈로그 안에서만 고르고 하체 리프트는 유지합니다.",
         },
       ],
       adjustments:
@@ -483,15 +481,21 @@ describe("active coaching contracts", () => {
     expect(result.traces.filter((trace) => trace.agent_name === "session_coach" && trace.revision_number === 1)).toHaveLength(0);
   });
 
-  it("case 12 does not call the head again when the revise has no field patch", async () => {
+  it("case 12 asks the head once more when the revise is only a sentence", async () => {
     const { result, calls } = await run({ head: "always_revise" });
+    const training = result.plan.days.filter((day) => day.primary_training !== "rest");
     expect(result.revision_count).toBe(0);
     expect(result.final_status).toBe("APPROVE_WITH_NOTE");
     expect(result.generation_source).toBe("model");
     expect(result.draft.sessions).toHaveLength(7);
     expect(result.judge_ok).toBe(true);
+    const head = result.traces.find((trace) => trace.agent_name === "head_coach");
     expect(result.traces.filter((trace) => trace.agent_name === "head_coach")).toHaveLength(1);
+    expect(head?.retry_count).toBe(1);
+    expect(JSON.stringify(head?.validation_errors)).toContain("prose-only");
     expect(calls.filter((call) => call === "head_coach")).toHaveLength(1);
+    expect(calls.filter((call) => call === "context:head")).toHaveLength(1);
+    expect(calls.filter((call) => call === "conditioning_coach")).toHaveLength(training.length);
     expect(result.draft.sessions.filter((session) => !session.rest).every((session) => session.warmup_ko.includes("모델"))).toBe(true);
   });
 

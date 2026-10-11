@@ -165,14 +165,14 @@ function headBody(mode: Mode, plan: WeeklyIntentPlan) {
       revisions: [
         {
           day: "mon",
-          reason: "이 날의 수량을 다시 확인합니다.",
-          correction_instruction: "같은 목적을 유지하고 수량만 고치세요.",
-          priority: "high",
-          constraints: "스트렝스와 워밍업은 유지합니다.",
           target_coach: "conditioning_coach",
-          preserve: ["weekly_strength_progression", "warmup"],
-          allowed_changes: ["conditioning"],
-          forbidden_changes: ["locked_weekly_structure"],
+          block: "conditioning",
+          action: "change_amount",
+          target_movement: "box_jump",
+          new_movement: null,
+          new_amount: "9",
+          new_unit: "reps",
+          reason: "이 날의 수량만 바꿉니다.",
         },
       ],
       adjustments: [],
@@ -241,7 +241,7 @@ async function run(mode: Mode) {
 describe("day recovery units", () => {
   it("keeps threshold 4 and rejects a coach, a day, and a range", () => {
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
-    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v5");
+    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v6");
     expect(headStanceOf({ status: "BLOCK" })).toBe("ACCEPT_WITH_NOTE");
     expect(parseHeadReview({ status: "BLOCK", note_ko: "채택하지 않습니다.", revisions: [] })?.status).toBe("BLOCK");
     const rejected = rejectedRevisionSpecs(
@@ -293,7 +293,8 @@ describe("day recovery orchestrator", () => {
     expect(calls.filter((call) => call.agent === "strength_coach")).toHaveLength(training.length);
     expect(calls.filter((call) => call.agent === "warmup_coach")).toHaveLength(training.length);
     const recovery = monday.find((call) => call.user.day_recovery);
-    expect(JSON.stringify(recovery?.user.day_recovery)).toContain("reps");
+    const fieldEdits = (recovery?.user.day_recovery as { field_edits?: Array<{ field?: string; current_value?: string; required_format?: string }> } | undefined)?.field_edits ?? [];
+    expect(fieldEdits.some((row) => row.field?.includes("amount") && row.current_value === "reps" && row.required_format?.includes("10"))).toBe(true);
     expect(JSON.stringify(recovery?.user.day_recovery)).toContain("validation_errors");
   });
 

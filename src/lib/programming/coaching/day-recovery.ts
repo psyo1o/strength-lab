@@ -94,6 +94,13 @@ export function dayRecoveryPayload(input: {
   neighbors: unknown;
 }): Record<string, unknown> {
   const fields = failedFieldValues(input.invalid);
+  const fieldEdits = (fields.length ? fields : input.errors.map((error) => ({ field: "validation", value: error }))).map((row) => ({
+    field: row.field,
+    current_value: row.value,
+    required_format: row.field.includes("amount")
+      ? "A count and a unit. Reps are 10 or 10reps. Calories are 12cal or 12/10cal. Distance is 500m. Seconds are 30sec. The word reps alone is not a count."
+      : "Use the specialist schema for this field. Do not invent a value.",
+  }));
   const preserve =
     input.area === "conditioning"
       ? ["day_role", "strength_note_ko", "warmup_ko", "training_goal"]
@@ -108,16 +115,15 @@ export function dayRecoveryPayload(input: {
     day_role: input.dayIntent,
     existing_session: input.existing,
     validation_errors: [...input.errors],
-    failed_fields: fields.length ? fields : input.errors.map((error) => ({ field: "validation", value: error })),
-    expected_format:
-      "Use the specialist schema. An amount needs a count and a unit, for example 10reps. The word reps alone is not a count. Do not record an invented count as if it were already an agreed rule.",
+    failed_fields: fieldEdits,
+    field_edits: fieldEdits,
+    expected_format: fieldEdits[0]?.required_format ?? "Use the specialist schema for the named field.",
     prior_attempts: input.priorAttempts,
     prior_failure: [...input.errors],
     preserve,
     allowed_changes: allowed,
     forbidden_changes: ["other_days", "monthly_training_method", "locked_weekly_structure", ...preserve],
     neighbor_constraints: input.neighbors,
-    instruction:
-      "Fix only the listed errors on this day. Keep the purpose and every area you do not own. Do not repeat the same invalid output.",
+    instruction: "Apply each field_edit. Change only that field path from current_value to required_format. Do not change any other field, movement, day, or the weekly skeleton.",
   };
 }

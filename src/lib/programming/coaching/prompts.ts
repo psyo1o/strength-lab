@@ -4,11 +4,11 @@ import type { CoachAgentName } from "./models";
 export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v2";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v2";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
-export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v1";
-export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v1";
-export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v1";
+export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v2";
+export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v2";
+export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v2";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
-export const HEAD_COACH_PROMPT_VERSION = "head-coach-v5";
+export const HEAD_COACH_PROMPT_VERSION = "head-coach-v6";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
 export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
 export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
@@ -72,7 +72,8 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     objective: "State the strength purpose for that day. The server writes the sets from the month method.",
     inputs: "That day's intent, the monthly method, and whether a lift is required.",
     decision_principles: "Keep the lift the weekly plan locked. Do not change another day's strength.",
-    constraints: "Do not return sets, kilograms, percentages, warmup_ko, or conditioning. Do not invent a load.",
+    constraints:
+      "Do not return sets, kilograms, percentages, warmup_ko, or conditioning. Do not invent a load. When edit_list is present, apply each item exactly and change nothing that is not listed. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
     output_schema: "Keys: day, strength_note_ko. strength_note_ko is Korean.",
     failure_behavior: "A bad strength note is rejected. The server keeps the method table for that day.",
   },
@@ -83,7 +84,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose format, duration, stimulus, movements, equipment, volume, and intensity. Do not rename a movement to escape a similar structure.",
     constraints:
-      "Do not return warmup_ko, strength notes, sets, kilograms, or time_domain. duration_min is the piece length. One day only.",
+      "Do not return warmup_ko, strength notes, sets, kilograms, or time_domain. duration_min is the piece length. One day only. When edit_list is present, apply each item exactly. Do not change a movement, amount, format, duration, or day that is not in edit_list. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
     output_schema: "Keys: day, notes_ko, conditioning. conditioning matches the conditioning object in the session schema.",
     failure_behavior: "A bad piece is rejected. Other days and the strength and warmup of this day stay.",
   },
@@ -92,7 +93,8 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     objective: "Write the preparation that connects to this day's strength and conditioning.",
     inputs: "That day's intent and the strength and conditioning purposes. Not a generic list.",
     decision_principles: "Prepare the joints and the first movement of the day. Do not add a second workout.",
-    constraints: "Do not return conditioning, sets, kilograms, or another day's warm-up.",
+    constraints:
+      "Do not return conditioning, sets, kilograms, or another day's warm-up. When edit_list is present, apply each item exactly and change nothing that is not listed. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
     output_schema: "Keys: day, warmup_ko. warmup_ko is Korean.",
     failure_behavior: "A bad warm-up is rejected. The server keeps a short preparation for that day only.",
   },
@@ -109,15 +111,15 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
   },
   head: {
     role: "You are the head coach. You judge and you may name one field change. You do not regenerate the week.",
-    objective: "Decide whether this week should stay, stay with a note, or change one field.",
+    objective: "Decide whether this week should stay, stay with a note, change one named field, or return a concrete edit list.",
     inputs:
       "Evidence, specialist findings, risk, priority, trade-offs, monthly goal, weekly rules, athlete fatigue, and recent history. A concern is not a revision.",
     decision_principles:
       "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest field change, then APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. Similarity alone stays minor. Three minor notes do not revise. Name a field change only when the benefit is greater than the cost. Low confidence prefers APPROVE_WITH_NOTE unless the code already marked a safety issue. APPROVE does not override unresolved hard errors. BLOCK means the week cannot be adopted. Do not ask for a new week.",
     constraints:
-      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. A field change goes in adjustments and does not name a target_coach. A day rewrite sets target_coach to strength_coach, conditioning_coach, or warmup_coach, names that day, and leaves adjustments empty. Put replace_movement:<catalog_key> in allowed_changes when that movement must be replaced. An amount change is not a replacement. Put only_movement:<catalog_key> when only that movement and its amount may change. Put keep_movement:<catalog_key> in preserve when that movement must stay. A catalog key named only in prose is not adopted. Do not name a coach, a day, or a range the server did not allow. Do not return a new week.",
-    output_schema: "Use the head schema in the OUTPUT SCHEMA block. adjustments is the only change the server applies.",
-    failure_behavior: "Unreadable reviews keep the code decision. The server does not call the generator again. A failed final validation is not stored as the active week.",
+      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. A field change goes in adjustments and does not name a target_coach. REVISE is only an edit list. Each item has day, target_coach, block, action, target_movement, new_movement, new_amount, new_unit, and reason. action is replace, change_amount, delete, or add. Use null for every field that action does not use. A sentence without those fields is invalid. Do not name a coach, a day, or a movement the server did not allow. Do not return a new week.",
+    output_schema: "Use the head schema in the OUTPUT SCHEMA block. The edit list is the whole revision. adjustments are field patches only.",
+    failure_behavior: "A prose-only revision is a schema error. The server asks once for the edit list and does not invent the edit. Unreadable reviews keep the code decision.",
   },
   variation_judge: {
     role: "You are the variation judge. You are not the head coach.",
