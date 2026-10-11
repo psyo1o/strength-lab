@@ -203,6 +203,7 @@ export function dayRecoveryPayload(input: {
     allowed_changes: allowed,
     forbidden_changes: ["other_days", "monthly_training_method", "locked_weekly_structure", ...preserve],
     neighbor_constraints: input.neighbors,
-    instruction: "Apply each field_edit. Change only that field path from current_value to required_format. Do not change any other field, movement, day, or the weekly skeleton.",
+    instruction:
+      "Apply each field_edit. Change only that field path from current_value to required_format. Prefer a cells array of catalog_key, field, and value. The server writes only those cells. Do not change any other field, movement, day, or the weekly skeleton.",
   };
 }

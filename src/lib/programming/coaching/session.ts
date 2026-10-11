@@ -24,6 +24,7 @@ import {
 } from "../types";
 import { timeDomainFromMinutes } from "./canonical";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
+import { catalogMovement, type CatalogLoad, type CatalogUnit } from "./movement-catalog";
 import { movementCatalog, recipePool, roleFor, type Recipe } from "./pieces";
 
 const DAY_KO: Record<DayKey, string> = {
@@ -202,8 +203,21 @@ export function sessionFromCoachJson(input: {
     const movement = row as Record<string, unknown>;
     if (typeof movement.key !== "string" || typeof movement.amount !== "string" || typeof movement.name_ko !== "string") return null;
     if (!hangul(movement.name_ko) || /kg/i.test(movement.amount)) return null;
-    if (catalog.get(movement.key) !== movement.name_ko) return null;
-    movements.push({ key: movement.key, amount: movement.amount, name_ko: movement.name_ko });
+    const piecesName = catalog.get(movement.key);
+    const standardName = catalogMovement(movement.key)?.name_ko ?? null;
+    if (!piecesName && !standardName) return null;
+    if (movement.name_ko !== piecesName && movement.name_ko !== standardName) return null;
+    const unit = movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" ? (movement.unit as CatalogUnit) : undefined;
+    const load = storedLoad(movement.load);
+    movements.push({
+      key: movement.key,
+      amount: movement.amount,
+      name_ko: movement.name_ko,
+      ...(typeof movement.movement === "string" ? { movement: movement.movement } : {}),
+      ...(typeof movement.amount_value === "number" ? { amount_value: movement.amount_value } : {}),
+      ...(unit ? { unit } : {}),
+      ...(load ? { load } : {}),
+    });
   }
   if (!Array.isArray(piece.equipment) || piece.equipment.length === 0) return null;
   const equipment: Equipment[] = [];
@@ -430,6 +444,15 @@ function bare(draft: WeekDraft): WeekDraft {
     ...draft,
     intent: { why_ko: draft.intent.why_ko, focus: draft.intent.focus, scheme_note: draft.intent.scheme_note },
   };
+}
+
+function storedLoad(value: unknown): CatalogLoad | null {
+  if (!value || typeof value !== "object") return null;
+  const load = value as { male?: unknown; female?: unknown };
+  const male = typeof load.male === "string" ? load.male : null;
+  const female = typeof load.female === "string" ? load.female : null;
+  if (!male && !female) return null;
+  return { male, female };
 }
 
 function context(actual: WeekActual | null | undefined, maps: readonly string[] | undefined): WeekCheckContext {

@@ -6,6 +6,7 @@ import { resetDbConnection } from "../src/lib/db/client";
 import { DAY_ORDER, type DayKey } from "../src/lib/month-plan/types";
 import { dryRunWeek } from "../src/lib/programming/admin-tools";
 import { dayRecoveryPayload, recoveryDrift, rejectedRevisionSpecs } from "../src/lib/programming/coaching/day-recovery";
+import { catalogUnits, rangeFor } from "../src/lib/programming/coaching/movement-catalog";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
 import { HEAD_COACH_PROMPT_VERSION, STAGE16_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
@@ -22,7 +23,7 @@ const NOW = Date.parse("2099-07-06T01:00:00.000Z");
 const KEY = "sk-day-recovery";
 const WEEK = "2099-07-06";
 
-type Mode = "recover" | "always_bad" | "keep_valid" | "bad_coach" | "bad_range" | "block" | "approve" | "field_fix" | "field_drift";
+type Mode = "recover" | "always_bad" | "keep_valid" | "bad_coach" | "bad_range" | "block" | "approve" | "field_fix" | "field_drift" | "cell_head" | "bad_cal" | "cell_fix";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-day-recovery-"));
@@ -136,7 +137,20 @@ function dayOf(user: Record<string, unknown>): string {
   return original?.day_intent?.day ?? "";
 }
 
-function headBody(mode: Mode, plan: WeeklyIntentPlan) {
+function repsCell(session: SessionDraft | undefined): { key: string; value: string } | null {
+  for (const movement of session?.conditioning?.movements ?? []) {
+    if (!catalogUnits(movement.key)?.includes("reps")) continue;
+    const range = rangeFor(movement.key, "reps");
+    const current = Number(String(movement.amount).match(/\d+/)?.[0] ?? "");
+    const candidate = range ? (current === range.min && range.max > range.min ? range.min + 1 : range.min) : current === 10 ? 11 : 10;
+    if (range && (candidate < range.min || candidate > range.max)) continue;
+    if (String(candidate) === movement.amount) continue;
+    return { key: movement.key, value: String(candidate) };
+  }
+  return null;
+}
+
+function headBody(mode: Mode, plan: WeeklyIntentPlan, sessions: readonly SessionDraft[]) {
   const training = plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest").map((day) => day.day);
   const rest = plan.days.find((day) => day.primary_training === "rest" || day.recovery_role === "rest")?.day ?? "sun";
   if (mode === "block") {
@@ -177,6 +191,41 @@ function headBody(mode: Mode, plan: WeeklyIntentPlan) {
           preserve: ["weekly_strength_progression"],
           allowed_changes: ["monthly_training_method"],
           forbidden_changes: ["other_days"],
+        },
+      ],
+      adjustments: [],
+    };
+  }
+  if (mode === "cell_head") {
+    const cell = repsCell(sessions.find((session) => session.day === "mon"));
+    return {
+      status: "REVISE",
+      note_ko: "월요일 수량만 바꿉니다.",
+      revisions: [
+        {
+          day: "mon",
+          block: "conditioning",
+          catalog_key: cell?.key ?? "wall_ball",
+          field: "amount",
+          value: cell?.value ?? "15",
+          reason: "이 동작의 수량만 바꿉니다.",
+        },
+      ],
+      adjustments: [],
+    };
+  }
+  if (mode === "bad_cal") {
+    return {
+      status: "REVISE",
+      note_ko: "더블 언더 단위가 아닙니다.",
+      revisions: [
+        {
+          day: "mon",
+          block: "conditioning",
+          catalog_key: "double_under",
+          field: "amount",
+          value: "60cal",
+          reason: "칼로리로 바꾸라는 지시는 거절됩니다.",
         },
       ],
       adjustments: [],
@@ -233,8 +282,12 @@ function harness(mode: Mode) {
       if (mode === "recover" && day === "mon" && !recovery) return chat(repsOnly(session));
       if (mode === "always_bad" && day === "mon") return chat(repsOnly(session));
       if (mode === "keep_valid" && day === "mon" && revision > 0 && !recovery) return chat(repsOnly(session));
-      if ((mode === "field_fix" || mode === "field_drift") && day === "mon" && !recovery) return chat(illegalAmount(session));
+      if ((mode === "field_fix" || mode === "field_drift" || mode === "cell_fix") && day === "mon" && !recovery) return chat(illegalAmount(session));
       if (mode === "field_drift" && day === "mon" && recovery) return chat(driftedRecovery(session));
+      if (mode === "cell_fix" && day === "mon" && recovery) {
+        const cell = repsCell(session);
+        return chat({ cells: [{ catalog_key: cell?.key ?? "wall_ball", field: "amount", value: cell?.value ?? "15" }] });
+      }
       return chat(sessionJson(session));
     }
     if (agent === "load_coach" || agent === "context:load") {
@@ -244,7 +297,7 @@ function harness(mode: Mode) {
           .map((row) => ({ day: row.day, action: "hold", reason_ko: "방법 표를 유지합니다.", target_effort: "moderate", relative_intensity: "same" })),
       });
     }
-    if (agent === "head_coach" || agent === "context:head") return chat(headBody(mode, plan));
+    if (agent === "head_coach" || agent === "context:head") return chat(headBody(mode, plan, built.draft.sessions));
     return chat({ status: "APPROVE", note_ko: "이번 주는 유지합니다.", revisions: [], adjustments: [] });
   };
   const input: CoachWeekInput = {
@@ -267,7 +320,7 @@ async function run(mode: Mode) {
 describe("day recovery units", () => {
   it("keeps threshold 4 and rejects a coach, a day, and a range", () => {
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
-    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v6");
+    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v7");
     expect(headStanceOf({ status: "BLOCK" })).toBe("ACCEPT_WITH_NOTE");
     expect(parseHeadReview({ status: "BLOCK", note_ko: "채택하지 않습니다.", revisions: [] })?.status).toBe("BLOCK");
     const rejected = rejectedRevisionSpecs(
@@ -439,6 +492,54 @@ describe("day recovery orchestrator", () => {
     expect(result.day_records?.mon?.revision_reason).toBe("schema recovery");
     expect(result.generation_source).toBe("model");
     expect(result.draft.sessions.find((session) => session.day === "tue")?.warmup_ko).toContain("모델");
+    const mondayCalls = calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon");
+    expect(mondayCalls).toHaveLength(3);
+    expect(mondayCalls.filter((call) => call.user.day_recovery)).toHaveLength(1);
+  });
+
+  it("writes only the named amount and does not call the conditioning coach again", async () => {
+    const { result, calls, plan } = await run("cell_head");
+    const legal = assembleLegalWeek({ month: month531(), weekIndex: 1, plan });
+    const original = legal.draft.sessions.find((session) => session.day === "mon");
+    const monday = result.draft.sessions.find((session) => session.day === "mon");
+    const cell = repsCell(original);
+    const diffs = (monday?.conditioning?.movements ?? []).filter((row, index) => row.amount !== original?.conditioning?.movements[index]?.amount);
+    expect(cell?.value).toBeTruthy();
+    expect(diffs).toHaveLength(1);
+    expect(diffs[0]?.key).toBe(cell?.key);
+    expect(diffs[0]?.amount).toBe(cell?.value);
+    expect(diffs[0]?.amount_value).toBe(Number(cell?.value));
+    expect(monday?.conditioning?.format).toBe(original?.conditioning?.format);
+    expect(monday?.conditioning?.movements.map((row) => row.key)).toEqual(original?.conditioning?.movements.map((row) => row.key));
+    expect(calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon")).toHaveLength(1);
+    expect(result.traces.some((trace) => trace.agent_name === "revision_compliance" && trace.day === "mon" && trace.token_usage == null)).toBe(true);
+    expect(result.day_sources.mon).toBe("model");
+  });
+
+  it("rejects a double-under calorie edit before another conditioning call", async () => {
+    const { result, calls, plan } = await run("bad_cal");
+    const training = plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest");
+    expect(calls.filter((call) => call.agent === "conditioning_coach")).toHaveLength(training.length);
+    expect(calls.filter((call) => call.agent === "head_coach" || call.agent === "context:head").length).toBeGreaterThan(1);
+    expect(JSON.stringify(result.draft)).not.toContain("60cal");
+    expect(result.traces.some((trace) => trace.agent_name === "revision_compliance")).toBe(false);
+  });
+
+  it("patches one recovery cell and leaves the format", async () => {
+    const { result, calls, plan } = await run("cell_fix");
+    const legal = assembleLegalWeek({ month: month531(), weekIndex: 1, plan });
+    const original = legal.draft.sessions.find((session) => session.day === "mon");
+    const monday = result.draft.sessions.find((session) => session.day === "mon");
+    const cell = repsCell(original);
+    const diffs = (monday?.conditioning?.movements ?? []).filter((row, index) => row.amount !== original?.conditioning?.movements[index]?.amount);
+    expect(diffs).toHaveLength(1);
+    expect(diffs[0]?.key).toBe(cell?.key);
+    expect(diffs[0]?.amount).toBe(cell?.value);
+    expect(monday?.conditioning?.format).toBe(original?.conditioning?.format);
+    expect(monday?.notes_ko ?? monday?.metcon_purpose).toBeTruthy();
+    expect(JSON.stringify(monday?.conditioning)).not.toContain("10회/라운드");
+    expect(result.day_sources.mon).toBe("model");
+    expect(result.day_records?.mon?.revision_reason).toBe("schema recovery");
     const mondayCalls = calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon");
     expect(mondayCalls).toHaveLength(3);
     expect(mondayCalls.filter((call) => call.user.day_recovery)).toHaveLength(1);

@@ -1,6 +1,7 @@
 import type { DayKey } from "../../month-plan/types";
 import type { DayIntent, SessionDraft, WeekDraft } from "../types";
 import { EDIT_ACTIONS, EDIT_BLOCKS, EDIT_UNITS } from "./contract";
+import { checkCellEdit, type MovementCellField } from "./movement-catalog";
 import type { FatigueReport } from "./fatigue";
 import type { VariationReport } from "./variation";
 
@@ -22,6 +23,16 @@ export type MovementEdit = {
   reason: string;
 };
 
+/** One catalog cell. The server writes this field and leaves the others. */
+export type CellRevision = {
+  day: DayKey;
+  block: EditBlock;
+  catalog_key: string;
+  field: MovementCellField;
+  value: string;
+  reason: string;
+};
+
 export type SessionRevision = {
   day: DayKey;
   reason: string;
@@ -34,6 +45,8 @@ export type SessionRevision = {
   allowed_changes?: string[];
   forbidden_changes?: string[];
   edits?: MovementEdit[];
+  /** Present when the head named one cell. That path does not call the specialist. */
+  cell?: CellRevision;
 };
 
 export type HeadCoachReview = {
@@ -121,11 +134,51 @@ export function parseHeadReview(value: unknown): HeadCoachReview | null {
   if (body.revisions.length === 0) return { status: "REVISE", revisions: [], note_ko: body.note_ko.trim() };
   const revisions: SessionRevision[] = [];
   for (const row of body.revisions) {
+    const cell = parseCellRevision(row);
+    if (cell) {
+      revisions.push(cell);
+      continue;
+    }
     const edit = parseMovementEdit(row);
     if (!edit) return null;
     revisions.push(revisionFromEdit(edit));
   }
   return { status: "REVISE", revisions: revisions.slice(0, 3), note_ko: body.note_ko.trim() };
+}
+
+function parseCellRevision(row: unknown): SessionRevision | null {
+  if (!row || typeof row !== "object") return null;
+  const item = row as Record<string, unknown>;
+  if (item.field !== "movement" && item.field !== "amount" && item.field !== "unit" && item.field !== "load") return null;
+  if (typeof item.action === "string") return null;
+  const day = item.day;
+  if (day !== "mon" && day !== "tue" && day !== "wed" && day !== "thu" && day !== "fri" && day !== "sat" && day !== "sun") return null;
+  if (item.block !== "strength" && item.block !== "conditioning" && item.block !== "warmup") return null;
+  if (typeof item.catalog_key !== "string" || typeof item.value !== "string") return null;
+  if (typeof item.reason !== "string" || !/[가-힣]/.test(item.reason)) return null;
+  const verdict = checkCellEdit({ catalog_key: item.catalog_key, field: item.field, value: item.value });
+  if (!verdict.ok) return null;
+  const target: TargetCoach = item.block === "strength" ? "strength_coach" : item.block === "warmup" ? "warmup_coach" : "conditioning_coach";
+  return {
+    day,
+    reason: item.reason.trim(),
+    correction_instruction: `${day} ${item.block}: set ${item.catalog_key} ${item.field} to ${item.value}`,
+    priority: "high",
+    constraints: "이 칸만 바꿉니다.",
+    target_coach: target,
+    preserve: [],
+    allowed_changes: [item.field],
+    forbidden_changes: ["other_days"],
+    edits: [],
+    cell: {
+      day,
+      block: item.block,
+      catalog_key: item.catalog_key,
+      field: item.field,
+      value: item.value,
+      reason: item.reason.trim(),
+    },
+  };
 }
 
 function parseMovementEdit(row: unknown): MovementEdit | null {

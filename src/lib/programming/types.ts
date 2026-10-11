@@ -75,6 +75,11 @@ export type MovementDraft = {
   key: string;
   amount: string;
   name_ko: string;
+  /** Catalog key. The display string stays in amount. */
+  movement?: string;
+  amount_value?: number | null;
+  unit?: "reps" | "cal" | "m" | "sec" | null;
+  load?: { male: string | null; female: string | null } | null;
 };
 
 /** Structural features of one conditioning piece. Movement names are not the identity. */

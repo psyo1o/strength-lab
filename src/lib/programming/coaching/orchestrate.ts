@@ -4,7 +4,7 @@ import { judgeWeek, parseWeekDraft, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import type { DayIntent, DayPrescriptionRecord, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
-import { durationRuleText, headReviewErrors, loadDecisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { durationRuleText, headReviewErrors, loadDecisionErrors, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -21,6 +21,7 @@ import { normalizeSessionPayload, type SessionNormalization } from "./stage13/no
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
 import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRevisionSpecs } from "./day-recovery";
+import { applyCellsToCoachJson, isCellPayload, patchStoredMovement } from "./movement-catalog";
 import { askSpecialist, type SpecialistArea } from "./specialist-generate";
 import { analyzeProgression, analyzeWeekStructure } from "./stage13/analyzers";
 import { heavyLowerStressDays } from "./stage13/specialists";
@@ -426,21 +427,41 @@ async function writeSession(input: {
         weekId: input.week.weekStart,
         day: input.day.day,
         revisionNumber: 1,
-        validate: validateArea(area),
+        format: area === "conditioning" ? recoveryCellFormat() : undefined,
+        schemaNote: area === "conditioning" ? "Return cells only: catalog_key, field, value. The server writes only that cell." : undefined,
+        validate: (json) => {
+          if (area === "conditioning" && isCellPayload(json)) {
+            const patched = applyCellsToCoachJson(areaInvalid.get(area), json.cells);
+            if (!patched.ok) return { ok: false as const, errors: [patched.reason] };
+            return validateArea(area)(patched.json);
+          }
+          return validateArea(area)(json);
+        },
       });
       areaTraces.push(asked.trace);
       const edits = Array.isArray(payload.field_edits) ? (payload.field_edits as { field: string }[]) : [];
-      const drift = asked.ok ? recoveryDrift({ before: areaInvalid.get(area), after: asked.json, fields: edits }) : null;
-      if (asked.ok && drift?.ok) {
-        parts[area] = asked.json;
-        recovered = true;
-      } else if (asked.ok && drift && !drift.ok) {
-        const reasons = drift.changed.map((path) => `recovery changed ${path}`);
-        unresolvedErrors.push(...reasons);
-        failed = { errors: reasons, retry: asked.trace.retry_count, reason: "schema", json: asked.json };
+      if (asked.ok && isCellPayload(asked.json)) {
+        const patched = applyCellsToCoachJson(areaInvalid.get(area), asked.json.cells);
+        if (patched.ok) {
+          parts[area] = patched.json;
+          recovered = true;
+        } else {
+          unresolvedErrors.push(patched.reason);
+          failed = { errors: [patched.reason], retry: asked.trace.retry_count, reason: "schema", json: asked.json };
+        }
       } else {
-        const next = asked.trace.validation_errors?.length ? asked.trace.validation_errors : [asked.trace.failure_reason ?? "schema"];
-        unresolvedErrors.push(...next);
+        const drift = asked.ok ? recoveryDrift({ before: areaInvalid.get(area), after: asked.json, fields: edits }) : null;
+        if (asked.ok && drift?.ok) {
+          parts[area] = asked.json;
+          recovered = true;
+        } else if (asked.ok && drift && !drift.ok) {
+          const reasons = drift.changed.map((path) => `recovery changed ${path}`);
+          unresolvedErrors.push(...reasons);
+          failed = { errors: reasons, retry: asked.trace.retry_count, reason: "schema", json: asked.json };
+        } else {
+          const next = asked.trace.validation_errors?.length ? asked.trace.validation_errors : [asked.trace.failure_reason ?? "schema"];
+          unresolvedErrors.push(...next);
+        }
       }
     }
   }
@@ -1564,9 +1585,38 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     revisions: [],
     note_ko: headPass.note,
   };
+  for (const spec of modelRevisions) {
+    const cell = spec.cell;
+    if (!cell) continue;
+    const session = draft.sessions.find((row) => row.day === spec.day);
+    const movement = session?.conditioning?.movements.find((row) => row.key === cell.catalog_key || row.movement === cell.catalog_key);
+    const patched = movement ? patchStoredMovement(movement, cell) : { ok: false as const, reason: `${cell.catalog_key} is not on this piece` };
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        day: spec.day,
+        agent_name: patched.ok ? "revision_compliance" : "revision_rejected",
+        agent_type: "validator",
+        model: null,
+        prompt_version: HEAD_COACH_PROMPT_VERSION,
+        input_hash: inputHash({ day: spec.day, cell }),
+        input_summary: { day: spec.day, catalog_key: cell.catalog_key, field: cell.field },
+        output: { day: spec.day, cell, result: patched.ok ? "success" : "rejected", failure_reason: patched.ok ? null : patched.reason },
+        validation_result: patched.ok ? "pass" : "fail",
+        validation_errors: patched.ok ? [] : [patched.reason],
+        retry_count: 0,
+        failure_reason: patched.ok ? null : patched.reason,
+        deterministic: true,
+        decision: patched.ok ? "success" : "rejected",
+        revision_number: 0,
+        token_usage: null,
+      }),
+    );
+  }
   const grouped = new Map<string, SessionRevision>();
   for (const row of modelRevisions) {
-    if (!row.target_coach || headPass.touched[row.day] === "head" || !row.edits?.length) continue;
+    if (row.cell || !row.target_coach || headPass.touched[row.day] === "head" || !row.edits?.length) continue;
     const key = `${row.day}:${row.target_coach}`;
     const existing = grouped.get(key);
     if (!existing) grouped.set(key, { ...row, edits: [...row.edits] });

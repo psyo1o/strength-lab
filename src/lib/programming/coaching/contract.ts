@@ -12,6 +12,7 @@ import {
   type WeeklyIntentPlan,
 } from "../types";
 import { movementCatalog } from "./pieces";
+import { catalogMovement, cellEditErrors, checkCellEdit, standardCatalogKeys } from "./movement-catalog";
 import { unitGuide } from "./stage13/units";
 import type { CoachAgentName } from "./models";
 
@@ -154,11 +155,13 @@ export function schemaBrief(agent: CoachAgentName): string {
       "JSON object for one day. Keys: day, notes_ko, conditioning.",
       "Do not return warmup_ko, strength_note_ko, sets, kilograms, or time_domain.",
       "conditioning keys: format, duration_min, stimulus, movements, equipment, volume, intensity, interval_work_sec, interval_rest_sec.",
+      "Each movement is movement, amount, unit, and load. movement is a catalog key. amount is an integer inside that key's closed range when one is listed. unit is one of that key's allowed units. load is {male, female} or null. The server stores those cells and builds the display amount.",
       enumLine("format", WOD_FORMATS),
       enumLine("stimulus", STIMULI),
       enumLine("volume", VOLUME_BANDS),
       enumLine("intensity", INTENSITY_BANDS),
       enumLine("equipment", EQUIPMENT),
+      enumLine("unit", EDIT_UNITS),
       "notes_ko is Korean.",
     ].join("\n");
   }
@@ -203,15 +206,11 @@ export function schemaBrief(agent: CoachAgentName): string {
     "REVISE is an edit list. It does not regenerate the week. A field change goes in adjustments and does not name a target_coach. A prose sentence is not a revision.",
     "BLOCK means the week cannot be adopted. revisions and adjustments are empty. Unresolved hard errors stay unresolved.",
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
-    "Each revision is one edit: day, target_coach, block, action, target_movement, new_movement, new_amount, new_unit, reason.",
-    "target_coach is strength_coach, conditioning_coach, or warmup_coach and must match block. block is strength, conditioning, or warmup.",
-    enumLine("action", EDIT_ACTIONS),
-    "replace: target_movement and new_movement are different catalog keys, new_amount is the count, new_unit is set.",
-    "change_amount: target_movement is a catalog key, new_movement is null, new_amount is the count, new_unit is set.",
-    "delete: target_movement is a catalog key, new_movement, new_amount, and new_unit are null.",
-    "add: target_movement is null, new_movement is a catalog key, new_amount is the count, new_unit is set.",
-    "new_amount is the count only, such as 8 or 12/10. new_unit is reps, cal, m, or sec. Use null for every field the action does not use. reason is Korean. A revision without these fields is a schema error.",
-    enumLine("catalog_key", movementKeys()),
+    "Each revision names one cell: day, block, catalog_key, field, value, reason. The server writes only that cell.",
+    "block is strength, conditioning, or warmup. field is movement, amount, unit, or load.",
+    "value is the new cell. movement value is a catalog key. amount value is a count inside the closed range when one is listed. unit value is an allowed unit for that key. load value is the load text.",
+    "reason is Korean. A revision without these fields is a schema error.",
+    enumLine("catalog_key", standardCatalogKeys()),
     "Each adjustment: target, reason, priority, current_value, proposed_value, preserve, rationale, confidence.",
     "target is day.conditioning.intensity, day.conditioning.volume, day.conditioning.duration_min, or day.conditioning.format.",
     "priority is P0, P1, P2, or P3. preserve is an array of strings and includes weekly_strength_progression when the lift must stay.",
@@ -256,6 +255,50 @@ const weeklyDaySchema = strictObject(
     "notes_ko",
   ],
 );
+
+function conditioningMovementSchema(): Record<string, unknown> {
+  const load = {
+    anyOf: [
+      strictObject(
+        { male: { anyOf: [TEXT, { type: "null" }] }, female: { anyOf: [TEXT, { type: "null" }] } },
+        ["male", "female"],
+      ),
+      { type: "null" },
+    ],
+  };
+  return strictObject(
+    {
+      movement: stringEnum(standardCatalogKeys()),
+      amount: { type: "integer" },
+      unit: stringEnum(EDIT_UNITS),
+      load,
+    },
+    ["movement", "amount", "unit", "load"],
+  );
+}
+
+/** Live recovery replies name cells. A full session is still accepted by the validator for older fixtures. */
+export function recoveryCellFormat(): ResponseFormat {
+  return schemaOf(
+    "conditioning_recovery_cells",
+    strictObject(
+      {
+        cells: {
+          type: "array",
+          items: strictObject(
+            {
+              catalog_key: stringEnum(standardCatalogKeys()),
+              field: stringEnum(["movement", "amount", "unit", "load"]),
+              value: TEXT,
+            },
+            ["catalog_key", "field", "value"],
+          ),
+        },
+      },
+      ["cells"],
+    ),
+  );
+}
 
 export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
   if (agent === "monthly") {
@@ -366,7 +409,7 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
     return schemaOf("warmup_coach_day", strictObject({ day: stringEnum(DAY_ORDER), warmup_ko: TEXT }, ["day", "warmup_ko"]));
   }
   if (agent === "conditioning") {
-    const movement = strictObject({ key: stringEnum(movementKeys()), amount: TEXT, name_ko: TEXT }, ["key", "amount", "name_ko"]);
+    const movement = conditioningMovementSchema();
     return schemaOf(
       "conditioning_coach_day",
       strictObject(
@@ -452,16 +495,13 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           items: strictObject(
             {
               day: stringEnum(DAY_ORDER),
-              target_coach: stringEnum(["strength_coach", "conditioning_coach", "warmup_coach"]),
               block: stringEnum(EDIT_BLOCKS),
-              action: stringEnum(EDIT_ACTIONS),
-              target_movement: { anyOf: [stringEnum(movementKeys()), { type: "null" }] },
-              new_movement: { anyOf: [stringEnum(movementKeys()), { type: "null" }] },
-              new_amount: { anyOf: [TEXT, { type: "null" }] },
-              new_unit: { anyOf: [stringEnum(EDIT_UNITS), { type: "null" }] },
+              catalog_key: stringEnum(standardCatalogKeys()),
+              field: stringEnum(["movement", "amount", "unit", "load"]),
+              value: TEXT,
               reason: TEXT,
             },
-            ["day", "target_coach", "block", "action", "target_movement", "new_movement", "new_amount", "new_unit", "reason"],
+            ["day", "block", "catalog_key", "field", "value", "reason"],
           ),
         },
         adjustments: {
@@ -704,13 +744,26 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
         errors.push(`${prefix}: expected {key, amount, name_ko}`);
         return;
       }
-      const keyError = enumError(`${prefix}.key`, row.key, movementKeys());
-      if (keyError) errors.push(keyError);
-      else if (row.name_ko !== catalog.get(String(row.key))) {
-        errors.push(`${prefix}.name_ko: received ${received(row.name_ko)}; catalog name for ${String(row.key)} is ${catalog.get(String(row.key))}`);
+      if (typeof row.amount === "number" && typeof row.unit === "string") {
+        errors.push(...cellMovementErrors(prefix, row, catalog));
+        return;
+      }
+      const keyText = typeof row.key === "string" ? row.key : "";
+      const piecesName = catalog.get(keyText);
+      const standardName = catalogMovement(keyText)?.name_ko ?? null;
+      if (!piecesName && !standardName) {
+        errors.push(`${prefix}.key: received ${received(row.key)}; allowed catalog key`);
+      } else if (typeof row.name_ko === "string" && row.name_ko !== piecesName && row.name_ko !== standardName) {
+        errors.push(`${prefix}.name_ko: received ${received(row.name_ko)}; catalog name for ${keyText} is ${piecesName ?? standardName}`);
       }
       if (typeof row.amount !== "string" || !row.amount.trim() || /kg/i.test(row.amount)) {
         errors.push(`${prefix}.amount: received ${received(row.amount)}; reps are 12 or 12 reps, calories are 12cal or 12/10cal, distance is 500m. Never kilograms.`);
+      } else if (typeof row.amount_value === "number" && typeof row.unit === "string") {
+        const suffix = row.unit === "reps" ? "" : String(row.unit);
+        const verdict = checkCellEdit({ catalog_key: keyText, field: "amount", value: `${row.amount_value}${suffix}` });
+        if (!verdict.ok) errors.push(`${prefix}: ${verdict.reason}`);
+        const unitVerdict = checkCellEdit({ catalog_key: keyText, field: "unit", value: String(row.unit) });
+        if (!unitVerdict.ok) errors.push(`${prefix}: ${unitVerdict.reason}`);
       }
     });
   }
@@ -775,11 +828,34 @@ function amountShape(unit: string, amount: string): boolean {
   return true;
 }
 
+function cellMovementErrors(prefix: string, row: Record<string, unknown>, pieces: Map<string, string>): string[] {
+  const errors: string[] = [];
+  const named = typeof row.movement === "string" ? row.movement : typeof row.key === "string" ? row.key : "";
+  const stored = catalogMovement(named);
+  if (!stored) {
+    errors.push(`${prefix}: unknown movement ${named}`);
+    return errors;
+  }
+  const unitVerdict = checkCellEdit({ catalog_key: stored.key, field: "unit", value: String(row.unit) });
+  if (!unitVerdict.ok) errors.push(`${prefix}: ${unitVerdict.reason}`);
+  const suffix = row.unit === "reps" ? "" : String(row.unit);
+  const amountVerdict = checkCellEdit({ catalog_key: stored.key, field: "amount", value: `${row.amount}${suffix}` });
+  if (!amountVerdict.ok) errors.push(`${prefix}: ${amountVerdict.reason}`);
+  const piecesName = pieces.get(stored.key);
+  if (typeof row.name_ko === "string" && row.name_ko !== stored.name_ko && row.name_ko !== piecesName) {
+    errors.push(`${prefix}.name_ko: received ${received(row.name_ko)}; catalog name for ${stored.key} is ${stored.name_ko}`);
+  }
+  return errors;
+}
+
 /** A revision that is only a sentence. The head must return the edit fields instead. */
 export function editItemErrors(row: unknown, index: number): string[] {
   const prefix = `revisions[${index}]`;
   if (!isRecord(row)) return [`${prefix}: expected an object`];
   const errors: string[] = [];
+  if (typeof row.action !== "string" && (typeof row.field === "string" || typeof row.catalog_key === "string")) {
+    return cellEditErrors(row, index);
+  }
   if (typeof row.action !== "string") {
     errors.push(`${prefix}: prose-only revision; return day, target_coach, block, action, target_movement, new_movement, new_amount, new_unit, and reason`);
     return errors;

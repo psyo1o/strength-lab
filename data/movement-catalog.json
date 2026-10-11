@@ -1,0 +1,4133 @@
+{
+  "version": "0.4.0-draft",
+  "generated": "2026-10-11",
+  "note": "ranges는 출처 WOD에서 실제로 본 값의 범위. 미확인은 null. 무게 단위 lb(출처 표기).",
+  "sources": {
+    "S1": {
+      "title": "CrossFit Movements & Exercise List",
+      "url": "https://www.crossfit.com/crossfit-movements"
+    },
+    "S2": {
+      "title": "Fran (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/fran"
+    },
+    "S3": {
+      "title": "Grace (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/grace"
+    },
+    "S4": {
+      "title": "Karen (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/karen"
+    },
+    "S5": {
+      "title": "Helen (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/helen"
+    },
+    "S6": {
+      "title": "Jackie (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/jackie"
+    },
+    "S7": {
+      "title": "Nancy (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/nancy"
+    },
+    "S8": {
+      "title": "Diane (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/diane"
+    },
+    "S9": {
+      "title": "Annie (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/annie"
+    },
+    "S10": {
+      "title": "Cindy (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/cindy"
+    },
+    "S11": {
+      "title": "Murph (CrossFit.com)",
+      "url": "https://www.crossfit.com/benchmark/murph"
+    },
+    "S12": {
+      "title": "CrossFit Journal \"The New Girls\" (Isabel, Jackie, Karen, Elizabeth 등, 남자 무게만 표기)",
+      "url": "https://library.crossfit.com/free/pdf/27_04_new_girls.pdf"
+    },
+    "S13": {
+      "title": "CrossFit Open 25.1",
+      "url": "https://games.crossfit.com/workouts/open/2025/1?division=1&workout_type=rx"
+    },
+    "S14": {
+      "title": "CrossFit Open 25.2",
+      "url": "https://games.crossfit.com/workouts/open/2025/2?division=1"
+    },
+    "S15": {
+      "title": "CrossFit Open 25.3",
+      "url": "https://games.crossfit.com/workouts/open/2025/3?division=1&workout_type=rx"
+    },
+    "S16": {
+      "title": "CrossFit Open 24.1",
+      "url": "https://games.crossfit.com/workouts/open/2024"
+    },
+    "S17": {
+      "title": "CrossFit Open 24.2",
+      "url": "https://games.crossfit.com/workouts/open/2024/2?division=1"
+    },
+    "S18": {
+      "title": "CrossFit Open 24.3",
+      "url": "https://games.crossfit.com/workouts/open/2024/3?division=1&workout_type=rx"
+    },
+    "S19": {
+      "title": "CrossFit Open 23.1",
+      "url": "https://games.crossfit.com/workouts/open/2023/1?division=1"
+    },
+    "S20": {
+      "title": "CrossFit Open 23.2",
+      "url": "https://games.crossfit.com/workouts/open/2023/2?division=1&scaled=0"
+    },
+    "S21": {
+      "title": "CrossFit Open 23.3",
+      "url": "https://games.crossfit.com/workouts/open/2023/3?division=1&workout_type=rx"
+    },
+    "S22": {
+      "title": "CrossFit Open 17.1",
+      "url": "https://games.crossfit.com/workouts/open/2017/1"
+    },
+    "R1": {
+      "title": "저장소 src/lib/programming/coaching/stage13/units.ts (MOVEMENT_UNITS, MOVEMENT_EQUIPMENT)",
+      "url": "https://github.com/psyo1o/strength-lab/blob/cursor/coaching-orchestrator-fca8/src/lib/programming/coaching/stage13/units.ts"
+    },
+    "R2": {
+      "title": "저장소 data/exercises.canonical.json",
+      "url": "https://github.com/psyo1o/strength-lab/blob/cursor/coaching-orchestrator-fca8/data/exercises.canonical.json"
+    },
+    "R3": {
+      "title": "저장소 data/wod-exercise-aliases.json",
+      "url": "https://github.com/psyo1o/strength-lab/blob/cursor/coaching-orchestrator-fca8/data/wod-exercise-aliases.json"
+    },
+    "S30": {
+      "title": "CrossFit Clearwater(박스) 과거 Open 워크아웃 모음 PDF (2011–2021, 2차 자료)",
+      "url": "https://www.gmrxclearwater.com/wp-content/uploads/2021/12/PAST-CROSSFIT-OPEN-WORKOUTS.pdf"
+    },
+    "S31": {
+      "title": "Mayhem Athlete Scaling & Movement Substitutions PDF (칼로리 환산표 포함)",
+      "url": "https://www.mayhemathletes.com/wp-content/uploads/2024/02/Mayhem-Athlete-Scaling-Doc.pdf"
+    },
+    "S32": {
+      "title": "Mayhem Affiliate 6/27/2024 (CrossFit Lillington 게시)",
+      "url": "https://crossfitlillington.com/2024/06/26/mayhem-affiliate-bodybuilding-6-27-2024/"
+    },
+    "S33": {
+      "title": "CrossFit Games 2022 이벤트(Echo Press, Rinse N Repeat)",
+      "url": "https://games.crossfit.com/workouts/games/2022"
+    },
+    "S34": {
+      "title": "CrossFit Games 2026 Masters Event 7 (Echo Bike 칼로리 표)",
+      "url": "https://games.crossfit.com/workouts/finals/2026/8?division=18"
+    },
+    "S35": {
+      "title": "CrossFit Open 22.1 스코어카드 PDF",
+      "url": "https://games-assets.crossfit.com/s3fs-public/2022-02/CFG22%2022.1%20Scorecard_Rx-Scaled_V10.pdf"
+    },
+    "S36": {
+      "title": "WodMore: Mayhem Daily WODs",
+      "url": "https://wodmore.com/wod-type/mayhem-daily-wods/"
+    },
+    "S37": {
+      "title": "WodMore: CrossFit.com WOD 240501 (Echo bike 칼로리)",
+      "url": "https://wodmore.com/wods/wednesday-240501/"
+    },
+    "S40": {
+      "title": "CrossFit Games Open 연도별 워크아웃 페이지 2017–2025 (games.crossfit.com/workouts/open/<연도>/<번호>?division=1|2)",
+      "url": "https://games.crossfit.com/workouts/open/2020/1?division=2"
+    },
+    "S41": {
+      "title": "WodMore WOD 아카이브 10,066건(CrossFit.com 메인 사이트 WOD·Mayhem 데일리·Hero·Girl), 공개 WordPress API로 일괄 조회",
+      "url": "https://wodmore.com/wp-json/wp/v2/wods"
+    }
+  },
+  "movements": [
+    {
+      "key": "back_squat",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "백 스쿼트",
+      "name_en": "Back Squat",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–31"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "front_squat",
+        "air_squat"
+      ],
+      "sources": [
+        "S1",
+        "R2",
+        "S41"
+      ],
+      "memo": "스트렝스 메인(oneRmField=squat) | WodMore reps 321건(10–90% 1–31, 극값 1–210) | 남/여 무게 최빈: 135/95 lb 33건, 225/155 lb 27건, 185/135 lb 10건"
+    },
+    {
+      "key": "front_squat",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "프론트 스쿼트",
+      "name_en": "Front Squat",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "15"
+      },
+      "rx": {
+        "female": "65 lb (21.3)",
+        "male": "95 lb (21.3, WOD)"
+      },
+      "scale_to": [
+        "air_squat"
+      ],
+      "sources": [
+        "S1",
+        "R1",
+        "R2",
+        "S30",
+        "S40",
+        "S41"
+      ],
+      "memo": "WodMore reps 314건(10–90% 3–30, 극값 1–100) | 남/여 무게 최빈: 135/95 lb 38건, 185/135 lb 18건, 95/65 lb 11건"
+    },
+    {
+      "key": "squat",
+      "proposed_key": "back_squat",
+      "existing": true,
+      "name_ko": "스쿼트(units.ts 키, 종류 미지정)",
+      "name_en": "Squat (type unspecified)",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–31"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "air_squat"
+      ],
+      "sources": [
+        "R1",
+        "S41"
+      ],
+      "memo": "units.ts 기존 키. back_squat과 같은 동작으로 보이나 키는 유지 | WodMore reps 321건(10–90% 1–31, 극값 1–210) | 남/여 무게 최빈: 135/95 lb 33건, 225/155 lb 27건, 185/135 lb 10건 (값은 back_squat 기준으로 집계)"
+    },
+    {
+      "key": "overhead_squat",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "오버헤드 스쿼트",
+      "name_en": "Overhead Squat",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–30"
+      },
+      "rx": {
+        "female": "65 lb",
+        "male": "95 lb"
+      },
+      "scale_to": [
+        "PVC 오버헤드 스쿼트",
+        "front_squat"
+      ],
+      "sources": [
+        "S1",
+        "S7",
+        "R3",
+        "S30",
+        "S40",
+        "S41"
+      ],
+      "memo": "Nancy Rx | WodMore reps 407건(10–90% 3–30, 극값 1–100) | 남/여 무게 최빈: 95/65 lb 59건, 135/95 lb 33건, 45/35 lb 7건"
+    },
+    {
+      "key": "pause_squat",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "퍼즈 스쿼트",
+      "name_en": "Pause Squat",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "back_squat"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "pin_squat",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "핀 스쿼트",
+      "name_en": "Pin Squat",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "back_squat"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "zercher_squat",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "저처 스쿼트",
+      "name_en": "Zercher Squat",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "front_squat"
+      ],
+      "sources": [
+        "S1"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "deadlift",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "데드리프트",
+      "name_en": "Deadlift",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "9–55"
+      },
+      "rx": {
+        "female": "155 lb (Diane, 25.3) / 125 lb (24.2)",
+        "male": "225 lb (Diane, 25.3) / 185 lb (24.2)"
+      },
+      "scale_to": [
+        "dumbbell_deadlift"
+      ],
+      "sources": [
+        "S1",
+        "S8",
+        "S15",
+        "S17",
+        "R1",
+        "R2",
+        "S30",
+        "S41"
+      ],
+      "memo": "스트렝스는 1RM %, WOD는 고정 무게 | WodMore reps 860건(10–90% 1–30, 극값 1–225) | 남/여 무게 최빈: 225/155 lb 56건, 135/95 lb 40건, 275/185 lb 31건"
+    },
+    {
+      "key": "stiff_leg_deadlift",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "스티프레그 데드리프트",
+      "name_en": "Stiff-Leg Deadlift",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "dumbbell_deadlift"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": "alias rdl → 이 키"
+    },
+    {
+      "key": "deficit_deadlift",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "데피싯 데드리프트",
+      "name_en": "Deficit Deadlift",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "deadlift"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "sumo_deadlift",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스모 데드리프트",
+      "name_en": "Sumo Deadlift",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–50"
+      },
+      "rx": {
+        "female": "65 lb (WodMore 최빈 18건)",
+        "male": "95 lb (WodMore 최빈 18건)"
+      },
+      "scale_to": [
+        "deadlift"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 105건(10–90% 7–50, 극값 1–100) | 남/여 무게 최빈: 95/65 lb 18건, 75/55 lb 8건, 135/95 lb 4건"
+    },
+    {
+      "key": "sumo_deadlift_high_pull",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "스모 데드리프트 하이풀",
+      "name_en": "Sumo Deadlift High Pull",
+      "category": "weightlifting",
+      "pattern": "hinge+pull",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–50"
+      },
+      "rx": {
+        "female": "65 lb (WodMore 최빈 17건)",
+        "male": "95 lb (WodMore 최빈 17건)"
+      },
+      "scale_to": [
+        "kb_swing"
+      ],
+      "sources": [
+        "S1",
+        "R3",
+        "S41"
+      ],
+      "memo": "WodMore reps 131건(10–90% 7–50, 극값 1–100) | 남/여 무게 최빈: 95/65 lb 17건, 75/55 lb 9건, 135/95 lb 4건"
+    },
+    {
+      "key": "good_morning",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "굿모닝",
+      "name_en": "Good Morning",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–30"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 15건(10–90% 7–30, 극값 7–50)"
+    },
+    {
+      "key": "bench_press",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "벤치프레스",
+      "name_en": "Bench Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–30"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "push_up"
+      ],
+      "sources": [
+        "S1",
+        "R2",
+        "S41"
+      ],
+      "memo": "oneRmField=bench | WodMore reps 143건(10–90% 1–30, 극값 1–200) | 남/여 무게 최빈: 135/95 lb 6건, 185/135 lb 2건, 115/75 lb 2건"
+    },
+    {
+      "key": "close_grip_bench",
+      "proposed_key": "close_grip_bench_press",
+      "existing": true,
+      "name_ko": "클로즈 그립 벤치",
+      "name_en": "Close-Grip Bench Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–1 (사례 1건)"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "bench_press"
+      ],
+      "sources": [
+        "R2",
+        "S41"
+      ],
+      "memo": "WodMore reps 1건(10–90% 1–1, 극값 1–1)"
+    },
+    {
+      "key": "incline_bench",
+      "proposed_key": "incline_bench_press",
+      "existing": true,
+      "name_ko": "인클라인 벤치 프레스",
+      "name_en": "Incline Bench Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "bench_press"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "spoto_press",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "스포토 프레스",
+      "name_en": "Spoto Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "bench_press"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "floor_press",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "플로어 프레스",
+      "name_en": "Floor Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "15–30 (사례 3건)"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "bench_press"
+      ],
+      "sources": [
+        "R2",
+        "S41"
+      ],
+      "memo": "WodMore reps 3건(10–90% 15–30, 극값 15–30) | 남/여 무게 최빈: 50/35 lb 1건, 95/65 lb 1건"
+    },
+    {
+      "key": "ohp",
+      "proposed_key": "strict_shoulder_press",
+      "existing": true,
+      "name_ko": "스트릭트 오버헤드 프레스",
+      "name_en": "Strict Shoulder Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–20"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "db_press"
+      ],
+      "sources": [
+        "S1",
+        "R2",
+        "S41"
+      ],
+      "memo": "oneRmField=ohp | WodMore reps 137건(10–90% 1–20, 극값 1–200) | 남/여 무게 최빈: 135/95 lb 5건, 115/80 lb 2건, 115/85 lb 1건"
+    },
+    {
+      "key": "push_press",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "푸시 프레스",
+      "name_en": "Push Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "4–50"
+      },
+      "rx": {
+        "female": "95 lb (WodMore 최빈 22건)",
+        "male": "135 lb (WodMore 최빈 22건)"
+      },
+      "scale_to": [
+        "ohp"
+      ],
+      "sources": [
+        "S1",
+        "R3",
+        "S41"
+      ],
+      "memo": "WodMore reps 320건(10–90% 4–50, 극값 1–125) | 남/여 무게 최빈: 135/95 lb 22건, 95/65 lb 18건, 155/105 lb 10건"
+    },
+    {
+      "key": "push_jerk",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "푸시 저크",
+      "name_en": "Push Jerk",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "4–21"
+      },
+      "rx": {
+        "female": "95 lb (WodMore 최빈 7건)",
+        "male": "135 lb (WodMore 최빈 7건)"
+      },
+      "scale_to": [
+        "push_press"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "기존 alias는 push_jerk→split_jerk 팁으로 매핑. 새 동작 키로 분리 | WodMore reps 143건(10–90% 4–21, 극값 1–50) | 남/여 무게 최빈: 135/95 lb 7건, 185/135 lb 5건, 95/65 lb 3건"
+    },
+    {
+      "key": "split_jerk",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "스플릿 저크",
+      "name_en": "Split Jerk",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–15 (사례 6건)"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "push_jerk"
+      ],
+      "sources": [
+        "S1",
+        "R2",
+        "S41"
+      ],
+      "memo": "WodMore reps 6건(10–90% 1–15, 극값 1–15) | 남/여 무게 최빈: 95/65 lb 1건, 135/95 lb 1건"
+    },
+    {
+      "key": "thruster",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "스러스터",
+      "name_en": "Thruster",
+      "category": "weightlifting",
+      "pattern": "squat+push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–50"
+      },
+      "rx": {
+        "female": "65 lb (Fran) / 35 lb (Jackie)",
+        "male": "95 lb (Fran) / 45 lb (Jackie)"
+      },
+      "scale_to": [
+        "dumbbell_thruster"
+      ],
+      "sources": [
+        "S1",
+        "S2",
+        "S6",
+        "S14",
+        "S18",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "24.3·25.2는 여러 무게 사용(♀65–95/85 lb, ♂95–135 lb) | WodMore reps 656건(10–90% 5–37, 극값 1–100) | 남/여 무게 최빈: 95/65 lb 89건, 135/95 lb 78건, 45/35 lb 18건"
+    },
+    {
+      "key": "clean",
+      "proposed_key": "squat_clean",
+      "existing": true,
+      "name_ko": "클린(units.ts 키, 스타일 미지정)",
+      "name_en": "Clean (style unspecified)",
+      "category": "weightlifting",
+      "pattern": "hinge+squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–30"
+      },
+      "rx": {
+        "female": "95 lb (23.1) / 85 lb (25.3)",
+        "male": "135 lb (23.1, 25.3, Elizabeth)"
+      },
+      "scale_to": [
+        "power_clean",
+        "dumbbell_clean"
+      ],
+      "sources": [
+        "S1",
+        "S12",
+        "S19",
+        "S15",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "squat_clean과 중복 키. 둘 다 유지 | WodMore reps 559건(10–90% 1–30, 극값 1–2011) | 남/여 무게 최빈: 135/95 lb 70건, 155/105 lb 28건, 185/135 lb 18건"
+    },
+    {
+      "key": "squat_clean",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "스쿼트 클린",
+      "name_en": "Squat Clean",
+      "category": "weightlifting",
+      "pattern": "hinge+squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–30"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "power_clean"
+      ],
+      "sources": [
+        "S1",
+        "R2",
+        "S30",
+        "S41"
+      ],
+      "memo": "WOD Rx는 clean 행 참고 | WodMore reps 357건(10–90% 2–20, 극값 1–100) | 남/여 무게 최빈: 135/95 lb 52건, 155/105 lb 26건, 185/135 lb 21건"
+    },
+    {
+      "key": "power_clean",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "파워 클린",
+      "name_en": "Power Clean",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "2–26"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "hang_power_clean"
+      ],
+      "sources": [
+        "S1",
+        "R1",
+        "R2",
+        "S41"
+      ],
+      "memo": "WodMore reps 358건(10–90% 2–26, 극값 1–100) | 남/여 무게 최빈: 135/95 lb 56건, 95/65 lb 17건, 185/125 lb 13건"
+    },
+    {
+      "key": "hang_power_clean",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "행 파워 클린",
+      "name_en": "Hang Power Clean",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–30"
+      },
+      "rx": {
+        "female": "95 lb (WodMore 최빈 16건)",
+        "male": "135 lb (WodMore 최빈 16건)"
+      },
+      "scale_to": [
+        "power_clean"
+      ],
+      "sources": [
+        "S1",
+        "R1",
+        "S41"
+      ],
+      "memo": "WodMore reps 160건(10–90% 5–30, 극값 1–77) | 남/여 무게 최빈: 135/95 lb 16건, 95/65 lb 8건, 115/75 lb 6건"
+    },
+    {
+      "key": "hang_clean",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "행 클린",
+      "name_en": "Hang Clean",
+      "category": "weightlifting",
+      "pattern": "hinge+squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–40"
+      },
+      "rx": {
+        "female": "65 lb (WodMore 최빈 6건)",
+        "male": "95 lb (WodMore 최빈 6건)"
+      },
+      "scale_to": [
+        "hang_power_clean"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "기존 alias hang_clean은 squat_clean으로 매핑 | WodMore reps 39건(10–90% 3–40, 극값 1–50) | 남/여 무게 최빈: 95/65 lb 6건, 135/95 lb 3건, 50/35 lb 2건"
+    },
+    {
+      "key": "split_clean",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스플릿 클린",
+      "name_en": "Split Clean",
+      "category": "weightlifting",
+      "pattern": "hinge+lunge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–15 (사례 2건)"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "power_clean"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 2건(10–90% 6–15, 극값 6–15) | 남/여 무게 최빈: 135/95 lb 1건"
+    },
+    {
+      "key": "clean_jerk",
+      "proposed_key": "clean_and_jerk",
+      "existing": true,
+      "name_ko": "클린 앤 저크",
+      "name_en": "Clean and Jerk",
+      "category": "weightlifting",
+      "pattern": "hinge+squat+push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–30"
+      },
+      "rx": {
+        "female": "95 lb (Grace)",
+        "male": "135 lb (Grace)"
+      },
+      "scale_to": [
+        "power_clean",
+        "push_press"
+      ],
+      "sources": [
+        "S1",
+        "S3",
+        "R3",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 456건(10–90% 3–30, 극값 1–100) | 남/여 무게 최빈: 135/95 lb 70건, 155/105 lb 23건, 95/65 lb 9건"
+    },
+    {
+      "key": "snatch",
+      "proposed_key": "squat_snatch",
+      "existing": true,
+      "name_ko": "스내치(units.ts 키, 스타일 미지정)",
+      "name_en": "Snatch (style unspecified)",
+      "category": "weightlifting",
+      "pattern": "hinge+squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "4–30"
+      },
+      "rx": {
+        "female": "65 lb (25.3), 23.3: 65/95/125/155 lb",
+        "male": "95 lb (25.3), 135 lb (Isabel), 23.3: 95/135/185/225 lb"
+      },
+      "scale_to": [
+        "power_snatch",
+        "dumbbell_snatch"
+      ],
+      "sources": [
+        "S1",
+        "S12",
+        "S15",
+        "S21",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "squat_snatch와 중복 키. Isabel 여자 무게는 원문에 없음 | WodMore reps 303건(10–90% 1–30, 극값 1–100) | 남/여 무게 최빈: 135/95 lb 31건, 95/65 lb 12건, 115/75 lb 8건"
+    },
+    {
+      "key": "squat_snatch",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "스쿼트 스내치",
+      "name_en": "Squat Snatch",
+      "category": "weightlifting",
+      "pattern": "hinge+squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–15"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "power_snatch"
+      ],
+      "sources": [
+        "S1",
+        "R2",
+        "S41"
+      ],
+      "memo": "WOD Rx는 snatch 행 참고 | WodMore reps 116건(10–90% 1–15, 극값 1–30) | 남/여 무게 최빈: 185/135 lb 7건, 95/65 lb 6건, 135/95 lb 6건"
+    },
+    {
+      "key": "power_snatch",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "파워 스내치",
+      "name_en": "Power Snatch",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–15"
+      },
+      "rx": {
+        "female": "55 lb (WOD)",
+        "male": "75 lb (WOD)"
+      },
+      "scale_to": [
+        "hang_power_snatch"
+      ],
+      "sources": [
+        "S1",
+        "R1",
+        "R2",
+        "S30",
+        "S41"
+      ],
+      "memo": " 스트렝스는 1RM % | WodMore reps 183건(10–90% 3–50, 극값 1–100) | 남/여 무게 최빈: 135/95 lb 30건, 95/65 lb 17건, 75/55 lb 11건"
+    },
+    {
+      "key": "hang_power_snatch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "행 파워 스내치",
+      "name_en": "Hang Power Snatch",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–50"
+      },
+      "rx": {
+        "female": "55 lb (WodMore 최빈 4건)",
+        "male": "75 lb (WodMore 최빈 4건)"
+      },
+      "scale_to": [
+        "power_snatch"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 70건(10–90% 3–50, 극값 1–100) | 남/여 무게 최빈: 75/55 lb 4건, 115/80 lb 2건, 95/65 lb 2건"
+    },
+    {
+      "key": "hang_snatch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "행 스내치",
+      "name_en": "Hang Snatch",
+      "category": "weightlifting",
+      "pattern": "hinge+squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–40 (사례 7건)"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "hang_power_snatch"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 7건(10–90% 1–40, 극값 1–40) | 남/여 무게 최빈: 115/75 lb 1건, 75/55 lb 1건, 155/115 lb 1건"
+    },
+    {
+      "key": "split_snatch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스플릿 스내치",
+      "name_en": "Split Snatch",
+      "category": "weightlifting",
+      "pattern": "hinge+lunge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–8 (사례 1건)"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "power_snatch"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 1건(10–90% 8–8, 극값 8–8) | 남/여 무게 최빈: 115/75 lb 1건"
+    },
+    {
+      "key": "muscle_snatch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "머슬 스내치",
+      "name_en": "Muscle Snatch",
+      "category": "weightlifting",
+      "pattern": "pull+push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "2–15 (사례 9건)"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "기술 드릴 | WodMore reps 9건(10–90% 2–15, 극값 2–15)"
+    },
+    {
+      "key": "snatch_balance",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스내치 밸런스",
+      "name_en": "Snatch Balance",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–1 (사례 1건)"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "overhead_squat"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "기술 드릴 | WodMore reps 1건(10–90% 1–1, 극값 1–1) | 남/여 무게 최빈: 315/205 lb 1건"
+    },
+    {
+      "key": "sots_press",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "솟츠 프레스",
+      "name_en": "Sots Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "기술 드릴"
+    },
+    {
+      "key": "barbell_row",
+      "proposed_key": "bent_over_barbell_row",
+      "existing": true,
+      "name_ko": "벤트오버 바벨로우",
+      "name_en": "Bent-Over Barbell Row",
+      "category": "weightlifting",
+      "pattern": "pull",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "21"
+      },
+      "rx": {
+        "female": "95 lb (WodMore 최빈 3건)",
+        "male": "135 lb (WodMore 최빈 3건)"
+      },
+      "scale_to": [
+        "ring_row"
+      ],
+      "sources": [
+        "R2",
+        "S41"
+      ],
+      "memo": "25.2 Foundations에 등장(무게 미표기) | WodMore reps 8건(10–90% 9–30, 극값 9–30) | 남/여 무게 최빈: 135/95 lb 3건, 50/35 lb 1건, 45/35 lb 1건"
+    },
+    {
+      "key": "barbell_front_rack_lunge",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "바벨 프론트랙 런지",
+      "name_en": "Barbell Front-Rack Lunge",
+      "category": "weightlifting",
+      "pattern": "lunge",
+      "equipment": "barbell",
+      "units": [
+        "reps",
+        "m"
+      ],
+      "ranges": {
+        "reps": null,
+        "m": "15 (50 ft)"
+      },
+      "rx": {
+        "female": "65 lb",
+        "male": "95 lb"
+      },
+      "scale_to": [
+        "lunge"
+      ],
+      "sources": [
+        "S1",
+        "S31"
+      ],
+      "memo": "거리/반복 모두 쓰임(단위 제안)"
+    },
+    {
+      "key": "db_press",
+      "proposed_key": "dumbbell_strict_press",
+      "existing": true,
+      "name_ko": "덤벨 스트릭트 프레스",
+      "name_en": "Dumbbell Strict Press",
+      "category": "dumbbell",
+      "pattern": "push",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "R1"
+      ],
+      "memo": "units.ts 기존 키"
+    },
+    {
+      "key": "dumbbell_snatch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 스내치",
+      "name_en": "Dumbbell Snatch",
+      "category": "dumbbell",
+      "pattern": "hinge+push",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "9–50"
+      },
+      "rx": {
+        "female": "35 lb (15 kg)",
+        "male": "50 lb (22.5 kg)"
+      },
+      "scale_to": [
+        "kb_swing"
+      ],
+      "sources": [
+        "S1",
+        "S16",
+        "S22",
+        "S35",
+        "S36",
+        "S41"
+      ],
+      "memo": "팔 교대 Mayhem Compete 70/50 lb 사례(S36) | WodMore reps 145건(10–90% 9–40, 극값 1–100) | 남/여 무게 최빈: 50/35 lb 23건, 70/45 lb 2건, 45/30 lb 2건"
+    },
+    {
+      "key": "dumbbell_power_snatch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 파워 스내치",
+      "name_en": "Dumbbell Power Snatch",
+      "category": "dumbbell",
+      "pattern": "hinge+push",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–20 (사례 8건)"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "dumbbell_snatch"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 8건(10–90% 6–20, 극값 6–20) | 남/여 무게 최빈: 50/35 lb 1건, 55/35 lb 1건"
+    },
+    {
+      "key": "dumbbell_clean",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 클린",
+      "name_en": "Dumbbell Clean",
+      "category": "dumbbell",
+      "pattern": "hinge+squat",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "2–10"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 3건)",
+        "male": "50 lb (WodMore 최빈 3건)"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 36건(10–90% 2–10, 극값 1–60) | 남/여 무게 최빈: 50/35 lb 3건, 45/30 lb 1건, 70/50 lb 1건"
+    },
+    {
+      "key": "dumbbell_power_clean",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 파워 클린",
+      "name_en": "Dumbbell Power Clean",
+      "category": "dumbbell",
+      "pattern": "hinge",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8"
+      },
+      "rx": {
+        "female": "2×35 lb",
+        "male": "2×50 lb"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 17건(10–90% 3–40, 극값 3–116) | 남/여 무게 최빈: 50/35 lb 8건, 40/25 lb 1건"
+    },
+    {
+      "key": "dumbbell_hang_clean",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 행 클린",
+      "name_en": "Dumbbell Hang Clean",
+      "category": "dumbbell",
+      "pattern": "hinge+squat",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–50"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 10건)",
+        "male": "50 lb (WodMore 최빈 10건)"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 23건(10–90% 3–50, 극값 3–100) | 남/여 무게 최빈: 50/35 lb 10건, 80/55 lb 1건, 35/25 lb 1건"
+    },
+    {
+      "key": "dumbbell_hang_power_clean",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 행 파워 클린",
+      "name_en": "Dumbbell Hang Power Clean",
+      "category": "dumbbell",
+      "pattern": "hinge",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "9–15"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 13건(10–90% 9–15, 극값 9–15)"
+    },
+    {
+      "key": "dumbbell_hang_clean_to_overhead",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 행 클린 투 오버헤드",
+      "name_en": "Dumbbell Hang Clean-to-Overhead",
+      "category": "dumbbell",
+      "pattern": "hinge+push",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3+ (라운드마다 +3)"
+      },
+      "rx": {
+        "female": "35 lb (15 kg)",
+        "male": "50 lb (22.5 kg)"
+      },
+      "scale_to": [
+        "dumbbell_hang_power_clean"
+      ],
+      "sources": [
+        "S13",
+        "S40",
+        "S41"
+      ],
+      "memo": "WodMore reps 1건(10–90% 3–3, 극값 3–3)"
+    },
+    {
+      "key": "dumbbell_thruster",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 스러스터",
+      "name_en": "Dumbbell Thruster",
+      "category": "dumbbell",
+      "pattern": "squat+push",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "4"
+      },
+      "rx": {
+        "female": "2×35 lb (20.2)",
+        "male": "2×50 lb (20.2)"
+      },
+      "scale_to": [
+        "air_squat"
+      ],
+      "sources": [
+        "S1",
+        "S30",
+        "S40",
+        "S41"
+      ],
+      "memo": " 여자 무게 미확인 | WodMore reps 122건(10–90% 5–25, 극값 1–76) | 남/여 무게 최빈: 50/35 lb 29건, 55/35 lb 1건, 50/30 lb 1건"
+    },
+    {
+      "key": "dumbbell_front_squat",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 프론트 스쿼트",
+      "name_en": "Dumbbell Front Squat",
+      "category": "dumbbell",
+      "pattern": "squat",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–50"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 9건)",
+        "male": "50 lb (WodMore 최빈 9건)"
+      },
+      "scale_to": [
+        "air_squat"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 14건(10–90% 8–50, 극값 7–50) | 남/여 무게 최빈: 50/35 lb 9건, 35/25 lb 1건"
+    },
+    {
+      "key": "dumbbell_overhead_squat",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 오버헤드 스쿼트",
+      "name_en": "Dumbbell Overhead Squat",
+      "category": "dumbbell",
+      "pattern": "squat",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "2–15"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 4건)",
+        "male": "50 lb (WodMore 최빈 4건)"
+      },
+      "scale_to": [
+        "air_squat"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 13건(10–90% 2–15, 극값 2–40) | 남/여 무게 최빈: 50/35 lb 4건"
+    },
+    {
+      "key": "dumbbell_push_press",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 푸시 프레스",
+      "name_en": "Dumbbell Push Press",
+      "category": "dumbbell",
+      "pattern": "push",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–30"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 9건)",
+        "male": "50 lb (WodMore 최빈 9건)"
+      },
+      "scale_to": [
+        "db_press"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 48건(10–90% 7–30, 극값 5–116) | 남/여 무게 최빈: 50/35 lb 9건, 40/25 lb 2건, 50/30 lb 1건"
+    },
+    {
+      "key": "dumbbell_push_jerk",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 푸시 저크",
+      "name_en": "Dumbbell Push Jerk",
+      "category": "dumbbell",
+      "pattern": "push",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–40"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 2건)",
+        "male": "50 lb (WodMore 최빈 2건)"
+      },
+      "scale_to": [
+        "dumbbell_push_press"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 11건(10–90% 6–40, 극값 5–50) | 남/여 무게 최빈: 50/35 lb 2건"
+    },
+    {
+      "key": "dumbbell_deadlift",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 데드리프트",
+      "name_en": "Dumbbell Deadlift",
+      "category": "dumbbell",
+      "pattern": "hinge",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–50"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 6건)",
+        "male": "50 lb (WodMore 최빈 6건)"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 37건(10–90% 5–50, 극값 5–50) | 남/여 무게 최빈: 50/35 lb 6건, 45/25 lb 1건, 75/55 lb 1건"
+    },
+    {
+      "key": "dumbbell_front_rack_lunge",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 프론트랙 런지",
+      "name_en": "Dumbbell Front-Rack Lunge",
+      "category": "dumbbell",
+      "pattern": "lunge",
+      "equipment": "dumbbell",
+      "units": [
+        "reps",
+        "m"
+      ],
+      "ranges": {
+        "reps": "12–12 (사례 2건)",
+        "m": "7.6–15 (25–50 ft)"
+      },
+      "rx": {
+        "female": "35 lb (2×35)",
+        "male": "50 lb (2×50)"
+      },
+      "scale_to": [
+        "lunge"
+      ],
+      "sources": [
+        "S1",
+        "S30",
+        "S32",
+        "S41"
+      ],
+      "memo": "단위 제안 | WodMore reps 2건(10–90% 12–12, 극값 12–12); WodMore m 16건(10–90% 10–100, 극값 10–100)"
+    },
+    {
+      "key": "dumbbell_overhead_walking_lunge",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 오버헤드 워킹 런지",
+      "name_en": "Dumbbell Overhead Walking Lunge",
+      "category": "dumbbell",
+      "pattern": "lunge",
+      "equipment": "dumbbell",
+      "units": [
+        "reps",
+        "m"
+      ],
+      "ranges": {
+        "reps": "12–12 (사례 3건)",
+        "m": "61 (200 ft)"
+      },
+      "rx": {
+        "female": null,
+        "male": "50 lb"
+      },
+      "scale_to": [
+        "lunge"
+      ],
+      "sources": [
+        "S1",
+        "S30",
+        "S41"
+      ],
+      "memo": "단위 제안 | WodMore reps 3건(10–90% 12–12, 극값 12–12); WodMore m 8건(10–90% 20–50, 극값 20–50) | 남/여 무게 최빈: 80/55 lb 2건, 50/40 lb 1건, 50/35 lb 1건"
+    },
+    {
+      "key": "dumbbell_farmers_carry",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 파머스 캐리",
+      "name_en": "Dumbbell Farmer's Carry",
+      "category": "strongman",
+      "pattern": "carry",
+      "equipment": "dumbbell",
+      "units": [
+        "m",
+        "sec"
+      ],
+      "ranges": {
+        "m": "30–400",
+        "sec": null
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 3건)",
+        "male": "45 lb (WodMore 최빈 3건)"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "reps 불가(단위 제안) | WodMore m 86건(10–90% 30–400, 극값 10–1609) | 남/여 무게 최빈: 45/35 lb 3건, 35/25 lb 3건, 135/95 lb 3건"
+    },
+    {
+      "key": "dumbbell_turkish_get_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 터키시 겟업",
+      "name_en": "Dumbbell Turkish Get-up",
+      "category": "dumbbell",
+      "pattern": "core",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–10 (사례 8건)"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 8건(10–90% 6–10, 극값 6–10)"
+    },
+    {
+      "key": "kb_swing",
+      "proposed_key": "american_kettlebell_swing",
+      "existing": true,
+      "name_ko": "케틀벨 스윙(범용)",
+      "name_en": "Kettlebell Swing (generic)",
+      "category": "kettlebell",
+      "pattern": "hinge",
+      "equipment": "kettlebell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "15–21"
+      },
+      "rx": {
+        "female": "35 lb (Helen)",
+        "male": "53 lb / 1.5 pood (Helen)"
+      },
+      "scale_to": [
+        "dumbbell_deadlift"
+      ],
+      "sources": [
+        "S1",
+        "S5",
+        "S12",
+        "R1",
+        "S41"
+      ],
+      "memo": "units.ts: cal 금지. Helen 초보 15회 | WodMore reps 659건(10–90% 8–57, 극값 1–300) | 남/여 무게 최빈: 53/35 lb 50건, 70/53 lb 33건, 55/35 lb 13건"
+    },
+    {
+      "key": "kettlebell",
+      "proposed_key": "(동작 지정 필요: american_kettlebell_swing 등)",
+      "existing": true,
+      "name_ko": "케틀벨(units.ts 키)",
+      "name_en": "Kettlebell (generic)",
+      "category": "kettlebell",
+      "pattern": "hinge",
+      "equipment": "kettlebell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–57"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 50건)",
+        "male": "53 lb (WodMore 최빈 50건)"
+      },
+      "scale_to": [],
+      "sources": [
+        "R1",
+        "S41"
+      ],
+      "memo": "units.ts 기존 범용 키 | WodMore reps 659건(10–90% 8–57, 극값 1–300) | 남/여 무게 최빈: 53/35 lb 50건, 70/53 lb 33건, 55/35 lb 13건 (값은 kb_swing 기준으로 집계)"
+    },
+    {
+      "key": "kettlebell_snatch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "케틀벨 스내치",
+      "name_en": "Kettlebell Snatch",
+      "category": "kettlebell",
+      "pattern": "hinge+push",
+      "equipment": "kettlebell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "4–21"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 7건)",
+        "male": "53 lb (WodMore 최빈 7건)"
+      },
+      "scale_to": [
+        "kb_swing"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 52건(10–90% 4–21, 극값 2–45) | 남/여 무게 최빈: 53/35 lb 7건, 70/53 lb 2건, 50/35 lb 1건"
+    },
+    {
+      "key": "slam_ball",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "슬램볼",
+      "name_en": "Slam Ball",
+      "category": "strongman",
+      "pattern": "hinge",
+      "equipment": "slam_ball",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–50"
+      },
+      "rx": {
+        "female": "20 lb (WodMore 최빈 9건)",
+        "male": "30 lb (WodMore 최빈 9건)"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "장비 enum에 없음 → 추가 필요 | WodMore reps 31건(10–90% 10–50, 극값 8–150) | 남/여 무게 최빈: 30/20 lb 9건, 50/30 lb 4건, 40/30 lb 3건"
+    },
+    {
+      "key": "medicine_ball_clean",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "메디신볼 클린",
+      "name_en": "Medicine-Ball Clean",
+      "category": "weightlifting",
+      "pattern": "hinge+squat",
+      "equipment": "wall_ball",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–50"
+      },
+      "rx": {
+        "female": "14 lb (WodMore 최빈 4건)",
+        "male": "20 lb (WodMore 최빈 4건)"
+      },
+      "scale_to": [
+        "air_squat"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 62건(10–90% 10–50, 극값 5–100) | 남/여 무게 최빈: 20/14 lb 4건, 150/80 lb 1건, 20/16 lb 1건"
+    },
+    {
+      "key": "wall_ball",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "월볼 샷",
+      "name_en": "Wall-Ball Shot",
+      "category": "weightlifting",
+      "pattern": "squat+push",
+      "equipment": "wall_ball",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "15–150"
+      },
+      "rx": {
+        "female": "14 lb ball, 9 ft target",
+        "male": "20 lb ball, 10 ft target"
+      },
+      "scale_to": [
+        "air_squat"
+      ],
+      "sources": [
+        "S1",
+        "S4",
+        "S19",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 783건(10–90% 10–100, 극값 2–300) | 남/여 무게 최빈: 20/14 lb 243건, 30/20 lb 31건, 20/16 lb 2건"
+    },
+    {
+      "key": "air_squat",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "에어 스쿼트",
+      "name_en": "Air Squat",
+      "category": "gymnastics",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "15–300"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S10",
+        "S11",
+        "R3",
+        "S41"
+      ],
+      "memo": "Murph 300, Cindy 15 | WodMore reps 417건(10–90% 10–100, 극값 1–1442)"
+    },
+    {
+      "key": "pistol",
+      "proposed_key": "pistol_squat",
+      "existing": true,
+      "name_ko": "피스톨 스쿼트",
+      "name_en": "Single-Leg Squat (Pistol Squat)",
+      "category": "gymnastics",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–30"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "lunge"
+      ],
+      "sources": [
+        "S1",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 162건(10–90% 10–60, 극값 4–200) | 남/여 무게 최빈: 65/45 lb 1건"
+    },
+    {
+      "key": "lunge",
+      "proposed_key": "walking_lunge",
+      "existing": true,
+      "name_ko": "런지(범용)",
+      "name_en": "Lunge (generic)",
+      "category": "gymnastics",
+      "pattern": "lunge",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–52"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S13",
+        "R1",
+        "S32",
+        "S41"
+      ],
+      "memo": "25.1은 30 ft 거리로 처방 → units.ts는 reps만 허용(거리 단위 추가 검토) Mayhem: 25 ft ≈ 제자리 8회 | WodMore reps 159건(10–90% 10–52, 극값 5–612) | 남/여 무게 최빈: 45/25 lb 9건, 50/35 lb 5건, 45/35 lb 4건 (값은 walking_lunge 기준으로 집계)"
+    },
+    {
+      "key": "push_up",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "푸시업",
+      "name_en": "Push-up",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–200"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "무릎/손 높인 푸시업"
+      ],
+      "sources": [
+        "S1",
+        "S10",
+        "S11",
+        "R1",
+        "S41"
+      ],
+      "memo": "Murph 200 | WodMore reps 1100건(10–90% 8–100, 극값 1–400) | 남/여 무게 최빈: 30/20 lb 1건, 20/14 lb 1건, 70/50 lb 1건"
+    },
+    {
+      "key": "ring_push_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "링 푸시업",
+      "name_en": "Ring Push-up",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "rings",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–40"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "push_up"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 30건(10–90% 7–40, 극값 3–50)"
+    },
+    {
+      "key": "dip",
+      "proposed_key": "bar_dip",
+      "existing": true,
+      "name_ko": "딥",
+      "name_en": "Dip",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "13–13 (사례 1건)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "push_up"
+      ],
+      "sources": [
+        "S1",
+        "R1",
+        "S41"
+      ],
+      "memo": "WodMore reps 1건(10–90% 13–13, 극값 13–13) (값은 bar_dip 기준으로 집계)"
+    },
+    {
+      "key": "ring_dip",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "링 딥",
+      "name_en": "Ring Dip",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "rings",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–41"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "dip"
+      ],
+      "sources": [
+        "S1",
+        "S12",
+        "R1",
+        "S41"
+      ],
+      "memo": "Elizabeth 21-15-9 | WodMore reps 203건(10–90% 6–41, 극값 1–400) | 남/여 무게 최빈: 20/15 lb 1건"
+    },
+    {
+      "key": "handstand_push_up",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "핸드스탠드 푸시업",
+      "name_en": "Handstand Push-up",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "9–55"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "파이크 푸시업",
+        "db_press"
+      ],
+      "sources": [
+        "S1",
+        "S8",
+        "R3",
+        "S30",
+        "S41"
+      ],
+      "memo": "hspu와 중복 키 | WodMore reps 827건(10–90% 4–30, 극값 1–100)"
+    },
+    {
+      "key": "hspu",
+      "proposed_key": "handstand_push_up",
+      "existing": true,
+      "name_ko": "핸드스탠드 푸시업(units.ts 키, 줄임말)",
+      "name_en": "Handstand Push-up",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "9–55"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "파이크 푸시업"
+      ],
+      "sources": [
+        "S8",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 827건(10–90% 4–30, 극값 1–100) (값은 handstand_push_up 기준으로 집계)"
+    },
+    {
+      "key": "strict_handstand_push_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스트릭트 핸드스탠드 푸시업",
+      "name_en": "Strict Handstand Push-up",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "20–50"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "hspu"
+      ],
+      "sources": [
+        "S1",
+        "S21",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 125건(10–90% 3–30, 극값 1–100)"
+    },
+    {
+      "key": "kipping_handstand_push_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "키핑 핸드스탠드 푸시업",
+      "name_en": "Kipping Handstand Push-up",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–50"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "hspu"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 14건(10–90% 6–50, 극값 5–50)"
+    },
+    {
+      "key": "deficit_handstand_push_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "데피싯 핸드스탠드 푸시업",
+      "name_en": "Kipping Deficit Handstand Push-up",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–8 (사례 1건)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "hspu"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 1건(10–90% 8–8, 극값 8–8)"
+    },
+    {
+      "key": "chest_to_wall_handstand_push_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "체스트 투 월 핸드스탠드 푸시업",
+      "name_en": "Chest-to-Wall Handstand Push-up",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–21 (사례 4건)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "hspu"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 4건(10–90% 10–21, 극값 10–21)"
+    },
+    {
+      "key": "freestanding_handstand_push_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "프리스탠딩 핸드스탠드 푸시업",
+      "name_en": "Freestanding Handstand Push-up",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "4–8 (사례 6건)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "hspu"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 6건(10–90% 4–8, 극값 4–8)"
+    },
+    {
+      "key": "handstand",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "핸드스탠드 홀드",
+      "name_en": "Handstand (hold)",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": null
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "wall_walk"
+      ],
+      "sources": [
+        "S1",
+        "R1"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "handstand_walk",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "핸드스탠드 워크",
+      "name_en": "Handstand Walk",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "m"
+      ],
+      "ranges": {
+        "m": "15–61 (50–200 ft)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "wall_walk"
+      ],
+      "sources": [
+        "S1",
+        "S30",
+        "S41"
+      ],
+      "memo": "단위 제안(m) | WodMore m 172건(10–90% 9–61, 극값 3–400)"
+    },
+    {
+      "key": "wall_walk",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "월 워크",
+      "name_en": "Wall Walk",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S15",
+        "S21",
+        "S41"
+      ],
+      "memo": "25.3 시작선 ♀55 in ♂60 in | WodMore reps 86건(10–90% 1–10, 극값 1–21)"
+    },
+    {
+      "key": "pull_up",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "풀업",
+      "name_en": "Pull-up",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–100"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "ring_row",
+        "점핑 풀업"
+      ],
+      "sources": [
+        "S1",
+        "S2",
+        "S5",
+        "S10",
+        "S11",
+        "R1",
+        "S41"
+      ],
+      "memo": "Murph 100 | WodMore reps 1586건(10–90% 5–50, 극값 1–300)"
+    },
+    {
+      "key": "strict_pull_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스트릭트 풀업",
+      "name_en": "Strict Pull-up",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–40"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "ring_row"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "기존 alias strict_pull_up→pull_up | WodMore reps 157건(10–90% 3–40, 극값 1–50)"
+    },
+    {
+      "key": "kipping_pull_up",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "키핑 풀업",
+      "name_en": "Kipping Pull-up",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–40"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "pull_up"
+      ],
+      "sources": [
+        "S1",
+        "R1",
+        "S41"
+      ],
+      "memo": "WodMore reps 24건(10–90% 6–40, 극값 5–80)"
+    },
+    {
+      "key": "butterfly_pull_up",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "버터플라이 풀업",
+      "name_en": "Butterfly Pull-up",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "kipping_pull_up"
+      ],
+      "sources": [
+        "S1",
+        "R3"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "chin_up",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "친업",
+      "name_en": "Chin-up",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "20–20 (사례 1건)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "ring_row"
+      ],
+      "sources": [
+        "R2",
+        "S41"
+      ],
+      "memo": "WodMore reps 1건(10–90% 20–20, 극값 20–20)"
+    },
+    {
+      "key": "chest_to_bar_pull_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "체스트 투 바 풀업",
+      "name_en": "Chest-to-Bar Pull-up",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–30"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "pull_up"
+      ],
+      "sources": [
+        "S1",
+        "S14",
+        "S18",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 374건(10–90% 5–30, 극값 2–120)"
+    },
+    {
+      "key": "l_pull_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "L 풀업",
+      "name_en": "L Pull-up",
+      "category": "gymnastics",
+      "pattern": "pull+core",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–40"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "pull_up"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 170건(10–90% 7–40, 극값 1–100)"
+    },
+    {
+      "key": "ring_row",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "링 로우",
+      "name_en": "Ring Row",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "rings",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–21"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S2",
+        "S11",
+        "R1",
+        "S41"
+      ],
+      "memo": "Fran·Murph 초보 대체 | WodMore reps 81건(10–90% 3–25, 극값 2–50)"
+    },
+    {
+      "key": "muscle_up",
+      "proposed_key": "ring_muscle_up",
+      "existing": true,
+      "name_ko": "링 머슬업",
+      "name_en": "Ring Muscle-up",
+      "category": "gymnastics",
+      "pattern": "pull+push",
+      "equipment": "rings",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–40"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "chest_to_bar_pull_up + ring_dip"
+      ],
+      "sources": [
+        "S1",
+        "S19",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 531건(10–90% 2–30, 극값 1–883)"
+    },
+    {
+      "key": "strict_muscle_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스트릭트 머슬업",
+      "name_en": "Strict Muscle-up",
+      "category": "gymnastics",
+      "pattern": "pull+push",
+      "equipment": "rings",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "2–30"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "muscle_up"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 35건(10–90% 2–30, 극값 1–30)"
+    },
+    {
+      "key": "bar_muscle_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "바 머슬업",
+      "name_en": "Bar Muscle-up",
+      "category": "gymnastics",
+      "pattern": "pull+push",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–30"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "chest_to_bar_pull_up"
+      ],
+      "sources": [
+        "S1",
+        "S14",
+        "S18",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 190건(10–90% 3–20, 극값 1–50)"
+    },
+    {
+      "key": "strict_bar_muscle_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스트릭트 바 머슬업",
+      "name_en": "Strict Bar Muscle-up",
+      "category": "gymnastics",
+      "pattern": "pull+push",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–10 (사례 2건)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "bar_muscle_up"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 2건(10–90% 3–10, 극값 3–10)"
+    },
+    {
+      "key": "rope_climb",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "로프 클라임",
+      "name_en": "Rope Climb",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "rope",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–7"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "modified_rope_climb"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "장비 enum에 없음 | WodMore reps 497건(10–90% 1–7, 극값 1–40)"
+    },
+    {
+      "key": "legless_rope_climb",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "레그리스 로프 클라임",
+      "name_en": "Legless Rope Climb",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "rope",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–4"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "rope_climb"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 82건(10–90% 1–4, 극값 1–10)"
+    },
+    {
+      "key": "modified_rope_climb",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "모디파이드 로프 클라임",
+      "name_en": "Modified Rope Climb",
+      "category": "gymnastics",
+      "pattern": "pull",
+      "equipment": "rope",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "ring_row"
+      ],
+      "sources": [
+        "S1"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "toes_to_bar",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "토즈 투 바",
+      "name_en": "Toes-to-Bar",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–50"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "knee_raise"
+      ],
+      "sources": [
+        "S1",
+        "S19",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 463건(10–90% 8–50, 극값 1–125)"
+    },
+    {
+      "key": "strict_toes_to_bar",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스트릭트 토즈 투 바",
+      "name_en": "Strict Toes-to-Bar",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–20"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "knee_raise"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 14건(10–90% 5–20, 극값 3–30)"
+    },
+    {
+      "key": "knee_raise",
+      "proposed_key": "hanging_knee_raise",
+      "existing": true,
+      "name_ko": "행잉 니 레이즈",
+      "name_en": "Hanging Knee Raise",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–40"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "sit_up"
+      ],
+      "sources": [
+        "S1",
+        "R3",
+        "S41"
+      ],
+      "memo": "기존 alias kte→이 키 | WodMore reps 62건(10–90% 6–40, 극값 3–50)"
+    },
+    {
+      "key": "sit_up",
+      "proposed_key": "abmat_sit_up",
+      "existing": true,
+      "name_ko": "싯업(AbMat)",
+      "name_en": "AbMat Sit-up",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–50"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S9",
+        "R1",
+        "S31",
+        "S41"
+      ],
+      "memo": "Annie | WodMore reps 830건(10–90% 10–100, 극값 1–1000) | 남/여 무게 최빈: 20/14 lb 5건, 45/25 lb 1건"
+    },
+    {
+      "key": "glute_ham_developer_sit_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "글루트 햄 디벨로퍼 싯업",
+      "name_en": "Glute-Ham Developer Sit-up",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "glute_ham_developer",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–50"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "sit_up"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "장비 enum에 없음 | WodMore reps 431건(10–90% 10–50, 극값 2–150) | 남/여 무게 최빈: 20/14 lb 1건, 30/20 lb 1건"
+    },
+    {
+      "key": "glute_ham_developer_hip_back_extension",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "글루트 햄 디벨로퍼 힙·백 익스텐션",
+      "name_en": "Glute-Ham Developer Hip and Back Extension",
+      "category": "gymnastics",
+      "pattern": "hinge",
+      "equipment": "glute_ham_developer",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "15–50"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "good_morning"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 363건(10–90% 15–50, 극값 2–100) | 남/여 무게 최빈: 25/10 lb 1건"
+    },
+    {
+      "key": "l_sit",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "L-싯",
+      "name_en": "L-sit",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "10–60"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "단위 제안(sec) | WodMore sec 64건(10–90% 10–60, 극값 3–60)"
+    },
+    {
+      "key": "hanging_l_sit",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "행잉 L-싯",
+      "name_en": "Hanging L-sit",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "pullup_bar",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": null
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "l_sit"
+      ],
+      "sources": [
+        "S1"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "windshield_wiper",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "윈드실드 와이퍼",
+      "name_en": "Windshield Wiper",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": ""
+    },
+    {
+      "key": "abs",
+      "proposed_key": "(동작 지정 필요)",
+      "existing": true,
+      "name_ko": "복근 운동(범용)",
+      "name_en": "Abs (generic)",
+      "category": "accessory",
+      "pattern": "core",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "R2"
+      ],
+      "memo": "기존 범용 키"
+    },
+    {
+      "key": "burpee",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "버피",
+      "name_en": "Burpee",
+      "category": "gymnastics",
+      "pattern": "squat+push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–21"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "R1",
+        "S16",
+        "S41"
+      ],
+      "memo": "WodMore reps 1553건(10–90% 5–50, 극값 1–340) | 남/여 무게 최빈: 185/135 lb 1건, 20/14 lb 1건, 30/20 lb 1건"
+    },
+    {
+      "key": "lateral_burpee_over_dumbbell",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 넘는 래터럴 버피",
+      "name_en": "Lateral Burpee Over Dumbbell",
+      "category": "gymnastics",
+      "pattern": "squat+push",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–21"
+      },
+      "rx": {
+        "female": "35 lb Dumbbell",
+        "male": "50 lb Dumbbell"
+      },
+      "scale_to": [
+        "burpee"
+      ],
+      "sources": [
+        "S13",
+        "S16",
+        "S41"
+      ],
+      "memo": "WodMore reps 10건(10–90% 8–21, 극값 3–21)"
+    },
+    {
+      "key": "burpee_box_jump_over",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "버피 박스 점프 오버",
+      "name_en": "Burpee Box Jump-over",
+      "category": "gymnastics",
+      "pattern": "squat+jump",
+      "equipment": "box",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "15"
+      },
+      "rx": {
+        "female": "20 in box",
+        "male": "24 in box"
+      },
+      "scale_to": [
+        "burpee",
+        "박스 스텝오버"
+      ],
+      "sources": [
+        "S1",
+        "S22",
+        "S41"
+      ],
+      "memo": "WodMore reps 128건(10–90% 6–39, 극값 2–100)"
+    },
+    {
+      "key": "burpee_pull_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "버피 풀업",
+      "name_en": "Burpee Pull-up",
+      "category": "gymnastics",
+      "pattern": "push+pull",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5+ (라운드마다 +5)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "burpee"
+      ],
+      "sources": [
+        "S20",
+        "S41"
+      ],
+      "memo": "WodMore reps 83건(10–90% 5–100, 극값 3–200)"
+    },
+    {
+      "key": "box_jump",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "박스 점프",
+      "name_en": "Box Jump",
+      "category": "gymnastics",
+      "pattern": "jump",
+      "equipment": "box",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "15–30"
+      },
+      "rx": {
+        "female": "20 in (17.1 기준 박스 높이)",
+        "male": "24 in (17.1 기준 박스 높이)"
+      },
+      "scale_to": [
+        "box_step_up"
+      ],
+      "sources": [
+        "S1",
+        "S22",
+        "R1",
+        "S30",
+        "S35",
+        "S41"
+      ],
+      "memo": "박스 높이는 17.1 Burpee Box Jump-over 기준 | WodMore reps 777건(10–90% 9–50, 극값 2–200)"
+    },
+    {
+      "key": "box_step_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "박스 스텝업",
+      "name_en": "Box Step-up",
+      "category": "gymnastics",
+      "pattern": "lunge",
+      "equipment": "box",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–100"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 4건)",
+        "male": "45 lb (WodMore 최빈 4건)"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "WodMore reps 76건(10–90% 10–100, 극값 3–1000) | 남/여 무게 최빈: 45/35 lb 4건, 18/12 lb 1건, 55/35 lb 1건"
+    },
+    {
+      "key": "double_under",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "더블 언더",
+      "name_en": "Double-under",
+      "category": "monostructural",
+      "pattern": "jump",
+      "equipment": "jump_rope",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–210"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "single_under (2~3배)"
+      ],
+      "sources": [
+        "S1",
+        "S9",
+        "S14",
+        "S17",
+        "S21",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "units.ts는 reps만, sec는 prescriptionAmountIssue에서 허용. cal 불가 | WodMore reps 1042건(10–90% 20–100, 극값 3–1000)"
+    },
+    {
+      "key": "single_under",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "싱글 언더",
+      "name_en": "Single-under",
+      "category": "monostructural",
+      "pattern": "jump",
+      "equipment": "jump_rope",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–150"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S9",
+        "S17",
+        "S31",
+        "S41"
+      ],
+      "memo": "Annie 초보 35-25-15-10-5 | WodMore reps 129건(10–90% 20–100, 극값 9–2016)"
+    },
+    {
+      "key": "row",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "로잉",
+      "name_en": "Row (Concept2)",
+      "category": "monostructural",
+      "pattern": "pull",
+      "equipment": "rower",
+      "units": [
+        "cal",
+        "m"
+      ],
+      "ranges": {
+        "cal": "12–80",
+        "m": "250–1000"
+      },
+      "rx": {
+        "female": "50 cal (25.3) / 60 cal (23.1)",
+        "male": "50 cal (25.3) / 60 cal (23.1)"
+      },
+      "scale_to": [
+        "run",
+        "bike"
+      ],
+      "sources": [
+        "S1",
+        "S6",
+        "S12",
+        "S15",
+        "S17",
+        "S19",
+        "R1",
+        "S30",
+        "S31",
+        "S41"
+      ],
+      "memo": "칼로리는 남녀 같은 값으로 처방된 사례만 확인. reps 불가. sec는 prescriptionAmountIssue에서 허용 칼로리 남녀 쌍 예: 15/12 cal(S31 환산표). Open은 남녀 같은 칼로리 | WodMore cal 298건(10–90% 15–80, 극값 1–153); WodMore m 1112건(10–90% 300–2000, 극값 96–42195) | 남/여 무게 최빈: 50/35 lb 1건"
+    },
+    {
+      "key": "run",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "달리기",
+      "name_en": "Run",
+      "category": "monostructural",
+      "pattern": "run",
+      "equipment": "bodyweight",
+      "units": [
+        "m"
+      ],
+      "ranges": {
+        "m": "200–1609"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "row"
+      ],
+      "sources": [
+        "S5",
+        "S7",
+        "S11",
+        "R1",
+        "S41"
+      ],
+      "memo": "Murph 1 mile ≈ 1609 m | WodMore m 2772건(10–90% 200–1500, 극값 25–16090) | 남/여 무게 최빈: 20/14 lb 18건, 45/35 lb 8건, 35/25 lb 8건"
+    },
+    {
+      "key": "shuttle_run",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "셔틀런",
+      "name_en": "Shuttle Run",
+      "category": "monostructural",
+      "pattern": "run",
+      "equipment": "bodyweight",
+      "units": [
+        "reps",
+        "m"
+      ],
+      "ranges": {
+        "reps": "10",
+        "m": "8–305"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "run"
+      ],
+      "sources": [
+        "S20",
+        "S41"
+      ],
+      "memo": "23.2: 1 rep = 25 ft 왕복 50 ft(15.24 m) | WodMore reps 37건(10–90% 1–50, 극값 1–50); WodMore m 10건(10–90% 8–305, 극값 8–305)"
+    },
+    {
+      "key": "ski",
+      "proposed_key": "ski_erg",
+      "existing": true,
+      "name_ko": "스키 에르그(units.ts 키, 줄임말)",
+      "name_en": "SkiErg",
+      "category": "monostructural",
+      "pattern": "pull",
+      "equipment": "ski",
+      "units": [
+        "cal",
+        "m"
+      ],
+      "ranges": {
+        "cal": "8–20",
+        "m": "200–2000"
+      },
+      "rx": {
+        "female": "9 cal (Mayhem 12/9)",
+        "male": "12 cal (Mayhem 12/9)"
+      },
+      "scale_to": [
+        "row"
+      ],
+      "sources": [
+        "R1",
+        "S32",
+        "S33",
+        "S31",
+        "S41"
+      ],
+      "memo": "ski_erg와 중복 키 Games 2022 8→18 cal 증가식 | WodMore cal 18건(10–90% 15–200, 극값 10–200); WodMore m 28건(10–90% 200–2000, 극값 200–5000) (값은 ski_erg 기준으로 집계)"
+    },
+    {
+      "key": "ski_erg",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "스키 에르그(별칭 키)",
+      "name_en": "SkiErg",
+      "category": "monostructural",
+      "pattern": "pull",
+      "equipment": "ski",
+      "units": [
+        "cal",
+        "m"
+      ],
+      "ranges": {
+        "cal": "8–20",
+        "m": "200–2000"
+      },
+      "rx": {
+        "female": "9 cal (Mayhem 12/9)",
+        "male": "12 cal (Mayhem 12/9)"
+      },
+      "scale_to": [
+        "row"
+      ],
+      "sources": [
+        "R1",
+        "S32",
+        "S33",
+        "S31",
+        "S41"
+      ],
+      "memo": "WodMore cal 18건(10–90% 15–200, 극값 10–200); WodMore m 28건(10–90% 200–2000, 극값 200–5000)"
+    },
+    {
+      "key": "fan_bike",
+      "proposed_key": "(assault_bike 또는 echo_bike로 지정)",
+      "existing": true,
+      "name_ko": "팬 바이크",
+      "name_en": "Fan Bike",
+      "category": "monostructural",
+      "pattern": "cycle",
+      "equipment": "bike",
+      "units": [
+        "cal"
+      ],
+      "ranges": {
+        "cal": "10–90"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "row"
+      ],
+      "sources": [
+        "R1",
+        "S41"
+      ],
+      "memo": "남녀 칼로리 미확인 | WodMore cal 100건(10–90% 10–90, 극값 5–1000) (값은 assault_bike 기준으로 집계)"
+    },
+    {
+      "key": "assault_bike",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "어썰트 바이크",
+      "name_en": "Assault AirBike",
+      "category": "monostructural",
+      "pattern": "cycle",
+      "equipment": "bike",
+      "units": [
+        "cal"
+      ],
+      "ranges": {
+        "cal": "6–120"
+      },
+      "rx": {
+        "female": "12 cal (Mayhem 15/12)",
+        "male": "15 cal (Mayhem 15/12)"
+      },
+      "scale_to": [
+        "row"
+      ],
+      "sources": [
+        "R1",
+        "S31",
+        "S41"
+      ],
+      "memo": " 범위는 Mayhem 환산표 값 | WodMore cal 100건(10–90% 10–90, 극값 5–1000)"
+    },
+    {
+      "key": "echo_bike",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "에코 바이크",
+      "name_en": "Rogue Echo Bike",
+      "category": "monostructural",
+      "pattern": "cycle",
+      "equipment": "bike",
+      "units": [
+        "cal"
+      ],
+      "ranges": {
+        "cal": "7–40"
+      },
+      "rx": {
+        "female": "25 / 15 cal (Games 2022: 30/25, 20/15 남/여)",
+        "male": "30 / 20 cal (Games 2022)"
+      },
+      "scale_to": [
+        "row"
+      ],
+      "sources": [
+        "R1",
+        "S33",
+        "S34",
+        "S37",
+        "S31",
+        "S41"
+      ],
+      "memo": " Mayhem 환산: row 15/12 cal ≈ echo 11/9 | WodMore cal 11건(10–90% 10–20, 극값 10–81)"
+    },
+    {
+      "key": "bike",
+      "proposed_key": "bike_erg",
+      "existing": true,
+      "name_ko": "바이크(범용)",
+      "name_en": "Bike (generic)",
+      "category": "monostructural",
+      "pattern": "cycle",
+      "equipment": "bike",
+      "units": [
+        "cal",
+        "m"
+      ],
+      "ranges": {
+        "cal": "20–100",
+        "m": "1000–2000"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "row"
+      ],
+      "sources": [
+        "R1",
+        "S31",
+        "S41"
+      ],
+      "memo": " 바이크 에르그 환산: 400 m run ≈ 1,000/800 m bike erg (S31) | WodMore cal 14건(10–90% 20–100, 극값 18–120); WodMore m 32건(10–90% 1000–2000, 극값 500–6000) (값은 bike_erg 기준으로 집계)"
+    },
+    {
+      "key": "face_pull",
+      "proposed_key": null,
+      "existing": true,
+      "name_ko": "페이스풀",
+      "name_en": "Face Pull",
+      "category": "accessory",
+      "pattern": "pull",
+      "equipment": "cable",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "R2"
+      ],
+      "memo": "장비 enum에 없음"
+    },
+    {
+      "key": "free_accessory",
+      "proposed_key": "(동작 지정 필요)",
+      "existing": true,
+      "name_ko": "자유 보조운동",
+      "name_en": "Free Accessory",
+      "category": "accessory",
+      "pattern": "-",
+      "equipment": "-",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "R2"
+      ],
+      "memo": "기존 범용 키"
+    },
+    {
+      "key": "ground_to_overhead",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "그라운드 투 오버헤드",
+      "name_en": "Ground-to-Overhead",
+      "category": "weightlifting",
+      "pattern": "hinge+squat+push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8"
+      },
+      "rx": {
+        "female": "65 lb (20.1)",
+        "male": "95 lb (20.1)"
+      },
+      "scale_to": [
+        "power_clean + push_press"
+      ],
+      "sources": [
+        "S30",
+        "S40",
+        "S41"
+      ],
+      "memo": "20.1 남자 무게만 확인 | WodMore reps 63건(10–90% 8–50, 극값 2–101) | 남/여 무게 최빈: 135/95 lb 6건, 95/65 lb 6건, 45/25 lb 5건"
+    },
+    {
+      "key": "shoulder_to_overhead",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "숄더 투 오버헤드",
+      "name_en": "Shoulder-to-Overhead",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5"
+      },
+      "rx": {
+        "female": "75 lb",
+        "male": "115 lb"
+      },
+      "scale_to": [
+        "push_press"
+      ],
+      "sources": [
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 171건(10–90% 5–40, 극값 1–100) | 남/여 무게 최빈: 135/95 lb 21건, 50/35 lb 11건, 95/65 lb 7건"
+    },
+    {
+      "key": "dumbbell_box_step_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 박스 스텝업",
+      "name_en": "Dumbbell Box Step-up",
+      "category": "dumbbell",
+      "pattern": "lunge",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "50"
+      },
+      "rx": {
+        "female": "35 lb, 20 in (19.3)",
+        "male": "50 lb, 24 in box"
+      },
+      "scale_to": [
+        "box_step_up"
+      ],
+      "sources": [
+        "S30",
+        "S40",
+        "S41"
+      ],
+      "memo": "남자 기준만 확인 | WodMore reps 29건(10–90% 5–50, 극값 2–50) | 남/여 무게 최빈: 50/35 lb 9건, 30/25 lb 1건"
+    },
+    {
+      "key": "bar_facing_burpee",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "바 페이싱 버피",
+      "name_en": "Bar-Facing Burpee",
+      "category": "gymnastics",
+      "pattern": "squat+jump",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–12"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "burpee"
+      ],
+      "sources": [
+        "S30",
+        "S41"
+      ],
+      "memo": "WodMore reps 121건(10–90% 5–50, 극값 3–118)"
+    },
+    {
+      "key": "knees_to_elbows",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "니 투 엘보",
+      "name_en": "Knees-to-Elbows",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–50"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "knee_raise"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "신규. 기존 alias kte·knees_to_elbow가 knee_raise로 잘못 묶여 있음 | WodMore reps 204건(10–90% 10–50, 극값 3–66)"
+    },
+    {
+      "key": "walking_lunge",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "워킹 런지",
+      "name_en": "Walking Lunge",
+      "category": "gymnastics",
+      "pattern": "lunge",
+      "equipment": "bodyweight",
+      "units": [
+        "reps",
+        "m"
+      ],
+      "ranges": {
+        "reps": "10–52",
+        "m": "9 (30 ft, 25.1)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "reverse_lunge"
+      ],
+      "sources": [
+        "S1",
+        "S13",
+        "S41"
+      ],
+      "memo": "신규. 거리 처방 가능 | WodMore reps 159건(10–90% 10–52, 극값 5–612); WodMore m 179건(10–90% 8–100, 극값 6–400) | 남/여 무게 최빈: 45/25 lb 9건, 50/35 lb 5건, 45/35 lb 4건"
+    },
+    {
+      "key": "reverse_lunge",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "리버스 런지",
+      "name_en": "Reverse Lunge",
+      "category": "gymnastics",
+      "pattern": "lunge",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–30"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "R3",
+        "S41"
+      ],
+      "memo": "신규. 기존 alias reverse-lunge가 lunge로 묶여 있음 | WodMore reps 12건(10–90% 7–30, 극값 6–30) | 남/여 무게 최빈: 50/35 lb 1건"
+    },
+    {
+      "key": "romanian_deadlift",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "루마니안 데드리프트",
+      "name_en": "Romanian Deadlift",
+      "category": "weightlifting",
+      "pattern": "hinge",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "dumbbell_deadlift"
+      ],
+      "sources": [
+        "R3"
+      ],
+      "memo": "신규. 기존 alias rdl이 stiff_leg_deadlift로 잘못 묶여 있음"
+    },
+    {
+      "key": "russian_kettlebell_swing",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "러시안 케틀벨 스윙",
+      "name_en": "Russian Kettlebell Swing",
+      "category": "kettlebell",
+      "pattern": "hinge",
+      "equipment": "kettlebell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–94"
+      },
+      "rx": {
+        "female": "53 lb (WodMore 최빈 6건)",
+        "male": "70 lb (WodMore 최빈 6건)"
+      },
+      "scale_to": [
+        "dumbbell_deadlift"
+      ],
+      "sources": [
+        "R3",
+        "S41"
+      ],
+      "memo": "신규. 눈높이까지 | WodMore reps 44건(10–90% 6–94, 극값 2–300) | 남/여 무게 최빈: 70/53 lb 6건, 53/35 lb 1건, 70/56 lb 1건"
+    },
+    {
+      "key": "american_kettlebell_swing",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "아메리칸 케틀벨 스윙",
+      "name_en": "American Kettlebell Swing",
+      "category": "kettlebell",
+      "pattern": "hinge",
+      "equipment": "kettlebell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "15–21"
+      },
+      "rx": {
+        "female": "35 lb",
+        "male": "53 lb"
+      },
+      "scale_to": [
+        "russian_kettlebell_swing"
+      ],
+      "sources": [
+        "S5",
+        "S41"
+      ],
+      "memo": "신규. CrossFit 기본(머리 위). Helen 무게 | WodMore reps 24건(10–90% 11–80, 극값 7–150) | 남/여 무게 최빈: 53/35 lb 7건, 70/53 lb 5건, 55/35 lb 3건"
+    },
+    {
+      "key": "bar_dip",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "바 딥",
+      "name_en": "Bar Dip",
+      "category": "gymnastics",
+      "pattern": "push",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "13–13 (사례 1건)"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "push_up"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "신규. dip 정확 키 제안 | WodMore reps 1건(10–90% 13–13, 극값 13–13)"
+    },
+    {
+      "key": "bike_erg",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "바이크 에르그",
+      "name_en": "BikeErg",
+      "category": "monostructural",
+      "pattern": "cycle",
+      "equipment": "bike",
+      "units": [
+        "cal",
+        "m"
+      ],
+      "ranges": {
+        "cal": "20–100",
+        "m": "1000 (Mayhem)"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "row"
+      ],
+      "sources": [
+        "S31",
+        "S36",
+        "S41"
+      ],
+      "memo": "신규 | WodMore cal 14건(10–90% 20–100, 극값 18–120); WodMore m 32건(10–90% 1000–2000, 극값 500–6000)"
+    }
+  ]
+}

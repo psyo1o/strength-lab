@@ -1,14 +1,15 @@
 import { schemaBrief } from "./contract";
+import { catalogPromptLines } from "./movement-catalog";
 import type { CoachAgentName } from "./models";
 
 export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v2";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v2";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
 export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v2";
-export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v2";
+export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v3";
 export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v2";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
-export const HEAD_COACH_PROMPT_VERSION = "head-coach-v6";
+export const HEAD_COACH_PROMPT_VERSION = "head-coach-v7";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
 export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
 export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
@@ -84,7 +85,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose format, duration, stimulus, movements, equipment, volume, and intensity. Do not rename a movement to escape a similar structure.",
     constraints:
-      "Do not return warmup_ko, strength notes, sets, kilograms, or time_domain. duration_min is the piece length. One day only. When edit_list is present, apply each item exactly. Do not change a movement, amount, format, duration, or day that is not in edit_list. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
+      "Do not return warmup_ko, strength notes, sets, kilograms, or time_domain. duration_min is the piece length. One day only. Movements come from the catalog. amount is an integer inside a closed range when the catalog lists one. unit is one of that key's allowed units. Do not invent a range. When edit_list is present, apply each item exactly. Do not change a movement, amount, format, duration, or day that is not in edit_list. When day_recovery names cells, return only those cells. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
     output_schema: "Keys: day, notes_ko, conditioning. conditioning matches the conditioning object in the session schema.",
     failure_behavior: "A bad piece is rejected. Other days and the strength and warmup of this day stay.",
   },
@@ -117,7 +118,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest field change, then APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. Similarity alone stays minor. Three minor notes do not revise. Name a field change only when the benefit is greater than the cost. Low confidence prefers APPROVE_WITH_NOTE unless the code already marked a safety issue. APPROVE does not override unresolved hard errors. BLOCK means the week cannot be adopted. Do not ask for a new week.",
     constraints:
-      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. A field change goes in adjustments and does not name a target_coach. REVISE is only an edit list. Each item has day, target_coach, block, action, target_movement, new_movement, new_amount, new_unit, and reason. action is replace, change_amount, delete, or add. Use null for every field that action does not use. A sentence without those fields is invalid. Do not name a coach, a day, or a movement the server did not allow. Do not return a new week.",
+      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. A field change goes in adjustments and does not name a target_coach. REVISE is only an edit list. Each item has day, block, catalog_key, field, value, and reason. field is movement, amount, unit, or load. The server writes only that cell and leaves the other cells. catalog_key and unit must be in the catalog. amount stays inside a closed range when one is listed. A sentence without those fields is invalid. Do not name a day or a movement the server did not allow. Do not return a new week.",
     output_schema: "Use the head schema in the OUTPUT SCHEMA block. The edit list is the whole revision. adjustments are field patches only.",
     failure_behavior: "A prose-only revision is a schema error. The server asks once for the edit list and does not invent the edit. Unreadable reviews keep the code decision.",
   },
@@ -148,7 +149,7 @@ export function coachPrompt(agent: CoachAgentName): PromptDoc {
 
 export function coachSystemPrompt(agent: CoachAgentName): string {
   const doc = PROMPTS[agent];
-  return [
+  const sections = [
     `ROLE\n${doc.role}`,
     `OBJECTIVE\n${doc.objective}`,
     `INPUTS\n${doc.inputs}`,
@@ -156,5 +157,11 @@ export function coachSystemPrompt(agent: CoachAgentName): string {
     `CONSTRAINTS\n${doc.constraints}`,
     `OUTPUT SCHEMA\n${schemaBrief(agent)}\n${doc.output_schema}`,
     `FAILURE BEHAVIOR\n${doc.failure_behavior}`,
-  ].join("\n\n");
+  ];
+  if (agent === "conditioning" || agent === "head") {
+    sections.push(
+      `MOVEMENT CATALOG\n${catalogPromptLines()}\nChoose only these keys and units. A closed range is the allowed count. A line that says range unconfirmed has no numeric band. Do not invent one. Rx is a reference, not a required load.`,
+    );
+  }
+  return sections.join("\n\n");
 }

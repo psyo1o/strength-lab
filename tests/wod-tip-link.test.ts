@@ -93,7 +93,7 @@ describe("WOD tip links", () => {
       fs.readFileSync(path.join(process.cwd(), "data", "exercise-tips.youtube.whitelist.json"), "utf8"),
     ) as { byExerciseId: Record<string, { youtubeUrl: string }> };
     const tips = loadTips().tips ?? {};
-    expect(Object.keys(tips)).toHaveLength(51);
+    expect(Object.keys(tips)).toHaveLength(53);
     expect(Object.keys(whitelist.byExerciseId)).toHaveLength(51);
     const raw = JSON.stringify(tips);
     expect(raw).not.toMatch(/tjstrength|googlevideo|\.mp4|download/i);

@@ -1,3 +1,4 @@
+import { coerceMovementRow } from "../movement-catalog";
 import { movementCatalog } from "../pieces";
 import { TIME_DOMAIN_RANGES, rewriteMonthLanguageTokens } from "../../rules";
 import { MOVEMENT_UNITS, amountUnit, parsedAmount, prescriptionAmountIssue, unitError, type AmountUnit } from "./units";
@@ -52,6 +53,11 @@ export function normalizeSessionPayload(value: unknown, options?: NormalizeOptio
   piece.movements.forEach((row, index) => {
     if (!row || typeof row !== "object") return;
     const movement = row as Record<string, unknown>;
+    if (typeof movement.movement === "string" && typeof movement.unit === "string" && typeof movement.amount === "number") {
+      const coerced = coerceMovementRow(movement);
+      for (const key of Object.keys(movement)) delete movement[key];
+      Object.assign(movement, coerced);
+    }
     const key = typeof movement.key === "string" ? movement.key : "";
     const path = `conditioning.movements[${index}]`;
     if (typeof movement.name_ko === "string" && catalog.has(key) && movement.name_ko !== catalog.get(key)) {

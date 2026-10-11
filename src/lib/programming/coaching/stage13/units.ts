@@ -1,4 +1,5 @@
 import type { Equipment } from "../../types";
+import { catalogUnits } from "../movement-catalog";
 
 /** Units a movement amount may use. The session unit validator reads this catalog and does not guess. */
 export type AmountUnit = "reps" | "cal" | "m" | "sec";
@@ -93,6 +94,8 @@ export const MOVEMENT_EQUIPMENT: Record<string, Equipment | null> = {
 };
 
 export function allowedUnits(key: string): readonly AmountUnit[] {
+  const catalog = catalogUnits(key);
+  if (catalog && catalog.length > 0) return catalog;
   return MOVEMENT_UNITS[key] ?? REPS;
 }
 

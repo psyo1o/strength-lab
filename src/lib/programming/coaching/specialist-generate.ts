@@ -1,4 +1,5 @@
 import type { FetchLike } from "../model";
+import type { ResponseFormat } from "./contract";
 import { askCoach, coachAttemptRecord } from "./llm";
 import type { CoachAgentName } from "./models";
 import {
@@ -47,6 +48,8 @@ export async function askSpecialist(input: {
   day: string;
   revisionNumber: number;
   validate: (json: unknown) => { ok: true } | { ok: false; errors: string[] };
+  format?: ResponseFormat;
+  schemaNote?: string;
 }): Promise<{ ok: boolean; json: unknown; trace: AgentTrace }> {
   const started = Date.now();
   const agent = AREA_AGENT[input.area];
@@ -62,6 +65,8 @@ export async function askSpecialist(input: {
     runId: input.runId,
     retryContext: { agent, day: input.day, revision_number: input.revisionNumber, owns: input.area },
     validate: input.validate,
+    format: input.format,
+    schemaNote: input.schemaNote,
   });
   const ok = Boolean(asked.ok && asked.json);
   return {

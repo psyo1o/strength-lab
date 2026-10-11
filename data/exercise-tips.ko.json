@@ -1289,6 +1289,52 @@
         "youtubeUrl": "https://www.youtube.com/watch?v=gh55vVlwlQg",
         "youtubeCredit": "CrossFit"
       }
+    },
+    "push_jerk": {
+      "exerciseId": "push_jerk",
+      "name": "푸시 저크",
+      "cue": "딥은 짧고 수직으로 하고, 발은 앞뒤로 벌리지 않은 채 같은 너비에서 바를 위로 밉니다.",
+      "mistake": "발을 앞뒤로 벌리면 스플릿 저크가 됩니다.",
+      "alternative": "발이 앞뒤로 갈라지면 스플릿 저크입니다. 어깨가 아프면 푸시 프레스.",
+      "sheet": "푸시 저크는 발을 나란히 둔 채 바를 위로 밉니다. 스플릿 저크와 다른 동작입니다.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": "",
+        "youtubeUrl": null,
+        "youtubeCredit": ""
+      },
+      "setup": "바는 프론트 랙, 발은 골반 너비로 나란히 둡니다.",
+      "prereq": null,
+      "youtubeTitle": ""
+    },
+    "hang_power_clean": {
+      "exerciseId": "hang_power_clean",
+      "name": "행 파워 클린",
+      "cue": "바는 허벅지 앞 행에서 시작하고, 무릎이 깊게 접히기 전에 파워 포지션에서 받습니다.",
+      "mistake": "바닥에서 시작하거나 풀 스쿼트로 받으면 다른 클린입니다.",
+      "alternative": "바닥에서 시작하면 파워 클린, 완전히 앉아 받으면 스쿼트 클린입니다.",
+      "sheet": "행 파워 클린은 바닥 파워 클린, 스쿼트 클린과 다른 동작입니다.",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": "",
+        "youtubeUrl": null,
+        "youtubeCredit": ""
+      },
+      "setup": "바는 바닥이 아니라 허벅지 앞 행 포지션에서 시작합니다.",
+      "prereq": null,
+      "youtubeTitle": ""
     }
   },
   "mediaFields": [
