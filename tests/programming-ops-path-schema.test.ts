@@ -203,6 +203,9 @@ describe("wod-from-intent-v1 schema failures from the flag-off probe", () => {
     if (stimulusAuthored.ok) return;
     expect(stimulusAuthored.reason).not.toBe("http_error");
     expect(stimulusAuthored.trace.errors.join(" ")).toContain("stimulus");
+    const brief = constraintFailureBriefs(stimulus.errors).find((line) => line.includes("repeated stimulus"));
+    expect(brief).toContain(second.day);
+    expect(brief).toContain("A new movement name is not a stimulus change");
   });
 
   it("records schema fallback separately from an HTTP failure and does not store it as a model week", async () => {
@@ -232,17 +235,93 @@ describe("wod-from-intent-v1 schema failures from the flag-off probe", () => {
     expect(saved.generationSource).not.toBe("model");
   });
 
-  it("tells a null session copy to come from conditioning and still rejects the null", () => {
+  it("copies a null session mirror from conditioning and still rejects a day with no conditioning", () => {
     const month = month531();
     const draft = legalWeek(month);
     const day = draft.sessions.find((session) => session.conditioning && session.time_domain);
-    if (!day) throw new Error("training day missing");
+    if (!day?.conditioning) throw new Error("training day missing");
+    const domain = day.conditioning.time_domain;
     day.time_domain = null;
+    const copied = judgeWeek(draft, month, 1, []);
+    expect(copied.ok, copied.ok ? "" : copied.errors.join(" | ")).toBe(true);
+    if (!copied.ok) return;
+    expect(copied.normalizations.join(" ")).toContain("copied");
+    expect(copied.normalizations.join(" ")).toContain("time_domain");
+    expect(copied.draft.sessions.find((session) => session.day === day.day)?.time_domain).toBe(domain);
+
+    const conflict = legalWeek(month);
+    const conflictDay = conflict.sessions.find((session) => session.conditioning?.time_domain === "medium");
+    if (!conflictDay?.conditioning) throw new Error("medium day missing");
+    conflictDay.time_domain = "short";
+    const judgedConflict = judgeWeek(conflict, month, 1, []);
+    expect(judgedConflict.ok).toBe(false);
+    if (judgedConflict.ok) return;
+    expect(judgedConflict.errors.join(" ")).toContain("time domain does not match");
+    expect(judgedConflict.normalizations.join(" ")).not.toContain("time_domain");
+
+    const bare = legalWeek(month);
+    const bareDay = bare.sessions.find((session) => session.conditioning);
+    if (!bareDay) throw new Error("training day missing");
+    bareDay.conditioning = null;
+    bareDay.metcon_purpose = null;
+    bareDay.metcon_format = null;
+    bareDay.time_domain = null;
+    bareDay.movement_combination = null;
+    const rejected = judgeWeek(bare, month, 1, []);
+    expect(rejected.ok).toBe(false);
+    if (rejected.ok) return;
+    expect(rejected.errors.join(" ")).toContain(`${bareDay.day} is missing session fields because conditioning is null`);
+    const briefs = constraintFailureBriefs(rejected.errors).join(" ");
+    expect(briefs).toContain("without a conditioning object");
+    expect(briefs).toContain("Do not invent");
+  });
+
+  it("still rejects short plus 16 after copying the null session mirrors", () => {
+    const month = month531();
+    const draft = legalWeek(month);
+    const day = draft.sessions.find((session) => session.conditioning && !session.conditioning.benchmark);
+    if (!day?.conditioning) throw new Error("training day missing");
+    day.metcon_format = null;
+    day.stimulus = null;
+    day.time_domain = "short";
+    day.expected_duration = 16;
+    day.conditioning = { ...day.conditioning, time_domain: "short", duration_min: 16, long_conditioning: false };
     const judged = judgeWeek(draft, month, 1, []);
     expect(judged.ok).toBe(false);
     if (judged.ok) return;
-    expect(judged.errors.join(" ")).toContain("missing session fields");
+    expect(judged.reason).toBe("schema");
+    expect(judged.errors.join(" ")).toContain("time_domain=short duration=16 is outside 1–12");
+    expect(judged.normalizations.join(" ")).toContain("copied");
     expect(judged.normalizations.join(" ")).not.toContain("time_domain");
-    expect(constraintFailureBriefs(judged.errors).join(" ")).toContain("Copy metcon_format, time_domain");
+  });
+
+  it("adopts a model week after copying null session mirrors that conditioning already has", async () => {
+    freshDb();
+    const month = month531();
+    const good = legalWeek(month);
+    for (const session of good.sessions) {
+      if (!session.conditioning) continue;
+      session.metcon_format = null;
+      session.stimulus = null;
+      session.movement_combination = null;
+    }
+    const fetchImpl = vi.fn(async () => envelope(good));
+    const authored = await authorWeek({
+      summary: readOnlyWeekSummary("2099-05-05"),
+      month,
+      weekIndex: 1,
+      recent: [],
+      weeklyIntent: planWeeklyIntent({ month, weekIndex: 1 }),
+      key: KEY,
+      fetchImpl,
+    });
+    expect(authored.ok, authored.ok ? "" : authored.reason).toBe(true);
+    if (!authored.ok) return;
+    const day = authored.draft.sessions.find((session) => session.conditioning);
+    expect(day?.metcon_format).toBe(day?.conditioning?.format);
+    expect(day?.stimulus).toBe(day?.conditioning?.stimulus);
+    expect(day?.movement_combination).toBeTruthy();
+    expect(authored.trace.normalizations.join(" ")).toContain("copied");
+    expect(authored.trace.attempt).toBe(1);
   });
 });

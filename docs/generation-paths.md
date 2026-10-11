@@ -82,6 +82,10 @@
 
 `judgeWeek`의 첫 실패 단계가 `fallback_reason`이 될 수 있는 값이다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 임계값은 4다. 뒤 단계 문장은 오류 목록에 이어 붙고, 저장 사유는 첫 단계다.
 
+`normalizeWeekPayload` (`rules.ts`)는 검사 전에 빈 세션 미러만 같은 날 `conditioning`에 이미 있는 값으로 복사한다. 대상은 `metcon_purpose`, `metcon_format`, `time_domain`, `stimulus`, `movement_combination`, `equipment`, `volume`, `intensity`, `expected_duration`이다. 로그 문장은 `copied … from conditioning`이다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 schema이고 문장은 `missing session fields because conditioning is null`이다. 이 복사는 모델 성공이 아니다. 복제 뒤에도 검사가 실패하면 `fallback_reason`은 그 실패 단계다.
+
+`wodFromIntentPrompt`와 `weekPrompt`의 `RULES`는 이 복사를 말한다. 버전 문자열은 `wod-from-intent-v1`, `weekly-program-v10` 그대로다. 엔진의 flag 끈 호출은 여전히 `wodFromIntentPrompt`만 고른다. 재시도 문구는 자극이 연속된 요일과, conditioning이 없는 요일을 이름과 함께 적는다. 재시도 횟수는 두 번이다.
+
 ## 주간, 코칭이 켜진 때
 
 `weekStart === LIVE_CLASS_WEEK` (`2026-10-05`)이면 `coachWeek` 전에 예외를 던진다. 다른 주는 `coachWeek`다.

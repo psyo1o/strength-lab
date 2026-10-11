@@ -591,9 +591,67 @@ export function dayLabel(day: string): string {
   return DAY_LABEL[day as DayKey] ?? day;
 }
 
+const SESSION_FORMATS = ["amrap", "for_time", "emom", "intervals"] as const;
+const SESSION_DOMAINS = ["short", "medium", "long"] as const;
+const SESSION_VOLUMES = ["low", "moderate", "high"] as const;
+const SESSION_INTENSITIES = ["light", "moderate", "heavy"] as const;
+
+function blankSessionValue(value: unknown): boolean {
+  return value == null || value === "" || (Array.isArray(value) && value.length === 0);
+}
+
+/**
+ * Copy one session mirror only when the model left it empty and the same day's conditioning
+ * already has that value. A filled time_domain or duration is never replaced.
+ */
+function copyNullSessionMirrors(row: Record<string, unknown>, normalizations: string[]): void {
+  if (row.rest === true || !isRecord(row.conditioning)) return;
+  const conditioning = row.conditioning;
+  const copied: string[] = [];
+  const take = (field: string, value: unknown) => {
+    if (!blankSessionValue(row[field]) || blankSessionValue(value)) return;
+    row[field] = value;
+    copied.push(field);
+  };
+  if (typeof conditioning.format === "string" && (SESSION_FORMATS as readonly string[]).includes(conditioning.format)) {
+    take("metcon_format", conditioning.format);
+  }
+  if (typeof conditioning.time_domain === "string" && (SESSION_DOMAINS as readonly string[]).includes(conditioning.time_domain)) {
+    take("time_domain", conditioning.time_domain);
+  }
+  if (typeof conditioning.stimulus === "string" && (STIMULI as readonly string[]).includes(conditioning.stimulus)) {
+    take("stimulus", conditioning.stimulus);
+  }
+  if (typeof conditioning.volume === "string" && (SESSION_VOLUMES as readonly string[]).includes(conditioning.volume)) {
+    take("volume", conditioning.volume);
+  }
+  if (typeof conditioning.intensity === "string" && (SESSION_INTENSITIES as readonly string[]).includes(conditioning.intensity)) {
+    take("intensity", conditioning.intensity);
+  }
+  if (typeof conditioning.duration_min === "number" && Number.isInteger(conditioning.duration_min)) {
+    take("expected_duration", conditioning.duration_min);
+  }
+  if (typeof conditioning.purpose === "string" && conditioning.purpose.trim()) {
+    take("metcon_purpose", conditioning.purpose.trim());
+  }
+  if (Array.isArray(conditioning.equipment) && conditioning.equipment.every((item) => typeof item === "string")) {
+    take("equipment", [...conditioning.equipment]);
+  }
+  if (Array.isArray(conditioning.movements)) {
+    const keys = conditioning.movements
+      .filter((movement): movement is Record<string, unknown> => isRecord(movement) && typeof movement.key === "string" && movement.key.length > 0)
+      .map((movement) => movement.key as string);
+    if (keys.length) take("movement_combination", [...keys].sort().join("+"));
+  }
+  if (!copied.length) return;
+  const day = typeof row.day === "string" ? row.day : "session";
+  normalizations.push(`${dayLabel(day)}: copied ${copied.join(", ")} from conditioning`);
+}
+
 /**
  * Structural cleanup only. A null strength object cannot carry purpose, volume, or intensity.
- * Duration and time_domain are never rewritten here.
+ * A null session mirror is copied from the same day's conditioning. A value that is already
+ * set, including a wrong time_domain or duration_min, is never rewritten.
  */
 export function normalizeWeekPayload(raw: unknown): { value: unknown; normalizations: string[] } {
   if (!isRecord(raw) || !Array.isArray(raw.sessions)) return { value: raw, normalizations: [] };
@@ -602,18 +660,21 @@ export function normalizeWeekPayload(raw: unknown): { value: unknown; normalizat
   if (!Array.isArray(sessions)) return { value: raw, normalizations: [] };
   const normalizations: string[] = [];
   for (const row of sessions) {
-    if (!isRecord(row) || row.strength != null) continue;
-    const cleared: string[] = [];
-    for (const key of ["strength_purpose", "strength_volume", "strength_intensity"] as const) {
-      if (row[key] != null) {
-        cleared.push(key);
-        row[key] = null;
+    if (!isRecord(row)) continue;
+    if (row.strength == null) {
+      const cleared: string[] = [];
+      for (const key of ["strength_purpose", "strength_volume", "strength_intensity"] as const) {
+        if (row[key] != null) {
+          cleared.push(key);
+          row[key] = null;
+        }
+      }
+      if (cleared.length) {
+        const day = typeof row.day === "string" ? row.day : "session";
+        normalizations.push(`${dayLabel(day)}: cleared ${cleared.join(", ")} because strength is null`);
       }
     }
-    if (cleared.length) {
-      const day = typeof row.day === "string" ? row.day : "session";
-      normalizations.push(`${dayLabel(day)}: cleared ${cleared.join(", ")} because strength is null`);
-    }
+    copyNullSessionMirrors(row, normalizations);
   }
   return { value: clone, normalizations };
 }
@@ -762,7 +823,11 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
       continue;
     }
     if (!session.metcon_purpose || !session.metcon_format || !session.time_domain || !session.movement_combination) {
-      errors.push(`${session.day} is missing session fields`);
+      errors.push(
+        session.conditioning
+          ? `${session.day} is missing session fields`
+          : `${session.day} is missing session fields because conditioning is null`,
+      );
     }
     if (session.expected_duration == null || session.volume == null || session.intensity == null) {
       errors.push(`${session.day} is missing duration or load bands`);
@@ -1707,9 +1772,21 @@ function failureBrief(error: StructuredValidationError): string {
       const day = error.affected_session[0] ?? "that day";
       return `Previous attempt set long_conditioning incorrectly on ${day}. long_conditioning is true only when time_domain is long (${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes). Set the flag from the domain after duration_min. Do not rewrite other days.`;
     }
+    if (error.rule === "stimulus_repeat") {
+      const stimulus = error.message.match(/^stimulus (\w+) repeats/)?.[1] ?? "that stimulus";
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt repeated stimulus ${stimulus} on ${day}, the same as the previous training day. Change conditioning.stimulus and the session stimulus on ${day} to a different allowed stimulus. A new movement name is not a stimulus change. Do not rewrite other days.`;
+    }
+    if (error.rule === "intent_prescription_mismatch") {
+      return "Previous attempt wrote that lower-body load was reduced, but a squat or deadlift set is still heavier than the high-fatigue prescription. Remove that claim from why_ko, focus, and scheme_note, or the sets stay rejected. Do not leave the sentence in place while the sets stay heavy.";
+    }
+    if (error.rule === "schema" && error.message.includes("missing session fields") && error.message.includes("conditioning is null")) {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt left ${day} without a conditioning object: ${error.message}. Add conditioning on ${day} and fill metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration from it. Do not invent those fields without conditioning. Do not rewrite other days.`;
+    }
     if (error.rule === "schema" && (error.message.includes("missing session fields") || error.message.includes("missing duration or load bands"))) {
       const day = error.affected_session[0] ?? "that day";
-      return `Previous attempt left ${day} incomplete: ${error.message}. Copy metcon_format, time_domain, stimulus, equipment, volume, intensity, and expected_duration from that day's conditioning object. Leave a field null only when conditioning does not have it. time_domain still has to match duration_min. Do not rewrite other days.`;
+      return `Previous attempt left ${day} incomplete: ${error.message}. Copy metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration from that day's conditioning object. Leave a field null only when conditioning does not have it. Do not rewrite a time_domain or duration_min that is already set. Do not rewrite other days.`;
     }
     if (error.rule === "schema" && error.message.includes("does not match")) {
       const day = error.affected_session[0] ?? "that day";

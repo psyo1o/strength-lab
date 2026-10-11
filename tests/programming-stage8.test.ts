@@ -187,7 +187,7 @@ describe("stage 8 weekly pipeline convergence", () => {
     expect(korean?.affected_features[0]).toContain("name_ko");
   });
 
-  it("traces missing session fields to the model output, not to the parser", () => {
+  it("copies null session mirrors from conditioning and still traces a missing conditioning day to the model", () => {
     const month = month531();
     const base = highWeek(month);
     const raw = JSON.parse(JSON.stringify(base)) as { sessions: Record<string, unknown>[] };
@@ -198,25 +198,32 @@ describe("stage 8 weekly pipeline convergence", () => {
       session.movement_combination = null;
     }
     const judged = judgeWeek(raw, month, 2, [], { previousActual: presetActual("a") });
-    expect(judged.ok).toBe(false);
-    if (judged.ok) return;
-    expect(judged.errors.filter((error) => error.includes("missing session fields"))).toHaveLength(6);
-    const schema = structureValidationErrors(judged.errors).filter((row) => row.rule === "schema");
-    expect(schema[0]?.priority).toBe(1);
-    expect(schema[0]?.affected_session).toEqual(["mon"]);
-    const trace = sessionFieldTrace(raw, null);
+    expect(judged.ok, judged.ok ? "" : judged.errors.join(" | ")).toBe(true);
+    if (!judged.ok) return;
+    expect(judged.normalizations.join(" ")).toContain("copied");
+    expect(judged.normalizations.join(" ")).toContain("metcon_format");
+    expect(judged.normalizations.join(" ")).not.toContain("time_domain=short");
+    const trace = sessionFieldTrace(raw, judged.draft);
     const training = trace.filter((row) => row.origin !== "rest");
     expect(training).toHaveLength(6);
-    expect(training.every((row) => row.origin === "model_output")).toBe(true);
-    expect(training[0]?.null_in_raw).toEqual(["metcon_format", "time_domain", "movement_combination"]);
+    expect(training.every((row) => row.origin === "complete")).toBe(true);
+    expect(training.some((row) => row.origin === "parser")).toBe(false);
 
-    const full = JSON.parse(JSON.stringify(base));
-    const accepted = judgeWeek(full, month, 2, [], { previousActual: presetActual("a") });
-    expect(accepted.ok, accepted.ok ? "" : accepted.errors.join(" | ")).toBe(true);
-    if (!accepted.ok) return;
-    const complete = sessionFieldTrace(full, accepted.draft);
-    expect(complete.filter((row) => row.origin !== "rest").every((row) => row.origin === "complete")).toBe(true);
-    expect(complete.some((row) => row.origin === "parser")).toBe(false);
+    const bare = JSON.parse(JSON.stringify(base)) as { sessions: Record<string, unknown>[] };
+    const monday = bare.sessions.find((session) => session.day === "mon");
+    if (!monday) throw new Error("monday missing");
+    monday.conditioning = null;
+    monday.metcon_purpose = null;
+    monday.metcon_format = null;
+    monday.time_domain = null;
+    monday.movement_combination = null;
+    const rejected = judgeWeek(bare, month, 2, [], { previousActual: presetActual("a") });
+    expect(rejected.ok).toBe(false);
+    if (rejected.ok) return;
+    expect(rejected.errors.join(" ")).toContain("mon is missing session fields because conditioning is null");
+    const bareTrace = sessionFieldTrace(bare, null).find((row) => row.day === "mon");
+    expect(bareTrace?.origin).toBe("model_output");
+    expect(bareTrace?.null_in_raw).toEqual(expect.arrayContaining(["metcon_format", "time_domain", "movement_combination"]));
   });
 
   it("structures a similarity hit with matched features and a one-day repair scope", () => {
