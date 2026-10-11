@@ -1,0 +1,283 @@
+{
+  "plan_lab": {
+    "mode": "db",
+    "model": "gpt-5.4-nano",
+    "structure": "95a63b551c495b80",
+    "scenarios": [
+      "W1"
+    ],
+    "passes": 1,
+    "summary": {
+      "weeks_attempted": 1,
+      "skeleton_saved": 0,
+      "skeleton_save_rate": 0,
+      "weeks_matching_after_repair": 0,
+      "lock_violations_before": 0,
+      "lock_violations_after": 0,
+      "lock_before_kinds": {},
+      "lock_after_kinds": {},
+      "regenerated_days": 0,
+      "fitted_days": 0,
+      "unresolved_days": 0,
+      "failed_weeks": 0,
+      "day_final_sources": {
+        "MODEL": 0,
+        "MODEL_REVISED": 6,
+        "MODEL_ADJUSTED": 0,
+        "HEAD_ADJUSTED": 0,
+        "DETERMINISTIC_ADJUSTMENT": 0,
+        "FALLBACK": 0,
+        "FAILED": 0
+      },
+      "model_weeks": 1,
+      "fallback_weeks": 0,
+      "session_failure_kinds": {},
+      "normalizations": {
+        "unit_seen": 8,
+        "unit_converted": 0,
+        "unit_unconverted": 8,
+        "display_rewrites": 25
+      },
+      "session_rewrite": {
+        "retried_pass": 0,
+        "retried_fail": 0,
+        "retained_first_error": 0,
+        "retry_without_first_error": 0
+      },
+      "unit_quality": {
+        "sessions": 0,
+        "first_attempt_clean": 0,
+        "double_under_errors": 0,
+        "row_errors": 0,
+        "other_unit_errors": 0,
+        "adopted_pass": 0,
+        "not_success": 0,
+        "time_based_accepted": 0,
+        "prescription_revise": 0,
+        "prescription_unclear": 0
+      },
+      "consistency": {
+        "mismatches": [],
+        "mismatch_count": 0
+      },
+      "model_calls": 23,
+      "tokens": 164954,
+      "tokens_unsupported": false,
+      "elapsed_ms": 90752,
+      "flags": {
+        "COACHING_PIPELINE": "0",
+        "LONGITUDINAL_PLANNING": "0"
+      }
+    },
+    "archive": {
+      "run_id": "day-recovery-3f3866e6-9dd3-4658-9233-80dc59fbc8d6",
+      "root": "docs/day-recovery-runs",
+      "raw_saved": true,
+      "summary_is_not_raw": true,
+      "a1_intact_after_a2": false,
+      "missing": [],
+      "passes": [
+        {
+          "pass": "A1",
+          "dir": "docs/day-recovery-runs/day-recovery-3f3866e6-9dd3-4658-9233-80dc59fbc8d6/A1",
+          "files": [
+            "generation-logs.json",
+            "weeks.json",
+            "months.json",
+            "evaluations.json",
+            "usage.json"
+          ]
+        }
+      ]
+    },
+    "months": [
+      {
+        "pass": "A1",
+        "months": [
+          {
+            "month_start": "2099-06-01",
+            "scheme": "531",
+            "strength_method": "531",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_previous_month",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-07-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "language",
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          }
+        ]
+      }
+    ],
+    "runs": [
+      {
+        "pass": "A1",
+        "weeks": [
+          {
+            "id": "W1",
+            "week": "2099-07-06",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": false,
+            "skeleton_source": null,
+            "skeleton_rewrites": null,
+            "thesis": {
+              "phase": null,
+              "volume_ceiling": null,
+              "conditioning_ceiling": null,
+              "strength_ceiling": null
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 90752,
+            "log_count": 123,
+            "model_calls": 23,
+            "tokens": 164954,
+            "log_latency_ms": 115112,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 0,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 8,
+              "unit_converted": 0,
+              "unit_unconverted": 8,
+              "display_rewrites": 25,
+              "rules": {
+                "catalog_name_ko": 25,
+                "prescription_unclear": 7,
+                "prescription_revise": 1
+              }
+            },
+            "previous_actual": {
+              "week": "2099-06-29",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "day_recovery": {
+    "probe": "one_week",
+    "http_429": false,
+    "model": "gpt-5.4-nano",
+    "database": "/tmp/day-recovery-phaseb.db",
+    "flags": {
+      "COACHING_PIPELINE": "off",
+      "LONGITUDINAL_PLANNING": "off"
+    },
+    "adopted_model_weeks": 1,
+    "predecessor_2099_06_29": {
+      "generation_source": "model",
+      "status": "active",
+      "prompt_version": "coaching-pipeline-v6",
+      "final_status": "APPROVE_WITH_NOTE",
+      "week_status": "VALIDATED",
+      "head_revision_spec": false,
+      "schema_recovery_days": [
+        "mon",
+        "tue",
+        "sat"
+      ],
+      "model_calls": 23,
+      "failed_model_traces": 3,
+      "tokens": 77471,
+      "month_tokens": null
+    },
+    "week_2099_07_06": {
+      "generation_source": "model",
+      "status": "active",
+      "fallback_reason": null,
+      "prompt_version": "coaching-pipeline-v6",
+      "head_prompt_version": "head-coach-v4",
+      "final_status": "APPROVE_WITH_NOTE",
+      "week_status": "VALIDATED",
+      "prescription_source": "model_revised",
+      "generation_attempt": 2,
+      "day_status": {
+        "mon": "MODEL_REVISED",
+        "tue": "MODEL_REVISED",
+        "wed": "MODEL_REVISED",
+        "thu": "MODEL_REVISED",
+        "fri": "MODEL_REVISED",
+        "sat": "MODEL_REVISED"
+      },
+      "schema_recovery_days": [
+        "tue",
+        "fri"
+      ],
+      "head_target": {
+        "day": "thu",
+        "coach": "conditioning_coach"
+      },
+      "revision_scope": {
+        "days": [
+          "wed",
+          "thu",
+          "fri"
+        ],
+        "rewritten": [
+          "thu"
+        ],
+        "regeneration_calls": 1,
+        "budget": 2
+      },
+      "unresolved_days": 0,
+      "model_calls": 23,
+      "failed_model_traces": 2,
+      "tokens": 164954,
+      "month_2099_07_tokens": null,
+      "month_generation_source": "fallback",
+      "month_reason": "language",
+      "judgeWeek_on_stored_draft": "rule_break"
+    },
+    "twelve_week": "not_run",
+    "note": "plan_lab.summary.unresolved_days is the skeleton counter. Day recovery unresolved days on this run are 0. plan_lab.summary counts W1 only. The 2099-06-29 predecessor is separate."
+  }
+}
