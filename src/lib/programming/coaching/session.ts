@@ -78,7 +78,9 @@ function conditioningFrom(day: DayKey, recipe: Recipe, benchmark: boolean): Cond
           ? `${recipe.minutes}분 인터벌. 40초 일하고 20초 쉽니다. ${names}.`
           : recipe.format === "for_time"
             ? `3라운드. 캡 ${recipe.minutes}분. ${names}.`
-            : `${recipe.minutes}분 동안 반복합니다. ${names}.`;
+            : recipe.format === "chipper"
+              ? `칩퍼. 캡 ${recipe.minutes}분. ${names}.`
+              : `${recipe.minutes}분 동안 반복합니다. ${names}.`;
   return {
     benchmark,
     format: recipe.format,
@@ -152,10 +154,23 @@ function strengthFor(lift: MainLift, month: MonthDirection, weekIndex: WeekIndex
   const mode = lift === "squat" || lift === "deadlift" ? fatigueMode(actual) : "unknown";
   const sets = exampleSets(month.strength_method || month.scheme, weekIndex, mode, lift);
   if (!sets) return null;
-  return { lift, sets };
+  const movement_key = lift === "squat" ? (weekIndex % 2 === 1 ? "back_squat" : "front_squat") : undefined;
+  return movement_key ? { lift, sets, movement_key } : { lift, sets };
 }
 
-const FORMATS = ["amrap", "for_time", "emom", "intervals"] as const;
+const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
+
+function splitStoredAmount(amount: string, unit: CatalogUnit | undefined): { amount: string; unit?: CatalogUnit; amount_value?: number } {
+  const text = amount.replace(/\s/g, "");
+  const paired = text.match(/^(\d+)(cal|sec|m)$/i);
+  if (!paired) {
+    if (/^\d+$/.test(text) && unit) return { amount: text, unit, amount_value: Number(text) };
+    return unit ? { amount, unit } : { amount };
+  }
+  const parsed = paired[2]!.toLowerCase() as CatalogUnit;
+  const chosen = unit ?? parsed;
+  return { amount: paired[1]!, unit: chosen, amount_value: Number(paired[1]) };
+}
 
 function hangul(text: string): boolean {
   return /[\uac00-\ud7a3]/.test(text) && !/kg|킬로/i.test(text);
@@ -195,7 +210,7 @@ export function sessionFromCoachJson(input: {
   if (intensity !== "light" && intensity !== "moderate" && intensity !== "heavy") return null;
   const aerobicMono = input.intent.primary_training === "aerobic" && input.intent.secondary_training !== "long_conditioning";
   const minMoves = input.preview || aerobicMono ? 1 : 2;
-  if (!Array.isArray(piece.movements) || piece.movements.length < minMoves || piece.movements.length > 4) return null;
+  if (!Array.isArray(piece.movements) || piece.movements.length < minMoves || piece.movements.length > 5) return null;
   const catalog = new Map(movementCatalog().map((row) => [row.key, row.name_ko]));
   const movements = [];
   for (const row of piece.movements) {
@@ -207,15 +222,16 @@ export function sessionFromCoachJson(input: {
     const standardName = catalogMovement(movement.key)?.name_ko ?? null;
     if (!piecesName && !standardName) return null;
     if (movement.name_ko !== piecesName && movement.name_ko !== standardName) return null;
-    const unit = movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" ? (movement.unit as CatalogUnit) : undefined;
+    const declared = movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" ? (movement.unit as CatalogUnit) : undefined;
+    const stored = splitStoredAmount(movement.amount, declared);
     const load = storedLoad(movement.load);
     movements.push({
       key: movement.key,
-      amount: movement.amount,
+      amount: stored.amount,
       name_ko: movement.name_ko,
       ...(typeof movement.movement === "string" ? { movement: movement.movement } : {}),
-      ...(typeof movement.amount_value === "number" ? { amount_value: movement.amount_value } : {}),
-      ...(unit ? { unit } : {}),
+      ...(stored.amount_value != null ? { amount_value: stored.amount_value } : typeof movement.amount_value === "number" ? { amount_value: movement.amount_value } : {}),
+      ...(stored.unit ? { unit: stored.unit } : {}),
       ...(load ? { load } : {}),
     });
   }

@@ -263,7 +263,7 @@ describe("long-term programming engine", () => {
     expect(week.generationSource).toBe("model");
     expect(week.fallbackReason).toBeNull();
     expect(week.draft.sessions[0]?.conditioning?.movements[0]?.key).toBe("ski");
-    expect(dayByKey(week.display, "mon")?.piece?.movements.map((movement) => movement.key)).toEqual(["ski"]);
+    expect(dayByKey(week.display, "mon")?.piece?.movements.map((movement) => movement.key)).toEqual(["ski_erg"]);
     expect(dayByKey(week.display, "mon")?.piece?.id).not.toBe("mon-engine");
     expect(JSON.stringify(promptOf(fetchImpl))).not.toContain('"candidate_id"');
   });

@@ -11,7 +11,7 @@ const LIFT_NAME: Record<MainLift, string> = {
 
 /** Same lift only. A missing squat does not borrow the deadlift. */
 const LIFT_KEYS: Record<MainLift, string[]> = {
-  squat: ["squat", "back_squat"],
+  squat: ["squat", "back_squat", "front_squat"],
   ohp: ["ohp", "press"],
   bench: ["bench", "bench_press"],
   deadlift: ["deadlift"],
@@ -21,9 +21,11 @@ export function liftName(lift: MainLift): string {
   return LIFT_NAME[lift];
 }
 
-export function readStoredOneRm(maxes: Record<string, number> | null | undefined, lift: MainLift): number | null {
+export function readStoredOneRm(maxes: Record<string, number> | null | undefined, lift: string): number | null {
   if (!maxes) return null;
-  for (const key of LIFT_KEYS[lift]) {
+  const family = (Object.keys(LIFT_KEYS) as MainLift[]).find((key) => key === lift || LIFT_KEYS[key].includes(lift));
+  if (!family) return null;
+  for (const key of LIFT_KEYS[family]) {
     const value = maxes[key];
     if (typeof value === "number" && value > 0) return value;
   }

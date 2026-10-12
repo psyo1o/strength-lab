@@ -1,6 +1,6 @@
 {
-  "version": "0.4.0-draft",
-  "generated": "2026-10-11",
+  "version": "0.5.0-draft",
+  "generated": "2026-10-12",
   "note": "ranges는 출처 WOD에서 실제로 본 값의 범위. 미확인은 null. 무게 단위 lb(출처 표기).",
   "sources": {
     "S1": {
@@ -270,7 +270,7 @@
     },
     {
       "key": "pause_squat",
-      "proposed_key": null,
+      "proposed_key": "pause_back_squat",
       "existing": true,
       "name_ko": "퍼즈 스쿼트",
       "name_en": "Pause Squat",
@@ -297,7 +297,7 @@
     },
     {
       "key": "pin_squat",
-      "proposed_key": null,
+      "proposed_key": "pin_back_squat",
       "existing": true,
       "name_ko": "핀 스쿼트",
       "name_en": "Pin Squat",
@@ -661,7 +661,7 @@
     },
     {
       "key": "ohp",
-      "proposed_key": "strict_shoulder_press",
+      "proposed_key": "strict_press",
       "existing": true,
       "name_ko": "스트릭트 오버헤드 프레스",
       "name_en": "Strict Shoulder Press",
@@ -776,7 +776,7 @@
     },
     {
       "key": "thruster",
-      "proposed_key": null,
+      "proposed_key": "barbell_thruster",
       "existing": true,
       "name_ko": "스러스터",
       "name_en": "Thruster",
@@ -933,7 +933,7 @@
     },
     {
       "key": "hang_clean",
-      "proposed_key": null,
+      "proposed_key": "hang_squat_clean",
       "existing": false,
       "name_ko": "행 클린",
       "name_en": "Hang Clean",
@@ -989,7 +989,7 @@
     },
     {
       "key": "clean_jerk",
-      "proposed_key": "clean_and_jerk",
+      "proposed_key": "squat_clean_and_split_jerk",
       "existing": true,
       "name_ko": "클린 앤 저크",
       "name_en": "Clean and Jerk",
@@ -1143,7 +1143,7 @@
     },
     {
       "key": "hang_snatch",
-      "proposed_key": null,
+      "proposed_key": "hang_squat_snatch",
       "existing": false,
       "name_ko": "행 스내치",
       "name_en": "Hang Snatch",
@@ -1421,7 +1421,7 @@
     },
     {
       "key": "dumbbell_clean",
-      "proposed_key": null,
+      "proposed_key": "dumbbell_squat_clean",
       "existing": false,
       "name_ko": "덤벨 클린",
       "name_en": "Dumbbell Clean",
@@ -2217,7 +2217,7 @@
     },
     {
       "key": "handstand_push_up",
-      "proposed_key": null,
+      "proposed_key": "kipping_handstand_push_up",
       "existing": true,
       "name_ko": "핸드스탠드 푸시업",
       "name_en": "Handstand Push-up",
@@ -2249,7 +2249,7 @@
     },
     {
       "key": "hspu",
-      "proposed_key": "handstand_push_up",
+      "proposed_key": "kipping_handstand_push_up",
       "existing": true,
       "name_ko": "핸드스탠드 푸시업(units.ts 키, 줄임말)",
       "name_en": "Handstand Push-up",
@@ -2506,7 +2506,7 @@
     },
     {
       "key": "pull_up",
-      "proposed_key": null,
+      "proposed_key": "kipping_pull_up",
       "existing": true,
       "name_ko": "풀업",
       "name_en": "Pull-up",
@@ -3454,7 +3454,7 @@
     },
     {
       "key": "row",
-      "proposed_key": null,
+      "proposed_key": "row_erg",
       "existing": true,
       "name_ko": "로잉",
       "name_en": "Row (Concept2)",
@@ -3620,7 +3620,7 @@
     },
     {
       "key": "fan_bike",
-      "proposed_key": "(assault_bike 또는 echo_bike로 지정)",
+      "proposed_key": "assault_bike",
       "existing": true,
       "name_ko": "팬 바이크",
       "name_en": "Fan Bike",
@@ -4128,6 +4128,621 @@
         "S41"
       ],
       "memo": "신규 | WodMore cal 14건(10–90% 20–100, 극값 18–120); WodMore m 32건(10–90% 1000–2000, 극값 500–6000)"
+    },
+    {
+      "key": "pause_back_squat",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "퍼즈 백 스쿼트",
+      "name_en": "Pause Back Squat",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "back_squat"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": "pause_squat 별칭의 백 스쿼트. 저장된 pause_squat는 이 키로 읽는다."
+    },
+    {
+      "key": "pause_front_squat",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "퍼즈 프론트 스쿼트",
+      "name_en": "Pause Front Squat",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "front_squat"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": "pause_squat에서 나눈 프론트 스쿼트."
+    },
+    {
+      "key": "pin_back_squat",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "핀 백 스쿼트",
+      "name_en": "Pin Back Squat",
+      "category": "weightlifting",
+      "pattern": "squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "back_squat"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": "pin_squat 별칭의 읽기 대상."
+    },
+    {
+      "key": "squat_clean_and_split_jerk",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스쿼트 클린 앤 스플릿 저크",
+      "name_en": "Squat Clean and Split Jerk",
+      "category": "weightlifting",
+      "pattern": "hinge+squat+push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–30"
+      },
+      "rx": {
+        "female": "95 lb (Grace)",
+        "male": "135 lb (Grace)"
+      },
+      "scale_to": [
+        "power_clean",
+        "push_press"
+      ],
+      "sources": [
+        "S1",
+        "S3",
+        "R3",
+        "S30",
+        "S41"
+      ],
+      "memo": "clean_jerk 별칭의 읽기 대상."
+    },
+    {
+      "key": "squat_clean_and_push_jerk",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스쿼트 클린 앤 푸시 저크",
+      "name_en": "Squat Clean and Push Jerk",
+      "category": "weightlifting",
+      "pattern": "hinge+squat+push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–30"
+      },
+      "rx": {
+        "female": "95 lb (Grace)",
+        "male": "135 lb (Grace)"
+      },
+      "scale_to": [
+        "power_clean",
+        "push_press"
+      ],
+      "sources": [
+        "S1",
+        "S3",
+        "R3",
+        "S30",
+        "S41"
+      ],
+      "memo": "clean_jerk에서 나눈 변형."
+    },
+    {
+      "key": "power_clean_and_split_jerk",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "파워 클린 앤 스플릿 저크",
+      "name_en": "Power Clean and Split Jerk",
+      "category": "weightlifting",
+      "pattern": "hinge+push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "5–30"
+      },
+      "rx": {
+        "female": "95 lb (Grace)",
+        "male": "135 lb (Grace)"
+      },
+      "scale_to": [
+        "power_clean",
+        "push_press"
+      ],
+      "sources": [
+        "S1",
+        "S3",
+        "R3",
+        "S30",
+        "S41"
+      ],
+      "memo": "clean_jerk에서 나눈 변형."
+    },
+    {
+      "key": "barbell_thruster",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "바벨 스러스터",
+      "name_en": "Barbell Thruster",
+      "category": "weightlifting",
+      "pattern": "squat+push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–50"
+      },
+      "rx": {
+        "female": "65 lb (Fran) / 35 lb (Jackie)",
+        "male": "95 lb (Fran) / 45 lb (Jackie)"
+      },
+      "scale_to": [
+        "dumbbell_thruster"
+      ],
+      "sources": [
+        "S1",
+        "S2",
+        "S6",
+        "S14",
+        "S18",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "thruster 별칭의 읽기 대상."
+    },
+    {
+      "key": "dumbbell_strict_press",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 스트릭트 프레스",
+      "name_en": "Dumbbell Strict Press",
+      "category": "dumbbell",
+      "pattern": "push",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "R1"
+      ],
+      "memo": "db_press 별칭의 읽기 대상."
+    },
+    {
+      "key": "strict_press",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스트릭트 프레스",
+      "name_en": "Strict Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–20"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "dumbbell_strict_press"
+      ],
+      "sources": [
+        "S1",
+        "R2",
+        "S41"
+      ],
+      "memo": "ohp 별칭의 읽기 대상. 스트렝스 리프트 이름 ohp와는 별개다."
+    },
+    {
+      "key": "ring_muscle_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "링 머슬업",
+      "name_en": "Ring Muscle-up",
+      "category": "gymnastics",
+      "pattern": "pull+push",
+      "equipment": "rings",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "7–40"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "chest_to_bar_pull_up + ring_dip"
+      ],
+      "sources": [
+        "S1",
+        "S19",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "muscle_up 별칭의 읽기 대상."
+    },
+    {
+      "key": "row_erg",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "로우어",
+      "name_en": "RowErg",
+      "category": "monostructural",
+      "pattern": "pull",
+      "equipment": "rower",
+      "units": [
+        "cal",
+        "m"
+      ],
+      "ranges": {
+        "cal": "12–80",
+        "m": "250–1000"
+      },
+      "rx": {
+        "female": "50 cal (25.3) / 60 cal (23.1)",
+        "male": "50 cal (25.3) / 60 cal (23.1)"
+      },
+      "scale_to": [
+        "run",
+        "bike"
+      ],
+      "sources": [
+        "S1",
+        "S6",
+        "S12",
+        "S15",
+        "S17",
+        "S19",
+        "R1",
+        "S30",
+        "S31",
+        "S41"
+      ],
+      "memo": "로잉 머신. row 별칭의 읽기 대상. barbell_row와 구분한다."
+    },
+    {
+      "key": "close_grip_bench_press",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "클로즈 그립 벤치 프레스",
+      "name_en": "Close-Grip Bench Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–1 (사례 1건)"
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "bench_press"
+      ],
+      "sources": [
+        "R2",
+        "S41"
+      ],
+      "memo": "close_grip_bench 별칭의 읽기 대상."
+    },
+    {
+      "key": "incline_bench_press",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "인클라인 벤치 프레스",
+      "name_en": "Incline Bench Press",
+      "category": "weightlifting",
+      "pattern": "push",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": null
+      },
+      "rx": {
+        "female": "1RM %",
+        "male": "1RM %"
+      },
+      "scale_to": [
+        "bench_press"
+      ],
+      "sources": [
+        "R2"
+      ],
+      "memo": "incline_bench 별칭의 읽기 대상."
+    },
+    {
+      "key": "pistol_squat",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "피스톨 스쿼트",
+      "name_en": "Pistol Squat",
+      "category": "gymnastics",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–30"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "lunge"
+      ],
+      "sources": [
+        "S1",
+        "R1",
+        "S30",
+        "S41"
+      ],
+      "memo": "pistol 별칭의 읽기 대상."
+    },
+    {
+      "key": "abmat_sit_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "앱맷 싯업",
+      "name_en": "AbMat Sit-up",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–50"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S9",
+        "R1",
+        "S31",
+        "S41"
+      ],
+      "memo": "sit_up 별칭의 읽기 대상."
+    },
+    {
+      "key": "v_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "V업",
+      "name_en": "V-up",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–30"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "abmat_sit_up"
+      ],
+      "sources": [
+        "S1"
+      ],
+      "memo": "abs 대신 모델이 고르는 복근 동작. reps 10–30."
+    },
+    {
+      "key": "bent_over_barbell_row",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "벤트오버 바벨 로우",
+      "name_en": "Bent-Over Barbell Row",
+      "category": "weightlifting",
+      "pattern": "pull",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "21"
+      },
+      "rx": {
+        "female": "95 lb (WodMore 최빈 3건)",
+        "male": "135 lb (WodMore 최빈 3건)"
+      },
+      "scale_to": [
+        "ring_row"
+      ],
+      "sources": [
+        "R2",
+        "S41"
+      ],
+      "memo": "barbell_row 별칭의 읽기 대상."
+    },
+    {
+      "key": "hanging_knee_raise",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "행잉 니 레이즈",
+      "name_en": "Hanging Knee Raise",
+      "category": "gymnastics",
+      "pattern": "core",
+      "equipment": "pullup_bar",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–40"
+      },
+      "rx": {
+        "female": "-",
+        "male": "-"
+      },
+      "scale_to": [
+        "sit_up"
+      ],
+      "sources": [
+        "S1",
+        "R3",
+        "S41"
+      ],
+      "memo": "knee_raise 별칭의 읽기 대상."
+    },
+    {
+      "key": "hang_squat_clean",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "행 스쿼트 클린",
+      "name_en": "Hang Squat Clean",
+      "category": "weightlifting",
+      "pattern": "hinge+squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "3–40"
+      },
+      "rx": {
+        "female": "65 lb (WodMore 최빈 6건)",
+        "male": "95 lb (WodMore 최빈 6건)"
+      },
+      "scale_to": [
+        "hang_power_clean"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "hang_clean 별칭의 읽기 대상. hang_power_clean과 구분한다."
+    },
+    {
+      "key": "hang_squat_snatch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "행 스쿼트 스내치",
+      "name_en": "Hang Squat Snatch",
+      "category": "weightlifting",
+      "pattern": "hinge+squat",
+      "equipment": "barbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "1–40 (사례 7건)"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [
+        "hang_power_snatch"
+      ],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "hang_snatch 별칭의 읽기 대상. hang_power_snatch와 구분한다."
+    },
+    {
+      "key": "dumbbell_squat_clean",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "덤벨 스쿼트 클린",
+      "name_en": "Dumbbell Squat Clean",
+      "category": "dumbbell",
+      "pattern": "hinge+squat",
+      "equipment": "dumbbell",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "2–10"
+      },
+      "rx": {
+        "female": "35 lb (WodMore 최빈 3건)",
+        "male": "50 lb (WodMore 최빈 3건)"
+      },
+      "scale_to": [],
+      "sources": [
+        "S1",
+        "S41"
+      ],
+      "memo": "dumbbell_clean 별칭의 읽기 대상. dumbbell_power_clean과 구분한다."
     }
   ]
 }

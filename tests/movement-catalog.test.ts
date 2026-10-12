@@ -14,14 +14,16 @@ import {
   equipmentForKeys,
   linkedCatalogKey,
   movementCatalogVersion,
+  modelSelectable,
   movementsForSlice,
+  standardCatalogKeys,
   standardMovements,
 } from "../src/lib/programming/coaching/movement-catalog";
 
 describe("movement catalog", () => {
-  it("keeps 138 movements and does not invent a range", () => {
-    expect(movementCatalogVersion()).toBe("0.4.0-draft");
-    expect(standardMovements()).toHaveLength(138);
+  it("keeps the catalog draft and does not invent a range", () => {
+    expect(movementCatalogVersion()).toBe("0.5.0-draft");
+    expect(standardMovements()).toHaveLength(159);
     expect(closedRange(null)).toBeNull();
     expect(closedRange("15")).toBeNull();
     expect(closedRange("15 (50 ft)")).toBeNull();
@@ -60,11 +62,18 @@ describe("movement catalog", () => {
     expect(linkedCatalogKey("squat").key).toBe("back_squat");
     expect(linkedCatalogKey("clean").key).toBe("squat_clean");
     expect(linkedCatalogKey("snatch").key).toBe("squat_snatch");
+    expect(linkedCatalogKey("row").key).toBe("row_erg");
+    expect(linkedCatalogKey("fan_bike").key).toBe("assault_bike");
+    expect(linkedCatalogKey("thruster").key).toBe("barbell_thruster");
+    expect(linkedCatalogKey("abs").key).toBe("abs");
     expect(AMBIGUOUS_LINKS).toEqual(["squat", "clean", "snatch"]);
     const unresolved = catalogLinks().filter((row) => row.unresolved).map((row) => row.from);
-    expect(unresolved.sort()).toEqual(
-      ["abs", "barbell_row", "clean_jerk", "close_grip_bench", "db_press", "fan_bike", "free_accessory", "incline_bench", "kettlebell", "knee_raise", "muscle_up", "ohp", "pistol", "sit_up"].sort(),
-    );
+    expect(unresolved.sort()).toEqual(["abs", "free_accessory", "kettlebell"]);
+    expect(standardCatalogKeys()).not.toContain("abs");
+    expect(standardCatalogKeys()).not.toContain("squat");
+    expect(standardCatalogKeys()).toContain("free_accessory");
+    expect(standardCatalogKeys()).toContain("v_up");
+    expect(standardCatalogKeys()).toContain("abmat_sit_up");
   });
 
   it("patches one cell and leaves the piece", () => {
@@ -162,7 +171,14 @@ describe("movement catalog", () => {
     expect(squat.length).toBeGreaterThan(0);
     expect(squat.length).toBeLessThan(138);
     expect(gym.some((row) => row.key === "toes_to_bar")).toBe(true);
+    expect(gym.some((row) => row.key === "pull_up")).toBe(false);
+    expect(gym.some((row) => row.key === "kipping_pull_up")).toBe(true);
+    expect(gym.some((row) => row.key === "v_up")).toBe(true);
+    expect(gym.some((row) => row.key === "abs")).toBe(false);
     expect(squat.some((row) => row.key === "back_squat")).toBe(true);
+    expect(squat.some((row) => row.key === "squat")).toBe(false);
+    expect(squat.some((row) => row.key === "pause_back_squat")).toBe(true);
+    expect(modelSelectable(standardMovements().find((row) => row.key === "row")!)).toBe(false);
     expect(squat.some((row) => row.key === "toes_to_bar")).toBe(false);
     expect(catalogPromptLinesFor({ movementPattern: "gymnastic" }).split("\n")).toHaveLength(gym.length);
   });

@@ -90,8 +90,8 @@ describe("stage21 session normalization", () => {
       conditioning: { movements: Array<{ key: string; amount: string; name_ko: string }>; duration_min: number; volume: string; intensity: string };
     };
     expect(json.strength_method).toBe("ACCUMULATION");
-    expect(json.warmup_ko).toContain("축적");
-    expect(json.warmup_ko).not.toContain("ACCUMULATION");
+    expect(json.warmup_ko).toContain("ACCUMULATION");
+    expect(json.warmup_ko).not.toContain("축적");
     expect(json.conditioning.movements.map((row) => row.key)).toEqual(["double_under", "burpee"]);
     expect(json.conditioning.movements.map((row) => row.amount)).toEqual(["40", "8"]);
     expect(json.conditioning.movements[0]?.name_ko).toBe("더블언더");

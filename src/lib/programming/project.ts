@@ -15,8 +15,9 @@ import {
   type StrengthPrescription,
   type WeekIndex,
 } from "../month-plan/types";
+import { catalogMovement, displayAmount, linkedCatalogKey } from "./coaching/movement-catalog";
 import { loadBasisForMethod } from "./strength-methods";
-import type { ConditioningDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
+import type { ConditioningDraft, MovementDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
 
 const STIMULUS_KO: Record<Stimulus, MetconStimulus> = {
   heavy: "고중량",
@@ -48,14 +49,33 @@ function pieceNote(conditioning: ConditioningDraft): string | undefined {
   return undefined;
 }
 
+function screenAmount(movement: MovementDraft): string {
+  if (movement.unit && movement.unit !== "reps" && /^\d+$/.test(movement.amount)) {
+    return displayAmount(Number(movement.amount), movement.unit);
+  }
+  return movement.amount;
+}
+
+/** Alias keys become the specific movement on screen. abs and kettlebell stay as stored. */
+function shownMovement(movement: MovementDraft): MovementDraft {
+  if (movement.key === "abs" || movement.key === "kettlebell") return movement;
+  const linked = linkedCatalogKey(movement.key);
+  if (!linked.from) return movement;
+  const row = catalogMovement(linked.key);
+  return { ...movement, key: linked.key, name_ko: row?.name_ko ?? movement.name_ko };
+}
+
 function pieceFrom(session: SessionDraft): MetconPiece | null {
   const conditioning = session.conditioning;
   if (!conditioning) return null;
-  const movements = conditioning.movements.map((movement) => ({
-    key: movement.key,
-    amount: movement.amount,
-    nameKo: movement.name_ko,
-  }));
+  const movements = conditioning.movements.map((movement) => {
+    const shown = shownMovement(movement);
+    return {
+      key: shown.key,
+      amount: screenAmount(shown),
+      nameKo: shown.name_ko,
+    };
+  });
   const pattern = asPattern(conditioning.movement_patterns[0] ?? "engine");
   return {
     id: conditioning.benchmark ? "sl-month-benchmark" : `class-${session.day}`,
@@ -79,9 +99,10 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
 
 function strengthFrom(session: SessionDraft, strengthMethod: string): StrengthPrescription | null {
   if (!session.strength) return null;
+  const specific = session.strength.movement_key;
   return {
     exerciseKey: session.strength.lift,
-    nameKo: liftName(session.strength.lift),
+    nameKo: (specific ? catalogMovement(specific)?.name_ko : null) ?? liftName(session.strength.lift),
     oneRmKg: null,
     trainingMaxKg: null,
     loadBasis: loadBasisForMethod(strengthMethod),

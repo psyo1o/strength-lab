@@ -228,7 +228,7 @@ describe("head cells", () => {
       },
     ]);
     expect(applied).toMatchObject({ proposed: 1, applied: 1, reverted: 0 });
-    expect(session.conditioning?.movements[0]?.amount).toBe("30cal");
+    expect(session.conditioning?.movements[0]?.amount).toBe("30");
     expect(session.conditioning?.movements[0]?.unit).toBe("cal");
     const outside = applyHeadCells(built.draft.sessions, [
       {
@@ -239,6 +239,6 @@ describe("head cells", () => {
       },
     ]);
     expect(outside.reverted).toBe(1);
-    expect(session.conditioning?.movements[0]?.amount).toBe("30cal");
+    expect(session.conditioning?.movements[0]?.amount).toBe("30");
   });
 });

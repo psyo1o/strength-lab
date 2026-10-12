@@ -31,7 +31,7 @@ export const INTENSITY_PROFILES = ["light", "moderate", "heavy", "mixed"] as con
 export const INTENSITY_BANDS = ["light", "moderate", "heavy"] as const;
 export const FATIGUE_TARGETS = ["low", "moderate", "high"] as const;
 export const MOVEMENT_PATTERNS = ["squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic", "mixed", "none"] as const;
-export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals"] as const;
+export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
 export const LOAD_ACTIONS = ["progress", "hold", "cut"] as const;
 export const TARGET_EFFORTS = ["easy", "moderate", "hard"] as const;
 export const RELATIVE_INTENSITIES = ["up", "same", "down"] as const;
@@ -135,7 +135,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       enumLine("stimulus", STIMULI),
       enumLine("volume", VOLUME_BANDS),
       enumLine("intensity", INTENSITY_BANDS),
-      "movements is an array of {key, amount, name_ko}. 2 to 4 items, or 1 only when primary_training is aerobic and the day is not long.",
+      "movements is an array of {key, amount, name_ko}. 2 to 5 items, or 1 only when primary_training is aerobic and the day is not long. A metcon slot uses 3 to 5.",
       "interval_work_sec and interval_rest_sec are integers only when format is intervals. Otherwise both are null.",
       "amount is the work. duration_min is the piece cap. double_under 30sec and row 30sec are clear work durations. row 12reps is not a natural row amount.",
       `movement.key must be one of: ${catalog}.`,
@@ -812,8 +812,8 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
   const minMoves = aerobicMono ? 1 : 2;
   if (!Array.isArray(piece.movements)) {
     errors.push("conditioning.movements: expected an array of {key, amount, name_ko}");
-  } else if (piece.movements.length < minMoves || piece.movements.length > 4) {
-    errors.push(`conditioning.movements: length ${piece.movements.length}; allowed: ${minMoves}–4`);
+  } else if (piece.movements.length < minMoves || piece.movements.length > 5) {
+    errors.push(`conditioning.movements: length ${piece.movements.length}; allowed: ${minMoves}–5`);
   } else {
     const catalog = new Map(movementCatalog().map((row) => [row.key, row.name_ko]));
     piece.movements.forEach((row, index) => {
@@ -823,10 +823,17 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
         return;
       }
       if (typeof row.amount === "number" && typeof row.unit === "string") {
+        const cellKey = typeof row.movement === "string" ? row.movement : typeof row.key === "string" ? row.key : "";
+        if (cellKey === "squat" || cellKey === "pause_squat" || cellKey === "pin_squat") {
+          errors.push(`${prefix}.key: received ${cellKey}; use back_squat or front_squat`);
+        }
         errors.push(...cellMovementErrors(prefix, row, catalog));
         return;
       }
-      const keyText = typeof row.key === "string" ? row.key : "";
+      const keyText = typeof row.key === "string" ? row.key : typeof row.movement === "string" ? row.movement : "";
+      if (keyText === "squat" || keyText === "pause_squat" || keyText === "pin_squat") {
+        errors.push(`${prefix}.key: received ${keyText}; use back_squat or front_squat`);
+      }
       const piecesName = catalog.get(keyText);
       const standardName = catalogMovement(keyText)?.name_ko ?? null;
       if (!piecesName && !standardName) {

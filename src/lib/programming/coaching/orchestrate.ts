@@ -17,7 +17,9 @@ import {
   WEEKLY_COACH_PROMPT_VERSION,
 } from "./prompts";
 import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
-import { normalizeSessionPayload, type SessionNormalization } from "./stage13/normalize";
+import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
+import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "./conditioning-board";
+import type { ConditioningSlot } from "../types";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
 import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRevisionSpecs, waitForTransientRetry } from "./day-recovery";
@@ -159,6 +161,7 @@ function sessionUser(
 ) {
   const locked = lockedSkeletonDay(input, day.day);
   const lockedRange = locked && locked.conditioning.duration_class !== "rest" ? TIME_DOMAIN_RANGES[locked.conditioning.duration_class] : null;
+  const slot = locked ? null : (plan.conditioning_slots?.[day.day] ?? null);
   const writtenDays = otherTrainingDays(draft, day.day).filter((row) => !ignoreDays.includes(row.day));
   const previousStimulus = adjacentStimulus(writtenDays, day.day, -1);
   const nextStimulus = adjacentStimulus(writtenDays, day.day, 1);
@@ -174,7 +177,21 @@ function sessionUser(
     benchmark_required: day.benchmark,
     strength_required: day.strength_lift !== "none",
     recovery_intent: day.recovery_role,
-    target_duration: lockedRange ? `${lockedRange.min}-${lockedRange.max}` : day.secondary_training === "long_conditioning" ? "30-40" : "8-20",
+    target_duration: lockedRange
+      ? `${lockedRange.min}-${lockedRange.max}`
+      : slot
+        ? String(slot.duration_min)
+        : day.secondary_training === "long_conditioning"
+          ? "30-40"
+          : "8-20",
+    intensity_level: SESSION_INTENSITY_LEVEL,
+    ...(slot
+      ? {
+          conditioning_slot: slot,
+          slot_rule:
+            "Keep conditioning_slot format, duration_min, stimulus, volume, and primary_key. Write the other movements, amounts, units, and catalog Rx loads. amount is the number and unit is separate. A metcon uses 3 to 5 movements and mixes monostructural, gymnastics, and weightlifting. Do not use squat, pause_squat, pin_squat, or the day's strength lift.",
+        }
+      : {}),
     locked_day: locked
       ? {
           day: locked.day,
@@ -261,6 +278,26 @@ function stimulusRetryText(error: string, draft: WeekDraft, day: DayKey, ignoreD
   return `${error}. Neighboring training stimulus is ${neighbors.join(" and ") || "none"}. Set conditioning.stimulus to ${choices}. A new movement name is not a stimulus change.`;
 }
 
+function stampSlotAxes(json: unknown, slot: ConditioningSlot): unknown {
+  if (!json || typeof json !== "object") return json;
+  const clone = JSON.parse(JSON.stringify(json)) as { conditioning?: Record<string, unknown> };
+  const piece = clone.conditioning;
+  if (!piece || typeof piece !== "object") return clone;
+  piece.format = slot.format;
+  piece.duration_min = slot.duration_min;
+  piece.stimulus = slot.stimulus;
+  piece.volume = slot.volume;
+  if (slot.stimulus === "heavy" && piece.intensity === "light") piece.intensity = "moderate";
+  if (slot.format === "intervals") {
+    if (typeof piece.interval_work_sec !== "number") piece.interval_work_sec = 40;
+    if (typeof piece.interval_rest_sec !== "number") piece.interval_rest_sec = 20;
+  } else {
+    piece.interval_work_sec = null;
+    piece.interval_rest_sec = null;
+  }
+  return clone;
+}
+
 function adoptDay(input: {
   week: CoachWeekInput;
   plan: WeeklyIntentPlan;
@@ -269,14 +306,21 @@ function adoptDay(input: {
   json: unknown;
   ignoreDays?: readonly DayKey[];
   deferPlacement?: boolean;
+  /** Recent-week rewrites may change the slot axes. The first write keeps them. */
+  stampAxes?: boolean;
 }):
   | { ok: true; draft: WeekDraft; session: SessionDraft; json: unknown; normalizations: SessionNormalization[] }
   | { ok: false; errors: string[]; json: unknown; normalizations: SessionNormalization[] } {
-  const normalized = normalizeSessionPayload(input.json, { inventWorkFromClock: false });
   const locked = lockedSkeletonDay(input.week, input.day.day);
+  const slot = locked ? null : (input.plan.conditioning_slots?.[input.day.day] ?? null);
+  const source = slot && input.stampAxes !== false ? stampSlotAxes(input.json, slot) : input.json;
+  const normalized = normalizeSessionPayload(source, { inventWorkFromClock: false });
   const schemaErrors = [
     ...sessionSelfErrors(normalized.json, input.day),
     ...(locked ? lockedSessionFieldErrors(normalized.json, locked) : []),
+    ...(slot
+      ? slotFitErrors(normalized.json, slot, input.day.strength_lift).filter((error) => error.includes("is banned"))
+      : []),
   ];
   if (schemaErrors.length) return { ok: false, errors: schemaErrors, json: normalized.json, normalizations: normalized.normalizations };
   const session = sessionFromCoachJson({
@@ -294,6 +338,7 @@ function adoptDay(input: {
       normalizations: normalized.normalizations,
     };
   }
+  if (slot && session.conditioning) session.conditioning.movement_patterns = [slot.movement_pattern];
   const sessions = input.draft.sessions.map((row) => (row.day === input.day.day ? session : row));
   const candidate = stamp({ ...input.draft, sessions }, input.plan);
   const ignoreDays = input.ignoreDays ?? [];
@@ -437,7 +482,11 @@ async function writeSession(input: {
   areaTraces: AgentTrace[];
 }> {
   const started = Date.now();
-  const existingKeys = movementKeysOf(input.draft.sessions.find((session) => session.day === input.day.day) ?? null);
+  const hinted = input.plan.conditioning_slots?.[input.day.day];
+  const existingKeys = [
+    ...movementKeysOf(input.draft.sessions.find((session) => session.day === input.day.day) ?? null),
+    ...(hinted ? [hinted.primary_key, ...hinted.companions] : []),
+  ];
   const catalogKeys = movementsForSlice(sliceFor(input.day, existingKeys)).map((row) => row.key);
   const ignoreDays = input.ignoreDays ?? [];
   const user = sessionUser(
@@ -515,6 +564,7 @@ async function writeSession(input: {
       json: merged.json,
       ignoreDays,
       deferPlacement: input.deferPlacement,
+      stampAxes: input.revisionNumber === 0,
     });
     normalizations.push(...adopted.normalizations);
     normalizedJson = adopted.json;
@@ -712,6 +762,7 @@ async function writeSession(input: {
     json: merged.json,
     ignoreDays,
     deferPlacement: input.deferPlacement,
+    stampAxes: input.revisionNumber === 0,
   });
   normalizations.push(...adopted.normalizations);
   if (!adopted.ok) {
@@ -752,7 +803,7 @@ async function writeSession(input: {
   return {
     draft: adopted.draft,
     source: "model",
-    normalized: normalizations.some((row) => row.ok),
+    normalized: revisionFromNormalizations(normalizations),
     recovered,
     unresolved: false,
     unresolvedErrors: [],
@@ -1269,6 +1320,15 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const unresolvedDays = new Map<DayKey, string[]>();
   let headModelStatus: HeadCoachReview["status"] | null = null;
   let draft = stamp(built.draft, plan);
+  plan = {
+    ...plan,
+    conditioning_slots: placeConditioningSlots({
+      weekIndex: input.weekIndex,
+      days: plan.days,
+      recent: input.recentStructures ?? [],
+      lockedDays: plan.days.filter((day) => lockedSkeletonDay(week, day.day)).map((day) => day.day),
+    }),
+  };
   const queue = trainingDays(plan);
   for (let index = 0; index < queue.length; index += 1) {
     const day = queue[index]!;
@@ -1445,6 +1505,14 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const unresolvedSnap = new Map(unresolvedDays);
   draft = placed.draft;
   plan = placed.plan;
+  if (plan.conditioning_slots) {
+    const moved: NonNullable<WeeklyIntentPlan["conditioning_slots"]> = {};
+    for (const day of DAY_ORDER) {
+      const slot = plan.conditioning_slots[placed.originByDay[day]];
+      if (slot) moved[day] = slot;
+    }
+    plan = { ...plan, conditioning_slots: moved };
+  }
   if (input.longitudinal && placed.skeleton) input.longitudinal.skeleton = placed.skeleton;
   normalizedDays.clear();
   recoveredDays.clear();

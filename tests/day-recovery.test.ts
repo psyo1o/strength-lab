@@ -562,7 +562,7 @@ describe("day recovery orchestrator", () => {
     expect(monday?.conditioning?.movements?.map((row) => row.key)).toEqual(original?.conditioning?.movements?.map((row) => row.key));
     expect(monday?.conditioning?.movements?.map((row) => row.amount)).toEqual(original?.conditioning?.movements?.map((row) => row.amount));
     expect(JSON.stringify(monday?.conditioning)).not.toContain("10회/라운드");
-    expect(monday?.conditioning?.stimulus).toBe(original?.conditioning?.stimulus);
+    expect(monday?.conditioning?.stimulus).toBe(result.plan.conditioning_slots?.mon?.stimulus ?? original?.conditioning?.stimulus);
     expect(result.day_sources.mon).toBe("model");
     expect(result.day_records?.mon?.revision_reason).toBe("schema recovery");
     expect(result.generation_source).toBe("model");

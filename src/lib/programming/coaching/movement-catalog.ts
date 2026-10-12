@@ -60,8 +60,17 @@ export function catalogMovement(key: string): CatalogMovement | null {
   return byKey().get(key) ?? null;
 }
 
+/** Generic keys the model must not pick. Stored rows still display under this key. */
+const STORED_DISPLAY_KEYS = new Set(["abs", "kettlebell"]);
+
+/** A resolved proposed_key is an alias. The model list and schema enum omit it. */
+export function modelSelectable(row: CatalogMovement): boolean {
+  if (STORED_DISPLAY_KEYS.has(row.key)) return false;
+  return linkedCatalogKey(row.key).from == null;
+}
+
 export function standardCatalogKeys(): readonly string[] {
-  return standardMovements().map((row) => row.key);
+  return standardMovements().filter(modelSelectable).map((row) => row.key);
 }
 
 /**
@@ -217,7 +226,7 @@ export function coerceMovementRow(row: unknown): Record<string, unknown> {
       key: storedKey,
       movement: storedKey,
       name_ko: catalog?.name_ko ?? (typeof item.name_ko === "string" ? item.name_ko : storedKey),
-      amount: catalog?.units.includes(unit) ? displayAmount(amountValue, unit) : `${amountValue}${unit}`,
+      amount: String(amountValue),
       amount_value: amountValue,
       unit,
       load,
@@ -273,7 +282,7 @@ export function catalogLine(row: CatalogMovement): string {
 }
 
 export function catalogPromptLines(): string {
-  return standardMovements().map(catalogLine).join("\n");
+  return standardMovements().filter(modelSelectable).map(catalogLine).join("\n");
 }
 
 /** Catalog gear that is already a display enum value. Unknown catalog gear is not invented into the enum. */
@@ -357,6 +366,7 @@ export function movementsForSlice(slice: CatalogSlice): CatalogMovement[] {
   const extra = new Set(slice.extraKeys ?? []);
   return standardMovements().filter((row) => {
     if (extra.has(row.key)) return true;
+    if (!modelSelectable(row)) return false;
     if (categories.has(row.category)) return true;
     return row.pattern.split("+").some((token) => fragments.has(token));
   });
@@ -411,7 +421,7 @@ export function patchStoredMovement(
     if (!decided.ok) return decided;
     movement.amount_value = decided.amount;
     movement.unit = decided.unit;
-    movement.amount = displayAmount(decided.amount, decided.unit);
+    movement.amount = String(decided.amount);
     movement.movement = movement.movement ?? movement.key;
     return { ok: true };
   }
@@ -421,7 +431,7 @@ export function patchStoredMovement(
     movement.unit = unit;
     if (Number.isInteger(current)) {
       movement.amount_value = current;
-      movement.amount = displayAmount(current, unit);
+      movement.amount = String(current);
     }
     return { ok: true };
   }
@@ -463,13 +473,13 @@ export function applyCellsToCoachJson(json: unknown, cells: readonly RecoveryCel
       movement.amount_value = decided.amount;
       movement.unit = decided.unit;
       if (movement.key == null || movement.key === "") movement.key = typeof movement.movement === "string" ? movement.movement : cell.catalog_key;
-      movement.amount = cellShaped ? decided.amount : displayAmount(decided.amount, decided.unit);
+      movement.amount = cellShaped ? decided.amount : String(decided.amount);
     } else if (cell.field === "unit") {
       const unit = cell.value as CatalogUnit;
       const current = typeof movement.amount_value === "number" ? movement.amount_value : parseCellAmount(String(movement.amount ?? "")).amount ?? 0;
       movement.unit = unit;
       movement.amount_value = current;
-      movement.amount = displayAmount(current, unit);
+      movement.amount = String(current);
     } else if (cell.field === "movement") {
       const next = catalogMovement(cell.value);
       movement.key = cell.value;

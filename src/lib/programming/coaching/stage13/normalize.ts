@@ -116,11 +116,16 @@ function movementKeys(rows: unknown[]): string[] {
   return keys;
 }
 
+/** A display-term swap does not make the day a model revision. Unit repairs still do. */
+export function revisionFromNormalizations(rows: readonly SessionNormalization[]): boolean {
+  return rows.some((row) => row.ok && row.rule !== "display_term");
+}
+
 function rewriteDisplayFields(body: Record<string, unknown>, prefix: string, normalizations: SessionNormalization[]) {
   for (const [key, child] of Object.entries(body)) {
     if (typeof child !== "string") continue;
     if (!DISPLAY_KEYS.has(key) && !key.endsWith("_ko")) continue;
-    if (key === "name_ko") continue;
+    if (key === "name_ko" || key === "warmup_ko") continue;
     const next = rewriteMonthLanguageTokens(child);
     if (next === child) continue;
     normalizations.push({

@@ -256,7 +256,7 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     return null;
   }
   if (!purpose || !isWodPurpose(purpose)) return null;
-  if (format !== "amrap" && format !== "for_time" && format !== "emom" && format !== "intervals") return null;
+  if (format !== "amrap" && format !== "for_time" && format !== "emom" && format !== "intervals" && format !== "chipper") return null;
   if (timeDomain !== "short" && timeDomain !== "medium" && timeDomain !== "long") return null;
   if (stimulus !== null && (typeof stimulus !== "string" || !(STIMULI as readonly string[]).includes(stimulus))) return null;
   if (volume !== "low" && volume !== "moderate" && volume !== "high") return null;
@@ -332,7 +332,14 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
       strength_volume: row.strength_volume === "low" || row.strength_volume === "moderate" || row.strength_volume === "high" ? row.strength_volume : null,
       strength_intensity: row.strength_intensity === "light" || row.strength_intensity === "moderate" || row.strength_intensity === "heavy" ? row.strength_intensity : null,
       metcon_purpose: metconPurpose,
-      metcon_format: row.metcon_format === "amrap" || row.metcon_format === "for_time" || row.metcon_format === "emom" || row.metcon_format === "intervals" ? row.metcon_format : null,
+      metcon_format:
+        row.metcon_format === "amrap" ||
+        row.metcon_format === "for_time" ||
+        row.metcon_format === "emom" ||
+        row.metcon_format === "intervals" ||
+        row.metcon_format === "chipper"
+          ? row.metcon_format
+          : null,
       time_domain: row.time_domain === "short" || row.time_domain === "medium" || row.time_domain === "long" ? row.time_domain : null,
       stimulus: row.stimulus === null ? null : typeof row.stimulus === "string" && (STIMULI as readonly string[]).includes(row.stimulus) ? (row.stimulus as Stimulus) : null,
       movement_combination: asString(row.movement_combination),
@@ -590,7 +597,7 @@ export function dayLabel(day: string): string {
   return DAY_LABEL[day as DayKey] ?? day;
 }
 
-const SESSION_FORMATS = ["amrap", "for_time", "emom", "intervals"] as const;
+const SESSION_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
 const SESSION_DOMAINS = ["short", "medium", "long"] as const;
 const SESSION_VOLUMES = ["low", "moderate", "high"] as const;
 const SESSION_INTENSITIES = ["light", "moderate", "heavy"] as const;

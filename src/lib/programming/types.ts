@@ -19,7 +19,7 @@ export type VolumeBand = "low" | "moderate" | "high";
 
 export type IntensityBand = "light" | "moderate" | "heavy";
 
-export type WodFormat = "amrap" | "for_time" | "emom" | "intervals";
+export type WodFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper";
 
 export type MovementPattern = "squat" | "hinge" | "press" | "pull" | "olympic" | "engine" | "gymnastic";
 
@@ -69,6 +69,24 @@ export type StrengthSetDraft = {
 export type StrengthDraft = {
   lift: MainLift;
   sets: StrengthSetDraft[];
+  /** Shown on the screen. The method family stays `lift` so percentages still resolve. */
+  movement_key?: string;
+};
+
+/** One cell of the month conditioning board. The daily coach fills movements and loads. */
+export type ConditioningSlot = {
+  format: WodFormat;
+  time_domain: TimeDomain;
+  duration_min: number;
+  stimulus: Stimulus;
+  movement_pattern: MovementPattern;
+  primary_key: string;
+  volume: VolumeBand;
+  metcon: boolean;
+  movement_count: number;
+  companions: readonly string[];
+  /** The 20 minute cell. A long-conditioning day stretches this cell into the long bucket. */
+  stretch: boolean;
 };
 
 export type MovementDraft = {
@@ -248,6 +266,8 @@ export type WeeklyIntentPlan = {
   week_status?: WeekLifecycle;
   day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
   days: DayIntent[];
+  /** Placed conditioning cells for this week. Absent on rows written before the month board. */
+  conditioning_slots?: Partial<Record<DayKey, ConditioningSlot>>;
   /**
    * Stage 17 planning core. Present only when LONGITUDINAL_PLANNING is on.
    * Phase B session generation reads the locked skeleton when the caller passes it in.

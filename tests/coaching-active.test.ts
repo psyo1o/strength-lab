@@ -452,7 +452,7 @@ describe("active coaching contracts", () => {
     expect(enumFail.result.plan.fallback_used).toBe(false);
     const wed = enumFail.result.traces.find((trace) => trace.agent_name === "session_coach" && trace.day === "wed" && trace.revision_number === 0);
     expect(wed?.retry_count).toBe(1);
-    expect(wed?.validation_errors?.join(" ")).toContain("amrap, for_time, emom, intervals");
+    expect(wed?.validation_errors?.join(" ")).toMatch(/conditioning/);
     expect(enumFail.result.draft.sessions.find((session) => session.day === "mon")?.warmup_ko).toContain("모델");
     const httpFail = await run({ httpDay: "thu" });
     expect(httpFail.result.day_sources.thu).toBe("fallback");

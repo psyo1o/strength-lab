@@ -7,7 +7,7 @@ import { STRENGTH_PRESERVE } from "./types";
 const DAYS = new Set(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
 const INTENSITY = new Set(["light", "moderate", "heavy"]);
 const VOLUME = new Set(["low", "moderate", "high"]);
-const FORMAT = new Set(["amrap", "for_time", "emom", "intervals"]);
+const FORMAT = new Set(["amrap", "for_time", "emom", "intervals", "chipper"]);
 const PRIORITY_RANK: Record<AdjustmentRequest["priority"], number> = { P0: 0, P1: 1, P2: 2, P3: 3 };
 
 function cloneSessions(sessions: readonly SessionDraft[]): SessionDraft[] {
