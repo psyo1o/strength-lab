@@ -814,12 +814,20 @@ async function writeProgrammingWeek(
   }
 }
 
+function failedProgrammingWeek(weekStart: string) {
+  const attempts = listProgrammingWeekAttempts(weekStart);
+  for (let index = attempts.length - 1; index >= 0; index -= 1) {
+    if (attempts[index]?.status === "failed") return attempts[index] ?? null;
+  }
+  return null;
+}
+
 export function recordWeeklyActual(
   weekStart: string,
   actual: WeekActual,
   nowMs = Date.now(),
 ): WeekActual | { error: string } {
-  const week = getProgrammingWeek(weekStart);
+  const week = getProgrammingWeek(weekStart) ?? failedProgrammingWeek(weekStart);
   if (!week) return { error: "주를 찾지 못했습니다." };
   saveWeeklyActual(week.id, actual, nowMs);
   return getWeeklyActual(week.id) ?? { error: "실제 기록을 저장하지 못했습니다." };

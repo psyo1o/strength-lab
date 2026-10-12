@@ -658,11 +658,26 @@ export function linkProgrammingWeek(weekStart: string, classWeekId: number): voi
     .run(classWeekId, weekStart);
 }
 
+const LATEST_WEEK_STATUS = `
+  status = 'active'
+  OR (
+    status = 'failed'
+    AND NOT EXISTS (
+      SELECT 1 FROM programming_weeks active_week
+      WHERE active_week.week_start = programming_weeks.week_start AND active_week.status = 'active'
+    )
+    AND id = (
+      SELECT MAX(latest.id) FROM programming_weeks latest
+      WHERE latest.week_start = programming_weeks.week_start AND latest.status = 'failed'
+    )
+  )
+`;
+
 export function listProgrammingWeeksBefore(weekStart: string): WeekRow[] {
   const rows = getSqlite()
     .prepare(
       `SELECT ${WEEK_SELECT} FROM programming_weeks
-       WHERE week_start < ? AND status = 'active'
+       WHERE week_start < ? AND (${LATEST_WEEK_STATUS})
        ORDER BY week_start ASC`,
     )
     .all(weekStart) as WeekSql[];
@@ -683,7 +698,21 @@ export function listRecentStructures(weekStart: string): StoredStructure[] {
               s.rep_structure, s.work_rest_structure, s.duration_min, s.volume, s.intensity, s.benchmark, s.long_conditioning
        FROM wod_structures s
        JOIN programming_weeks w ON w.id = s.week_id
-       WHERE w.status = 'active' AND w.week_start < ? AND w.week_start >= ?
+       WHERE w.week_start < ? AND w.week_start >= ?
+         AND (
+           w.status = 'active'
+           OR (
+             w.status = 'failed'
+             AND NOT EXISTS (
+               SELECT 1 FROM programming_weeks active_week
+               WHERE active_week.week_start = w.week_start AND active_week.status = 'active'
+             )
+             AND w.id = (
+               SELECT MAX(latest.id) FROM programming_weeks latest
+               WHERE latest.week_start = w.week_start AND latest.status = 'failed'
+             )
+           )
+         )
        ORDER BY w.week_start ASC, s.day_key ASC`,
     )
     .all(weekStart, from) as Array<Record<string, unknown>>;
