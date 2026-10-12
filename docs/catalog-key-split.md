@@ -31,7 +31,7 @@
 | pistol | pistol_squat | pistol_squat |
 | sit_up | abmat_sit_up | abmat_sit_up |
 
-`abs`와 `free_accessory`는 애매한 이름 정리 대상이 아니다. 둘 다 모델 목록에 남긴다. `abs`는 복근 운동 총칭이다. `free_accessory`는 수행자가 마음대로 고르는 보조 운동이다. `v_up`은 reps 10–30이다. `abmat_sit_up`은 `sit_up`과 같은 reps 10–50이다.
+`abs`는 모델 목록과 스키마 enum에서 뺀다. 복근 운동 총칭이라 저장된 기록은 이 키 그대로 표시한다. 모델은 `toes_to_bar`, `glute_ham_developer_sit_up`, `abmat_sit_up`, `v_up` 중에서 고른다. `free_accessory`는 수행자가 마음대로 고르는 보조 운동으로 모델 목록에 남긴다. 둘 다 애매한 이름 정리로 다른 키에 합치지 않는다. `v_up`은 reps 10–30이다. `abmat_sit_up`은 `sit_up`과 같은 reps 10–50이다.
 
 ## 같은 원칙으로 더 나눈 키
 

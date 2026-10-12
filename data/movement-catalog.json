@@ -3214,7 +3214,7 @@
       "sources": [
         "R2"
       ],
-      "memo": "복근 운동 총칭. 애매한 이름 정리 대상이 아니다."
+      "memo": "복근 운동 총칭. 모델 목록에는 없고, 저장된 기록은 이 키 그대로 표시한다. 모델은 toes_to_bar, glute_ham_developer_sit_up, abmat_sit_up, v_up 중에서 고른다."
     },
     {
       "key": "burpee",

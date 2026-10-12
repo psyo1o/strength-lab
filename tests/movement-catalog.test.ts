@@ -70,11 +70,14 @@ describe("movement catalog", () => {
     expect(AMBIGUOUS_LINKS).toEqual(["squat", "clean", "snatch"]);
     const unresolved = catalogLinks().filter((row) => row.unresolved).map((row) => row.from);
     expect(unresolved.sort()).toEqual(["abs", "free_accessory", "kettlebell"]);
-    expect(standardCatalogKeys()).toContain("abs");
+    expect(standardCatalogKeys()).not.toContain("abs");
     expect(standardCatalogKeys()).not.toContain("squat");
     expect(standardCatalogKeys()).toContain("free_accessory");
+    expect(standardCatalogKeys()).toContain("toes_to_bar");
+    expect(standardCatalogKeys()).toContain("glute_ham_developer_sit_up");
     expect(standardCatalogKeys()).toContain("v_up");
     expect(standardCatalogKeys()).toContain("abmat_sit_up");
+    expect(linkedCatalogKey("sit_up").key).toBe("abmat_sit_up");
   });
 
   it("patches one cell and leaves the piece", () => {
