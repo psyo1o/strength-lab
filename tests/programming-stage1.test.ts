@@ -179,7 +179,7 @@ describe("stage 1 generation guard", () => {
     const failed = vi.fn(async () => new Response("no", { status: 500 }));
     const fallback = await ensureProgrammingWeek("2026-10-12", { nowMs: NOW + 2, key: KEY, fetchImpl: failed });
     expect(failed.mock.calls.length).toBeGreaterThan(0);
-    expect(failed.mock.calls.length).toBeLessThanOrEqual(24);
+    expect(failed.mock.calls.length).toBeLessThanOrEqual(42);
     expect(fallback).toMatchObject({
       generationSource: "fallback",
       fallbackReason: "http_error",

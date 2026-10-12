@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetDbConnection } from "../src/lib/db/client";
 import { DAY_ORDER, type DayKey } from "../src/lib/month-plan/types";
 import { dryRunWeek } from "../src/lib/programming/admin-tools";
-import { dayRecoveryPayload, recoveryDrift, rejectedRevisionSpecs } from "../src/lib/programming/coaching/day-recovery";
+import { dayRecoveryPayload, recoveryDrift, rejectedRevisionSpecs, setTransientAreaRetryMs } from "../src/lib/programming/coaching/day-recovery";
 import { catalogUnits, rangeFor } from "../src/lib/programming/coaching/movement-catalog";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
@@ -23,7 +23,22 @@ const NOW = Date.parse("2099-07-06T01:00:00.000Z");
 const KEY = "sk-day-recovery";
 const WEEK = "2099-07-06";
 
-type Mode = "recover" | "always_bad" | "keep_valid" | "bad_coach" | "bad_range" | "block" | "approve" | "field_fix" | "field_drift" | "cell_head" | "bad_cal" | "cell_fix";
+type Mode =
+  | "recover"
+  | "always_bad"
+  | "keep_valid"
+  | "bad_coach"
+  | "bad_range"
+  | "block"
+  | "approve"
+  | "field_fix"
+  | "field_drift"
+  | "cell_head"
+  | "bad_cal"
+  | "cell_fix"
+  | "http_once"
+  | "http_twice"
+  | "timeout_once";
 
 function freshDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-day-recovery-"));
@@ -259,6 +274,7 @@ function harness(mode: Mode) {
   const plan = planCoachedWeek({ month, weekIndex: 1 });
   const built = assembleLegalWeek({ month, weekIndex: 1, plan });
   const calls: Array<{ agent: string; day: string; user: Record<string, unknown> }> = [];
+  const transport = { conditioning: 0, warmup: 0 };
   const fetchImpl = async (_url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body)) as { messages?: Array<{ role: string; content: string }> };
     const user = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
@@ -271,8 +287,22 @@ function harness(mode: Mode) {
     }
     if (agent === "weekly_coach" || agent === "context:weekly") return chat(weeklyJson(plan));
     if (agent === "strength_coach") return chat({ day, strength_note_ko: `모델 ${day} 스트렝스 목적을 유지합니다.` });
-    if (agent === "warmup_coach") return chat({ day, warmup_ko: `모델 ${day} 준비 동작을 먼저 합니다.` });
+    if (agent === "warmup_coach") {
+      if (mode === "timeout_once" && day === "wed") {
+        transport.warmup += 1;
+        if (transport.warmup === 1) {
+          const error = new Error("timed out");
+          error.name = "TimeoutError";
+          throw error;
+        }
+      }
+      return chat({ day, warmup_ko: `모델 ${day} 준비 동작을 먼저 합니다.` });
+    }
     if (agent === "conditioning_coach") {
+      if ((mode === "http_once" || mode === "http_twice") && day === "mon") {
+        transport.conditioning += 1;
+        if (mode === "http_twice" || transport.conditioning === 1) return new Response("no", { status: 500 });
+      }
       const session = built.draft.sessions.find((row) => row.day === day);
       if (!session) return chat({ day });
       const context = user.context as { revision_number?: number } | undefined;
@@ -432,6 +462,51 @@ describe("day recovery units", () => {
 });
 
 describe("day recovery orchestrator", () => {
+  it("retries one http failure after a short wait and keeps the other days", async () => {
+    setTransientAreaRetryMs(400);
+    const started = Date.now();
+    try {
+      const { result, calls } = await run("http_once");
+      expect(Date.now() - started).toBeGreaterThanOrEqual(400);
+      const monday = calls.filter((row) => row.agent === "conditioning_coach" && row.day === "mon");
+      const tuesday = calls.filter((row) => row.agent === "conditioning_coach" && row.day === "tue");
+      expect(monday).toHaveLength(2);
+      expect(monday.every((row) => row.user.day_recovery == null)).toBe(true);
+      expect(tuesday).toHaveLength(1);
+      expect(result.day_sources.mon).toBe("model");
+      expect(result.day_records?.mon?.day_status).toBe("MODEL_REVISED");
+      expect(result.day_sources.tue).toBe("model");
+      expect(result.generation_source).toBe("model");
+    } finally {
+      setTransientAreaRetryMs(0);
+    }
+  });
+
+  it("leaves only that day unresolved when the transport retry fails", async () => {
+    const { result, calls } = await run("http_twice");
+    const monday = calls.filter((row) => row.agent === "conditioning_coach" && row.day === "mon");
+    const tuesday = calls.filter((row) => row.agent === "conditioning_coach" && row.day === "tue");
+    expect(monday).toHaveLength(2);
+    expect(tuesday).toHaveLength(1);
+    expect(result.day_sources.mon).toBe("fallback");
+    expect(result.day_records?.mon?.day_status).toBe("FALLBACK");
+    expect(result.day_sources.tue).toBe("model");
+    expect(result.day_records?.tue?.day_status).toBe("MODEL");
+    expect(result.generation_source).not.toBe("model");
+    expect(result.fallback_reason).toContain("fallback_after_model_failure");
+    expect(result.fallback_reason).not.toContain("unresolved_day");
+  });
+
+  it("retries one timeout for that area only", async () => {
+    const { result, calls } = await run("timeout_once");
+    const wednesday = calls.filter((row) => row.agent === "warmup_coach" && row.day === "wed");
+    const monday = calls.filter((row) => row.agent === "warmup_coach" && row.day === "mon");
+    expect(wednesday).toHaveLength(2);
+    expect(monday).toHaveLength(1);
+    expect(result.day_sources.wed).toBe("model");
+    expect(result.generation_source).toBe("model");
+  });
+
   it("keeps the other days when monday stays unresolved", async () => {
     const { result, calls } = await run("always_bad");
     const training = result.plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest");

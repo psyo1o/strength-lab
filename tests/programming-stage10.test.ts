@@ -268,7 +268,7 @@ describe("stage 10 weekly intent", () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const week = await ensureProgrammingWeek("2099-01-05", { nowMs: NOW, key: KEY, fetchImpl });
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
-    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(24);
+    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(42);
     expect(week.generationSource).toBe("fallback");
     expect(week.fallbackReason).toBe("http_error");
     expect(week.weekStart).toBe("2099-01-05");

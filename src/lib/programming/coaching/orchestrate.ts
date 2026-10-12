@@ -20,7 +20,7 @@ import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rule
 import { normalizeSessionPayload, type SessionNormalization } from "./stage13/normalize";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
-import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRevisionSpecs } from "./day-recovery";
+import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRevisionSpecs, waitForTransientRetry } from "./day-recovery";
 import { applyCellsToCoachJson, catalogLine, catalogMovement, catalogPromptLinesFor, isCellPayload, movementsForSlice, movementsForWeek, type CatalogSlice } from "./movement-catalog";
 import { askSpecialist, type SpecialistArea } from "./specialist-generate";
 import { analyzeProgression, analyzeWeekStructure } from "./stage13/analyzers";
@@ -564,7 +564,33 @@ async function writeSession(input: {
     for (const area of areas) {
       if (parts[area] != null) continue;
       const reason = areaReason.get(area) ?? failed?.reason ?? null;
-      if (isTransientCoachFailure(reason)) continue;
+      if (isTransientCoachFailure(reason)) {
+        await waitForTransientRetry();
+        const again = await askSpecialist({
+          area,
+          user,
+          key: input.week.key ?? "",
+          fetchImpl: input.week.fetchImpl,
+          timeoutMs: input.timeoutMs,
+          runId: input.runId,
+          weekId: input.week.weekStart,
+          day: input.day.day,
+          revisionNumber: input.revisionNumber,
+          validate: validateArea(area),
+          format: area === "conditioning" ? conditioningDayFormat(catalogKeys) : undefined,
+        });
+        areaTraces.push(again.trace);
+        if (again.ok) {
+          parts[area] = again.json;
+          recovered = true;
+          continue;
+        }
+        const errors = again.trace.validation_errors?.length ? again.trace.validation_errors : [again.trace.failure_reason ?? "http_error"];
+        areaReason.set(area, again.trace.failure_reason);
+        areaErrors.set(area, errors);
+        failed = { errors, retry: again.trace.retry_count, reason: again.trace.failure_reason, json: again.json };
+        continue;
+      }
       const errors = areaErrors.get(area) ?? failed?.errors ?? ["schema"];
       const invalid = areaInvalid.get(area) ?? null;
       const longPiece = input.day.secondary_training === "long_conditioning";

@@ -4,6 +4,24 @@ import type { SpecialistArea } from "./specialist-generate";
 /** One specialist recovery after the in-call retry. Not a raise of max_head_revisions. */
 export const MAX_DAY_SCHEMA_RECOVERIES = 1;
 
+/** Pause before the one transport retry of a failed specialist area. */
+export const TRANSIENT_AREA_RETRY_MS = 400;
+
+let transientRetryMs = TRANSIENT_AREA_RETRY_MS;
+
+/** Tests set 0 so a simulated outage does not wait out the suite. The probe keeps 400. */
+export function setTransientAreaRetryMs(ms: number): void {
+  transientRetryMs = ms;
+}
+
+export function waitForTransientRetry(): Promise<void> {
+  const ms = transientRetryMs;
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 const TRANSIENT = new Set(["http_error", "timeout"]);
 
 const ILLEGAL_ALLOWED = new Set([
