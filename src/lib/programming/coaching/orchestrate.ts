@@ -471,7 +471,7 @@ async function writeSession(input: {
     if (similar.length && conditioningAttempts < 2) {
       return {
         ok: false as const,
-        errors: similar.map((error) => similarityRetryText(adopted.draft, input.week.recentStructures ?? [], error)),
+        errors: similar.map((error) => similarityRetryText(adopted.draft, input.week.recentStructures ?? [], error, input.day.day, ignoreDays)),
       };
     }
     return { ok: true as const };

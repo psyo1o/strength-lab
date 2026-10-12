@@ -58,7 +58,7 @@
 
 저장 직전, 코칭 결과가 모델이고 `judgeWeek` 사유가 `too_similar`이면 충돌한 날만 바꾼다. 임계값은 4다. 통과하면 `generation_source`는 `fallback`, 사유는 `too_similar`다. 다른 `judgeWeek` 사유는 이 강등을 하지 않는다. `judgeWeek` 순서는 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language다.
 
-상한은 그대로다. `COACHING_POLICY.max_head_revisions`는 2다. `MAX_DAY_SCHEMA_RECOVERIES`는 1이다. `askCoach`는 검증 실패를 그 호출 안에서 한 번 더 고친다. 컨디셔닝을 쓰는 동안 아직 쓰지 않은 훈련일은 자극·유사도 비교에서 뺀다. 첫 거절은 이웃 자극의 허용 값과, 겹친 특징의 실제 값을 재시도에 적는다. 임계값은 4다.
+상한은 그대로다. `COACHING_POLICY.max_head_revisions`는 2다. `MAX_DAY_SCHEMA_RECOVERIES`는 1이다. `askCoach`는 검증 실패를 그 호출 안에서 한 번 더 고친다. 컨디셔닝을 쓰는 동안 아직 쓰지 않은 훈련일은 자극·유사도 비교에서 뺀다. 첫 거절은 이웃 자극의 허용 값과, 겹친 특징의 실제 값을 재시도에 적는다. 유사도 재시도는 이웃이 쓰는 자극을 금지하고, 그 날의 값만 바꾸라고 적는다. 임계값은 4다.
 
 ## 전문 코치와 복구
 

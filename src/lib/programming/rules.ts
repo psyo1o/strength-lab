@@ -1140,15 +1140,50 @@ function featureChangeHint(feature: SimilarityFeature): string {
   if (feature === "time_domain") {
     return `time_domain follows duration_min (${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long). Change duration_min into a different bucket.`;
   }
-  if (feature === "stimulus") return "Set conditioning.stimulus to a different stimulus that also differs from the neighboring training days.";
   if (feature === "movement_pattern") return "movement_pattern is derived from the movements. Change the movements so the pattern list differs.";
   if (feature === "equipment") return "equipment is filled by the server from the movements. Change to movements whose catalog equipment differs. Do not return equipment.";
   if (feature === "volume") return "Set conditioning.volume to a different volume.";
   return "";
 }
 
+function trainingSessions(draft: WeekDraft, ignoreDays: readonly DayKey[], day: DayKey): SessionDraft[] {
+  const ignored = new Set(ignoreDays.filter((key) => key !== day));
+  return DAY_ORDER.map((key) => draft.sessions.find((session) => session.day === key)).filter(
+    (session): session is SessionDraft => Boolean(session && !session.rest && session.conditioning && !ignored.has(session.day)),
+  );
+}
+
+function neighborStimuli(draft: WeekDraft, day: DayKey, ignoreDays: readonly DayKey[]): Stimulus[] {
+  const ordered = trainingSessions(draft, ignoreDays, day);
+  const index = ordered.findIndex((session) => session.day === day);
+  if (index < 0) return [];
+  return [ordered[index - 1], ordered[index + 1]]
+    .map((session) => session?.conditioning?.stimulus)
+    .filter((stimulus): stimulus is Stimulus => Boolean(stimulus));
+}
+
+function stimulusConstraint(current: string, neighbors: readonly string[]): string {
+  const blocked = new Set(neighbors);
+  const allowed = STIMULI.filter((stimulus) => !blocked.has(stimulus));
+  const alternatives = allowed.filter((stimulus) => stimulus !== current);
+  const forbid = neighbors.length ? `Do not set conditioning.stimulus to ${[...new Set(neighbors)].join(" or ")}.` : "";
+  const must = allowed.length ? `conditioning.stimulus must be ${allowed.join(" or ")}.` : "";
+  const choice = alternatives.length
+    ? `If you change conditioning.stimulus, set it to ${alternatives.join(" or ")}.`
+    : current
+      ? `Keep conditioning.stimulus as ${current}. Change a different matched feature.`
+      : "";
+  return [forbid, must, choice, "A new movement name is not a stimulus change."].filter(Boolean).join(" ");
+}
+
 /** Retry text. The canonical score line stays at the front so later parsers still match it. */
-export function similarityRetryText(draft: WeekDraft, recent: readonly StoredStructure[], error: string): string {
+export function similarityRetryText(
+  draft: WeekDraft,
+  recent: readonly StoredStructure[],
+  error: string,
+  focusDay?: DayKey,
+  ignoreDays: readonly DayKey[] = [],
+): string {
   const score = Number(error.match(/score=(\d+)/)?.[1] ?? String(SIMILARITY_CONFIG.threshold));
   const need = Math.max(1, score - (SIMILARITY_CONFIG.threshold - 1));
   const matched = (error.match(/matched=([a-z_,]*)/)?.[1] ?? "")
@@ -1169,13 +1204,20 @@ export function similarityRetryText(draft: WeekDraft, recent: readonly StoredStr
           return hit.score === score && hit.matched.join(",") === matched.join(",");
         })
       : undefined;
+  const focus =
+    focusDay ??
+    (leftDay && rightDay ? (DAY_ORDER.indexOf(rightDay) > DAY_ORDER.indexOf(leftDay) ? rightDay : leftDay) : leftDay);
+  const mine = focus ? fresh.find((row) => row.day === focus) ?? left : left;
+  const other = focus === leftDay ? right : focus === rightDay ? left : right;
   const values = matched.map((feature) => {
-    const yours = left ? featureValue(left, feature) : "?";
-    const theirs = right ? featureValue(right, feature) : "?";
-    return `${feature}=${yours || "empty"} matches ${right?.day ?? "recent"} ${feature}=${theirs || "empty"}`;
+    const yours = mine ? featureValue(mine, feature) : "?";
+    const theirs = other ? featureValue(other, feature) : "?";
+    return `your ${feature}=${yours || "empty"} matches ${other?.day ?? "recent"} ${feature}=${theirs || "empty"}`;
   });
-  const levers = matched.map((feature) => featureChangeHint(feature)).filter(Boolean);
-  return `${error}. ${values.join("; ")}. Change at least ${need} of those matched features so the score is below ${SIMILARITY_CONFIG.threshold}. ${levers.join(" ")} Renaming a movement does not change a feature. The threshold stays ${SIMILARITY_CONFIG.threshold}.`;
+  const levers = matched.filter((feature) => feature !== "stimulus").map((feature) => featureChangeHint(feature)).filter(Boolean);
+  const stimulusLine = stimulusConstraint(mine?.stimulus ?? "", focus ? neighborStimuli(draft, focus, ignoreDays) : []);
+  const only = focus ? `Change only ${focus}.` : "";
+  return `${error}. ${values.join("; ")}. Change at least ${need} of those matched features so the score is below ${SIMILARITY_CONFIG.threshold}. ${only} ${levers.join(" ")} ${stimulusLine} Renaming a movement does not change a feature. The threshold stays ${SIMILARITY_CONFIG.threshold}.`;
 }
 
 /**
