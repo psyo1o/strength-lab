@@ -1,5 +1,6 @@
 import type { DayKey } from "../../month-plan/types";
 import type { SessionDraft } from "../types";
+import type { HeadPieceRef } from "./contract";
 import { patchStoredMovement } from "./movement-catalog";
 import type { SessionRevision } from "./review";
 
@@ -18,6 +19,31 @@ export type HeadCellReport = {
   reverted: number;
   rows: HeadCellRow[];
 };
+
+export type PieceCell = HeadPieceRef & {
+  amount: string;
+  unit: string | null;
+  load: { male: string | null; female: string | null } | null;
+};
+
+/** Movements that are actually on each day and block. Strength and warmup have no movement cells. */
+export function pieceCells(sessions: readonly SessionDraft[]): PieceCell[] {
+  const cells: PieceCell[] = [];
+  for (const session of sessions) {
+    for (const movement of session.conditioning?.movements ?? []) {
+      if (!movement.key) continue;
+      cells.push({
+        day: session.day,
+        block: "conditioning",
+        catalog_key: movement.key,
+        amount: movement.amount,
+        unit: movement.unit ?? null,
+        load: movement.load ?? null,
+      });
+    }
+  }
+  return cells;
+}
 
 /** Write each head cell. A catalog miss reverts that cell and leaves the week in place. */
 export function applyHeadCells(sessions: readonly SessionDraft[], revisions: readonly SessionRevision[]): HeadCellReport {

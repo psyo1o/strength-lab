@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { placeTrainingDays } from "../src/lib/programming/coaching/day-place";
-import { applyHeadCells } from "../src/lib/programming/coaching/head-cells";
-import { orderViolations } from "../src/lib/programming/rules";
+import { headReviewFormat } from "../src/lib/programming/coaching/contract";
+import { applyHeadCells, pieceCells } from "../src/lib/programming/coaching/head-cells";
+import { orderViolations, recentOverlapPayload } from "../src/lib/programming/rules";
 import { SIMILARITY_CONFIG, type ConditioningDraft, type DayIntent, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../src/lib/programming/types";
 import type { DayKey } from "../src/lib/month-plan/types";
 import type { WeeklySkeleton } from "../src/lib/programming/planning/types";
@@ -164,6 +165,36 @@ describe("head cells", () => {
     expect(placed.violations.some((error) => error.includes("matches a recent structure"))).toBe(true);
     expect(placed.draft.sessions.find((row) => row.day === "mon")?.warmup_ko).toContain("technical");
     expect(placed.draft.sessions.find((row) => row.day === "wed")?.warmup_ko).toContain("heavy");
+    const payload = recentOverlapPayload(placed.draft, "mon", [
+      {
+        day: "mon",
+        format: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.format,
+        time_domain: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.time_domain,
+        stimulus: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.stimulus,
+        movement_patterns: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.movement_patterns,
+        movements: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.movements,
+        equipment: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.equipment,
+        rep_structure: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.rep_structure,
+        work_rest_structure: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.work_rest_structure,
+        duration_min: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.duration_min,
+        volume: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.volume,
+        intensity: placed.draft.sessions.find((row) => row.day === "mon")!.conditioning!.intensity,
+        benchmark: false,
+        long_conditioning: false,
+      },
+    ]);
+    expect(payload.instruction).toContain("at least one matched axis");
+    expect(payload.sessions[0]).toMatchObject({
+      scope: "recent",
+      format: "amrap",
+      stimulus: "technical",
+    });
+    expect(payload.sessions[0]?.movements[0]?.key).toBeTruthy();
+    expect(payload.sessions[0]?.matched.length).toBeGreaterThan(0);
+    const cells = pieceCells(placed.draft.sessions);
+    const schema = JSON.stringify(headReviewFormat(cells.map((cell) => cell.catalog_key), cells));
+    expect(schema).toContain("air_squat");
+    expect(schema).not.toContain('"run"');
   });
 
   it("reverts one out-of-range cell and leaves the session", () => {

@@ -338,28 +338,50 @@ export function conditioningDayFormat(keys: readonly string[]): ResponseFormat {
   );
 }
 
-export function headReviewFormat(keys: readonly string[]): ResponseFormat {
+export type HeadPieceRef = { day: string; block: string; catalog_key: string };
+
+function headRevisionItem(cell: HeadPieceRef): Record<string, unknown> {
+  return strictObject(
+    {
+      day: stringEnum([cell.day]),
+      block: stringEnum([cell.block]),
+      catalog_key: stringEnum([cell.catalog_key]),
+      field: stringEnum(["movement", "amount", "unit", "load"]),
+      value: TEXT,
+      reason: TEXT,
+    },
+    ["day", "block", "catalog_key", "field", "value", "reason"],
+  );
+}
+
+export function headReviewFormat(keys: readonly string[], cells: readonly HeadPieceRef[] = []): ResponseFormat {
   const allowed = keys.length > 0 ? keys : standardCatalogKeys();
+  const unique = new Map<string, HeadPieceRef>();
+  for (const cell of cells) unique.set(`${cell.day}:${cell.block}:${cell.catalog_key}`, cell);
+  const listed = [...unique.values()];
+  const revisions = listed.length
+    ? { type: "array", items: { anyOf: listed.map(headRevisionItem) } }
+    : {
+        type: "array",
+        items: strictObject(
+          {
+            day: stringEnum(DAY_ORDER),
+            block: stringEnum(EDIT_BLOCKS),
+            catalog_key: stringEnum(allowed),
+            field: stringEnum(["movement", "amount", "unit", "load"]),
+            value: TEXT,
+            reason: TEXT,
+          },
+          ["day", "block", "catalog_key", "field", "value", "reason"],
+        ),
+      };
   return schemaOf(
     "head_coach_review",
     strictObject(
       {
         status: stringEnum(HEAD_STATUSES),
         note_ko: TEXT,
-        revisions: {
-          type: "array",
-          items: strictObject(
-            {
-              day: stringEnum(DAY_ORDER),
-              block: stringEnum(EDIT_BLOCKS),
-              catalog_key: stringEnum(allowed),
-              field: stringEnum(["movement", "amount", "unit", "load"]),
-              value: TEXT,
-              reason: TEXT,
-            },
-            ["day", "block", "catalog_key", "field", "value", "reason"],
-          ),
-        },
+        revisions,
         adjustments: {
           type: "array",
           items: strictObject(

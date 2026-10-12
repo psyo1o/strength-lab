@@ -1,6 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { adoptionCollisionErrors, judgeWeek, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, similarityDiagnostics, TIME_DOMAIN_RANGES } from "../rules";
+import { adoptionCollisionErrors, judgeWeek, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, recentOverlapDays, recentOverlapPayload, similarityDiagnostics, TIME_DOMAIN_RANGES, type OverlapSession } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
@@ -49,7 +49,7 @@ import type { AdjustmentRequest } from "./stage16/types";
 import { compareEditList } from "./revision-compliance";
 import { parseHeadReview, type HeadCoachReview, type SessionRevision } from "./review";
 import { placeTrainingDays } from "./day-place";
-import { applyHeadCells } from "./head-cells";
+import { applyHeadCells, pieceCells } from "./head-cells";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { variationReport } from "./variation";
@@ -155,6 +155,7 @@ function sessionUser(
   extraKeys: readonly string[],
   draft: WeekDraft,
   ignoreDays: readonly DayKey[] = [],
+  recentOverlap: ReturnType<typeof recentOverlapPayload> | null = null,
 ) {
   const locked = lockedSkeletonDay(input, day.day);
   const lockedRange = locked && locked.conditioning.duration_class !== "rest" ? TIME_DOMAIN_RANGES[locked.conditioning.duration_class] : null;
@@ -226,6 +227,7 @@ function sessionUser(
       : durationRuleText(),
     revision_number: revisionNumber,
     revision,
+    ...(recentOverlap ? { recent_overlap: recentOverlap } : {}),
     ...(revision?.edits?.length ? { edit_list: revision.edits } : {}),
     movement_catalog: catalogPromptLinesFor(sliceFor(day, extraKeys)),
   };
@@ -421,6 +423,8 @@ async function writeSession(input: {
   ignoreDays?: readonly DayKey[];
   /** First pass writes every day. Neighbor stimulus and similarity wait for the weekday swap. */
   deferPlacement?: boolean;
+  /** Recent-week overlap brief for the one post-swap rewrite of this day. */
+  recentOverlap?: ReturnType<typeof recentOverlapPayload> | null;
 }): Promise<{
   draft: WeekDraft;
   source: "model" | "fallback";
@@ -436,7 +440,18 @@ async function writeSession(input: {
   const existingKeys = movementKeysOf(input.draft.sessions.find((session) => session.day === input.day.day) ?? null);
   const catalogKeys = movementsForSlice(sliceFor(input.day, existingKeys)).map((row) => row.key);
   const ignoreDays = input.ignoreDays ?? [];
-  const user = sessionUser(input.week, input.plan, input.day, input.revision, input.revisionNumber, input.rules, existingKeys, input.draft, ignoreDays);
+  const user = sessionUser(
+    input.week,
+    input.plan,
+    input.day,
+    input.revision,
+    input.revisionNumber,
+    input.rules,
+    existingKeys,
+    input.draft,
+    ignoreDays,
+    input.recentOverlap ?? null,
+  );
   const normalizations: SessionNormalization[] = [];
   let normalizedJson: unknown = null;
   const selfTraces = (json: unknown) =>
@@ -1416,6 +1431,42 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     const pending = unresolvedSnap.get(origin);
     if (pending) unresolvedDays.set(day, pending);
   }
+  const recentRewrites: { day: DayKey; rewritten: boolean; still_overlapping: number }[] = [];
+  for (const dayKey of recentOverlapDays(draft, input.recentStructures ?? [])) {
+    const intent = plan.days.find((row) => row.day === dayKey);
+    const session = draft.sessions.find((row) => row.day === dayKey);
+    if (!intent || !session?.conditioning) continue;
+    const payload = recentOverlapPayload(draft, dayKey, input.recentStructures ?? []);
+    if (payload.sessions.length === 0) continue;
+    const written = await writeSession({
+      week,
+      plan,
+      draft,
+      day: intent,
+      runId,
+      revisionNumber: 1,
+      revision: null,
+      timeoutMs,
+      rules,
+      deferPlacement: true,
+      recentOverlap: payload,
+    });
+    traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
+    for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);
+    usage = addUsage(usage, written.trace.token_usage);
+    modelName = written.trace.model ?? modelName;
+    if (written.source === "model") {
+      draft = written.draft;
+      daySources[dayKey] = "model";
+      unresolvedDays.delete(dayKey);
+      if (written.normalized) normalizedDays.add(dayKey);
+      if (written.recovered) recoveredDays.add(dayKey);
+    }
+    const still = overlapSessionsFor(written.source === "model" ? written.draft : draft, dayKey, input.recentStructures ?? []).filter(
+      (row: OverlapSession) => row.scope === "recent",
+    );
+    recentRewrites.push({ day: dayKey, rewritten: written.source === "model", still_overlapping: still.length });
+  }
   traces.push(
     finishTrace(Date.now(), {
       run_id: runId,
@@ -1424,8 +1475,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       agent_type: "validator",
       model: null,
       prompt_version: "day-placement-v1",
-      input_hash: inputHash({ moves: placed.moves }),
-      output: { moves: placed.moves, legal: placed.legal, violations: placed.violations },
+      input_hash: inputHash({ moves: placed.moves, recent_rewrites: recentRewrites.length }),
+      output: { moves: placed.moves, legal: placed.legal, violations: placed.violations, recent_rewrites: recentRewrites },
       validation_result: "pass",
       retry_count: 0,
       failure_reason: null,
@@ -1646,8 +1697,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       },
       placement_violations: placed.violations,
       similarity: { threshold: preHeadSimilarity.threshold, hits: preHeadSimilarity.hits },
+      recent_overlap_after_rewrite: recentRewrites,
+      piece_cells: pieceCells(draft.sessions),
       constitution:
-        "You are called once. If a problem can be fixed by a cell, return that cell. The server writes it and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Similarity threshold stays 4.",
+        "You are called once. If a problem can be fixed by a cell, return that cell. The server writes it and does not call you again. A cell must be one of piece_cells for that day and block. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4.",
       unresolved_days: [...unresolvedDays.entries()].map(([day, errors]) => ({ day, errors })),
       monthly_goal: month.coaching_plan?.block_goal ?? null,
       monthly_method: month.coaching_plan?.strength_method ?? month.strength_method,
@@ -1681,12 +1734,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       runId,
       retryContext: { agent: "head", revision_number: revisionNumber },
       format: headReviewFormat(
-        movementsForWeek(
-          plan.days
-            .filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest")
-            .map((day) => sliceFor(day, [])),
-          draft.sessions.flatMap((session) => session.conditioning?.movements.map((movement) => movement.key) ?? []),
-        ).map((row) => row.key),
+        pieceCells(draft.sessions).map((cell) => cell.catalog_key),
+        pieceCells(draft.sessions),
       ),
       validate: (json) => {
         const errors = headReviewErrors(json);

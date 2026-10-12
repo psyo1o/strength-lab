@@ -1289,6 +1289,26 @@ export function overlapSessionsFor(
   return rows;
 }
 
+/** Training days that still score at or above the threshold against a recent week. */
+export function recentOverlapDays(draft: WeekDraft, recent: readonly StoredStructure[]): DayKey[] {
+  const days = new Set<DayKey>();
+  for (const hit of similarityDiagnostics(draft, recent).hits) {
+    if (hit.compared_scope !== "recent") continue;
+    if ((DAY_ORDER as readonly string[]).includes(hit.candidate_day)) days.add(hit.candidate_day as DayKey);
+  }
+  return DAY_ORDER.filter((day) => days.has(day));
+}
+
+/** One recent-week overlap brief for a single day rewrite. Threshold stays 4. */
+export function recentOverlapPayload(draft: WeekDraft, day: DayKey, recent: readonly StoredStructure[]) {
+  const sessions = overlapSessionsFor(draft, day, recent).filter((row) => row.scope === "recent");
+  return {
+    instruction:
+      "This day still scores 4 or more against a recent week after the weekday swap. Change at least one matched axis. matched lists those axes. Each session has format, duration_min, time_domain, stimulus, movement_pattern, and movements with key and amount. Do not copy that session. This day is rewritten once. A remaining overlap is a head signal, not a reason to reject the day. The threshold stays 4.",
+    sessions,
+  };
+}
+
 export function overlapRetryErrors(rows: readonly OverlapSession[]): string[] {
   return rows.map((row) => {
     const moves = row.movements.map((movement) => `${movement.key} ${movement.amount}`).join(", ") || "none";
