@@ -43,6 +43,7 @@ describe("movement catalog", () => {
       expect(ski.reason).toContain("cal 8–20");
     }
     expect(checkCellEdit({ catalog_key: "fan_bike", field: "amount", value: "12reps" }).ok).toBe(false);
+    expect(checkCellEdit({ catalog_key: "row", field: "amount", value: "30" }).ok).toBe(false);
     expect(checkCellEdit({ catalog_key: "dumbbell_farmers_carry", field: "amount", value: "40" }).ok).toBe(false);
     expect(checkCellEdit({ catalog_key: "dumbbell_farmers_carry", field: "amount", value: "40m" })).toEqual({ ok: true });
     expect(displayAmount(12, "cal")).toBe("12cal");

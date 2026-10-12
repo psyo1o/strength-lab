@@ -374,6 +374,18 @@ export function movementsForWeek(slices: readonly CatalogSlice[], extraKeys: rea
   return standardMovements().filter((row) => keys.has(row.key));
 }
 
+/** A bare integer on a multi-unit movement keeps the piece's current unit. An explicit unit is unchanged. */
+function amountWithCurrentUnit(key: string, value: string, existing: CatalogUnit | null | undefined, display: string): string {
+  const row = catalogMovement(key);
+  const parsed = parseCellAmount(value);
+  if (!row || !parsed.bare || parsed.amount == null || row.units.length < 2) return value;
+  const fromField = existing && row.units.includes(existing) ? existing : null;
+  const shown = parseCellAmount(display);
+  const fromDisplay = shown.unit && row.units.includes(shown.unit) && !(shown.bare && shown.unit === "reps") ? shown.unit : null;
+  const unit = fromField ?? fromDisplay;
+  return unit ? displayAmount(parsed.amount, unit) : value;
+}
+
 /** Write one cell on a stored movement. Other fields stay. */
 export function patchStoredMovement(
   movement: {
@@ -390,10 +402,12 @@ export function patchStoredMovement(
   if (movement.key !== cell.catalog_key && movement.movement !== cell.catalog_key) {
     return { ok: false, reason: `${cell.catalog_key} is not on this piece` };
   }
-  const verdict = checkCellEdit(cell);
+  const effective =
+    cell.field === "amount" ? { ...cell, value: amountWithCurrentUnit(cell.catalog_key, cell.value, movement.unit, movement.amount) } : cell;
+  const verdict = checkCellEdit(effective);
   if (!verdict.ok) return verdict;
   if (cell.field === "amount") {
-    const decided = amountDecision(cell.catalog_key, cell.value);
+    const decided = amountDecision(cell.catalog_key, effective.value);
     if (!decided.ok) return decided;
     movement.amount_value = decided.amount;
     movement.unit = decided.unit;

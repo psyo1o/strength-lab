@@ -14,3 +14,4 @@
 10. 정책: 설명은 영어다. 한국어 비율과 language로는 거절하지 않는다. 훈련일을 다 쓴 뒤 요일만 교환한다. 헤드는 한 번 호출하고 칸 수정은 코드가 넣는다. 카탈로그에 어긋난 칸만 되돌린다. 헤드 뒤 judgeWeek는 진단이다. fallback은 훈련일 모델 세션이 없거나 BLOCK일 때만 한다. 다음: 프로브 9.
 11. 프로브 9 `integration-audit-9`: 미채택. 6일 MODEL. 요일 교환 mon↔tue. 헤드 REVISE, BLOCK 아님. 칸 제안 1, 적용 0, 되돌림 1(sat row 수량 30, 단위 cal 또는 m 없음). 진단 오류 0, 신호는 점수 4. final_validator PASS. 저장 직전 too_similar 교체가 주를 fallback으로 바꿨다. 호출 23, 토큰 187260. 다음: 프로브 10. 그 교체는 이 기록과 같은 커밋에서 이 경로를 타지 않는다.
 12. 프로브 10 `integration-audit-10`: 채택. 6일 모델(wed MODEL_REVISED). 요일 교환 없음. 헤드 REVISE, BLOCK 아님. 칸 제안 1, 적용 0, 되돌림 1(thu run, 그 조각에 없음). 진단 오류 0, 신호는 최근 주 점수 4–5. final_validator PASS, generation_source model. 호출 23, 토큰 245223. 다음: 같은 코드로 연속 4주.
+13. 연속 4주 `integration-audit-4w`는 W4 시작 전에 멈췄다. 고치기 전 코드라 채택으로 세지 않는다. W1 model 호출 23 토큰 221385, W2 model 호출 23 토큰 131457, W3 model 호출 21 토큰 285422. 직전 주 2099-06-29는 합계에 넣지 않는다. 429는 없다. 다음: 유사도 판정은 요일 교환에서 하고, 단위 없는 헤드 수량은 기존 단위를 유지한 뒤 연속 4주를 다시 돌린다.

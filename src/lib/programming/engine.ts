@@ -722,7 +722,8 @@ async function writeProgrammingWeek(
     let storedDraft = coached.draft;
     let storedSource = coached.generation_source;
     let storedReason = coached.fallback_reason;
-    // Head already saw similarity. Do not judge again or rewrite days on this path.
+    // Similarity, including recent weeks, is judged in placeTrainingDays and passed to the head.
+    // This save path does not judge it again and does not fallback because of it.
     const replaceSimilarAfterHead = false;
     if (replaceSimilarAfterHead && coached.generation_source === "model") {
       const judged = judgeWeek(coached.draft, month.direction, weekIndex, recent, {

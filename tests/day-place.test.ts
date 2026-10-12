@@ -132,6 +132,40 @@ describe("weekday placement", () => {
 });
 
 describe("head cells", () => {
+  it("records a recent-week similarity hit and leaves the session", () => {
+    const built = week({ mon: "technical", wed: "heavy" });
+    const monday = built.draft.sessions.find((row) => row.day === "mon")!;
+    const piece = monday.conditioning!;
+    const placed = placeTrainingDays({
+      draft: built.draft,
+      plan: built.plan,
+      skeleton: null,
+      recent: [
+        {
+          day: "mon",
+          format: piece.format,
+          time_domain: piece.time_domain,
+          stimulus: piece.stimulus,
+          movement_patterns: piece.movement_patterns,
+          movements: piece.movements,
+          equipment: piece.equipment,
+          rep_structure: piece.rep_structure,
+          work_rest_structure: piece.work_rest_structure,
+          duration_min: piece.duration_min,
+          volume: piece.volume,
+          intensity: piece.intensity,
+          benchmark: false,
+          long_conditioning: false,
+        },
+      ],
+    });
+    expect(placed.legal).toBe(true);
+    expect(placed.moves).toEqual([]);
+    expect(placed.violations.some((error) => error.includes("matches a recent structure"))).toBe(true);
+    expect(placed.draft.sessions.find((row) => row.day === "mon")?.warmup_ko).toContain("technical");
+    expect(placed.draft.sessions.find((row) => row.day === "wed")?.warmup_ko).toContain("heavy");
+  });
+
   it("reverts one out-of-range cell and leaves the session", () => {
     const built = week({ mon: "technical" });
     const session = built.draft.sessions.find((row) => row.day === "mon")!;
@@ -148,5 +182,32 @@ describe("head cells", () => {
     expect(report.applied).toBe(0);
     expect(report.reverted).toBe(1);
     expect(session.conditioning?.movements[0]?.amount).toBe("10");
+  });
+
+  it("keeps the current unit when a multi-unit amount has no unit", () => {
+    const built = week({ mon: "technical" });
+    const session = built.draft.sessions.find((row) => row.day === "mon")!;
+    session.conditioning!.movements = [{ key: "row", amount: "20cal", name_ko: "로잉", movement: "row", amount_value: 20, unit: "cal" }];
+    const applied = applyHeadCells(built.draft.sessions, [
+      {
+        day: "mon",
+        reason: "Lower the row.",
+        correction_instruction: "set amount",
+        cell: { day: "mon", block: "conditioning", catalog_key: "row", field: "amount", value: "30", reason: "Lower the row." },
+      },
+    ]);
+    expect(applied).toMatchObject({ proposed: 1, applied: 1, reverted: 0 });
+    expect(session.conditioning?.movements[0]?.amount).toBe("30cal");
+    expect(session.conditioning?.movements[0]?.unit).toBe("cal");
+    const outside = applyHeadCells(built.draft.sessions, [
+      {
+        day: "mon",
+        reason: "Too short.",
+        correction_instruction: "set amount",
+        cell: { day: "mon", block: "conditioning", catalog_key: "row", field: "amount", value: "5", reason: "Too short." },
+      },
+    ]);
+    expect(outside.reverted).toBe(1);
+    expect(session.conditioning?.movements[0]?.amount).toBe("30cal");
   });
 });

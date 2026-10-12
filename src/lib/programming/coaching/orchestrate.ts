@@ -1,6 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { adoptionCollisionErrors, judgeWeek, orderViolations, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, similarityDiagnostics, TIME_DOMAIN_RANGES } from "../rules";
+import { adoptionCollisionErrors, judgeWeek, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, similarityDiagnostics, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
@@ -1396,6 +1396,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     draft,
     plan,
     skeleton: input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal.skeleton : null,
+    recent: input.recentStructures ?? [],
   });
   const sourceSnap = { ...daySources };
   const normalizedSnap = new Set(normalizedDays);
@@ -1643,7 +1644,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         reason: preHeadJudge.ok ? null : preHeadJudge.reason,
         errors: preHeadJudge.ok ? [] : preHeadJudge.errors,
       },
-      placement_violations: orderViolations(draft),
+      placement_violations: placed.violations,
       similarity: { threshold: preHeadSimilarity.threshold, hits: preHeadSimilarity.hits },
       constitution:
         "You are called once. If a problem can be fixed by a cell, return that cell. The server writes it and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Similarity threshold stays 4.",
