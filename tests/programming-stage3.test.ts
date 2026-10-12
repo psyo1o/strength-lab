@@ -249,8 +249,9 @@ describe("stage 3 fallback, similarity, and dry run", () => {
       })
       .find((user) => user.agent_name === "weekly_coach");
     if (!sent) throw new Error("weekly coach payload missing");
-    expect(sent.previous_generation_source).toBe("fallback");
-    expect(sent.summary.previous_week.generation_source).toBe("fallback");
+    expect(week.status).toBe("failed");
+    expect(sent.previous_generation_source).toBeNull();
+    expect(sent.summary.previous_week ?? null).toBeNull();
   });
 
   it("test 12 keeps a single active row when the same week is generated twice", async () => {

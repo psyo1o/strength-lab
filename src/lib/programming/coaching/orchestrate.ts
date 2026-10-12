@@ -51,7 +51,7 @@ import { parseHeadAdjustments, runAdjustmentPass } from "./stage16/pass";
 import type { AdjustmentRequest } from "./stage16/types";
 import { compareEditList } from "./revision-compliance";
 import { parseHeadReview, type HeadCoachReview, type SessionRevision } from "./review";
-import { placeTrainingDays } from "./day-place";
+import { lockWeekdaysForPlacement, placeTrainingDays } from "./day-place";
 import { applyHeadCells, pieceCells } from "./head-cells";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
@@ -59,6 +59,15 @@ import { variationReport } from "./variation";
 import { planCoachedWeek, weeklyCoachPayload } from "./weekly";
 import { enforceLockedSkeleton, lockedSessionFieldErrors, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
 import type { CoachWeekInput, CoachWeekResult } from "./pipeline";
+import { finalizeWeekAdoption, makeIssue, type HeadDecision as AdoptionHead, type RepairRequest, type RepairResult } from "../v2";
+
+function adoptionHead(status: string | null, stance: string, unappliedRevision: boolean): AdoptionHead | null {
+  if (status === "BLOCK") return "block";
+  if (unappliedRevision || status === "REVISE" || stance === "ADJUST") return "adjust";
+  if (status === "APPROVE" || stance === "ACCEPT") return "approve";
+  if (status === "APPROVE_WITH_NOTE" || stance === "ACCEPT_WITH_NOTE") return "approve_with_note";
+  return null;
+}
 
 function bare(draft: WeekDraft): WeekDraft {
   return {
@@ -332,7 +341,7 @@ function adoptDay(input: {
   const normalized = normalizeSessionPayload(source, { inventWorkFromClock: false });
   const schemaErrors = [
     ...sessionSelfErrors(normalized.json, input.day),
-    ...(locked && !goalOwned ? lockedSessionFieldErrors(normalized.json, locked) : []),
+    ...(locked ? lockedSessionFieldErrors(normalized.json, locked) : []),
     ...(slot
       ? slotFitErrors(normalized.json, slot, input.day.strength_lift).filter((error) =>
           slot.from_goal || slot.primary_keys?.length ? true : error.includes("is banned"),
@@ -1346,6 +1355,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const recoveredDays = new Set<DayKey>();
   const unresolvedDays = new Map<DayKey, string[]>();
   let headModelStatus: HeadCoachReview["status"] | null = null;
+  let headUnappliedRevision = false;
   let draft = stamp(built.draft, plan);
   plan = {
     ...plan,
@@ -1522,12 +1532,13 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     return bundle;
   };
 
+  const skeletonLocked = input.longitudinal?.skeleton.skeleton_locked === true;
   const placed = placeTrainingDays({
     draft,
     plan,
-    skeleton: input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal.skeleton : null,
+    skeleton: skeletonLocked ? (input.longitudinal?.skeleton ?? null) : null,
     recent: input.recentStructures ?? [],
-    lockWeekdays: Boolean(goalWeek(month.coaching_plan?.goal_table, input.weekIndex)),
+    lockWeekdays: lockWeekdaysForPlacement(skeletonLocked),
   });
   const sourceSnap = { ...daySources };
   const normalizedSnap = new Set(normalizedDays);
@@ -1543,7 +1554,6 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }
     plan = { ...plan, conditioning_slots: moved };
   }
-  if (input.longitudinal && placed.skeleton) input.longitudinal.skeleton = placed.skeleton;
   normalizedDays.clear();
   recoveredDays.clear();
   unresolvedDays.clear();
@@ -1912,9 +1922,12 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           decision = mergeHeadWithCode(stages.decision, parsed);
           source = "model";
           headModelStatus = parsed.status;
+          headUnappliedRevision = false;
           const rejectedIndexes = new Set(rejected.map((row) => row.index));
           modelRevisions = parsed.revisions.filter((_, index) => !rejectedIndexes.has(index));
         }
+      } else if ((asked.validationErrors ?? []).some((error) => String(error).includes("prose-only"))) {
+        headUnappliedRevision = true;
       }
     }
     if (source !== "model") noteFailure(asked.reason);
@@ -1934,7 +1947,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           }
         : {
             ...decision,
-            decision: review.status === "BLOCK" ? "APPROVE_WITH_NOTE" : review.status,
+            decision: review.status === "BLOCK" ? "REVISE" : review.status,
             action_plan: { scope: "NONE", affected_days: [], preserve: decision.action_plan.preserve, change: [] },
             forced_high_days: [],
           };
@@ -2003,11 +2016,16 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       revision_number: 0,
     }),
   );
-  review = {
-    status: headPass.stance === "ACCEPT" ? "APPROVE" : "APPROVE_WITH_NOTE",
-    revisions: [],
-    note_ko: headPass.note,
-  };
+  review =
+    headModelStatus === "BLOCK"
+      ? { status: "BLOCK", revisions: [], note_ko: headPass.note }
+      : headPass.stance === "ADJUST"
+        ? { status: "REVISE", revisions: [], note_ko: headPass.note }
+        : {
+            status: headPass.stance === "ACCEPT" ? "APPROVE" : "APPROVE_WITH_NOTE",
+            revisions: [],
+            note_ko: headPass.note,
+          };
   const headCells = applyHeadCells(draft.sessions, modelRevisions);
   for (const row of headCells.rows) {
     const applied = row.result === "applied";
@@ -2049,11 +2067,11 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         reverted: headCells.reverted,
         block: headModelStatus === "BLOCK",
       },
-      validation_result: "pass",
+      validation_result: headCells.proposed > 0 && headCells.applied < headCells.proposed ? "fail" : "pass",
       retry_count: 0,
-      failure_reason: null,
+      failure_reason: headCells.reverted > 0 ? "head_cell_reverted" : null,
       deterministic: true,
-      decision: headModelStatus === "BLOCK" ? "BLOCK" : "APPLIED",
+      decision: headModelStatus === "BLOCK" ? "BLOCK" : headCells.applied > 0 ? "APPLIED" : "NONE",
       revision_number: 0,
       token_usage: null,
     }),
@@ -2225,17 +2243,17 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       prompt_version: "post-head-judge-v1",
       input_hash: inputHash({ errors: diagnosticJudgeErrors.length, signals: finalReport.signals.length }),
       output: { errors: diagnosticJudgeErrors.slice(0, 8), signals: finalReport.signals.slice(0, 8) },
-      validation_result: "pass",
-      validation_errors: [],
+      validation_result: diagnosticJudgeErrors.length ? "fail" : "pass",
+      validation_errors: diagnosticJudgeErrors.slice(0, 8),
       retry_count: 0,
-      failure_reason: null,
+      failure_reason: diagnosticJudgeErrors.length ? "final_validation_failed" : null,
       deterministic: true,
-      decision: "DIAGNOSTIC",
+      decision: diagnosticJudgeErrors.length ? "FAIL" : "PASS",
       revision_number: revisions,
       token_usage: null,
     }),
   );
-  let finalErrors: string[] = [];
+  let finalErrors: string[] = [...finalReport.hard];
   let rejectedDraft: WeekDraft | null = null;
   let rejectedErrors: string[] = [];
   let resolvedStatus: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING" = finalStatus;
@@ -2298,6 +2316,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       resolvedReason = resolvedReason ? `${resolvedReason};final_validation_failed` : "final_validation_failed";
     }
   }
+  let skeletonHeld = true;
   if (lockedLongitudinal) {
     const enforced = enforceLockedSkeleton({
       skeleton: lockedLongitudinal.skeleton,
@@ -2319,15 +2338,12 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     draft = stamp(enforced.draft, plan);
     for (const day of enforced.fittedDays) hardAdjusted.add(day);
     for (const day of enforced.regeneratedDays) daySources[day] = "fallback";
-    const goalLockDays = new Set(DAY_ORDER.filter((day) => goalLocked(plan.conditioning_slots?.[day])));
-    const blockingAfter = enforced.after.filter((error) => {
-      const named = DAY_ORDER.find((day) => error.startsWith(`${day} `));
-      return !named || !goalLockDays.has(named);
-    });
+    const blockingAfter = enforced.after;
+    skeletonHeld = blockingAfter.length === 0;
     if (blockingAfter.length > 0) {
       finalErrors = [...new Set([...finalErrors, ...blockingAfter])];
       for (const day of enforced.unresolvedDays) {
-        if (!goalLockDays.has(day)) failedDays.add(day);
+        failedDays.add(day);
       }
       resolvedStatus = "FINALIZE_WITH_WARNING";
       resolvedReason = resolvedReason ? `${resolvedReason};skeleton_lock` : "skeleton_lock";
@@ -2459,7 +2475,102 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     };
   }
   const anyDayFailed = Object.values(dayRecords).some((row) => row?.day_status === "FAILED");
-  const weekStatus = weekStatusFor({ hardErrors: finalErrors, anyDayFailed });
+  const closing = finalWeekReport({
+    draft,
+    month,
+    weekIndex: input.weekIndex,
+    recent: input.recentStructures ?? [],
+    context: judgeContext(week),
+    rules,
+  });
+  const repairRequests: RepairRequest[] = [];
+  const repairResults: RepairResult[] = [];
+  for (const row of headCells.rows) {
+    const request: RepairRequest = {
+      issueCode: "schema.invalid",
+      kind: "field_edit",
+      day: row.day,
+      fieldPath: row.field,
+      allowedFields: [row.field],
+    };
+    repairRequests.push(request);
+    repairResults.push({
+      request,
+      applied: row.result === "applied",
+      changedFields: row.result === "applied" ? [row.field] : [],
+      unexpectedFields: [],
+      revalidation: closing.hard.length === 0 ? "passed" : "failed",
+    });
+  }
+  const adoption = finalizeWeekAdoption({
+    weeklyCoachFromModel: weeklyFromModel,
+    skeletonLocked: Boolean(lockedLongitudinal),
+    modelCalled: true,
+    dayOrigins: trained.map((day) => (daySources[day.day] === "model" ? "model" : "fallback")),
+    head: adoptionHead(headModelStatus, headPass.stance, headUnappliedRevision),
+    issues: [
+      ...closing.issues,
+      ...(structure.status === "STRUCTURE_GOOD"
+        ? []
+        : [
+            makeIssue({
+              code: "week.structure",
+              severity: "warning",
+              scope: "week",
+              message: structure.reasons.join("; ") || structure.status,
+              expected: "STRUCTURE_GOOD",
+              actual: structure.status,
+            }),
+          ]),
+      ...(planRuleErrors.length
+        ? [
+            makeIssue({
+              code: "week.structure",
+              severity: "hard_error",
+              scope: "week",
+              message: planRuleErrors.join("; "),
+              expected: "week plan",
+              actual: planRuleErrors.join("; "),
+            }),
+          ]
+        : []),
+      ...(skeletonHeld
+        ? []
+        : [
+            makeIssue({
+              code: "skeleton.broken",
+              severity: "hard_error",
+              scope: "week",
+              message: "locked skeleton did not hold",
+              expected: "locked skeleton",
+              actual: "broken",
+            }),
+          ]),
+      ...[...unresolvedDays.keys()].map((day) =>
+        makeIssue({
+          code: "session.missing",
+          severity: "hard_error",
+          scope: "day",
+          day,
+          message: `${day} unresolved`,
+          expected: "resolved day",
+          actual: "unresolved",
+        }),
+      ),
+    ],
+    repairRequests,
+    repairResults,
+    requiredDaysValid: !anyDayFailed && unresolvedDays.size === 0,
+    weekStructureValid:
+      planRuleErrors.length === 0 &&
+      !closing.issues.some((issue) => issue.code === "week.structure" && issue.severity === "hard_error"),
+    lockedSkeletonHeld: skeletonHeld,
+  });
+  const weekStatus =
+    weekStatusFor({ hardErrors: finalErrors, anyDayFailed }) === "FAILED" || adoption.weekStatus === "FAILED" ? "FAILED" : "VALIDATED";
+  resolvedStatus = adoption.finalStatus;
+  modelAdopted = adoption.verdict.modelSuccess;
+  if (!modelAdopted && !resolvedReason) resolvedReason = adoption.origin === "no_model" ? "no_model" : (failure ?? "not_adopted");
   plan = {
     ...plan,
     day_sources: { ...daySources },
@@ -2534,6 +2645,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       late_discovered_hard_rule: late,
     },
     pipeline: "stage16",
+    adoption,
     prescription_source: origin,
     rejected_draft: rejectedDraft,
     day_records: dayRecords,

@@ -739,10 +739,9 @@ describe("day recovery storage", () => {
     const adopted = harness("recover");
     const saved = await ensureProgrammingWeek(WEEK, { nowMs: NOW, key: KEY, fetchImpl: adopted.fetchImpl });
     expect(saved.promptVersion).toBe(STAGE16_PIPELINE_VERSION);
-    expect(saved.generationSource).toBe("model");
-    expect(saved.status).toBe("active");
-    expect(getProgrammingWeek(WEEK)?.id).toBe(saved.id);
-    expect(saved.draft.sessions.find((session) => session.day === "tue")?.warmup_ko).toContain("모델");
+    expect(saved.generationSource).toBe("fallback");
+    expect(saved.status).toBe("failed");
+    expect(getProgrammingWeek(WEEK)).toBeNull();
   });
 
   it("does not store an unresolved week as the active program", async () => {

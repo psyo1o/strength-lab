@@ -226,26 +226,21 @@ describe("long-term programming engine", () => {
     expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(42);
     expect(week.generationSource).toBe("fallback");
     expect(week.fallbackReason).toBe("http_error");
+    expect(week.status).toBe("failed");
     expect(week.generatedAt).toBe(NOW);
     expect(week.engineVersion).toBe(ENGINE_VERSION);
     expect(String(fetchImpl.mock.calls[0]?.[1]?.body)).not.toContain(KEY);
+    expect(getProgrammingWeek(WEEK1)).toBeNull();
 
-    recordWeeklyActual(WEEK1, { note_ko: "", days: [{ day: "fri", completed: true, result_ko: "12분" }] }, NOW);
     const nextFetch = vi.fn(async () => new Response("still-down", { status: 500 }));
     const second = await ensureProgrammingWeek(WEEK2, { nowMs: NOW + 5, key: KEY, fetchImpl: nextFetch });
     expect(nextFetch.mock.calls.length).toBeGreaterThan(0);
     expect(nextFetch.mock.calls.length).toBeLessThanOrEqual(42);
     expect(second.generationSource).toBe("fallback");
+    expect(second.status).toBe("failed");
     const sent = weeklyUser(nextFetch);
-    const previous = (sent.summary as { previous_week: Record<string, unknown> }).previous_week;
-    expect(previous).toMatchObject({
-      week_start: WEEK1,
-      generation_source: "fallback",
-      fallback_reason: "http_error",
-      generated_at: NOW,
-      engine_version: ENGINE_VERSION,
-    });
-    expect(JSON.stringify(previous)).toContain("12분");
+    const previous = (sent.summary as { previous_week?: Record<string, unknown> | null }).previous_week;
+    expect(previous ?? null).toBeNull();
   });
 
   it("keeps a model-written week instead of a catalog pick", async () => {

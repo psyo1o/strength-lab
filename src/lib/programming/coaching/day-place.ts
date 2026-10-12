@@ -3,6 +3,11 @@ import type { SkeletonDay, WeeklySkeleton } from "../planning/types";
 import { orderViolations, similarityViolations } from "../rules";
 import type { DayIntent, SessionDraft, StoredStructure, WeekDraft, WeeklyIntentPlan } from "../types";
 
+/** 요일 고정은 잠긴 스켈레톤일 때만이다. goal_table만으로는 고정하지 않는다. */
+export function lockWeekdaysForPlacement(skeletonLocked: boolean): boolean {
+  return skeletonLocked;
+}
+
 export type DayPlacement = {
   draft: WeekDraft;
   plan: WeeklyIntentPlan;

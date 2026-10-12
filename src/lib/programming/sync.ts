@@ -26,6 +26,9 @@ export type ClassWeekSync = {
  * Those days stay as they are. The sync row records which days moved.
  */
 export function syncClassWeek(week: WeekRow, nowMs: number): ClassWeekSync {
+  if (week.status === "failed") {
+    throw new Error("refusing to sync a failed programming week");
+  }
   const existing = readClassWeek(week.weekStart);
   const today = kstParts(nowMs).date;
   const scored = scoredDays(existing?.id ?? null, week.weekStart);

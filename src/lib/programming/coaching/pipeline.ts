@@ -11,6 +11,7 @@ import { coachMonthly } from "./monthly";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { planCoachedWeek } from "./weekly";
 import type { LongitudinalPlan } from "../planning/types";
+import type { WeekAdoption } from "../v2";
 import { enforceLockedSkeleton, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
 import { assembleLegalWeek } from "./session";
 import { reviewWeek, type HeadCoachReview } from "./review";
@@ -77,6 +78,7 @@ export type CoachWeekResult = {
   prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
   day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
   week_status?: WeekLifecycle;
+  adoption?: WeekAdoption;
 };
 
 export function assertProbeWeek(weekStart: string) {

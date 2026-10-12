@@ -642,7 +642,17 @@ async function writeProgrammingWeek(
       });
       insertCoachTraces({ scopeKey: weekStart, planId: failedId, createdAt: nowMs, traces: coached.traces });
     }
-    if (coached.final_validation && coached.final_validation.ok === false) {
+    const refused =
+      coached.adoption != null ? coached.adoption.persistActive !== true : coached.final_validation?.ok === false;
+    if (refused) {
+      const validationFailed = coached.final_validation?.ok === false;
+      const fallbackReason = validationFailed
+        ? coached.fallback_reason
+          ? coached.fallback_reason.includes("final_validation_failed")
+            ? coached.fallback_reason
+            : `${coached.fallback_reason};final_validation_failed`
+          : "final_validation_failed"
+        : (coached.fallback_reason ?? "fallback_display_off");
       const rejectedDisplay = projectWeek(coached.draft, weekIndex, "rules", month.direction.strength_method);
       const failedId = recordFailedProgrammingWeek({
         monthId: month.id,
@@ -652,11 +662,7 @@ async function writeProgrammingWeek(
         display: rejectedDisplay,
         inputSummaryJson: JSON.stringify(summary),
         generationSource: coached.generation_source,
-        fallbackReason: coached.fallback_reason
-          ? coached.fallback_reason.includes("final_validation_failed")
-            ? coached.fallback_reason
-            : `${coached.fallback_reason};final_validation_failed`
-          : "final_validation_failed",
+        fallbackReason,
         generatedAt: nowMs,
         modelName: coached.model_name,
         promptVersion: coached.prompt_version,
@@ -668,7 +674,7 @@ async function writeProgrammingWeek(
       });
       insertCoachTraces({ scopeKey: weekStart, planId: failedId, createdAt: nowMs, traces: coached.traces });
       const existing = getProgrammingWeek(weekStart);
-      if (existing) return existing;
+      if (existing) return { ...existing, writeOutcome: "kept_existing" };
       const salvage = Object.values(coached.day_records ?? {}).some(
         (row) =>
           row?.final_source === "MODEL" ||

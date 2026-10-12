@@ -120,6 +120,9 @@ export async function ensureClassWeekForStart(weekStart: string, nowMs = Date.no
   const existing = getClassPlanByStart(weekStart);
   if (existing) return existing;
   const programmed = await ensureProgrammingWeek(weekStart, { nowMs });
+  if (programmed.status === "failed") {
+    throw new Error("class week blocked");
+  }
   let stored = getClassPlanByStart(weekStart);
   if (!stored) {
     syncClassWeek(programmed, nowMs);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { placeTrainingDays } from "../../src/lib/programming/coaching/day-place";
+import { lockWeekdaysForPlacement, placeTrainingDays } from "../../src/lib/programming/coaching/day-place";
 import { deterministicGoalTable, goalWeek } from "../../src/lib/programming/coaching/goal-table";
 import { orderViolations } from "../../src/lib/programming/rules";
 import type { ConditioningDraft, DayIntent, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../../src/lib/programming/types";
@@ -95,21 +95,29 @@ function clashWeek(): { draft: WeekDraft; plan: WeeklyIntentPlan } {
 describe("특성화 P3", () => {
   /**
    * P3. 근거 orchestrate.ts:1530, day-place.ts:83.
-   * 현재 동작: goal_table 주가 있으면 lockWeekdays가 참이 되고, placeTrainingDays는 입력을 그대로 돌려준다.
-   * 목표 동작: 잠긴 요일은 명시적 뼈대일 때만 고정한다. 아직 구현하지 않는다.
+   * 목표 동작: 잠긴 요일은 잠긴 스켈레톤일 때만 고정한다. goal_table만으로는 고정하지 않는다.
    */
-  it("P3: goal_table이 있으면 lockWeekdays=true가 되어 placeTrainingDays가 입력을 그대로 반환한다", () => {
+  it("P3: goal_table만으로는 요일을 고정하지 않는다", () => {
     const table = deterministicGoalTable(month531());
-    const locked = Boolean(goalWeek(table, 1));
-    expect(locked).toBe(true);
+    expect(Boolean(goalWeek(table, 1))).toBe(true);
+    expect(lockWeekdaysForPlacement(false)).toBe(false);
+    expect(lockWeekdaysForPlacement(true)).toBe(true);
     const built = clashWeek();
     expect(orderViolations(built.draft).length).toBeGreaterThan(0);
-    const opened = placeTrainingDays({ draft: built.draft, plan: built.plan, skeleton: null, lockWeekdays: false });
+    const opened = placeTrainingDays({
+      draft: built.draft,
+      plan: built.plan,
+      skeleton: null,
+      lockWeekdays: lockWeekdaysForPlacement(false),
+    });
     expect(opened.moves.length).toBeGreaterThan(0);
-    const closed = placeTrainingDays({ draft: built.draft, plan: built.plan, skeleton: null, lockWeekdays: locked });
-    expect(closed.moves).toEqual([]);
-    expect(closed.draft).toBe(built.draft);
-    expect(closed.plan).toBe(built.plan);
-    expect(closed.originByDay).toEqual({ mon: "mon", tue: "tue", wed: "wed", thu: "thu", fri: "fri", sat: "sat", sun: "sun" });
+    const held = placeTrainingDays({
+      draft: built.draft,
+      plan: built.plan,
+      skeleton: null,
+      lockWeekdays: lockWeekdaysForPlacement(true),
+    });
+    expect(held.moves).toEqual([]);
+    expect(held.draft).toBe(built.draft);
   });
 });

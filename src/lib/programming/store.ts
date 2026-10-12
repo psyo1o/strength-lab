@@ -81,6 +81,8 @@ export type WeekRow = {
   rulesVersion: string;
   generationTimestamp: number;
   inputSummaryVersion: string;
+  /** create가 기존 활성 주를 남기면 kept_existing이다. DB 컬럼은 아니다. */
+  writeOutcome?: "created" | "kept_existing" | "regenerated";
 };
 
 type MonthSql = {
@@ -505,6 +507,7 @@ export function insertProgrammingWeek(
   const mode = input.mode ?? "create";
   const structures = input.draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null);
   const raw = getSqlite();
+  let writeOutcome: NonNullable<WeekRow["writeOutcome"]> = "created";
   const write = raw.transaction(() => {
     const active = raw
       .prepare(
@@ -521,8 +524,10 @@ export function insertProgrammingWeek(
     const current = active ?? slot;
     if (current && mode === "create") {
       insertWeekRow(raw, input, structures, "failed", current.generation_version);
+      writeOutcome = "kept_existing";
       return;
     }
+    writeOutcome = current ? "regenerated" : "created";
     const version = current ? current.generation_version + 1 : 1;
     if (current) {
       raw.prepare("UPDATE programming_weeks SET status = 'superseded' WHERE id = ?").run(current.id);
@@ -539,7 +544,7 @@ export function insertProgrammingWeek(
   }
   const stored = getProgrammingWeek(input.weekStart);
   if (!stored) throw new Error("programming week missing");
-  return stored;
+  return { ...stored, writeOutcome };
 }
 
 function insertWeekRow(

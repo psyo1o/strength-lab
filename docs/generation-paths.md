@@ -11,6 +11,7 @@
 | `COACHING_PIPELINE` | `coachingPipelineEnabled` (`src/lib/programming/coaching/models.ts`) | 아니오. 월 행에 `withCoachingPlan`을 붙일 때만 읽는다 (`engine.ts` `writeProgrammingMonth`). |
 | `LONGITUDINAL_PLANNING` | `longitudinalPlanningEnabled` (`src/lib/programming/planning/flag.ts`) | 주 함수를 바꾸지 않는다. 켜지면 `planLongitudinal` 결과를 같은 주 함수에 넘긴다. |
 | `PHASE_C` | 없음 | `src`는 읽지 않는다. |
+| `FALLBACK_WEEK_DISPLAY` | `fallbackWeekDisplayEnabled` (`src/lib/programming/v2/fallback-display.ts`) | 주 알고리즘을 고르지 않는다. 코칭 결과의 fallback 주를 active로 저장하고 `syncClassWeek`로 복사할지만 정한다. 기본값은 꺼짐이다. |
 
 ## 진입점
 
@@ -77,7 +78,13 @@ plan-lab의 `PROBE_PROVIDER`는 `COACH_MODEL_PROVIDER`에, `PROBE_MODEL`은 `COA
 
 휴식일은 세션 모델을 호출하지 않고 트레이스 `fallback_reason`이 `rest`다.
 
-`generation_source === "model"`은 주간 모델 또는 잠긴 스켈레톤이 있고, 훈련일이 모두 모델이며, 헤드 상태가 APPROVE, APPROVE_WITH_NOTE, ADJUST 중 하나이고, 최종 하드 오류가 없을 때다. 미해결 날이나 BLOCK이 있으면 모델 채택이 아니다. 일부 일만 모델이면 사유는 `fallback_after_model_failure:채택/훈련일수`다. 스키마 복구가 한도에 걸리면 그 뒤에 `;unresolved_day`가 붙고 `final_validation.ok`는 false다. 그 주는 활성 정상 주로 저장되지 않는다. fallback은 모델 성공이 아니다.
+채택은 `finalizeWeekAdoption` 한 곳이다. `generation_source === "model"`은 그 함수가 `modelSuccess`일 때만이다. 주간 코치가 실패해 결정적 계획으로 바뀌면 훈련일이 모두 모델이어도 model이 아니다. 일부 일만 모델이면 출처는 fallback이고 사유는 `fallback_after_model_failure:채택/훈련일수`다. 헤드 `ADJUST`와 `BLOCK`은 승인이 아니다. 최종 하드 오류가 있으면 채택하지 않는다. 경고만 있으면 채택을 막지 않는다. 미해결 날이면 `final_validation.ok`는 false이고 활성 정상 주로 저장하지 않는다.
+
+`FALLBACK_WEEK_DISPLAY === "1"`일 때만, 하드 오류가 없는 fallback 주를 active로 저장하고 수업 화면에 복사한다. 꺼져 있으면 그 주의 `generation_source`는 fallback이고 DB `status`는 failed이며 `syncClassWeek`로 복사하지 않는다. `status === "failed"`인 행은 스위치와 관계없이 복사하지 않는다. 화면의 `adapterId`는 model 채택만 `"model"`이고 그 외는 `"rules"`다.
+
+create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 반환 객체의 `writeOutcome`은 `kept_existing`이다. 기존 활성 주는 지우지 않는다.
+
+요일 고정은 `lockWeekdaysForPlacement`가 잠긴 스켈레톤일 때만 참이다. `goal_table`만으로 요일을 고정하지 않는다. 배치 결과는 호출자가 넘긴 스켈레톤 객체에 다시 쓰지 않는다. `adoptDay`는 goal 슬롯이 있어도 잠긴 스켈레톤 필드 검사를 건너뛰지 않는다.
 
 저장 직전의 `too_similar` 교체(`judgeWeek` 뒤 `replaceDays`)는 코드에 남아 있다. 그 판정은 `placeTrainingDays`로 옮겨 헤드 전에 돈다. 이 저장 경로에서는 `replaceSimilarAfterHead`가 꺼져 있어 최근 주 유사도로 fallback하지 않는다. 저장된 초안과 `generation_source`는 오케스트레이터 결과다. 주 JSON 경로(`persistWeekDocument`)의 `too_similar` 저장은 그대로다. 프롬프트 스탬프는 `coaching-pipeline-v6`로 남는다.
 

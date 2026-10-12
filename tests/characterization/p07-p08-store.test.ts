@@ -26,10 +26,9 @@ describe("특성화 P7 P8", () => {
 
   /**
    * P7. 근거 engine.ts:687-689, class-week.ts:122-126.
-   * 현재 동작: 활성 행이 없으면 실패 행을 돌려주고, class_weeks가 비어 있으면 그 실패 행을 화면에 복사한다.
-   * 목표 동작: 실패 행은 class_weeks로 복사하지 않는다. 아직 구현하지 않는다.
+   * 목표 동작: 실패 행은 class_weeks로 복사하지 않는다.
    */
-  it("P7: 실패 행이 ensureClassWeekForStart에서 class_weeks로 동기화된다", async () => {
+  it("P7: 실패 행은 class_weeks로 복사하지 않는다", async () => {
     const weekStart = "2099-07-06";
     expect(getClassPlanByStart(weekStart)).toBeNull();
     process.env.MONTH_PLAN_MODEL_KEY = "sk-test";
@@ -42,13 +41,12 @@ describe("특성화 P7 P8", () => {
       head: "block",
     }) as typeof fetch;
     try {
-      const stored = await ensureClassWeekForStart(weekStart, NOW);
+      await expect(ensureClassWeekForStart(weekStart, NOW)).rejects.toThrow("class week blocked");
       const attempts = listProgrammingWeekAttempts(weekStart);
       const failed = attempts.find((row) => row.status === "failed");
       expect(failed).toBeTruthy();
       expect(attempts.some((row) => row.status === "active")).toBe(false);
-      expect(stored.weekStart).toBe(weekStart);
-      expect(getClassPlanByStart(weekStart)?.weekStart).toBe(weekStart);
+      expect(getClassPlanByStart(weekStart)).toBeNull();
     } finally {
       globalThis.fetch = original;
       delete process.env.MONTH_PLAN_MODEL_KEY;
@@ -57,10 +55,9 @@ describe("특성화 P7 P8", () => {
 
   /**
    * P8. 근거 store.ts:522-524.
-   * 현재 동작: create인데 활성 행이 있으면 새 결과를 failed로 넣고, 예외 없이 기존 활성 행을 돌려준다.
-   * 목표 동작: 호출자가 새 결과가 버려졌는지 구분할 수 있어야 한다. 아직 구현하지 않는다.
+   * 목표 동작: 호출자가 새 결과가 채택되지 않았음을 writeOutcome으로 안다.
    */
-  it("P8: mode=create에서 활성 행이 있으면 새 결과는 failed로 들어가고 기존 행이 반환되며 구분 신호가 없다", async () => {
+  it("P8: mode=create에서 활성 행이 있으면 kept_existing을 반환하고 기존 주를 남긴다", async () => {
     const weekStart = "2099-07-06";
     const first = await ensureProgrammingWeek(weekStart, { key: null, nowMs: NOW });
     expect(first.status).toBe("active");
@@ -88,7 +85,7 @@ describe("특성화 P7 P8", () => {
     expect(returned.status).toBe("active");
     expect(returned.generationSource).toBe(first.generationSource);
     expect(returned.generatedAt).toBe(first.generatedAt);
-    expect("created" in returned).toBe(false);
+    expect(returned.writeOutcome).toBe("kept_existing");
     const failed = listProgrammingWeekAttempts(weekStart).find((row) => row.status === "failed");
     expect(failed?.generationSource).toBe("model");
     expect(failed?.draft.intent.why_ko).toBe("새 결과");

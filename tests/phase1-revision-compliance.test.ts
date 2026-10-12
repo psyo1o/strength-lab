@@ -374,7 +374,8 @@ describe("explicit edit list", () => {
     expect(calls.filter((call) => call.agent === "context:head")).toHaveLength(1);
     expect(complianceTraces(result).some((trace) => JSON.stringify(trace.output).includes("success"))).toBe(false);
     expect(result.revision_count).toBe(0);
-    expect(result.generation_source).toBe("model");
+    expect(result.generation_source).toBe("fallback");
+    expect(result.adoption?.verdict.modelSuccess).toBe(false);
   });
 
   it("adopts a change_amount that touches only the named movement", async () => {
@@ -393,7 +394,8 @@ describe("explicit edit list", () => {
     expect(traces[0]?.token_usage).toBeNull();
     expect(traces[0]?.retry_count).toBe(0);
     expect(result.final_validation?.ok).toBe(true);
-    expect(result.generation_source).toBe("model");
+    expect(result.final_status).toBe("ADJUST");
+    expect(result.generation_source).toBe("fallback");
     expect(calls.filter((call) => call.agent === "conditioning_coach" && call.day !== target.day && call.revision > 0)).toHaveLength(0);
   });
 
@@ -408,7 +410,8 @@ describe("explicit edit list", () => {
     expect(revisionCalls(calls, target.day)).toHaveLength(0);
     expect(JSON.stringify(complianceTraces(result)[0]?.output)).toContain("success");
     expect(result.day_records?.[target.day]?.day_status).not.toBe("FAILED");
-    expect(result.generation_source).toBe("model");
+    expect(result.final_status).toBe("ADJUST");
+    expect(result.generation_source).toBe("fallback");
     expect(calls.some((call) => call.revision >= 3)).toBe(false);
   });
 
@@ -446,7 +449,8 @@ describe("explicit edit list", () => {
     expect(movementsOf(after)).toContain(`"amount":"${target.session.conditioning?.movements.find((movement) => movement.key === target.key)?.amount}"`);
     expect(revisionCalls(calls, target.day)).toHaveLength(0);
     expect(result.traces.some((trace) => trace.agent_name === "revision_rejected" && JSON.stringify(trace.output).includes("rejected"))).toBe(true);
-    expect(result.generation_source).toBe("model");
+    expect(result.generation_source).toBe("fallback");
+    expect(result.adoption?.verdict.modelSuccess).toBe(false);
   });
 
   it("leaves the day failed when no valid session exists and the edit is not applied", async () => {
@@ -492,7 +496,8 @@ describe("explicit edit list", () => {
     expect(budget.calls.some((call) => call.revision >= 3)).toBe(false);
     expect(budget.result.traces.some((trace) => trace.agent_name === "revision_scope")).toBe(false);
     expect(budget.result.traces.some((trace) => trace.agent_name === "head_cell_apply")).toBe(true);
-    expect(budget.result.generation_source).toBe("model");
+    expect(budget.result.final_status).toBe("ADJUST");
+    expect(budget.result.generation_source).toBe("fallback");
     expect(Object.values(budget.result.day_records ?? {}).some((row) => row?.day_status === "FAILED")).toBe(false);
 
     const blocked = await run("block");
