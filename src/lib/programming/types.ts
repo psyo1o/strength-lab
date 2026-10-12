@@ -459,6 +459,12 @@ export type MonthlyCoachPlan = {
   /** Day goals for the block. Absent on rows written before the goal table. */
   goal_table?: MonthGoalTable;
   source: "model" | "deterministic";
+  /**
+   * A block plan recorded before week generation. Week generation reuses this
+   * table and does not call the monthly model again. The deterministic plan
+   * attached at month write does not set this.
+   */
+  reuse?: boolean;
 };
 
 export type GenerationSource = "model" | "fallback";

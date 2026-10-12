@@ -225,7 +225,9 @@ async function databasePass(pass: string) {
   raw.prepare(`DELETE FROM programming_actuals WHERE week_id IN (SELECT id FROM programming_weeks WHERE week_start LIKE '2099-%')`).run();
   raw.prepare(`DELETE FROM programming_generation_logs WHERE scope_key LIKE '2099-%'`).run();
   raw.prepare(`DELETE FROM programming_weeks WHERE week_start LIKE '2099-%'`).run();
-  raw.prepare(`DELETE FROM programming_months WHERE month_start LIKE '2099-%'`).run();
+  raw.prepare(
+    `DELETE FROM programming_months WHERE month_start LIKE '2099-%' AND json_extract(direction_json, '$.coaching_plan.reuse') IS NOT 1`,
+  ).run();
   raw.prepare(`DELETE FROM class_weeks WHERE week_start LIKE '2099-%'`).run();
   const predecessor: string = WEEKS[0];
   if (!probeMayWriteWeek(predecessor)) throw new ProbeSafetyError(`refusing ${predecessor}`);

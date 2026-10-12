@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDbConnection } from "../src/lib/db/client";
 import { DAY_ORDER } from "../src/lib/month-plan/types";
 import { MONTH_PLAN_OPENAI_MODEL } from "../src/lib/month-plan/week-model";
+import { coachMonthly, deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { assertProbeWeek, coachWeek, unchangedDays } from "../src/lib/programming/coaching/pipeline";
 import { coachModel } from "../src/lib/programming/coaching/models";
 import { coachSystemPrompt } from "../src/lib/programming/coaching/prompts";
@@ -60,6 +61,30 @@ function reported(fatigue: "low" | "moderate" | "high", volume: "low" | "moderat
     },
   };
 }
+
+describe("recorded monthly plan", () => {
+  it("reuses a recorded goal table and does not call the model", async () => {
+    const month = month531();
+    const plan = { ...deterministicMonthlyPlan(month), reuse: true };
+    let called = false;
+    const result = await coachMonthly({
+      month: { ...month, coaching_plan: plan },
+      key: "test-key",
+      fetchImpl: async () => {
+        called = true;
+        throw new Error("monthly model must not be called");
+      },
+      timeoutMs: 1000,
+      runId: "recorded-month",
+      weekId: "2099-07-06",
+    });
+    expect(called).toBe(false);
+    expect(result.plan.goal_table).toEqual(plan.goal_table);
+    expect(result.trace.deterministic).toBe(true);
+    expect(result.trace.token_usage).toBeNull();
+    expect(result.trace.source).toBe("fallback");
+  });
+});
 
 describe("coaching pipeline", () => {
   beforeEach(() => {

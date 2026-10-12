@@ -151,6 +151,33 @@ export async function coachMonthly(input: {
   const started = Date.now();
   const deterministic = deterministicMonthlyPlan(input.month, input.actual);
   const payload = monthlyCoachPayload(input.month, input.actual);
+  const recorded = input.month.coaching_plan;
+  if (recorded?.reuse === true && recorded.goal_table && goalTableErrors(recorded.goal_table, input.month).length === 0) {
+    const fromModel = recorded.source === "model";
+    return {
+      plan: recorded,
+      trace: finishTrace(started, {
+        run_id: input.runId,
+        week_id: input.weekId,
+        agent_name: "monthly_coach",
+        model: null,
+        prompt_version: MONTHLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash(payload),
+        input_summary: { method: recorded.strength_method, goal: recorded.block_goal, reuse: true },
+        output: recorded,
+        parsed_output: recorded,
+        validation_result: "pass",
+        validation_errors: [],
+        retry_count: 0,
+        failure_reason: null,
+        deterministic: true,
+        source: fromModel ? "model" : "fallback",
+        fallback_reason: fromModel ? null : "recorded_monthly_plan",
+        revision_number: 0,
+        token_usage: null,
+      }),
+    };
+  }
   if (!input.key) {
     return {
       plan: deterministic,
