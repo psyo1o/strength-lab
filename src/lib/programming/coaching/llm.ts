@@ -1,8 +1,8 @@
-import { MONTH_PLAN_OPENAI_URL } from "../../month-plan/week-model";
-import { parseModelJson, type FetchLike } from "../model";
+import type { FetchLike } from "../model";
 import { JSON_OBJECT, responseFormatFor, schemaBrief, type ResponseFormat } from "./contract";
-import { coachModel, type CoachAgentName } from "./models";
+import { type CoachAgentName } from "./models";
 import { coachSystemPrompt } from "./prompts";
+import { buildCoachRequest, coachModelForCall, coachProvider, parseCoachPayload } from "./provider";
 import type { TokenUsage } from "./trace";
 
 export type CoachValidation = { ok: true } | { ok: false; errors: string[]; retryExtra?: Record<string, unknown> };
@@ -54,32 +54,14 @@ type Attempt = {
   usage: TokenUsage | null;
 };
 
-function messageText(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || !("choices" in payload)) return null;
-  const choices = (payload as { choices?: unknown }).choices;
-  if (!Array.isArray(choices) || choices.length === 0) return null;
-  const first = choices[0];
-  if (!first || typeof first !== "object" || !("message" in first)) return null;
-  const message = (first as { message?: { content?: unknown } }).message;
-  const content = message?.content;
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return null;
-  const text = content
-    .map((part) => (part && typeof part === "object" && "text" in part && typeof part.text === "string" ? part.text : ""))
-    .join("");
-  return text.trim() ? text : null;
-}
-
-function usageOf(payload: unknown): TokenUsage | null {
-  if (!payload || typeof payload !== "object" || !("usage" in payload)) return null;
-  const usage = (payload as { usage?: unknown }).usage;
-  if (!usage || typeof usage !== "object") return null;
-  const row = usage as { prompt_tokens?: unknown; completion_tokens?: unknown; total_tokens?: unknown };
-  const prompt = typeof row.prompt_tokens === "number" ? row.prompt_tokens : 0;
-  const completion = typeof row.completion_tokens === "number" ? row.completion_tokens : 0;
-  const total = typeof row.total_tokens === "number" ? row.total_tokens : prompt + completion;
-  if (prompt === 0 && completion === 0 && total === 0) return null;
-  return { prompt_tokens: prompt, completion_tokens: completion, total_tokens: total };
+function jsonFromText(text: string | null): unknown {
+  if (!text) return null;
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
 }
 
 function addUsage(left: TokenUsage | null, right: TokenUsage | null): TokenUsage | null {
@@ -90,14 +72,6 @@ function addUsage(left: TokenUsage | null, right: TokenUsage | null): TokenUsage
     completion_tokens: left.completion_tokens + right.completion_tokens,
     total_tokens: left.total_tokens + right.total_tokens,
   };
-}
-
-function finishReason(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || !("choices" in payload)) return null;
-  const choices = (payload as { choices?: unknown }).choices;
-  if (!Array.isArray(choices) || !choices[0] || typeof choices[0] !== "object") return null;
-  const reason = (choices[0] as { finish_reason?: unknown }).finish_reason;
-  return typeof reason === "string" ? reason : null;
 }
 
 async function postOnce(input: {
@@ -113,28 +87,25 @@ async function postOnce(input: {
   systemPrompt?: string;
 }): Promise<Attempt> {
   const started = Date.now();
-  const body: Record<string, unknown> = {
+  const provider = coachProvider();
+  const request = buildCoachRequest({
+    provider,
+    key: input.key,
     model: input.model,
-    messages: [
-      { role: "developer", content: input.systemPrompt ?? coachSystemPrompt(input.agent) },
-      { role: "user", content: JSON.stringify(input.user) },
-    ],
-    response_format: input.format,
-    reasoning_effort: "none",
-    max_completion_tokens: input.maxTokens,
-  };
-  if (input.temperature != null) body.temperature = input.temperature;
+    system: input.systemPrompt ?? coachSystemPrompt(input.agent),
+    user: JSON.stringify(input.user),
+    maxTokens: input.maxTokens,
+    temperature: input.temperature,
+    format: input.format,
+  });
   try {
-    const response = await input.fetchImpl(MONTH_PLAN_OPENAI_URL, {
+    const response = await input.fetchImpl(request.url, {
       method: "POST",
       redirect: "error",
       cache: "no-store",
       signal: AbortSignal.timeout(input.timeoutMs),
-      headers: {
-        Authorization: `Bearer ${input.key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+      headers: request.headers,
+      body: JSON.stringify(request.body),
     });
     const text = await response.text();
     let payload: unknown = text;
@@ -145,7 +116,7 @@ async function postOnce(input: {
     }
     if (!response.ok) {
       const detail = typeof payload === "string" ? payload : JSON.stringify(payload).slice(0, 400);
-      const schemaRejected = response.status === 400 && /response_format|json_schema/i.test(detail);
+      const schemaRejected = response.status === 400 && /response_format|json_schema|output_config|responseJsonSchema|responseSchema/i.test(detail);
       const temperatureRejected = response.status === 400 && /temperature/i.test(detail);
       return {
         ok: false,
@@ -156,14 +127,15 @@ async function postOnce(input: {
         usage: null,
       };
     }
-    if (finishReason(payload) === "length") {
-      return { ok: false, json: null, raw: messageText(payload) ?? payload, reason: "truncated", latencyMs: Date.now() - started, usage: usageOf(payload) };
+    const parsed = parseCoachPayload(provider, payload);
+    if (parsed.truncated) {
+      return { ok: false, json: null, raw: parsed.text ?? payload, reason: "truncated", latencyMs: Date.now() - started, usage: parsed.usage };
     }
-    const json = parseModelJson(payload);
+    const json = jsonFromText(parsed.text);
     if (!json || typeof json !== "object") {
-      return { ok: false, json: null, raw: messageText(payload) ?? payload, reason: "bad_json", latencyMs: Date.now() - started, usage: usageOf(payload) };
+      return { ok: false, json: null, raw: parsed.text ?? payload, reason: "bad_json", latencyMs: Date.now() - started, usage: parsed.usage };
     }
-    return { ok: true, json, raw: messageText(payload) ?? json, reason: null, latencyMs: Date.now() - started, usage: usageOf(payload) };
+    return { ok: true, json, raw: parsed.text ?? json, reason: null, latencyMs: Date.now() - started, usage: parsed.usage };
   } catch (error) {
     const name = error && typeof error === "object" && "name" in error ? String(error.name) : "";
     const reason = name === "AbortError" || name === "TimeoutError" ? "timeout" : "http_error";
@@ -194,7 +166,7 @@ export async function askCoach(input: {
   /** Replaces the retry schema note. Absent keeps the agent schema brief. */
   schemaNote?: string;
 }): Promise<CoachCall> {
-  const model = coachModel(input.agent);
+  const model = coachModelForCall(input.agent);
   const fetchImpl = input.fetchImpl ?? fetch;
   const temperature = input.temperature === undefined ? 0.2 : input.temperature;
   let format = input.format ?? responseFormatFor(input.agent);

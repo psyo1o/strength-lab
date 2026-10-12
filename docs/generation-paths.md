@@ -22,10 +22,28 @@
 
 ## 키
 
-`const key = options.key === undefined ? serverModelKey() : options.key` (`engine.ts`). 오케스트레이터도 같은 식으로 한 번 더 읽는다.
+`const key = options.key === undefined ? resolveImplicitCoachKey() : options.key` (`engine.ts`). 오케스트레이터도 같은 식으로 한 번 더 읽는다.
 
-- `undefined`는 `MONTH_PLAN_MODEL_KEY`를 읽는다. 화면이 이 경우다. 환경에 키가 있으면 아래 문자열 키 경로다. 이 작업은 그 경로를 배포하지 않는다.
+- `undefined`이고 `COACH_MODEL_PROVIDER`가 비어 있으면 `serverModelKey()`가 `MONTH_PLAN_MODEL_KEY`를 읽는다. 화면이 이 경우다. 환경에 키가 있으면 아래 문자열 키 경로다. 이 작업은 그 경로를 배포하지 않는다.
 - `null`과 빈 문자열은 환경 키를 읽지 않는다.
+- `COACH_MODEL_PROVIDER`가 있으면 그 provider의 키 변수를 읽는다. 변수가 비면 `MissingProviderKeyError`이고 `fetch`는 없다.
+
+## provider
+
+주 생성의 모델 호출은 `askCoach`다. `postOnce`는 `buildCoachRequest`와 `parseCoachPayload` (`src/lib/programming/coaching/provider.ts`)를 쓴다. `COACH_MODEL_PROVIDER`가 비면 provider는 `openai`다. 허용 값은 `openai`, `anthropic`, `xai`, `gemini`다.
+
+| provider | 키 변수 | URL |
+|---|---|---|
+| `openai` | `MONTH_PLAN_MODEL_KEY` | `https://api.openai.com/v1/chat/completions` |
+| `anthropic` | `ANTHROPIC_API_KEY` | `https://api.anthropic.com/v1/messages` |
+| `xai` | `XAI_API_KEY` | `https://api.x.ai/v1/chat/completions` |
+| `gemini` | `GEMINI_API_KEY` | `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` |
+
+기본 모델은 `gpt-5.4-nano`다. 모델 이름은 에이전트별 변수, 그다음 `COACHING_MODEL`, 그다음 `COACH_MODEL_NAME`이다. openai가 아닌데 그 이름이 기본 nano로 남으면 호출 전에 `MissingProviderModelError`다. 키 값은 로그와 오류 문장에 넣지 않는다.
+
+OpenAI 본문은 `messages`, `response_format`, `reasoning_effort`, `max_completion_tokens`다. xAI는 같은 `response_format`이고 시스템 역할은 `system`이며 `reasoning_effort`는 보내지 않는다. Anthropic은 `output_config.format`에 `json_schema`를 넣고, `json_object`로 내려가면 그 필드를 빼며 토큰은 `input_tokens`와 `output_tokens`를 `prompt_tokens`와 `completion_tokens`로 읽는다. Gemini는 `generationConfig.responseMimeType`이 `application/json`이고 스키마는 `responseJsonSchema`다. 토큰은 `promptTokenCount`, `candidatesTokenCount`, `totalTokenCount`다. 잘린 응답은 OpenAI `finish_reason` `length`, Anthropic `stop_reason` `max_tokens`, Gemini `finishReason` `MAX_TOKENS`다. 셋 모두 `truncated`로 읽고, HTTP 실패 이유는 `http_error`, 시간 초과는 `timeout`이다. 영역 재시도는 그 문자열을 본다.
+
+plan-lab의 `PROBE_PROVIDER`는 `COACH_MODEL_PROVIDER`에, `PROBE_MODEL`은 `COACH_MODEL_NAME`에 복사된다. provider별 W1 2099-07-06 명령은 `scripts/plan-lab.ts` 머리말의 `provider-openai`, `provider-anthropic`, `provider-xai`, `provider-gemini`다. 그 명령은 준비만 했고 실행하지 않았다. 관리자 화면 선택 UI는 없다. `authorWeek`와 `resolvePlannedWeek`는 이 어댑터 밖이고 OpenAI URL을 그대로 쓴다.
 
 ### 오케스트레이터
 

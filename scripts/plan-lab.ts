@@ -26,8 +26,15 @@
  *   PROBE_MODE=db PROBE_LABEL=coaching-engine-d PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
- * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
- * different temporary file. The default temporary files are under /tmp.
+ * The default model stays gpt-5.4-nano. PROBE_PROVIDER and PROBE_MODEL select another
+ * provider. They are copied onto COACH_MODEL_PROVIDER and COACH_MODEL_NAME.
+ * Prepared W1 commands, not run:
+ *   PROBE_MODE=db PROBE_LABEL=provider-openai PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=openai PROBE_MODEL=gpt-5.4-nano npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=provider-anthropic PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=anthropic PROBE_MODEL=claude-sonnet-5 npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=provider-xai PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=xai PROBE_MODEL=grok-4 npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=provider-gemini PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=gemini PROBE_MODEL=gemini-3.8-flash npx tsx scripts/plan-lab.ts
+ * Set DATABASE_PATH yourself only if you want a different temporary file.
+ * The default temporary files are under /tmp.
  */
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -47,7 +54,7 @@ import {
 import { fallbackMonth } from "../src/lib/programming/fallback";
 import { planLongitudinal } from "../src/lib/programming/planning/plan";
 import { coachModel } from "../src/lib/programming/coaching/models";
-import { MONTH_PLAN_OPENAI_URL } from "../src/lib/month-plan/week-model";
+import { coachEndpoint, coachProvider, GEMINI_GENERATE_URL, providerKey, providerKeyEnv } from "../src/lib/programming/coaching/provider";
 import type { WeekActual } from "../src/lib/programming/summary";
 import type { WeekIndex } from "../src/lib/programming/types";
 
@@ -102,7 +109,7 @@ function assertCalendar() {
   if (PROBE_SIMULATION_ORDER.at(-1) !== "do not recompute actual again") {
     throw new ProbeSafetyError("simulation order lost the seed guard");
   }
-  if (coachModel("weekly") !== "gpt-5.4-nano" || coachModel("session") !== "gpt-5.4-nano") {
+  if (!process.env.COACH_MODEL_NAME?.trim() && (coachModel("weekly") !== "gpt-5.4-nano" || coachModel("session") !== "gpt-5.4-nano")) {
     throw new ProbeSafetyError("plan lab must stay on gpt-5.4-nano");
   }
 }
@@ -128,13 +135,26 @@ function probePasses(): Array<"A1" | "A2"> {
   return passes as Array<"A1" | "A2">;
 }
 
+function applyProbeSelection(): void {
+  const provider = process.env.PROBE_PROVIDER?.trim();
+  if (provider) process.env.COACH_MODEL_PROVIDER = provider;
+  const model = process.env.PROBE_MODEL?.trim();
+  if (model) process.env.COACH_MODEL_NAME = model;
+}
+
+function modelCallUrl(url: string): boolean {
+  const provider = coachProvider();
+  if (provider === "gemini") return url.startsWith(GEMINI_GENERATE_URL);
+  return url === coachEndpoint(provider);
+}
+
 function abortIfFirstModelCallIs429(): void {
   const original = globalThis.fetch.bind(globalThis);
   let armed = true;
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const response = await original(input, init);
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-    if (armed && url === MONTH_PLAN_OPENAI_URL) {
+    if (armed && modelCallUrl(url)) {
       armed = false;
       if (response.status === 429) throw new ProbeSafetyError("first model call returned HTTP 429; stopped");
     }
@@ -143,9 +163,12 @@ function abortIfFirstModelCallIs429(): void {
 }
 
 function scrub(text: string): string {
-  const key = process.env.MONTH_PLAN_MODEL_KEY?.trim();
-  if (!key) return text;
-  return text.split(key).join("[redacted]");
+  let out = text;
+  for (const name of ["MONTH_PLAN_MODEL_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY"]) {
+    const key = process.env[name]?.trim();
+    if (key) out = out.split(key).join("[redacted]");
+  }
+  return out;
 }
 
 async function deterministicTwice() {
@@ -206,8 +229,8 @@ async function databasePass(pass: string) {
   raw.prepare(`DELETE FROM class_weeks WHERE week_start LIKE '2099-%'`).run();
   const predecessor: string = WEEKS[0];
   if (!probeMayWriteWeek(predecessor)) throw new ProbeSafetyError(`refusing ${predecessor}`);
-  const key = process.env.MONTH_PLAN_MODEL_KEY?.trim() || null;
-  if (!key) throw new ProbeSafetyError("MONTH_PLAN_MODEL_KEY is unset");
+  const key = providerKey();
+  if (!key) throw new ProbeSafetyError(`${providerKeyEnv(coachProvider())} is unset`);
   if (!getProgrammingWeek(predecessor)) {
     const seeded = await regenerateProgrammingWeek(predecessor, { key });
     if (seeded.weekStart !== predecessor) throw new ProbeSafetyError("predecessor write missed 2099-06-29");
@@ -705,6 +728,7 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
 }
 
 async function main() {
+  applyProbeSelection();
   assertCalendar();
   const stable = await deterministicTwice();
   if (!stable.stable) throw new ProbeSafetyError("deterministic skeletons changed between runs");
@@ -713,8 +737,9 @@ async function main() {
     console.log(scrub(JSON.stringify({ plan_lab: { mode: "deterministic", stable: true, structure: digest, model: "gpt-5.4-nano" } })));
     return;
   }
-  if (!process.env.MONTH_PLAN_MODEL_KEY?.trim()) {
-    console.log(scrub(JSON.stringify({ plan_lab: { mode: "db", skipped: "MONTH_PLAN_MODEL_KEY is unset", structure: digest } })));
+  if (!providerKey()) {
+    const skipped = `${providerKeyEnv(coachProvider())} is unset`;
+    console.log(scrub(JSON.stringify({ plan_lab: { mode: "db", skipped, structure: digest } })));
     return;
   }
   const probeLabel = process.env.PROBE_LABEL?.trim() || "stage19";

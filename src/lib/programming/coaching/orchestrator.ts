@@ -1,4 +1,4 @@
-import { serverModelKey } from "../../month-plan/adapter";
+import { resolveImplicitCoachKey } from "./provider";
 import { WeekDocumentResponse } from "./orchestrate";
 import { coachWeek, type CoachWeekInput, type CoachWeekResult } from "./pipeline";
 
@@ -13,7 +13,7 @@ export type OrchestratorOutcome =
   | { kind: "coaching"; result: CoachWeekResult };
 
 export async function runCoachingOrchestrator(input: CoachWeekInput): Promise<OrchestratorOutcome> {
-  const key = input.key === undefined ? serverModelKey() : input.key;
+  const key = input.key === undefined ? resolveImplicitCoachKey() : input.key;
   if (typeof key !== "string" || key.length === 0) return { kind: "no-model" };
   try {
     const result = await coachWeek({ ...input, key });

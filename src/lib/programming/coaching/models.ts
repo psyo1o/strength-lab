@@ -51,6 +51,8 @@ export function coachModel(agent: CoachAgentName, env: NodeJS.ProcessEnv = proce
   if (specific) return specific;
   const shared = env.COACHING_MODEL?.trim();
   if (shared) return shared;
+  const named = env.COACH_MODEL_NAME?.trim();
+  if (named) return named;
   return MONTH_PLAN_OPENAI_MODEL;
 }
 

@@ -11,7 +11,7 @@ import { completeMonthDirection } from "./month-direction";
 import { LIVE_CLASS_WEEK } from "./coaching/pipeline";
 import { runCoachingOrchestrator } from "./coaching/orchestrator";
 import { coachingPipelineEnabled } from "./coaching/models";
-import { serverModelKey } from "../month-plan/adapter";
+import { resolveImplicitCoachKey } from "./coaching/provider";
 import { longitudinalPlanningEnabled } from "./planning/flag";
 import { planLongitudinal, withLongitudinal } from "./planning/plan";
 import { coachingWeekMayUseLegacyFallback } from "./coaching/stage16/hard";
@@ -449,7 +449,7 @@ async function writeProgrammingWeek(
     recentStructures: recent,
     summary,
   };
-  const key = options.key === undefined ? serverModelKey() : options.key;
+  const key = options.key === undefined ? resolveImplicitCoachKey() : options.key;
   const longitudinal = longitudinalPlanningEnabled()
     ? await planLongitudinal({
         month: month.direction,
