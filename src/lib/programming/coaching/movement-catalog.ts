@@ -60,8 +60,8 @@ export function catalogMovement(key: string): CatalogMovement | null {
   return byKey().get(key) ?? null;
 }
 
-/** Generic keys the model must not pick. Stored rows still display under this key. */
-const STORED_DISPLAY_KEYS = new Set(["abs", "kettlebell"]);
+/** A generic key with no single movement. Stored rows still display under this key. */
+const STORED_DISPLAY_KEYS = new Set(["kettlebell"]);
 
 /** A resolved proposed_key is an alias. The model list and schema enum omit it. */
 export function modelSelectable(row: CatalogMovement): boolean {

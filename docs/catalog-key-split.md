@@ -30,9 +30,8 @@
 | incline_bench | incline_bench_press | incline_bench_press |
 | pistol | pistol_squat | pistol_squat |
 | sit_up | abmat_sit_up | abmat_sit_up |
-| abs | 제거. toes_to_bar, glute_ham_developer_sit_up, abmat_sit_up, v_up | 그대로 표시 |
 
-`free_accessory`는 수행자가 고르는 보조 운동으로 모델 목록에 남긴다. `v_up`은 reps 10–30이다. `abmat_sit_up`은 `sit_up`과 같은 reps 10–50이다.
+`abs`와 `free_accessory`는 애매한 이름 정리 대상이 아니다. 둘 다 모델 목록에 남긴다. `abs`는 복근 운동 총칭이다. `free_accessory`는 수행자가 마음대로 고르는 보조 운동이다. `v_up`은 reps 10–30이다. `abmat_sit_up`은 `sit_up`과 같은 reps 10–50이다.
 
 ## 같은 원칙으로 더 나눈 키
 

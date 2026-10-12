@@ -3195,8 +3195,8 @@
       "key": "abs",
       "proposed_key": "(동작 지정 필요)",
       "existing": true,
-      "name_ko": "복근 운동(범용)",
-      "name_en": "Abs (generic)",
+      "name_ko": "복근 운동",
+      "name_en": "Abs",
       "category": "accessory",
       "pattern": "core",
       "equipment": "bodyweight",
@@ -3214,7 +3214,7 @@
       "sources": [
         "R2"
       ],
-      "memo": "기존 범용 키"
+      "memo": "복근 운동 총칭. 애매한 이름 정리 대상이 아니다."
     },
     {
       "key": "burpee",
@@ -3786,7 +3786,7 @@
       "sources": [
         "R2"
       ],
-      "memo": "기존 범용 키"
+      "memo": "수행자가 마음대로 고르는 보조 운동. 애매한 이름 정리 대상이 아니다."
     },
     {
       "key": "ground_to_overhead",

@@ -70,7 +70,7 @@ describe("movement catalog", () => {
     expect(AMBIGUOUS_LINKS).toEqual(["squat", "clean", "snatch"]);
     const unresolved = catalogLinks().filter((row) => row.unresolved).map((row) => row.from);
     expect(unresolved.sort()).toEqual(["abs", "free_accessory", "kettlebell"]);
-    expect(standardCatalogKeys()).not.toContain("abs");
+    expect(standardCatalogKeys()).toContain("abs");
     expect(standardCatalogKeys()).not.toContain("squat");
     expect(standardCatalogKeys()).toContain("free_accessory");
     expect(standardCatalogKeys()).toContain("v_up");
