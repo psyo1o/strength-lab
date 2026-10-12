@@ -61,7 +61,7 @@
 
 `generation_source === "model"`은 주간 모델 또는 잠긴 스켈레톤이 있고, 훈련일이 모두 모델이며, 헤드 상태가 APPROVE, APPROVE_WITH_NOTE, ADJUST 중 하나이고, 최종 하드 오류가 없을 때다. 미해결 날이나 BLOCK이 있으면 모델 채택이 아니다. 일부 일만 모델이면 사유는 `fallback_after_model_failure:채택/훈련일수`다. 스키마 복구가 한도에 걸리면 그 뒤에 `;unresolved_day`가 붙고 `final_validation.ok`는 false다. 그 주는 활성 정상 주로 저장되지 않는다. fallback은 모델 성공이 아니다.
 
-저장 직전에, 코칭 결과가 모델이고 `judgeWeek`의 사유가 정확히 `too_similar`이면 충돌한 날만 `replaceDays`로 바꾼다. 나머지 세션은 유지한다. 그 결과가 `judgeWeek`를 통과하면 `generation_source`는 `fallback`, `fallback_reason`은 `too_similar`다. 통과하지 못하면 비슷한 초안을 활성 주로 넣지 않고 실패 행만 남긴다. 주 전체를 `fallbackWeek`로 바꾸지 않는다. 임계값은 4다. schema 등 다른 사유는 이 강등을 하지 않는다. 주 JSON 경로(`persistWeekDocument`)의 `too_similar` 저장은 그대로다. 코칭 파이프라인 안에서는 유사도가 신호라 주를 버릴 수 있다. 저장 관문은 `judgeWeek`다. 프롬프트 스탬프는 `coaching-pipeline-v6`로 남는다.
+저장 직전의 `too_similar` 교체(`judgeWeek` 뒤 `replaceDays`)는 코드에 남아 있다. 이 코칭 저장 경로에서는 `replaceSimilarAfterHead`가 꺼져 있어 호출하지 않는다. 저장된 초안과 `generation_source`는 오케스트레이터 결과다. 유사도로 주를 fallback하거나 날을 다시 짜지 않는다. 주 JSON 경로(`persistWeekDocument`)의 `too_similar` 저장은 그대로다. 프롬프트 스탬프는 `coaching-pipeline-v6`로 남는다.
 
 `STRENGTH_LAB_PROBE === "1"`이고 키가 비어 있지 않은 문자열이며 `weekStart === "2026-10-05"`이면 오케스트레이터 호출 전에 예외를 던진다. 프로브가 아니면 그 날짜를 막지 않는다. 화면이 그 주를 만들 수 있어야 하고, plan-lab은 2099만 쓴다.
 
@@ -123,7 +123,7 @@
 
 첫 작성은 이웃 자극과 유사도로 그 날을 다시 짜지 않는다. 훈련일을 다 쓴 뒤 `placeTrainingDays`가 요일만 바꾼다. 잠긴 뼈대가 있으면 훈련일 안에서만 바꾸고, 뼈대도 세션과 함께 옮긴다. 교환은 이웃 자극, 연속 유사도(임계값 4), 스쿼트 다음 날 헤비 풀 같은 간격을 본다. 맞지 않아도 그 날을 다시 부르지 않고, 남은 위반은 헤드 입력으로 넘긴다.
 
-`judgeWeek`와 유사도는 헤드 전에 한 번 돌아 그 결과가 헤드 입력이다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language다. language 단계는 비어 있다. 유사도 임계값은 4다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 헤드 뒤에 `judgeWeek`를 다시 돌려도 `post_head_judge` 진단일 뿐이고 채택을 거절하지 않는다. 엔진 경로의 `too_similar` 교체는 그대로다.
+`judgeWeek`와 유사도는 헤드 전에 한 번 돌아 그 결과가 헤드 입력이다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language다. language 단계는 비어 있다. 유사도 임계값은 4다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 헤드 뒤에 `judgeWeek`를 다시 돌려도 `post_head_judge` 진단일 뿐이고 채택을 거절하지 않는다. 저장 함수의 `too_similar` 교체도 이 경로에서는 호출하지 않는다.
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 

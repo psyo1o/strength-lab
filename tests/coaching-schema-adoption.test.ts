@@ -118,7 +118,7 @@ describe("coaching schema adoption", () => {
     expect(saved.draft.sessions.some((session) => session.warmup_ko.includes("모델"))).toBe(true);
   });
 
-  it("stores too_similar when a specialist copies a recent structure", async () => {
+  it("keeps the coaching week when a specialist copies a recent structure", async () => {
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
     await ensureProgrammingWeek(WEEK, { nowMs: NOW, key: null });
     const recent = listRecentStructures(NEXT);
@@ -156,11 +156,12 @@ describe("coaching schema adoption", () => {
     );
     expect(copiedScore).toBeGreaterThanOrEqual(SIMILARITY_CONFIG.threshold);
     const judged = judgeWeek(saved.draft, storedMonth, weekIndexFromStart(NEXT), recent);
-    expect(saved.generationSource).toBe("fallback");
-    expect(saved.fallbackReason).toBe("too_similar");
+    expect(saved.generationSource).toBe("model");
+    expect(saved.fallbackReason).toBeNull();
     expect(saved.promptVersion).toBe(STAGE16_PIPELINE_VERSION);
-    expect(saved.draft.sessions.some((session) => session.warmup_ko.includes("유사복사토큰"))).toBe(false);
+    expect(saved.draft.sessions.some((session) => session.warmup_ko.includes("유사복사토큰"))).toBe(true);
     expect(saved.draft.sessions.some((session) => session.warmup_ko.includes("모델"))).toBe(true);
-    expect(judged.ok).toBe(true);
+    expect(judged.ok).toBe(false);
+    if (!judged.ok) expect(judged.reason).toBe("too_similar");
   });
 });

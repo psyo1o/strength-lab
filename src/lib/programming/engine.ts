@@ -722,7 +722,9 @@ async function writeProgrammingWeek(
     let storedDraft = coached.draft;
     let storedSource = coached.generation_source;
     let storedReason = coached.fallback_reason;
-    if (coached.generation_source === "model") {
+    // Head already saw similarity. Do not judge again or rewrite days on this path.
+    const replaceSimilarAfterHead = false;
+    if (replaceSimilarAfterHead && coached.generation_source === "model") {
       const judged = judgeWeek(coached.draft, month.direction, weekIndex, recent, {
         previousActual: summary.previous_week?.actual ?? null,
         recentLiftMaps,
