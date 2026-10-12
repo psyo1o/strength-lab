@@ -339,10 +339,9 @@ describe("active coaching contracts", () => {
     const plan = planCoachedWeek({ month: month531(), weekIndex: 1 });
     expect(weeklyIntentErrors(weeklyJson(plan))).toEqual([]);
     const thin = weeklyJson(plan);
-    thin.scheme_note = "scheme note는 한국어로";
-    const ratioError = weeklyIntentErrors(thin).join(" ");
-    expect(ratioError).toContain("scheme_note korean ratio");
-    expect(ratioError).toContain("0.7");
+    thin.scheme_note = "Keep the same strength method this week.";
+    expect(weeklyIntentErrors(thin).join(" ")).not.toContain("korean ratio");
+    expect(weeklyIntentErrors(thin).join(" ")).not.toContain("language");
     expect(weeklyIntentErrors({ seven_days: plan.days })[0]).toContain('"days"');
     const day = plan.days.find((row) => row.primary_training !== "rest")!;
     const formatError = sessionCoachErrors(
@@ -517,27 +516,13 @@ describe("active coaching contracts", () => {
     expect(calls.filter((call) => call === "weekly_coach")).toHaveLength(1);
     expect(calls.filter((call) => call === "strength_coach")).toHaveLength(training.length);
     expect(calls.filter((call) => call === "warmup_coach")).toHaveLength(training.length);
-    expect(calls.filter((call) => call === "conditioning_coach")).toHaveLength(training.length + 2);
-    expect(result.revision_count).toBe(2);
-    expect(result.traces.filter((trace) => trace.agent_name === "conditioning_coach" && trace.revision_number === 1)).toHaveLength(1);
-    expect(result.traces.filter((trace) => trace.agent_name === "conditioning_coach" && trace.revision_number === 2)).toHaveLength(1);
-    expect(result.traces.filter((trace) => trace.agent_name === "strength_coach" && (trace.revision_number ?? 0) > 0)).toHaveLength(0);
-    expect(result.traces.filter((trace) => trace.agent_name === "warmup_coach" && (trace.revision_number ?? 0) > 0)).toHaveLength(0);
-    const scope = result.traces.find((trace) => trace.agent_name === "revision_scope");
-    const scoped = scope?.output as { days?: string[]; regeneration_calls?: number; budget?: number };
-    expect(scoped.regeneration_calls).toBe(2);
-    expect(scoped.budget).toBe(2);
-    expect(scoped.days?.length).toBeLessThan(7);
-    expect(scoped.days).not.toEqual(expect.arrayContaining(DAY_ORDER));
-    const rewritten = result.traces
-      .filter((trace) => trace.agent_name === "conditioning_coach" && (trace.revision_number ?? 0) > 0)
-      .map((trace) => trace.day);
-    for (const day of rewritten) expect(scoped.days).toContain(day);
-    const held = training.map((day) => day.day).filter((day) => !rewritten.includes(day));
-    expect(held.length).toBeGreaterThan(0);
-    for (const day of held) {
-      expect(result.draft.sessions.find((session) => session.day === day)?.warmup_ko).toContain("모델");
-    }
+    expect(calls.filter((call) => call === "conditioning_coach")).toHaveLength(training.length);
+    expect(result.revision_count).toBe(0);
+    expect(result.traces.filter((trace) => trace.agent_name === "conditioning_coach" && (trace.revision_number ?? 0) > 0)).toHaveLength(0);
+    expect(result.traces.some((trace) => trace.agent_name === "revision_scope")).toBe(false);
+    expect(result.generation_source).toBe("model");
+    const cells = result.traces.find((trace) => trace.agent_name === "head_cell_apply");
+    expect(cells?.output).toMatchObject({ block: false });
   });
 
   it("case 14 treats a repeated lift with a different structure as progression", () => {

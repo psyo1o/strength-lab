@@ -213,10 +213,27 @@ function headBody(mode: Mode, target: Target, plan: WeeklyIntentPlan) {
       adjustments: [],
     };
   }
+  if (mode === "replace_amount") {
+    return {
+      status: "REVISE",
+      note_ko: "범위 밖 수량은 그 칸만 되돌립니다.",
+      revisions: [
+        {
+          day: target.day,
+          block: "conditioning",
+          catalog_key: target.key,
+          field: "amount",
+          value: "99999",
+          reason: "This amount is outside the catalog range.",
+        },
+      ],
+      adjustments: [],
+    };
+  }
   const replacement = replacementFor(target.session).key;
   const row =
     mode === "amount_exact" || mode === "amount_extra"
-      ? edit(target.day, "change_amount", target.key, null, target.nextAmount, "reps", "이 동작의 수량만 바꿉니다.")
+      ? edit(target.day, "change_amount", target.key, null, "20", "reps", "이 동작의 수량만 바꿉니다.")
       : edit(target.day, "replace", target.key, replacement, "8", "reps", "이 동작을 다른 허용 동작으로 바꿉니다.");
   return { status: "REVISE", note_ko: "지정한 편집만 적용합니다.", revisions: [row], adjustments: [] };
 }
@@ -313,12 +330,10 @@ describe("explicit edit list", () => {
     const after = result.draft.sessions.find((session) => session.day === target.day);
     const beforeMoves = before?.conditioning?.movements ?? [];
     const afterMoves = after?.conditioning?.movements ?? [];
-    expect(afterMoves.find((movement) => movement.key === target.key)?.amount).toBe(target.nextAmount);
+    expect(afterMoves.find((movement) => movement.key === target.key)?.amount).toBe("20");
     expect(afterMoves.find((movement) => movement.key === target.other)?.amount).toBe(beforeMoves.find((movement) => movement.key === target.other)?.amount);
     expect(afterMoves.map((movement) => movement.key)).toEqual(beforeMoves.map((movement) => movement.key));
-    const revisions = revisionCalls(calls, target.day);
-    expect(revisions).toHaveLength(1);
-    expect(JSON.stringify(revisions[0]?.user.edit_list)).toContain("change_amount");
+    expect(revisionCalls(calls, target.day)).toHaveLength(0);
     const traces = complianceTraces(result);
     expect(traces).toHaveLength(1);
     expect(JSON.stringify(traces[0]?.output)).toContain("success");
@@ -329,15 +344,16 @@ describe("explicit edit list", () => {
     expect(calls.filter((call) => call.agent === "conditioning_coach" && call.day !== target.day && call.revision > 0)).toHaveLength(0);
   });
 
-  it("keeps the last valid session when the coach changes a movement that is not listed", async () => {
+  it("changes only the named cell and does not call the specialist", async () => {
     const { result, calls, target } = await run("amount_extra");
     const before = result.day_records?.[target.day]?.original_model_output;
     const after = result.draft.sessions.find((session) => session.day === target.day);
-    expect(movementsOf(after)).toBe(movementsOf(before));
-    expect(revisionCalls(calls, target.day)).toHaveLength(1);
-    const traces = complianceTraces(result);
-    expect(JSON.stringify(traces[0]?.output)).toContain("rejected");
-    expect(traces.some((trace) => JSON.stringify(trace.output).includes("success"))).toBe(false);
+    const beforeMoves = before?.conditioning?.movements ?? [];
+    const afterMoves = after?.conditioning?.movements ?? [];
+    expect(afterMoves.find((movement) => movement.key === target.key)?.amount).toBe("20");
+    expect(afterMoves.find((movement) => movement.key === target.other)?.amount).toBe(beforeMoves.find((movement) => movement.key === target.other)?.amount);
+    expect(revisionCalls(calls, target.day)).toHaveLength(0);
+    expect(JSON.stringify(complianceTraces(result)[0]?.output)).toContain("success");
     expect(result.day_records?.[target.day]?.day_status).not.toBe("FAILED");
     expect(result.generation_source).toBe("model");
     expect(calls.some((call) => call.revision >= 3)).toBe(false);
@@ -357,7 +373,7 @@ describe("explicit edit list", () => {
     expect(result.day_records?.[target.day]?.day_status).not.toBe("FAILED");
     expect(result.final_validation?.ok).toBe(true);
     expect(complianceTraces(result).some((trace) => JSON.stringify(trace.output).includes("success"))).toBe(true);
-    expect(revisionCalls(calls, target.day)).toHaveLength(1);
+    expect(revisionCalls(calls, target.day)).toHaveLength(0);
     for (const day of result.plan.days.map((row) => row.day)) {
       if (day === target.day) continue;
       const kept = result.day_records?.[day]?.original_model_output;
@@ -375,8 +391,8 @@ describe("explicit edit list", () => {
     const after = result.draft.sessions.find((session) => session.day === target.day);
     expect(movementsOf(after)).toBe(movementsOf(before));
     expect(movementsOf(after)).toContain(`"amount":"${target.session.conditioning?.movements.find((movement) => movement.key === target.key)?.amount}"`);
-    expect(revisionCalls(calls, target.day)).toHaveLength(1);
-    expect(JSON.stringify(complianceTraces(result)[0]?.output)).toContain("rejected");
+    expect(revisionCalls(calls, target.day)).toHaveLength(0);
+    expect(result.traces.some((trace) => trace.agent_name === "revision_rejected" && JSON.stringify(trace.output).includes("rejected"))).toBe(true);
     expect(result.generation_source).toBe("model");
   });
 
@@ -387,9 +403,7 @@ describe("explicit edit list", () => {
     expect(result.day_records?.[target.day]?.final_prescription).toBeNull();
     expect(result.generation_source).not.toBe("model");
     expect(result.final_validation?.ok).toBe(false);
-    const revisions = revisionCalls(calls, target.day);
-    expect(revisions).toHaveLength(1);
-    expect(JSON.stringify(complianceTraces(result)[0]?.output)).toContain("unresolved");
+    expect(revisionCalls(calls, target.day)).toHaveLength(0);
     expect(calls.some((call) => call.revision >= 3)).toBe(false);
     expect(movementsOf(result.draft.sessions.find((session) => session.day === target.day))).not.toContain(`"amount":"${target.nextAmount}"`);
   });
@@ -421,10 +435,10 @@ describe("explicit edit list", () => {
   it("stops at two specialist rewrites and refuses BLOCK", async () => {
     const budget = await run("budget");
     const revisions = budget.calls.filter((call) => call.agent === "conditioning_coach" && call.revision > 0 && !call.recovery);
-    expect(revisions).toHaveLength(2);
+    expect(revisions).toHaveLength(0);
     expect(budget.calls.some((call) => call.revision >= 3)).toBe(false);
-    const scope = budget.result.traces.find((trace) => trace.agent_name === "revision_scope");
-    expect((scope?.output as { budget?: number }).budget).toBe(2);
+    expect(budget.result.traces.some((trace) => trace.agent_name === "revision_scope")).toBe(false);
+    expect(budget.result.traces.some((trace) => trace.agent_name === "head_cell_apply")).toBe(true);
     expect(budget.result.generation_source).toBe("model");
     expect(Object.values(budget.result.day_records ?? {}).some((row) => row?.day_status === "FAILED")).toBe(false);
 

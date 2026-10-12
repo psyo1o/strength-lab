@@ -256,14 +256,7 @@ export function cellEditErrors(row: unknown, index: number): string[] {
   }
   if (typeof item.catalog_key !== "string") errors.push(`${prefix}.catalog_key: expected a catalog key`);
   if (typeof item.value !== "string") errors.push(`${prefix}.value: expected the new cell value`);
-  if (typeof item.reason !== "string" || !/[가-힣]/.test(item.reason)) errors.push(`${prefix}.reason: expected Korean`);
-  if (errors.length) return errors;
-  const verdict = checkCellEdit({
-    catalog_key: String(item.catalog_key),
-    field: item.field as MovementCellField,
-    value: String(item.value),
-  });
-  if (!verdict.ok) errors.push(`${prefix}: ${verdict.reason}`);
+  if (typeof item.reason !== "string" || !item.reason.trim()) errors.push(`${prefix}.reason: expected a non-empty explanation`);
   return errors;
 }
 

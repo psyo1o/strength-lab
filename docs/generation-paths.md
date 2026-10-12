@@ -107,7 +107,7 @@
 
 - 키가 없으면 호출 없이 `no_model`.
 - `authorWithRetries`는 최대 두 번이다.
-- JSON이 아니면 `bad_json`. `parseMonthDirection`이 null이거나 `monthSchemaErrors`가 있으면 `schema`. 한글 필드가 영어면 `language`.
+- JSON이 아니면 `bad_json`. `parseMonthDirection`이 null이거나 `monthSchemaErrors`가 있으면 `schema`. 설명은 영어다. 한국어 비율이나 `language`로 월을 거절하지 않는다. `repairMonthLanguage`는 알려진 방법 토큰만 바꾼다.
 
 실패하면 `fallbackMonth`다. `coachingPipelineEnabled()`가 true일 때만 그 다음에 `withCoachingPlan`이 빈 `coaching_plan`에 `deterministicMonthlyPlan`을 붙인다. 월 코치 모델을 호출하지 않고 월 행 스탬프도 바꾸지 않는다.
 
@@ -119,11 +119,15 @@
 
 ## 검증과 재시도
 
-`judgeWeek`의 첫 실패 단계가 저장 사유가 될 수 있다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 유사도 임계값은 4다. 운동 이름만 바꾸는 것은 구분이 아니다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 하루를 채택하기 전에, 아직 쓰지 않은 훈련일은 빼고 이미 남은 이웃 훈련일과 `conditioning.stimulus`가 같으면 그 출력은 거절된다. 거절 문장은 이웃 자극과 남은 허용 자극을 적는다. 같은 주에서 이미 남은 날이나 최근 구조와 유사도 점수가 4 이상이면 첫 컨디셔닝 출력도 거절되고, 기존 재시도 한 번은 겹친 이웃 날과 점수 4 이상인 날의 세션을 `overlap_sessions`로 받는다. 그 안에는 형식, 시간, 동작 key와 수량, 자극, 패턴, 겹친 판정 요소가 있다. 지시는 그 세션과 다른 형식, 자극, 동작으로 짜라는 문장이다. 동작이 하나뿐인 출력도 점수만 계산해 같은 재시도에 싣는다. 채택 최소 동작 수는 그대로다. 두 번째도 4 이상이면 그 세션은 남기고 `judgeWeek`가 본다. 사유가 `too_similar`일 때만 엔진이 겹친 날을 바꾼다. 임계값과 `askCoach` 재시도 상한은 그대로다.
+설명은 영어다. 생성, 검증, 헤드 어디에서도 한국어 비율 0.7이나 `language`로 거절하거나 BLOCK하지 않는다. `*_ko` 칸은 나중에 번역할 자리다.
+
+첫 작성은 이웃 자극과 유사도로 그 날을 다시 짜지 않는다. 훈련일을 다 쓴 뒤 `placeTrainingDays`가 요일만 바꾼다. 잠긴 뼈대가 있으면 훈련일 안에서만 바꾸고, 뼈대도 세션과 함께 옮긴다. 교환은 이웃 자극, 연속 유사도(임계값 4), 스쿼트 다음 날 헤비 풀 같은 간격을 본다. 맞지 않아도 그 날을 다시 부르지 않고, 남은 위반은 헤드 입력으로 넘긴다.
+
+`judgeWeek`와 유사도는 헤드 전에 한 번 돌아 그 결과가 헤드 입력이다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language다. language 단계는 비어 있다. 유사도 임계값은 4다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 헤드 뒤에 `judgeWeek`를 다시 돌려도 `post_head_judge` 진단일 뿐이고 채택을 거절하지 않는다. 엔진 경로의 `too_similar` 교체는 그대로다.
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 
-주간 의도 검증은 `why_ko`, `focus`, `scheme_note`, `adjustment_ko`에 최종 주와 같은 한국어 비율 0.7을 쓴다. 부족한 문장은 기존 주간 재시도가 본다. 비율은 그대로다. `askCoach`는 검증 실패를 한 번 더 고친다. 헤드의 문장형 REVISE도 이 한 번의 재요청이다. HTTP 실패는 그 호출 안에서 다시 치지 않는다. 하루 스키마 복구는 영역당 1회다. 헤드의 `target_coach` 재생성은 `COACHING_POLICY.max_head_revisions` 2를 넘지 않는다. 편집 목록과 출력이 달라도 그 날을 다시 부르지 않는다. `COACHING_POLICY.max_head_revisions`는 2에서 올리지 않았다. `MAX_DAY_SCHEMA_RECOVERIES`도 1에서 올리지 않았다. 유사도 임계값은 4다.
+헤드는 주 마지막에 한 번만 호출한다. 칸 수정(`day`, `block`, `catalog_key`, `field`, `value`)은 `applyHeadCells`가 그 칸에 넣는다. 전문 코치를 다시 부르지 않는다. 그 함수는 코드에 남아 있지만 이 경로에서는 `callHeadSpecialistRewrite`가 꺼져 있다. 넣은 뒤 검사는 카탈로그 key, 단위, 범위뿐이다. 어긋난 칸은 그 칸만 되돌리고 `head_cell_apply`에 제안, 적용, 되돌림, BLOCK을 남긴다. 그 되돌림으로 주 전체를 fallback하지 않는다. BLOCK은 안전 위험, 주 구조 붕괴, 훈련일 세션이 없을 때만 쓴다. 문구와 언어로는 BLOCK하지 않는다. fallback은 훈련일 모델 세션이 없거나 헤드가 BLOCK일 때만 한다. 동작 칸 복구의 `catalog_key`는 그 조각에 이미 있고 카탈로그에 있는 key만 허용한다. 복구 입력의 `duration_limit`는 그 날의 시간 한도다. `askCoach` 재시도 상한은 그대로다. 하루 스키마 복구는 영역당 1회다. `COACHING_POLICY.max_head_revisions`는 2에서 올리지 않았다. `MAX_DAY_SCHEMA_RECOVERIES`도 1에서 올리지 않았다. 유사도 임계값은 4다.
 
 ## 아직 오케스트레이터를 타지 않는 입구
 

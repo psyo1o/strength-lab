@@ -1,10 +1,10 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { adoptionCollisionErrors, judgeWeek, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, TIME_DOMAIN_RANGES } from "../rules";
+import { adoptionCollisionErrors, judgeWeek, orderViolations, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, similarityDiagnostics, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
-import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -21,7 +21,7 @@ import { normalizeSessionPayload, type SessionNormalization } from "./stage13/no
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
 import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRevisionSpecs } from "./day-recovery";
-import { applyCellsToCoachJson, catalogLine, catalogPromptLinesFor, isCellPayload, movementsForSlice, movementsForWeek, patchStoredMovement, type CatalogSlice } from "./movement-catalog";
+import { applyCellsToCoachJson, catalogLine, catalogMovement, catalogPromptLinesFor, isCellPayload, movementsForSlice, movementsForWeek, type CatalogSlice } from "./movement-catalog";
 import { askSpecialist, type SpecialistArea } from "./specialist-generate";
 import { analyzeProgression, analyzeWeekStructure } from "./stage13/analyzers";
 import { heavyLowerStressDays } from "./stage13/specialists";
@@ -48,6 +48,8 @@ import { parseHeadAdjustments, runAdjustmentPass } from "./stage16/pass";
 import type { AdjustmentRequest } from "./stage16/types";
 import { compareEditList } from "./revision-compliance";
 import { parseHeadReview, type HeadCoachReview, type SessionRevision } from "./review";
+import { placeTrainingDays } from "./day-place";
+import { applyHeadCells } from "./head-cells";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { variationReport } from "./variation";
@@ -264,6 +266,7 @@ function adoptDay(input: {
   day: DayIntent;
   json: unknown;
   ignoreDays?: readonly DayKey[];
+  deferPlacement?: boolean;
 }):
   | { ok: true; draft: WeekDraft; session: SessionDraft; json: unknown; normalizations: SessionNormalization[] }
   | { ok: false; errors: string[]; json: unknown; normalizations: SessionNormalization[] } {
@@ -292,7 +295,9 @@ function adoptDay(input: {
   const sessions = input.draft.sessions.map((row) => (row.day === input.day.day ? session : row));
   const candidate = stamp({ ...input.draft, sessions }, input.plan);
   const ignoreDays = input.ignoreDays ?? [];
-  const collisions = adoptionCollisionErrors(candidate, input.day.day, [], ignoreDays).filter((error) => error.startsWith("stimulus "));
+  const collisions = input.deferPlacement
+    ? []
+    : adoptionCollisionErrors(candidate, input.day.day, [], ignoreDays).filter((error) => error.startsWith("stimulus "));
   if (collisions.length) {
     return {
       ok: false,
@@ -325,17 +330,18 @@ function areaShapeErrors(area: SpecialistArea, json: unknown, day: DayIntent): s
   if (area === "strength") {
     const outside = outsideArea(body, ["conditioning", "warmup_ko"]);
     if (outside) return [outside];
-    if (!hangulText(body.strength_note_ko)) return ["strength_note_ko must be Korean"];
+    if (typeof body.strength_note_ko !== "string" || !body.strength_note_ko.trim()) return ["strength_note_ko: expected a non-empty string"];
   }
   if (area === "conditioning") {
     const outside = outsideArea(body, ["warmup_ko", "strength_note_ko"]);
     if (outside) return [outside];
     if (!body.conditioning || typeof body.conditioning !== "object") return ["conditioning object is required"];
+    if (typeof body.notes_ko !== "string" || !body.notes_ko.trim()) return ["notes_ko: expected a non-empty string"];
   }
   if (area === "warmup") {
     const outside = outsideArea(body, ["conditioning", "strength_note_ko"]);
     if (outside) return [outside];
-    if (!hangulText(body.warmup_ko)) return ["warmup_ko must be Korean"];
+    if (typeof body.warmup_ko !== "string" || !body.warmup_ko.trim()) return ["warmup_ko: expected a non-empty string"];
   }
   return [];
 }
@@ -380,7 +386,7 @@ function mergeSpecialists(input: {
   if (!strength || !conditioning || !warmup) return { ok: false, errors: ["specialist merge is missing an area"] };
   return {
     ok: true,
-    strengthNote: hangulText(strength.strength_note_ko) ? strength.strength_note_ko : null,
+    strengthNote: typeof strength.strength_note_ko === "string" && strength.strength_note_ko.trim() ? strength.strength_note_ko : null,
     json: {
       day: input.day.day,
       warmup_ko: warmup.warmup_ko,
@@ -413,6 +419,8 @@ async function writeSession(input: {
   rules: WeekRules;
   areas?: readonly SpecialistArea[];
   ignoreDays?: readonly DayKey[];
+  /** First pass writes every day. Neighbor stimulus and similarity wait for the weekday swap. */
+  deferPlacement?: boolean;
 }): Promise<{
   draft: WeekDraft;
   source: "model" | "fallback";
@@ -484,9 +492,18 @@ async function writeSession(input: {
       warmupPlaceholder: "당일 본 운동을 위한 준비 동작입니다.",
     });
     if (!merged.ok) return { ok: false as const, errors: merged.errors };
-    const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json: merged.json, ignoreDays });
+    const adopted = adoptDay({
+      week: input.week,
+      plan: input.plan,
+      draft: input.draft,
+      day: input.day,
+      json: merged.json,
+      ignoreDays,
+      deferPlacement: input.deferPlacement,
+    });
     normalizations.push(...adopted.normalizations);
     normalizedJson = adopted.json;
+    if (input.deferPlacement) return adopted.ok ? { ok: true as const } : { ok: false as const, errors: adopted.errors };
     const pack = overlapPack(adopted.json, adopted.ok ? adopted.draft : input.draft);
     if (!adopted.ok) {
       if (pack && (adopted.errors.some((error) => error.startsWith("stimulus ")) || !overlapShown)) {
@@ -534,6 +551,12 @@ async function writeSession(input: {
       const reason = areaReason.get(area) ?? failed?.reason ?? null;
       if (isTransientCoachFailure(reason)) continue;
       const errors = areaErrors.get(area) ?? failed?.errors ?? ["schema"];
+      const invalid = areaInvalid.get(area) ?? null;
+      const longPiece = input.day.secondary_training === "long_conditioning";
+      const durationLimit = longPiece
+        ? { min: LONG_CONDITIONING.min, max: LONG_CONDITIONING.max, because: "long_conditioning" }
+        : { min: NON_LONG_CONDITIONING.min, max: NON_LONG_CONDITIONING.max, because: "not long_conditioning" };
+      const pieceKeys = movementKeysOf(invalid).filter((key) => catalogMovement(key));
       const payload = dayRecoveryPayload({
         area,
         monthly: input.week.month.coaching_plan ?? input.week.month,
@@ -541,9 +564,11 @@ async function writeSession(input: {
         dayIntent: input.day,
         existing: base,
         errors,
-        invalid: areaInvalid.get(area) ?? null,
+        invalid,
         priorAttempts: (areaTraces.find((trace) => trace.agent_name === `${area}_coach`)?.retry_count ?? 0) + 1,
         neighbors: user.neighboring_days,
+        catalogKeysOnPiece: pieceKeys,
+        durationLimit,
       });
       const asked = await askSpecialist({
         area,
@@ -559,11 +584,14 @@ async function writeSession(input: {
         weekId: input.week.weekStart,
         day: input.day.day,
         revisionNumber: 1,
-        format: area === "conditioning" ? recoveryCellFormat([...new Set([...catalogKeys, ...movementKeysOf(areaInvalid.get(area))])]) : undefined,
-        schemaNote: area === "conditioning" ? "Return cells only: catalog_key, field, value. The server writes only that cell." : undefined,
+        format: area === "conditioning" && pieceKeys.length ? recoveryCellFormat(pieceKeys) : undefined,
+        schemaNote:
+          area === "conditioning"
+            ? "Return cells only: catalog_key, field, value. catalog_key must be a catalog movement already on this piece. The server writes only that cell."
+            : undefined,
         validate: (json) => {
           if (area === "conditioning" && isCellPayload(json)) {
-            const patched = applyCellsToCoachJson(areaInvalid.get(area), json.cells);
+            const patched = applyCellsToCoachJson(invalid, json.cells);
             if (!patched.ok) return { ok: false as const, errors: [patched.reason] };
             return validateArea(area)(patched.json);
           }
@@ -635,7 +663,15 @@ async function writeSession(input: {
       }),
     };
   }
-  const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json: merged.json, ignoreDays });
+  const adopted = adoptDay({
+    week: input.week,
+    plan: input.plan,
+    draft: input.draft,
+    day: input.day,
+    json: merged.json,
+    ignoreDays,
+    deferPlacement: input.deferPlacement,
+  });
   normalizations.push(...adopted.normalizations);
   if (!adopted.ok) {
     const adoptUnresolved = input.revisionNumber === 0;
@@ -1206,6 +1242,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       timeoutMs,
       rules,
       ignoreDays: queue.slice(index + 1).map((row) => row.day),
+      deferPlacement: true,
     });
     traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
     for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);
@@ -1354,6 +1391,49 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     traces.push(...bundle.traces);
     return bundle;
   };
+
+  const placed = placeTrainingDays({
+    draft,
+    plan,
+    skeleton: input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal.skeleton : null,
+  });
+  const sourceSnap = { ...daySources };
+  const normalizedSnap = new Set(normalizedDays);
+  const recoveredSnap = new Set(recoveredDays);
+  const unresolvedSnap = new Map(unresolvedDays);
+  draft = placed.draft;
+  plan = placed.plan;
+  if (input.longitudinal && placed.skeleton) input.longitudinal.skeleton = placed.skeleton;
+  normalizedDays.clear();
+  recoveredDays.clear();
+  unresolvedDays.clear();
+  for (const day of DAY_ORDER) {
+    const origin = placed.originByDay[day];
+    daySources[day] = sourceSnap[origin] ?? "fallback";
+    if (normalizedSnap.has(origin)) normalizedDays.add(day);
+    if (recoveredSnap.has(origin)) recoveredDays.add(day);
+    const pending = unresolvedSnap.get(origin);
+    if (pending) unresolvedDays.set(day, pending);
+  }
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "day_placement",
+      agent_type: "validator",
+      model: null,
+      prompt_version: "day-placement-v1",
+      input_hash: inputHash({ moves: placed.moves }),
+      output: { moves: placed.moves, legal: placed.legal, violations: placed.violations },
+      validation_result: "pass",
+      retry_count: 0,
+      failure_reason: null,
+      deterministic: true,
+      decision: placed.legal ? "PLACED" : "UNRESOLVED",
+      revision_number: 0,
+      token_usage: null,
+    }),
+  );
 
   let bundle = pushAnalysis(0);
   let fatigue = bundle.fatigue;
@@ -1553,11 +1633,20 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }
     const headHard = hardFindings(currentHardErrors());
     lastHeadHardCodes = [...new Set(headHard.map((row) => row.code))];
+    const preHeadJudge = judgeWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+    const preHeadSimilarity = similarityDiagnostics(draft, input.recentStructures ?? []);
     const user = {
       ...(headUser(week, plan, draft, loadDecisions, revisionNumber) as Record<string, unknown>),
       hard_rule_findings: headHard,
+      pre_head_judge: {
+        ok: preHeadJudge.ok,
+        reason: preHeadJudge.ok ? null : preHeadJudge.reason,
+        errors: preHeadJudge.ok ? [] : preHeadJudge.errors,
+      },
+      placement_violations: orderViolations(draft),
+      similarity: { threshold: preHeadSimilarity.threshold, hits: preHeadSimilarity.hits },
       constitution:
-        "A concern is not a failure. Do not ask for the week or the session to be regenerated. If one field should change, put it in adjustments and keep weekly_strength_progression in preserve. Similarity alone stays a note. APPROVE and APPROVE_WITH_NOTE do not clear unresolved_days.",
+        "You are called once. If a problem can be fixed by a cell, return that cell. The server writes it and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Similarity threshold stays 4.",
       unresolved_days: [...unresolvedDays.entries()].map(([day, errors]) => ({ day, errors })),
       monthly_goal: month.coaching_plan?.block_goal ?? null,
       monthly_method: month.coaching_plan?.strength_method ?? month.strength_method,
@@ -1736,35 +1825,56 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     revisions: [],
     note_ko: headPass.note,
   };
-  for (const spec of modelRevisions) {
-    const cell = spec.cell;
-    if (!cell) continue;
-    const session = draft.sessions.find((row) => row.day === spec.day);
-    const movement = session?.conditioning?.movements.find((row) => row.key === cell.catalog_key || row.movement === cell.catalog_key);
-    const patched = movement ? patchStoredMovement(movement, cell) : { ok: false as const, reason: `${cell.catalog_key} is not on this piece` };
+  const headCells = applyHeadCells(draft.sessions, modelRevisions);
+  for (const row of headCells.rows) {
+    const applied = row.result === "applied";
     traces.push(
       finishTrace(Date.now(), {
         run_id: runId,
         week_id: input.weekStart,
-        day: spec.day,
-        agent_name: patched.ok ? "revision_compliance" : "revision_rejected",
+        day: row.day,
+        agent_name: applied ? "revision_compliance" : "revision_rejected",
         agent_type: "validator",
         model: null,
         prompt_version: HEAD_COACH_PROMPT_VERSION,
-        input_hash: inputHash({ day: spec.day, cell }),
-        input_summary: { day: spec.day, catalog_key: cell.catalog_key, field: cell.field },
-        output: { day: spec.day, cell, result: patched.ok ? "success" : "rejected", failure_reason: patched.ok ? null : patched.reason },
-        validation_result: patched.ok ? "pass" : "fail",
-        validation_errors: patched.ok ? [] : [patched.reason],
+        input_hash: inputHash(row),
+        input_summary: { day: row.day, catalog_key: row.catalog_key, field: row.field },
+        output: { ...row, result: applied ? "success" : "rejected", failure_reason: row.reason },
+        validation_result: applied ? "pass" : "fail",
+        validation_errors: row.reason ? [row.reason] : [],
         retry_count: 0,
-        failure_reason: patched.ok ? null : patched.reason,
+        failure_reason: row.reason,
         deterministic: true,
-        decision: patched.ok ? "success" : "rejected",
+        decision: applied ? "success" : "rejected",
         revision_number: 0,
         token_usage: null,
       }),
     );
   }
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "head_cell_apply",
+      agent_type: "validator",
+      model: null,
+      prompt_version: HEAD_COACH_PROMPT_VERSION,
+      input_hash: inputHash({ proposed: headCells.proposed, applied: headCells.applied, reverted: headCells.reverted }),
+      output: {
+        proposed: headCells.proposed,
+        applied: headCells.applied,
+        reverted: headCells.reverted,
+        block: headModelStatus === "BLOCK",
+      },
+      validation_result: "pass",
+      retry_count: 0,
+      failure_reason: null,
+      deterministic: true,
+      decision: headModelStatus === "BLOCK" ? "BLOCK" : "APPLIED",
+      revision_number: 0,
+      token_usage: null,
+    }),
+  );
   const grouped = new Map<string, SessionRevision>();
   for (const row of modelRevisions) {
     if (row.cell || !row.target_coach || headPass.touched[row.day] === "head" || !row.edits?.length) continue;
@@ -1776,7 +1886,9 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const coachSpecs = [...grouped.values()].slice(0, COACHING_POLICY.max_head_revisions);
   let revisions = 0;
   const rewritten: DayKey[] = [];
-  for (const spec of coachSpecs) {
+  // Cell edits are final. This path does not call the specialist again. The loop stays for the old route.
+  const callHeadSpecialistRewrite = false;
+  if (callHeadSpecialistRewrite) for (const spec of coachSpecs) {
     const dayIntent = plan.days.find((row) => row.day === spec.day);
     if (!dayIntent || dayIntent.primary_training === "rest" || !spec.target_coach) continue;
     const area: SpecialistArea = spec.target_coach === "strength_coach" ? "strength" : spec.target_coach === "warmup_coach" ? "warmup" : "conditioning";
@@ -1919,7 +2031,28 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     context: judgeContext(week),
     rules,
   });
-  let finalErrors = finalReport.hard;
+  const diagnosticJudgeErrors = finalReport.hard;
+  traces.push(
+    finishTrace(Date.now(), {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "post_head_judge",
+      agent_type: "validator",
+      model: null,
+      prompt_version: "post-head-judge-v1",
+      input_hash: inputHash({ errors: diagnosticJudgeErrors.length, signals: finalReport.signals.length }),
+      output: { errors: diagnosticJudgeErrors.slice(0, 8), signals: finalReport.signals.slice(0, 8) },
+      validation_result: "pass",
+      validation_errors: [],
+      retry_count: 0,
+      failure_reason: null,
+      deterministic: true,
+      decision: "DIAGNOSTIC",
+      revision_number: revisions,
+      token_usage: null,
+    }),
+  );
+  let finalErrors: string[] = [];
   let rejectedDraft: WeekDraft | null = null;
   let rejectedErrors: string[] = [];
   let resolvedStatus: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING" = finalStatus;

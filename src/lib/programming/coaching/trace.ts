@@ -55,6 +55,9 @@ export type AgentName =
   | "revision_rejected"
   | "revision_compliance"
   | "approval_refused"
+  | "day_placement"
+  | "head_cell_apply"
+  | "post_head_judge"
   | "final_validator";
 
 export type TokenUsage = {

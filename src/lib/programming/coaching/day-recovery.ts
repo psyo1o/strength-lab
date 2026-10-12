@@ -29,8 +29,48 @@ export function sameErrorSet(left: readonly string[], right: readonly string[]):
   return norm(left) === norm(right);
 }
 
+const KOREAN_TEXT_FIELDS = ["notes_ko", "warmup_ko", "strength_note_ko"] as const;
+export type KoreanTextField = (typeof KOREAN_TEXT_FIELDS)[number];
+
+export function isKoreanTextField(value: string): value is KoreanTextField {
+  return (KOREAN_TEXT_FIELDS as readonly string[]).includes(value);
+}
+
+/** Every error names the same Korean field. Mixed failures stay on the movement-cell path. */
+export function soleKoreanTextField(errors: readonly string[]): KoreanTextField | null {
+  const fields = new Set<KoreanTextField>();
+  for (const error of errors) {
+    const match = error.match(/\b(notes_ko|warmup_ko|strength_note_ko)\b/);
+    if (!match || !/korean ratio|is English|minimum ratio|expected Korean text/.test(error)) return null;
+    const field = match[1];
+    if (!field || !isKoreanTextField(field)) return null;
+    fields.add(field);
+  }
+  if (fields.size !== 1) return null;
+  return [...fields][0] ?? null;
+}
+
+/** Copy one Korean string onto the failed specialist JSON. Other keys stay. */
+export function applyKoreanTextField(
+  before: unknown,
+  field: KoreanTextField,
+  reply: unknown,
+): { ok: true; json: unknown } | { ok: false; reason: string } {
+  if (!before || typeof before !== "object" || Array.isArray(before)) return { ok: false, reason: "recovery target is missing" };
+  const body = reply && typeof reply === "object" && !Array.isArray(reply) ? (reply as Record<string, unknown>) : null;
+  const value = body?.[field];
+  if (typeof value !== "string" || !value.trim()) return { ok: false, reason: `${field} recovery is missing` };
+  const clone = JSON.parse(JSON.stringify(before)) as Record<string, unknown>;
+  clone[field] = value;
+  return { ok: true, json: clone };
+}
+
 /** Pull a field path and the received value out of a validator sentence. */
 export function fieldEditFromError(error: string): { field: string; value: string } {
+  const korean = error.match(/\b(notes_ko|warmup_ko|strength_note_ko)\b/);
+  if (korean?.[1] && /korean ratio|is English|minimum ratio|expected Korean text/.test(error)) {
+    return { field: korean[1], value: error };
+  }
   const received = error.match(/received\s+([^;]+)/);
   const value = received?.[1]?.trim() || error;
   const named = error.match(/prescription:\s*([A-Za-z0-9_]+)\s+field\s+(\S+)/);
@@ -122,15 +162,20 @@ export function recoveryDrift(input: {
     if (/(?:^|\.)interval_work_sec$/.test(row.field)) scalars.add("interval_work_sec");
     if (/(?:^|\.)interval_rest_sec$/.test(row.field)) scalars.add("interval_rest_sec");
     if (/(?:^|\.)notes_ko$/.test(row.field)) scalars.add("notes_ko");
+    if (/(?:^|\.)warmup_ko$/.test(row.field)) scalars.add("warmup_ko");
+    if (/(?:^|\.)strength_note_ko$/.test(row.field)) scalars.add("strength_note_ko");
   }
   const changed: string[] = [];
   const left = asRecord(input.before);
   const right = asRecord(input.after);
   if (!left || !right) return { ok: false, changed: ["recovery output is missing"] };
   if (left.day !== right.day) changed.push("day");
-  if (!scalars.has("notes_ko") && left.notes_ko !== right.notes_ko) changed.push("notes_ko");
+  for (const key of ["notes_ko", "warmup_ko", "strength_note_ko"] as const) {
+    if (!scalars.has(key) && left[key] !== right[key] && (left[key] != null || right[key] != null)) changed.push(key);
+  }
   const beforePiece = asRecord(left.conditioning);
   const afterPiece = asRecord(right.conditioning);
+  if (!beforePiece && !afterPiece) return changed.length ? { ok: false, changed } : { ok: true };
   if (!beforePiece || !afterPiece) return { ok: false, changed: [...changed, "conditioning"] };
   for (const key of ["format", "duration_min", "stimulus", "volume", "intensity", "interval_work_sec", "interval_rest_sec"] as const) {
     if (scalars.has(key)) continue;
@@ -168,15 +213,19 @@ export function dayRecoveryPayload(input: {
   invalid: unknown;
   priorAttempts: number;
   neighbors: unknown;
+  catalogKeysOnPiece?: readonly string[];
+  durationLimit?: { min: number; max: number; because: string } | null;
 }): Record<string, unknown> {
   const fields = failedFieldValues(input.invalid);
   const fromErrors = input.errors.map((error) => ({ ...fieldEditFromError(error), error }));
   const rows = fields.length ? fields.map((row) => ({ ...row, error: "" })) : fromErrors;
   const fieldEdits = rows.map((row) => {
     const allowed = row.error.match(/(?:allowed|expected):\s*([^.]*)/)?.[1]?.trim();
-    const amount = row.field.includes("amount")
-      ? `A count and a unit.${allowed ? ` Expected: ${allowed}.` : ""} Reps are 10 or 10reps. Calories are 12cal or 12/10cal. Distance is 500m. Seconds are 30sec. The word reps alone is not a count.`
-      : allowed || "Use the specialist schema for this field. Do not invent a value.";
+    const amount = isKoreanTextField(row.field)
+      ? `Korean text. The minimum ratio stays 0.7. Change only ${row.field}.`
+      : row.field.includes("amount")
+        ? `A count and a unit.${allowed ? ` Expected: ${allowed}.` : ""} Reps are 10 or 10reps. Calories are 12cal or 12/10cal. Distance is 500m. Seconds are 30sec. The word reps alone is not a count.`
+        : allowed || "Use the specialist schema for this field. Do not invent a value.";
     return { field: row.field, current_value: row.value, required_format: amount };
   });
   const preserve =
@@ -186,6 +235,8 @@ export function dayRecoveryPayload(input: {
         ? ["conditioning", "warmup_ko", "day_role"]
         : ["conditioning", "strength_note_ko", "day_role"];
   const allowed = input.area === "conditioning" ? ["conditioning"] : input.area === "strength" ? ["strength_note_ko"] : ["warmup_ko"];
+  const durationLimit = input.durationLimit ?? null;
+  const catalogKeysOnPiece = [...new Set(input.catalogKeysOnPiece ?? [])];
   return {
     area: input.area,
     monthly_direction: input.monthly,
@@ -202,7 +253,10 @@ export function dayRecoveryPayload(input: {
     allowed_changes: allowed,
     forbidden_changes: ["other_days", "monthly_training_method", "locked_weekly_structure", ...preserve],
     neighbor_constraints: input.neighbors,
-    instruction:
-      "Apply each field_edit. Change only that field path from current_value to required_format. Prefer a cells array of catalog_key, field, and value. The server writes only those cells. Do not change any other field, movement, day, or the weekly skeleton.",
+    duration_limit: durationLimit,
+    allowed_catalog_keys: catalogKeysOnPiece,
+    instruction: durationLimit
+      ? `Apply each field_edit. Change only that field. conditioning.duration_min must be an integer from ${durationLimit.min} to ${durationLimit.max} because this day is ${durationLimit.because}. allowed_catalog_keys are the only catalog movements already on this piece. Do not name a movement that is not in that list. Do not add a movement. The server writes only the named field or those cells.`
+      : "Apply each field_edit. Change only that field path from current_value to required_format. allowed_catalog_keys are the only catalog movements already on this piece. Do not name a movement that is not in that list. The server writes only those cells.",
   };
 }

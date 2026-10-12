@@ -399,7 +399,7 @@ function explainWeekShape(raw: Record<string, unknown>): string[] {
     }
     if (isRecord(row.conditioning)) {
       const purpose = typeof row.conditioning.purpose === "string" ? row.conditioning.purpose : "";
-      if (!isWodPurpose(purpose)) errors.push(`${day} conditioning.purpose must be 1–2 Korean sentences`);
+      if (!isWodPurpose(purpose)) errors.push(`${day} conditioning.purpose must be 1–2 sentences`);
     }
   }
   if (raw.sessions.length !== 7) errors.push("week needs seven days");
@@ -848,7 +848,7 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if (!session.strength && !session.conditioning) errors.push(`${session.day} has no work`);
     if (!session.conditioning) continue;
     if (!isWodPurpose(session.conditioning.purpose)) {
-      errors.push(`${session.day} conditioning.purpose must be 1–2 Korean sentences`);
+      errors.push(`${session.day} conditioning.purpose must be 1–2 sentences`);
     }
     if (session.metcon_format && session.metcon_format !== session.conditioning.format) {
       errors.push(`${session.day} metcon format does not match`);
@@ -2188,16 +2188,53 @@ export function weekdayPatternViolations(draft: WeekDraft, recentMaps: readonly 
   return strengthLayoutRepeats(liftMapKey(draft), recentMaps, allowRepeat);
 }
 
-/** Korean checks per session so the retry knows which day to fix. The intent is checked on its own. */
-function koreanErrors(draft: WeekDraft): string[] {
+/**
+ * Explanations are English. Display translation is later.
+ * This stage does not reject a week. englishKoPath stays for that later pass.
+ */
+function koreanErrors(_draft: WeekDraft): string[] {
+  return [];
+}
+
+/** Order problems a weekday swap can fix. The similarity threshold stays 4, and only neighboring training days count. */
+export function orderViolations(draft: WeekDraft): string[] {
   const errors: string[] = [];
-  const intent = englishKoPath(draft.intent, "intent");
-  if (intent) errors.push(intent);
-  draft.sessions.forEach((session, index) => {
-    const found = englishKoPath(session, `sessions[${index}]`);
-    if (found) errors.push(`${dayLabel(session.day)}: ${found}`);
-  });
-  return errors;
+  const training = draft.sessions.filter((session) => !session.rest && session.conditioning);
+  for (let index = 1; index < training.length; index += 1) {
+    const previous = training[index - 1]!;
+    const current = training[index]!;
+    const previousStimulus = previous.conditioning?.stimulus;
+    const currentStimulus = current.conditioning?.stimulus;
+    if (previousStimulus && currentStimulus && previousStimulus === currentStimulus) {
+      errors.push(`stimulus ${currentStimulus} repeats on ${current.day}`);
+    }
+    const left = toStructure(previous);
+    const right = toStructure(current);
+    if (left && right && structurallySimilar(left, right)) {
+      const hit = comparison(left, right, "same_week");
+      errors.push(`${previous.day} and ${current.day} are structurally similar score=${hit.score} matched=${hit.matched.join(",")}`);
+    }
+  }
+  const sessions = byDay(draft);
+  errors.push(
+    ...safetyViolations(
+      DAY_ORDER.map((day) => {
+        const session = sessions.get(day);
+        if (!session || session.rest) return null;
+        const load = exposure(session);
+        return {
+          day,
+          heavySquat: load.heavySquat,
+          heavyDeadlift: load.heavyDeadlift,
+          heavyPress: load.heavyPress,
+          heavySnatch: load.heavySnatch,
+          heavyClean: load.heavyClean,
+          longConditioning: Boolean(session.conditioning?.long_conditioning),
+        };
+      }),
+    ),
+  );
+  return [...new Set(errors)];
 }
 
 function dedupe(errors: string[]): string[] {

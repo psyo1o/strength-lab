@@ -520,9 +520,11 @@ describe("day recovery orchestrator", () => {
     const { result, calls, plan } = await run("bad_cal");
     const training = plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest");
     expect(calls.filter((call) => call.agent === "conditioning_coach")).toHaveLength(training.length);
-    expect(calls.filter((call) => call.agent === "head_coach" || call.agent === "context:head").length).toBeGreaterThan(1);
+    expect(calls.filter((call) => call.agent === "head_coach")).toHaveLength(1);
+    expect(calls.filter((call) => call.agent === "context:head")).toHaveLength(0);
     expect(JSON.stringify(result.draft)).not.toContain("60cal");
-    expect(result.traces.some((trace) => trace.agent_name === "revision_compliance")).toBe(false);
+    expect(result.traces.some((trace) => trace.agent_name === "revision_rejected")).toBe(true);
+    expect((result.traces.find((trace) => trace.agent_name === "head_cell_apply")?.output as { reverted?: number }).reverted).toBe(1);
   });
 
   it("patches one recovery cell and leaves the format", async () => {
@@ -571,7 +573,8 @@ describe("day recovery orchestrator", () => {
     expect(JSON.stringify(monday?.conditioning?.movements)).not.toContain('"amount":"reps"');
     expect(result.day_records?.mon?.day_status).not.toBe("FAILED");
     expect(result.draft.sessions.find((session) => session.day === "tue")?.warmup_ko).toContain("모델 tue");
-    expect(result.traces.some((trace) => trace.agent_name === "conditioning_coach" && trace.day === "mon" && (trace.revision_number ?? 0) > 0 && trace.validation_result === "fail")).toBe(true);
+    expect(result.traces.some((trace) => trace.agent_name === "conditioning_coach" && trace.day === "mon" && (trace.revision_number ?? 0) > 0)).toBe(false);
+    expect(result.traces.some((trace) => trace.agent_name === "revision_rejected" && trace.day === "mon")).toBe(true);
   });
 
   it("rejects a bad coach and a bad range without another specialist call", async () => {

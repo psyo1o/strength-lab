@@ -237,7 +237,7 @@ export function sessionFromCoachJson(input: {
   };
   const lift = longPiece || input.intent.strength_lift === "none" ? null : input.intent.strength_lift;
   const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual) : null;
-  const warmupText = typeof body.warmup_ko === "string" && hangul(body.warmup_ko) ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
+  const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
   const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark);
   if (
     format === "intervals" &&

@@ -117,9 +117,9 @@ describe("stage20 monthly direction and weekly ceilings", () => {
       key: KEY,
       fetchImpl: async () => envelope(english),
     });
-    expect(rejected.ok).toBe(false);
-    if (rejected.ok) return;
-    expect(rejected.reason).toBe("language");
+    expect(rejected.ok).toBe(true);
+    if (!rejected.ok) return;
+    expect(rejected.direction.focus_ko).toBe("Build a stronger class this month");
   });
 
   it("names a missing evaluation and does not store that absence as a recovery month", async () => {

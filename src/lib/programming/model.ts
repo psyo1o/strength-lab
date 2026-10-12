@@ -3,7 +3,6 @@ import { DAY_ORDER } from "../month-plan/types";
 import { MONTH_PLAN_OPENAI_MODEL, MONTH_PLAN_OPENAI_URL } from "../month-plan/week-model";
 import {
   allowedStrengthProgramming,
-  englishKoPath,
   hardConstraints,
   judgeWeek,
   MONTH_REQUIRED_KEYS,
@@ -70,13 +69,13 @@ const RULES = [
   "Each training day carries strength_purpose, strength_volume, strength_intensity, metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration. Those fields match the strength and conditioning objects.",
   "Rx metcon is 12–20 minutes, so time_domain is medium. Only the day after squat or deadlift is 8–12 minutes and time_domain short. duration_min 14 is medium, never short. Long conditioning is 30–40 minutes and time_domain long.",
   "Allowed lifts are squat, ohp, bench, and deadlift. The word press means ohp. Do not use lift press.",
-  "Every *_ko field, focus, and scheme_note is Korean. Do not write those fields in English.",
+  "Write explanations in English. Display translation is later. Do not reject a week for language.",
   "Machine calories are a male/female pair such as 12/10cal. Never write kilograms, male/female loads, box heights, or benchmark loads anywhere in the week. The server adds the class wall ball, kettlebell, and box loads on the screen later. A movement is its name only: 월볼, never 월볼 plus a kilogram number.",
   "Every training day (rest=false) has a conditioning object. The server copies a null session-level field from that same day's conditioning and does not invent a value the conditioning object does not have. A training day with no conditioning object is rejected as missing session fields. A set time_domain or duration_min is not rewritten. A strength-only training day is not valid in this contract.",
   "Top-level JSON is { intent, sessions }. sessions has exactly mon, tue, wed, thu, fri, sat, and sun. Do not wrap the object in class_week, week, or days.",
   "Warmup, strength, and conditioning together stay within about 60 minutes. Do not put a 30–40 minute piece on a strength day. Saturday is optional and has no main lift.",
   "Return JSON only. Do not pick a candidate_id.",
-  "When conditioning is present, conditioning.purpose is required in that same object. It is one or two Korean sentences on why that metcon is in the day. Write it while writing the metcon. Do not add purpose in a later pass. Do not put coaching sales, payment language, or invented kilograms in purpose.",
+  "When conditioning is present, conditioning.purpose is required in that same object. It is one or two English sentences on why that metcon is in the day. Write it while writing the metcon. Do not add purpose in a later pass. Do not put coaching sales, payment language, or invented kilograms in purpose.",
 ];
 
 const MONTH_RULES = [
@@ -86,7 +85,7 @@ const MONTH_RULES = [
   "You are not required to use 5/3/1. 5/3/1 is only one strength method. Choose from the previous month, fatigue, strength, volume, intensity, benchmarks, and the long-term block. Do not change the method from week to week. Do not write daily workouts.",
   "long_conditioning_weeks has exactly two week indexes. benchmark_week is one week index.",
   "Return one JSON object. Put every required key at the top level. Do not wrap the object. Do not use a key named month_direction_only.",
-  "Every *_ko field is Korean. Allowed English tokens are only AMRAP, EMOM, Rx, Scaled, Benchmark, Deload, and 5/3/1. Do not copy method names such as ACCUMULATION, PROGRESSION, EMPHASIS, INTENSITY_BLOCK, DELOAD_RECOVERY, engine, high_rep, technical, interval, or variation into those fields.",
+  "Write explanations in English. Display translation is later. Do not copy method names such as ACCUMULATION, PROGRESSION, EMPHASIS, INTENSITY_BLOCK, DELOAD_RECOVERY, engine, high_rep, technical, interval, or variation into explanation fields.",
   "evaluation_status no_evaluation means a previous month exists and no evaluation was stored. That is missing data, not high fatigue, and not a reason to choose DELOAD_RECOVERY. no_previous_month means there is no earlier month. present means last_evaluation is stored.",
 ];
 
@@ -292,7 +291,7 @@ function generationPhases(input: { longCount: number; highFatigue: boolean; heav
         "Are any numeric equipment weights invented? no invented weights",
         "all required fields populated",
         "no null movement_combination on training days",
-        "Korean naming where expected, without sacrificing the program",
+        "Explanations are English. Movement name_ko stays the catalog name.",
       ],
     },
   };
@@ -312,11 +311,11 @@ const NAME_KO_RULE = {
   rules: [
     "Korean letters only, apart from the allowed tokens AMRAP, EMOM, Rx, Scaled, Benchmark, Deload, 5/3/1.",
     "No kilograms, no male/female loads, no English abbreviations such as T2B or HSPU in name_ko.",
-    "Descriptions, purposes, and warmup text are Korean sentences, not English.",
+    "Descriptions, purposes, and warmup text are English explanations. Display translation is later.",
     "Session names should be natural Korean where Korean naming is expected.",
     "Do not use unnecessary English-only names.",
     "Do not sacrifice programming quality merely to satisfy naming.",
-    "The server measures the Korean share of every *_ko field. Below 0.7 is rejected.",
+    "The server does not reject a week because an explanation is English.",
   ],
   examples: [
     { key: "toes_to_bar", name_ko: "토즈 투 바" },
@@ -1193,7 +1192,7 @@ export function weekPrompt(input: {
       ...RULES,
       "Follow month_summary.scheme for the whole month. Do not change the block in this week.",
       "Do not copy a recent weekday strength layout. Progression may keep one lift on its day. Two identical previous layouts must not be copied.",
-      "why_ko is one to three Korean sentences. Do not restate the whole month.",
+      "why_ko is one to three English sentences. Do not restate the whole month.",
       "Use allowed_programming. lower_body_sets are required on squat and deadlift. upper_body_sets are required on ohp and bench. strength_prescription is the method rule. When the two differ, allowed_programming wins. Do not copy a 5/3/1 pattern unless the method is 531.",
       "weekly_requirements is a hard structural requirement for this week. Satisfy it inside sessions. The server rejects a miss and does not change duration for you.",
       "programming_space is only a boundary. Choose the day and the lift yourself.",
@@ -1368,17 +1367,6 @@ export async function authorMonth(input: {
         };
       }
       const repaired = repairMonthLanguage(direction);
-      const english = englishKoPath(repaired.direction);
-      if (english) {
-        return {
-          ok: false,
-          reason: "language",
-          detail: english,
-          errors: [english],
-          normalizations: repaired.normalizations,
-          diagnostics: { failure_stage: "language", error_type: "english_ko" },
-        };
-      }
       return { ok: true, value: repaired.direction, normalizations: repaired.normalizations };
     },
   });
@@ -1549,7 +1537,7 @@ export function wodFromIntentPrompt(input: {
       "Same intent still changes format, work/rest, or combination. Do not only rename a movement.",
       "Before each training day, check every other training day in this same week. Do not share all four of format, stimulus, movement_pattern, and volume. A new movement name or an equipment-only change is not enough.",
       "Progression may keep strength_lift and the method sets.",
-      "Korean for every *_ko field, focus, and scheme_note.",
+      "Write explanations in English. Display translation is later.",
       "Top-level JSON is { intent, sessions } with mon through sun.",
     ],
     time_domain_rules: {
@@ -1612,14 +1600,6 @@ export async function authorWeeklyIntent(input: {
     accept: (json) => {
       const plan = parseWeeklyIntent(json, baseline);
       if (!plan) return { ok: false, reason: "schema", detail: "weekly intent schema", errors: ["weekly intent schema"] };
-      const english = englishKoPath({
-        why_ko: plan.why_ko,
-        focus: plan.focus,
-        scheme_note: plan.scheme_note,
-        adjustment_ko: plan.adjustment_ko,
-        days: plan.days.map((day) => ({ notes_ko: day.notes_ko })),
-      });
-      if (english) return { ok: false, reason: "language", detail: english, errors: [english] };
       return { ok: true, value: plan };
     },
   });

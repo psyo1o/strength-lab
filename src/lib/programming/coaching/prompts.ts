@@ -41,7 +41,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose the adaptation, the strength method, and how the four weeks should feel. Week roles are a decision about this athlete, not a fixed accumulation-progression-intensification-deload template. 5/3/1 is one method, not the default.",
     constraints:
-      "Do not name daily exercises. Do not invent kilograms. Do not change a method mid-block. Korean for every *_ko field.",
+      "Do not name daily exercises. Do not invent kilograms. Do not change a method mid-block. Write explanations in English. Display translation is later.",
     output_schema: "The OUTPUT SCHEMA block is the contract. Do not rename keys.",
     failure_behavior: "If you cannot return that JSON, return nothing. The server keeps its deterministic month and records fallback_used.",
   },
@@ -74,7 +74,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles: "Keep the lift the weekly plan locked. Do not change another day's strength.",
     constraints:
       "Do not return sets, kilograms, percentages, warmup_ko, or conditioning. Do not invent a load. When edit_list is present, apply each item exactly and change nothing that is not listed. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
-    output_schema: "Keys: day, strength_note_ko. strength_note_ko is Korean.",
+    output_schema: "Keys: day, strength_note_ko. strength_note_ko is an English explanation. Display translation is later.",
     failure_behavior: "A bad strength note is rejected. The server keeps the method table for that day.",
   },
   conditioning: {
@@ -95,7 +95,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles: "Prepare the joints and the first movement of the day. Do not add a second workout.",
     constraints:
       "Do not return conditioning, sets, kilograms, or another day's warm-up. When edit_list is present, apply each item exactly and change nothing that is not listed. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
-    output_schema: "Keys: day, warmup_ko. warmup_ko is Korean.",
+    output_schema: "Keys: day, warmup_ko. warmup_ko is an English explanation. Display translation is later.",
     failure_behavior: "A bad warm-up is rejected. The server keeps a short preparation for that day only.",
   },
   load: {
@@ -115,9 +115,9 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     inputs:
       "Evidence, specialist findings, risk, priority, trade-offs, monthly goal, weekly rules, athlete fatigue, and recent history. A concern is not a revision.",
     decision_principles:
-      "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest field change, then APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. Similarity alone stays minor. Three minor notes do not revise. Name a field change only when the benefit is greater than the cost. Low confidence prefers APPROVE_WITH_NOTE unless the code already marked a safety issue. APPROVE does not override unresolved hard errors. BLOCK means the week cannot be adopted. Do not ask for a new week.",
+      "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest cell change, then APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. If a problem can be fixed by a cell, return that cell. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. You are called once. The server writes the cells and does not call you again.",
     constraints:
-      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. A field change goes in adjustments and does not name a target_coach. REVISE is only an edit list. Each item has day, block, catalog_key, field, value, and reason. field is movement, amount, unit, or load. The server writes only that cell and leaves the other cells. catalog_key and unit must be in the catalog. amount stays inside a closed range when one is listed. A sentence without those fields is invalid. Do not name a day or a movement the server did not allow. Do not return a new week.",
+      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. REVISE is only an edit list. Each item has day, block, catalog_key, field, value, and reason. field is movement, amount, unit, or load. The server writes only that cell and leaves the other cells. A sentence without those fields is invalid. Do not return a new week. Do not ask for the session to be regenerated.",
     output_schema: "Use the head schema in the OUTPUT SCHEMA block. The edit list is the whole revision. adjustments are field patches only.",
     failure_behavior: "A prose-only revision is a schema error. The server asks once for the edit list and does not invent the edit. Unreadable reviews keep the code decision.",
   },

@@ -1,6 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { IMPLEMENTED_STRENGTH_METHODS } from "../strength-methods";
-import { KOREAN_RATIO_MIN, TIME_DOMAIN_RANGES, koreanRatio } from "../rules";
+import { TIME_DOMAIN_RANGES } from "../rules";
 import {
   COACHING_STIMULI,
   PRIMARY_TRAININGS,
@@ -98,7 +98,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       "week_roles is an array of exactly 4 objects: week_index (1|2|3|4), role, note_ko.",
       enumLine("role", WEEK_ROLES),
       "fatigue_tolerance and variety_requirement are low | moderate | high.",
-      "Korean for every *_ko field and for the strategy sentences.",
+      "Write explanations in English. Display translation is later.",
     ].join("\n");
   }
   if (agent === "weekly") {
@@ -122,7 +122,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       enumLine("recovery_role", RECOVERY_ROLES),
       enumLine("strength_lift", STRENGTH_LIFTS),
       "duration_profile is the class window, not the conditioning clock. Do not name movements or sets.",
-      "why_ko, focus, scheme_note, adjustment_ko, training_goal, and notes_ko are short Korean.",
+      "why_ko, focus, scheme_note, adjustment_ko, training_goal, and notes_ko are English explanations. Display translation is later.",
     ].join("\n");
   }
   if (agent === "session") {
@@ -142,11 +142,11 @@ export function schemaBrief(agent: CoachAgentName): string {
       "name_ko must be the catalog Korean name for that key.",
       unitGuide(),
       durationRuleText(),
-      "warmup_ko and notes_ko are Korean.",
+      "warmup_ko and notes_ko are English explanations. Display translation is later.",
     ].join("\n");
   }
   if (agent === "strength") {
-    return ["JSON object for one day. Keys: day, strength_note_ko.", "Do not return sets, kilograms, percentages, warmup_ko, or conditioning.", "strength_note_ko is Korean.", enumLine("day", DAY_ORDER)].join("\n");
+    return ["JSON object for one day. Keys: day, strength_note_ko.", "Do not return sets, kilograms, percentages, warmup_ko, or conditioning.", "strength_note_ko is an English explanation. Display translation is later.", enumLine("day", DAY_ORDER)].join("\n");
   }
   if (agent === "conditioning") {
     return [
@@ -161,11 +161,11 @@ export function schemaBrief(agent: CoachAgentName): string {
       enumLine("volume", VOLUME_BANDS),
       enumLine("intensity", INTENSITY_BANDS),
       enumLine("unit", EDIT_UNITS),
-      "notes_ko is Korean.",
+      "notes_ko is an English explanation. Display translation is later.",
     ].join("\n");
   }
   if (agent === "warmup") {
-    return ["JSON object for one day. Keys: day, warmup_ko.", "warmup_ko prepares this day's strength and conditioning. Korean.", "Do not return conditioning, strength_note_ko, sets, or kilograms.", enumLine("day", DAY_ORDER)].join("\n");
+    return ["JSON object for one day. Keys: day, warmup_ko.", "warmup_ko prepares this day's strength and conditioning. Write it in English. Display translation is later.", "Do not return conditioning, strength_note_ko, sets, or kilograms.", enumLine("day", DAY_ORDER)].join("\n");
   }
   if (agent === "load") {
     return [
@@ -176,7 +176,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       enumLine("target_effort", TARGET_EFFORTS),
       enumLine("relative_intensity", RELATIVE_INTENSITIES),
       "Do not return kilograms, percentages, sets, or reps. The server applies the method table.",
-      "reason_ko is Korean.",
+      "reason_ko is an English explanation. Display translation is later.",
     ].join("\n");
   }
   if (agent === "variation_judge") {
@@ -203,18 +203,18 @@ export function schemaBrief(agent: CoachAgentName): string {
     "APPROVE means there is no coaching issue worth acting on. revisions and adjustments are empty. APPROVE cannot override a hard validation error.",
     "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout. It does not ignore a hard validation error.",
     "REVISE is an edit list. It does not regenerate the week. A field change goes in adjustments and does not name a target_coach. A prose sentence is not a revision.",
-    "BLOCK means the week cannot be adopted. revisions and adjustments are empty. Unresolved hard errors stay unresolved.",
+    "BLOCK only when a cell cannot fix the week: a safety risk, a collapsed week structure, or a training day with no session. Do not BLOCK for wording, explanations, or language. revisions and adjustments are empty.",
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
     "Each revision names one cell: day, block, catalog_key, field, value, reason. The server writes only that cell.",
     "block is strength, conditioning, or warmup. field is movement, amount, unit, or load.",
     "value is the new cell. movement value is a catalog key. amount value is a count inside the closed range when one is listed. unit value is an allowed unit for that key. load value is the load text.",
-    "reason is Korean. A revision without these fields is a schema error.",
+    "reason is an English explanation. Display translation is later. A revision without these fields is a schema error.",
     enumLine("catalog_key", standardCatalogKeys()),
     "Each adjustment: target, reason, priority, current_value, proposed_value, preserve, rationale, confidence.",
     "target is day.conditioning.intensity, day.conditioning.volume, day.conditioning.duration_min, or day.conditioning.format.",
     "priority is P0, P1, P2, or P3. preserve is an array of strings and includes weekly_strength_progression when the lift must stay.",
     enumLine("day", DAY_ORDER),
-    "reason and note_ko are Korean.",
+    "reason and note_ko are English explanations. Display translation is later.",
   ].join("\n");
 }
 
@@ -274,6 +274,11 @@ function conditioningMovementSchema(keys: readonly string[] = standardCatalogKey
     },
     ["movement", "amount", "unit", "load"],
   );
+}
+
+/** One Korean field. The server copies only this string onto the failed day. */
+export function textFieldRecoveryFormat(field: "notes_ko" | "warmup_ko" | "strength_note_ko"): ResponseFormat {
+  return schemaOf("text_field_recovery", strictObject({ [field]: TEXT }, [field]));
 }
 
 /** Live recovery replies name cells. A full session is still accepted by the validator for older fixtures. */
@@ -605,6 +610,7 @@ function textError(path: string, value: unknown, korean: boolean): string | null
   return null;
 }
 
+
 export function weeklyIntentErrors(value: unknown): string[] {
   if (!isRecord(value)) return ["expected a JSON object with key days"];
   const errors: string[] = [];
@@ -619,15 +625,8 @@ export function weeklyIntentErrors(value: unknown): string[] {
   if (phase) errors.push(phase);
   if (emphasis) errors.push(emphasis);
   for (const path of ["why_ko", "focus", "scheme_note", "adjustment_ko"] as const) {
-    const issue = textError(path, value[path], true);
+    const issue = textError(path, value[path], false);
     if (issue) errors.push(issue);
-    else if (typeof value[path] === "string") {
-      const ratio = koreanRatio(value[path]);
-      if (ratio < KOREAN_RATIO_MIN) {
-        const measured = ratio === 0 ? `${path} is English` : `${path} korean ratio ${ratio.toFixed(2)}`;
-        errors.push(`${measured}. Write this field in Korean. The minimum ratio stays ${KOREAN_RATIO_MIN}.`);
-      }
-    }
   }
   const seen = new Set<string>();
   value.days.forEach((row, index) => {
@@ -657,8 +656,8 @@ export function weeklyIntentErrors(value: unknown): string[] {
       if (seen.has(row.day)) errors.push(`${prefix}.day: duplicate ${row.day}`);
       seen.add(row.day);
     }
-    const goal = textError(`${prefix}.training_goal`, row.training_goal, true);
-    const notes = textError(`${prefix}.notes_ko`, row.notes_ko, true);
+    const goal = textError(`${prefix}.training_goal`, row.training_goal, false);
+    const notes = textError(`${prefix}.notes_ko`, row.notes_ko, false);
     if (goal) errors.push(goal);
     if (notes) errors.push(notes);
     if (typeof row.progression_required !== "boolean") {
@@ -720,7 +719,7 @@ export function monthlyPlanErrors(value: unknown, month: MonthDirection): string
       } else weeks.add(row.week_index);
       const role = enumError(`week_roles[${index}].role`, row.role, WEEK_ROLES);
       if (role) errors.push(role);
-      const note = textError(`week_roles[${index}].note_ko`, row.note_ko, true);
+      const note = textError(`week_roles[${index}].note_ko`, row.note_ko, false);
       if (note) errors.push(note);
     });
     for (const week of [1, 2, 3, 4]) {
@@ -769,8 +768,8 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
   const day = enumError("day", value.day, DAY_ORDER);
   if (day) errors.push(day);
   else if (value.day !== intent.day) errors.push(`day: received ${received(value.day)}; this call is only for ${intent.day}`);
-  const warmup = textError("warmup_ko", value.warmup_ko, true);
-  const notes = textError("notes_ko", value.notes_ko, true);
+  const warmup = textError("warmup_ko", value.warmup_ko, false);
+  const notes = textError("notes_ko", value.notes_ko, false);
   if (warmup) errors.push(warmup);
   if (notes) errors.push(notes);
   if (!isRecord(value.conditioning)) {
@@ -854,7 +853,7 @@ export function loadDecisionErrors(value: unknown, days: readonly DayKey[]): str
     if (action) errors.push(action);
     if (effort) errors.push(effort);
     if (intensity) errors.push(intensity);
-    const reason = textError(`${prefix}.reason_ko`, row.reason_ko, true);
+    const reason = textError(`${prefix}.reason_ko`, row.reason_ko, false);
     if (reason) errors.push(reason);
     if (typeof row.day === "string") seen.add(row.day);
   });
@@ -917,7 +916,7 @@ export function editItemErrors(row: unknown, index: number): string[] {
   if (coach) errors.push(coach);
   if (block) errors.push(block);
   if (action) errors.push(action);
-  const reason = textError(`${prefix}.reason`, row.reason, true);
+  const reason = textError(`${prefix}.reason`, row.reason, false);
   if (reason) errors.push(reason);
   if (!block && !coach && coachForBlock(String(row.block)) !== row.target_coach) {
     errors.push(`${prefix}.target_coach: received ${received(row.target_coach)}; block ${String(row.block)} belongs to ${coachForBlock(String(row.block))}`);
@@ -952,7 +951,7 @@ export function headReviewErrors(value: unknown): string[] {
   const errors: string[] = [];
   const status = enumError("status", value.status, HEAD_STATUSES);
   if (status) errors.push(status);
-  const note = textError("note_ko", value.note_ko, true);
+  const note = textError("note_ko", value.note_ko, false);
   if (note) errors.push(note);
   if (!Array.isArray(value.revisions)) {
     errors.push("revisions: expected an array");

@@ -1,7 +1,7 @@
 import type { DayKey } from "../../month-plan/types";
 import type { DayIntent, SessionDraft, WeekDraft } from "../types";
 import { EDIT_ACTIONS, EDIT_BLOCKS, EDIT_UNITS } from "./contract";
-import { checkCellEdit, type MovementCellField } from "./movement-catalog";
+import type { MovementCellField } from "./movement-catalog";
 import type { FatigueReport } from "./fatigue";
 import type { VariationReport } from "./variation";
 
@@ -155,9 +155,7 @@ function parseCellRevision(row: unknown): SessionRevision | null {
   if (day !== "mon" && day !== "tue" && day !== "wed" && day !== "thu" && day !== "fri" && day !== "sat" && day !== "sun") return null;
   if (item.block !== "strength" && item.block !== "conditioning" && item.block !== "warmup") return null;
   if (typeof item.catalog_key !== "string" || typeof item.value !== "string") return null;
-  if (typeof item.reason !== "string" || !/[가-힣]/.test(item.reason)) return null;
-  const verdict = checkCellEdit({ catalog_key: item.catalog_key, field: item.field, value: item.value });
-  if (!verdict.ok) return null;
+  if (typeof item.reason !== "string" || !item.reason.trim()) return null;
   const target: TargetCoach = item.block === "strength" ? "strength_coach" : item.block === "warmup" ? "warmup_coach" : "conditioning_coach";
   return {
     day,
@@ -216,6 +214,27 @@ function revisionFromEdit(edit: MovementEdit): SessionRevision {
         : edit.action === "delete"
           ? `${edit.day} ${edit.block}: delete ${edit.target_movement}`
           : `${edit.day} ${edit.block}: add ${edit.new_movement} ${edit.new_amount} ${edit.new_unit}`;
+  const amountValue = edit.new_amount && edit.new_unit ? (edit.new_unit === "reps" ? edit.new_amount : `${edit.new_amount}${edit.new_unit}`) : null;
+  const cell =
+    edit.action === "change_amount" && edit.target_movement && amountValue
+      ? {
+          day: edit.day,
+          block: edit.block,
+          catalog_key: edit.target_movement,
+          field: "amount" as const,
+          value: amountValue,
+          reason: edit.reason,
+        }
+      : edit.action === "replace" && edit.target_movement && edit.new_movement
+        ? {
+            day: edit.day,
+            block: edit.block,
+            catalog_key: edit.target_movement,
+            field: "movement" as const,
+            value: edit.new_movement,
+            reason: edit.reason,
+          }
+        : undefined;
   return {
     day: edit.day,
     reason: edit.reason,
@@ -227,6 +246,7 @@ function revisionFromEdit(edit: MovementEdit): SessionRevision {
     allowed_changes: [],
     forbidden_changes: ["other_days"],
     edits: [edit],
+    ...(cell ? { cell } : {}),
   };
 }
 

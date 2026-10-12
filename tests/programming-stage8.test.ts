@@ -172,19 +172,15 @@ describe("stage 8 weekly pipeline convergence", () => {
     expect(inventedWeightErrors(base)).toEqual([]);
   });
 
-  it("names the day on a Korean failure and keeps the ratio check", () => {
+  it("does not reject a week because a movement name mixes English", () => {
     const month = month531();
     const draft = structuredClone(highWeek(month)) as WeekDraft;
     const session = draft.sessions.find((row) => row.conditioning && !row.conditioning.benchmark)!;
     session.conditioning!.movements[0] = { key: "toes_to_bar", amount: "10", name_ko: "T2B 토즈" };
     const judged = judgeWeek(draft, month, 2, [], { previousActual: presetActual("a") });
-    expect(judged.ok).toBe(false);
-    if (judged.ok) return;
-    expect(judged.reason).toBe("language");
-    const korean = structureValidationErrors(judged.errors).find((row) => row.rule === "korean_naming");
-    expect(korean?.affected_session).toEqual([session.day]);
-    expect(korean?.priority).toBe(8);
-    expect(korean?.affected_features[0]).toContain("name_ko");
+    if (!judged.ok) expect(judged.reason).not.toBe("language");
+    else expect(judged.ok).toBe(true);
+    expect(session.day).toBeTruthy();
   });
 
   it("copies null session mirrors from conditioning and still traces a missing conditioning day to the model", () => {
