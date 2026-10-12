@@ -1,6 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { IMPLEMENTED_STRENGTH_METHODS } from "../strength-methods";
-import { TIME_DOMAIN_RANGES } from "../rules";
+import { KOREAN_RATIO_MIN, TIME_DOMAIN_RANGES, koreanRatio } from "../rules";
 import {
   COACHING_STIMULI,
   PRIMARY_TRAININGS,
@@ -621,6 +621,13 @@ export function weeklyIntentErrors(value: unknown): string[] {
   for (const path of ["why_ko", "focus", "scheme_note", "adjustment_ko"] as const) {
     const issue = textError(path, value[path], true);
     if (issue) errors.push(issue);
+    else if (typeof value[path] === "string") {
+      const ratio = koreanRatio(value[path]);
+      if (ratio < KOREAN_RATIO_MIN) {
+        const measured = ratio === 0 ? `${path} is English` : `${path} korean ratio ${ratio.toFixed(2)}`;
+        errors.push(`${measured}. Write this field in Korean. The minimum ratio stays ${KOREAN_RATIO_MIN}.`);
+      }
+    }
   }
   const seen = new Set<string>();
   value.days.forEach((row, index) => {

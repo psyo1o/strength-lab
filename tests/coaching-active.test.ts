@@ -338,6 +338,11 @@ describe("active coaching contracts", () => {
     expect(prompt).not.toContain("and seven days");
     const plan = planCoachedWeek({ month: month531(), weekIndex: 1 });
     expect(weeklyIntentErrors(weeklyJson(plan))).toEqual([]);
+    const thin = weeklyJson(plan);
+    thin.scheme_note = "scheme note는 한국어로";
+    const ratioError = weeklyIntentErrors(thin).join(" ");
+    expect(ratioError).toContain("scheme_note korean ratio");
+    expect(ratioError).toContain("0.7");
     expect(weeklyIntentErrors({ seven_days: plan.days })[0]).toContain('"days"');
     const day = plan.days.find((row) => row.primary_training !== "rest")!;
     const formatError = sessionCoachErrors(

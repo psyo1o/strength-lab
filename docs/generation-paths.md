@@ -123,7 +123,7 @@
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 
-`askCoach`는 검증 실패를 한 번 더 고친다. 헤드의 문장형 REVISE도 이 한 번의 재요청이다. HTTP 실패는 그 호출 안에서 다시 치지 않는다. 하루 스키마 복구는 영역당 1회다. 헤드의 `target_coach` 재생성은 `COACHING_POLICY.max_head_revisions` 2를 넘지 않는다. 편집 목록과 출력이 달라도 그 날을 다시 부르지 않는다. `COACHING_POLICY.max_head_revisions`는 2에서 올리지 않았다. `MAX_DAY_SCHEMA_RECOVERIES`도 1에서 올리지 않았다. 유사도 임계값은 4다.
+주간 의도 검증은 `why_ko`, `focus`, `scheme_note`, `adjustment_ko`에 최종 주와 같은 한국어 비율 0.7을 쓴다. 부족한 문장은 기존 주간 재시도가 본다. 비율은 그대로다. `askCoach`는 검증 실패를 한 번 더 고친다. 헤드의 문장형 REVISE도 이 한 번의 재요청이다. HTTP 실패는 그 호출 안에서 다시 치지 않는다. 하루 스키마 복구는 영역당 1회다. 헤드의 `target_coach` 재생성은 `COACHING_POLICY.max_head_revisions` 2를 넘지 않는다. 편집 목록과 출력이 달라도 그 날을 다시 부르지 않는다. `COACHING_POLICY.max_head_revisions`는 2에서 올리지 않았다. `MAX_DAY_SCHEMA_RECOVERIES`도 1에서 올리지 않았다. 유사도 임계값은 4다.
 
 ## 아직 오케스트레이터를 타지 않는 입구
 
