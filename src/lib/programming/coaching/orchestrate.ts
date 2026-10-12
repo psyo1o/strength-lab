@@ -161,8 +161,13 @@ function sessionUser(
   recentOverlap: ReturnType<typeof recentOverlapPayload> | null = null,
 ) {
   const locked = lockedSkeletonDay(input, day.day);
-  const lockedRange = locked && locked.conditioning.duration_class !== "rest" ? TIME_DOMAIN_RANGES[locked.conditioning.duration_class] : null;
-  const slot = locked ? null : (plan.conditioning_slots?.[day.day] ?? null);
+  const rawSlot = plan.conditioning_slots?.[day.day] ?? null;
+  const goalOwned = Boolean(rawSlot?.primary_keys?.length);
+  const slot = locked && !goalOwned ? null : rawSlot;
+  const lockedRange =
+    !goalOwned && locked && locked.conditioning.duration_class !== "rest"
+      ? TIME_DOMAIN_RANGES[locked.conditioning.duration_class]
+      : null;
   const writtenDays = otherTrainingDays(draft, day.day).filter((row) => !ignoreDays.includes(row.day));
   const previousStimulus = adjacentStimulus(writtenDays, day.day, -1);
   const nextStimulus = adjacentStimulus(writtenDays, day.day, 1);
@@ -240,9 +245,10 @@ function sessionUser(
     previous_training_stimulus: previousStimulus,
     next_training_stimulus: nextStimulus,
     same_week_limit: `conditioning.stimulus must be ${allowedStimuli.join(" or ") || STIMULI.join(" or ")}. previous_training_stimulus is ${previousStimulus ?? "none"}. next_training_stimulus is ${nextStimulus ?? "none"}. The server rejects a repeated neighbor stimulus. Shared features among format, time_domain, stimulus, movement_pattern, equipment, and volume score 1 each. A score of 4 or more fails the week. The threshold stays 4. The server fills equipment from the movements. time_domain follows duration_min.`,
-    duration_rule: locked
-      ? `${durationRuleText()} Locked ${locked.day}: conditioning.duration_min must be ${lockedRange?.min}-${lockedRange?.max} (${locked.conditioning.duration_class}). conditioning.volume must be at or below ${locked.volume_profile}.`
-      : durationRuleText(),
+    duration_rule:
+      locked && !goalOwned
+        ? `${durationRuleText()} Locked ${locked.day}: conditioning.duration_min must be ${lockedRange?.min}-${lockedRange?.max} (${locked.conditioning.duration_class}). conditioning.volume must be at or below ${locked.volume_profile}.`
+        : durationRuleText(),
     revision_number: revisionNumber,
     revision,
     ...(recentOverlap ? { recent_overlap: recentOverlap } : {}),
@@ -313,12 +319,14 @@ function adoptDay(input: {
   | { ok: true; draft: WeekDraft; session: SessionDraft; json: unknown; normalizations: SessionNormalization[] }
   | { ok: false; errors: string[]; json: unknown; normalizations: SessionNormalization[] } {
   const locked = lockedSkeletonDay(input.week, input.day.day);
-  const slot = locked ? null : (input.plan.conditioning_slots?.[input.day.day] ?? null);
+  const rawSlot = input.plan.conditioning_slots?.[input.day.day] ?? null;
+  const goalOwned = Boolean(rawSlot?.primary_keys?.length);
+  const slot = locked && !goalOwned ? null : rawSlot;
   const source = slot && input.stampAxes !== false ? stampSlotAxes(input.json, slot) : input.json;
   const normalized = normalizeSessionPayload(source, { inventWorkFromClock: false });
   const schemaErrors = [
     ...sessionSelfErrors(normalized.json, input.day),
-    ...(locked ? lockedSessionFieldErrors(normalized.json, locked) : []),
+    ...(locked && !goalOwned ? lockedSessionFieldErrors(normalized.json, locked) : []),
     ...(slot
       ? slotFitErrors(normalized.json, slot, input.day.strength_lift).filter((error) =>
           slot.primary_keys?.length ? true : error.includes("is banned"),
