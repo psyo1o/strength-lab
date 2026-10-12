@@ -1220,6 +1220,83 @@ export function similarityRetryText(
   return `${error}. ${values.join("; ")}. Change at least ${need} of those matched features so the score is below ${SIMILARITY_CONFIG.threshold}. ${only} ${levers.join(" ")} ${stimulusLine} Renaming a movement does not change a feature. The threshold stays ${SIMILARITY_CONFIG.threshold}.`;
 }
 
+export type OverlapSession = {
+  day: string;
+  scope: "neighbor" | "same_week" | "recent";
+  week_start: string | null;
+  format: string;
+  duration_min: number;
+  time_domain: string;
+  stimulus: string | null;
+  movement_pattern: string;
+  movements: { key: string; amount: string }[];
+  volume: string;
+  equipment: string[];
+  matched: string[];
+  score: number | null;
+};
+
+function overlapView(structure: StoredStructure, scope: OverlapSession["scope"], matched: readonly string[], score: number | null): OverlapSession {
+  return {
+    day: structure.day,
+    scope,
+    week_start: structure.source_week_start ?? null,
+    format: structure.format,
+    duration_min: structure.duration_min,
+    time_domain: structure.time_domain,
+    stimulus: structure.stimulus,
+    movement_pattern: [...structure.movement_patterns].sort().join("+"),
+    movements: structure.movements.map((row) => ({ key: row.key, amount: row.amount })),
+    volume: structure.volume,
+    equipment: [...structure.equipment],
+    matched: [...matched],
+    score,
+  };
+}
+
+/** The other day's real session when stimulus or structure overlaps. Threshold stays 4. */
+export function overlapSessionsFor(
+  draft: WeekDraft,
+  day: DayKey,
+  recent: readonly StoredStructure[] = [],
+  ignoreDays: readonly DayKey[] = [],
+): OverlapSession[] {
+  const ignored = new Set(ignoreDays.filter((key) => key !== day));
+  const fresh = draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null && !ignored.has(row.day));
+  const mine = fresh.find((row) => row.day === day);
+  if (!mine) return [];
+  const rows: OverlapSession[] = [];
+  const ordered = trainingSessions(draft, ignoreDays, day);
+  const index = ordered.findIndex((session) => session.day === day);
+  for (const neighbor of [ordered[index - 1], ordered[index + 1]]) {
+    const stimulus = neighbor?.conditioning?.stimulus;
+    if (!neighbor?.conditioning || !stimulus || stimulus !== mine.stimulus) continue;
+    const structure = toStructure(neighbor);
+    if (structure) rows.push(overlapView(structure, "neighbor", ["stimulus"], null));
+  }
+  for (const other of fresh) {
+    if (other.day === day) continue;
+    const hit = comparison(mine, other, "same_week");
+    if (!hit.similar) continue;
+    rows.push(overlapView(other, "same_week", hit.matched, hit.score));
+  }
+  for (const prior of recent) {
+    if (prior.benchmark) continue;
+    const hit = comparison(mine, prior, "recent");
+    if (!hit.similar) continue;
+    rows.push(overlapView(prior, "recent", hit.matched, hit.score));
+  }
+  return rows;
+}
+
+export function overlapRetryErrors(rows: readonly OverlapSession[]): string[] {
+  return rows.map((row) => {
+    const moves = row.movements.map((movement) => `${movement.key} ${movement.amount}`).join(", ") || "none";
+    const score = row.score == null ? "neighbor stimulus" : `score=${row.score}`;
+    return `${row.scope} ${row.day} overlaps ${score} matched=${row.matched.join(",")}. format=${row.format} duration_min=${row.duration_min} time_domain=${row.time_domain} stimulus=${row.stimulus ?? "none"} movement_pattern=${row.movement_pattern} movements=${moves} volume=${row.volume} equipment=${row.equipment.join("+") || "none"}. Write a different format, a different stimulus, and different movement keys from this session. Do not copy it. The threshold stays 4.`;
+  });
+}
+
 /**
  * Errors this day would add against the other training days and recent weeks.
  * Threshold stays SIMILARITY_CONFIG.threshold.

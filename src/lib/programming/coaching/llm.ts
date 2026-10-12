@@ -5,7 +5,7 @@ import { coachModel, type CoachAgentName } from "./models";
 import { coachSystemPrompt } from "./prompts";
 import type { TokenUsage } from "./trace";
 
-export type CoachValidation = { ok: true } | { ok: false; errors: string[] };
+export type CoachValidation = { ok: true } | { ok: false; errors: string[]; retryExtra?: Record<string, unknown> };
 
 export type CoachAttemptLog = {
   attempt: number;
@@ -203,6 +203,7 @@ export async function askCoach(input: {
   let lastRaw: unknown = null;
   let lastJson: unknown = null;
   let errors: string[] = [];
+  let retryExtra: Record<string, unknown> | null = null;
   let firstValidationErrors: string[] = [];
   const attempts: CoachAttemptLog[] = [];
   const started = Date.now();
@@ -218,16 +219,20 @@ export async function askCoach(input: {
   });
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const overlap = retryExtra?.overlap_sessions;
     const user =
       attempt === 1
         ? input.user
         : {
-            instruction: "Validation failed. Correct only the invalid fields. Do not rewrite valid fields. This is the same task, not a new question.",
+            instruction: overlap
+              ? "Validation failed. Rewrite this day so it does not copy overlap_sessions. Use a different format, a different stimulus, and different movement keys. Copying the movement amounts is not a new session. The threshold stays 4. This is the same task, not a new question."
+              : "Validation failed. Correct only the invalid fields. Do not rewrite valid fields. This is the same task, not a new question.",
             original_input: input.user,
             validation_errors: errors,
             invalid_output: lastJson,
             expected_schema: input.schemaNote ?? schemaBrief(input.agent),
             context: input.retryContext ?? { agent: input.agent, run_id: input.runId },
+            ...(retryExtra ?? {}),
           };
     let attemptResult = await postOnce({
       key: input.key,
@@ -329,6 +334,7 @@ export async function askCoach(input: {
       });
     }
     errors = verdict.errors;
+    retryExtra = verdict.retryExtra ?? null;
     remember(errors);
     attempts.push({
       attempt,

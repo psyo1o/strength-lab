@@ -122,6 +122,48 @@ describe("stage22 archive and month pairs", () => {
     expect(result.attempts[0]?.raw).not.toEqual(result.attempts[1]?.raw);
   });
 
+  it("puts the overlapping session on the retry input", async () => {
+    const seen: unknown[] = [];
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { messages?: Array<{ content?: string }> };
+      seen.push(JSON.parse(body.messages?.[1]?.content ?? "{}"));
+      return envelope(seen.length === 1 ? { day: "bad" } : { day: "ok" });
+    });
+    const overlap = {
+      day: "thu",
+      scope: "same_week",
+      format: "emom",
+      duration_min: 12,
+      time_domain: "short",
+      stimulus: "technical",
+      movement_pattern: "squat",
+      movements: [{ key: "air_squat", amount: "30" }],
+      matched: ["format", "stimulus"],
+      score: 4,
+    };
+    const result = await askCoach({
+      agent: "conditioning",
+      user: { day: "mon" },
+      key: KEY,
+      fetchImpl,
+      timeoutMs: 1000,
+      maxTokens: 100,
+      promptVersion: "conditioning-coach-v5",
+      runId: "overlap-retry",
+      validate: (json) => {
+        const day = (json as { day?: string }).day;
+        return day === "ok"
+          ? { ok: true }
+          : { ok: false, errors: ["thu overlaps"], retryExtra: { overlap_sessions: [overlap] } };
+      },
+    });
+    expect(result.ok).toBe(true);
+    const retry = seen[1] as { overlap_sessions?: Array<{ movements?: Array<{ key: string; amount: string }> }>; instruction?: string };
+    expect(retry.overlap_sessions?.[0]?.movements).toEqual([{ key: "air_squat", amount: "30" }]);
+    expect(retry.instruction).toContain("different format");
+    expect(retry.instruction).toContain("different movement keys");
+  });
+
   it("rejects deload plus 531 and does not rewrite the pair", async () => {
     const allowed: Array<["531" | "ACCUMULATION" | "INTENSITY_BLOCK" | "DELOAD_RECOVERY" | "TECHNIQUE_SKILL"]> = [
       ["531"],

@@ -119,7 +119,7 @@
 
 ## 검증과 재시도
 
-`judgeWeek`의 첫 실패 단계가 저장 사유가 될 수 있다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 유사도 임계값은 4다. 운동 이름만 바꾸는 것은 구분이 아니다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 하루를 채택하기 전에, 아직 쓰지 않은 훈련일은 빼고 이미 남은 이웃 훈련일과 `conditioning.stimulus`가 같으면 그 출력은 거절된다. 거절 문장은 이웃 자극과 남은 허용 자극을 적는다. 같은 주에서 이미 남은 날이나 최근 구조와 유사도 점수가 4 이상이면 첫 컨디셔닝 출력도 거절되고, 기존 재시도 한 번이 겹친 특징의 값, 바꿀 개수, 금지된 이웃 자극, 남은 허용 자극을 받는다. 두 번째도 4 이상이면 그 세션은 남기고 `judgeWeek`가 본다. 사유가 `too_similar`일 때만 엔진이 겹친 날을 바꾼다. 임계값과 `askCoach` 재시도 상한은 그대로다.
+`judgeWeek`의 첫 실패 단계가 저장 사유가 될 수 있다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language. 유사도 임계값은 4다. 운동 이름만 바꾸는 것은 구분이 아니다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 하루를 채택하기 전에, 아직 쓰지 않은 훈련일은 빼고 이미 남은 이웃 훈련일과 `conditioning.stimulus`가 같으면 그 출력은 거절된다. 거절 문장은 이웃 자극과 남은 허용 자극을 적는다. 같은 주에서 이미 남은 날이나 최근 구조와 유사도 점수가 4 이상이면 첫 컨디셔닝 출력도 거절되고, 기존 재시도 한 번은 겹친 이웃 날과 점수 4 이상인 날의 세션을 `overlap_sessions`로 받는다. 그 안에는 형식, 시간, 동작 key와 수량, 자극, 패턴, 겹친 판정 요소가 있다. 지시는 그 세션과 다른 형식, 자극, 동작으로 짜라는 문장이다. 동작이 하나뿐인 출력도 점수만 계산해 같은 재시도에 싣는다. 채택 최소 동작 수는 그대로다. 두 번째도 4 이상이면 그 세션은 남기고 `judgeWeek`가 본다. 사유가 `too_similar`일 때만 엔진이 겹친 날을 바꾼다. 임계값과 `askCoach` 재시도 상한은 그대로다.
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 

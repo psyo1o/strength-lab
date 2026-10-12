@@ -9,6 +9,8 @@ import { authorMonth, wodFromIntentPrompt } from "../src/lib/programming/model";
 import {
   adoptionCollisionErrors,
   judgeWeek,
+  overlapRetryErrors,
+  overlapSessionsFor,
   similarityDecisionLog,
   similarityMatch,
   similarityRetryText,
@@ -133,6 +135,13 @@ describe("oct 12 prep logs and same-week prompt", () => {
     expect(retry).toContain("The threshold stays 4.");
     expect(retry).not.toContain("Set conditioning.stimulus to a different stimulus");
     expect(retry).toContain("conditioning.stimulus must be");
+    const overlap = overlapSessionsFor(draft, "sat", []);
+    const thu = overlap.find((row) => row.day === "thu" && row.scope === "same_week");
+    expect(thu?.matched).toEqual(["format", "stimulus", "movement_pattern", "volume"]);
+    expect(thu?.movements.map((movement) => movement.key)).toEqual(thursday.movements.map((movement) => movement.key));
+    expect(thu?.format).toBe(thursday.format);
+    expect(thu?.stimulus).toBe(thursday.stimulus);
+    expect(overlapRetryErrors(thu ? [thu] : [])[0]).toContain("Write a different format, a different stimulus, and different movement keys");
     const decision = similarityDecisionLog(draft, []).find((row) => row.candidate_day === "thu" && row.compared_day === "sat");
     expect(decision).toMatchObject({
       score: 4,

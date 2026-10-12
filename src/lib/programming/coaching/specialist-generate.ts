@@ -1,6 +1,6 @@
 import type { FetchLike } from "../model";
 import type { ResponseFormat } from "./contract";
-import { askCoach, coachAttemptRecord } from "./llm";
+import { askCoach, coachAttemptRecord, type CoachValidation } from "./llm";
 import type { CoachAgentName } from "./models";
 import {
   CONDITIONING_COACH_PROMPT_VERSION,
@@ -47,7 +47,7 @@ export async function askSpecialist(input: {
   weekId: string;
   day: string;
   revisionNumber: number;
-  validate: (json: unknown) => { ok: true } | { ok: false; errors: string[] };
+  validate: (json: unknown) => CoachValidation;
   format?: ResponseFormat;
   schemaNote?: string;
 }): Promise<{ ok: boolean; json: unknown; trace: AgentTrace }> {

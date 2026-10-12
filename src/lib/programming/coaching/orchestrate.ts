@@ -1,6 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { adoptionCollisionErrors, judgeWeek, parseWeekDraft, similarityRetryText, TIME_DOMAIN_RANGES } from "../rules";
+import { adoptionCollisionErrors, judgeWeek, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, TIME_DOMAIN_RANGES } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
@@ -448,12 +448,35 @@ async function writeSession(input: {
   const areaErrors = new Map<SpecialistArea, string[]>();
   const areaInvalid = new Map<SpecialistArea, unknown>();
   let failed: { errors: string[]; retry: number; reason: string | null; json: unknown } | null = null;
-  let conditioningAttempts = 0;
+  let overlapShown = false;
+  const overlapPack = (json: unknown, draft: WeekDraft) => {
+    const scored =
+      sessionFromCoachJson({
+        json,
+        intent: input.day,
+        month: input.week.month,
+        weekIndex: input.week.weekIndex,
+        actual: input.week.previousActual,
+      }) ??
+      sessionFromCoachJson({
+        json,
+        intent: input.day,
+        month: input.week.month,
+        weekIndex: input.week.weekIndex,
+        actual: input.week.previousActual,
+        preview: true,
+      });
+    const candidate = scored
+      ? { ...draft, sessions: draft.sessions.map((row) => (row.day === input.day.day ? scored : row)) }
+      : draft;
+    const rows = overlapSessionsFor(candidate, input.day.day, input.week.recentStructures ?? [], ignoreDays);
+    if (!rows.length) return null;
+    return { errors: overlapRetryErrors(rows), retryExtra: { overlap_sessions: rows } };
+  };
   const validateArea = (area: SpecialistArea) => (json: unknown) => {
     const shape = areaShapeErrors(area, json, input.day);
     if (shape.length) return { ok: false as const, errors: shape };
     if (area !== "conditioning") return { ok: true as const };
-    conditioningAttempts += 1;
     const merged = mergeSpecialists({
       day: input.day,
       base,
@@ -464,15 +487,17 @@ async function writeSession(input: {
     const adopted = adoptDay({ week: input.week, plan: input.plan, draft: input.draft, day: input.day, json: merged.json, ignoreDays });
     normalizations.push(...adopted.normalizations);
     normalizedJson = adopted.json;
-    if (!adopted.ok) return { ok: false as const, errors: adopted.errors };
-    const similar = adoptionCollisionErrors(adopted.draft, input.day.day, input.week.recentStructures ?? [], ignoreDays).filter(
-      (error) => error.includes("structurally similar") || error.includes("matches a recent structure"),
-    );
-    if (similar.length && conditioningAttempts < 2) {
-      return {
-        ok: false as const,
-        errors: similar.map((error) => similarityRetryText(adopted.draft, input.week.recentStructures ?? [], error, input.day.day, ignoreDays)),
-      };
+    const pack = overlapPack(adopted.json, adopted.ok ? adopted.draft : input.draft);
+    if (!adopted.ok) {
+      if (pack && (adopted.errors.some((error) => error.startsWith("stimulus ")) || !overlapShown)) {
+        if (pack.retryExtra.overlap_sessions.some((row) => row.scope !== "neighbor")) overlapShown = true;
+        return { ok: false as const, errors: [...adopted.errors, ...pack.errors], retryExtra: pack.retryExtra };
+      }
+      return { ok: false as const, errors: adopted.errors };
+    }
+    if (pack && !overlapShown) {
+      overlapShown = true;
+      return { ok: false as const, errors: pack.errors, retryExtra: pack.retryExtra };
     }
     return { ok: true as const };
   };

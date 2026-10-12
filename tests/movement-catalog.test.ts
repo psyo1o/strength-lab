@@ -40,6 +40,16 @@ describe("movement catalog", () => {
     expect(checkCellEdit({ catalog_key: "dumbbell_farmers_carry", field: "amount", value: "40" }).ok).toBe(false);
     expect(checkCellEdit({ catalog_key: "dumbbell_farmers_carry", field: "amount", value: "40m" })).toEqual({ ok: true });
     expect(displayAmount(12, "cal")).toBe("12cal");
+    const missingUnits = standardMovements().filter((row) => row.units.length === 0).map((row) => row.key);
+    expect(missingUnits).toEqual([]);
+    expect(catalogMovement("fan_bike")?.units).toEqual(["cal"]);
+    expect(catalogMovement("assault_bike")?.units).toEqual(["cal"]);
+    expect(catalogMovement("echo_bike")?.units).toEqual(["cal"]);
+    expect(catalogMovement("bike")?.units).toEqual(["cal", "m"]);
+    expect(catalogMovement("bike_erg")?.units).toEqual(["cal", "m"]);
+    expect(catalogMovement("kettlebell")?.units).toEqual(["reps"]);
+    expect(catalogMovement("abs")?.units?.length).toBeGreaterThan(0);
+    expect(catalogMovement("free_accessory")?.units?.length).toBeGreaterThan(0);
     expect(linkedCatalogKey("squat").key).toBe("back_squat");
     expect(linkedCatalogKey("clean").key).toBe("squat_clean");
     expect(linkedCatalogKey("snatch").key).toBe("squat_snatch");

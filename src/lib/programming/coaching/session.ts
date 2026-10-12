@@ -171,6 +171,8 @@ export function sessionFromCoachJson(input: {
   month: MonthDirection;
   weekIndex: WeekIndex;
   actual?: WeekActual | null;
+  /** Scores a short piece for a retry hint. Adoption still requires the real minimum. */
+  preview?: boolean;
 }): SessionDraft | null {
   if (!input.json || typeof input.json !== "object") return null;
   const body = input.json as Record<string, unknown>;
@@ -192,7 +194,7 @@ export function sessionFromCoachJson(input: {
   if (volume !== "low" && volume !== "moderate" && volume !== "high") return null;
   if (intensity !== "light" && intensity !== "moderate" && intensity !== "heavy") return null;
   const aerobicMono = input.intent.primary_training === "aerobic" && input.intent.secondary_training !== "long_conditioning";
-  const minMoves = aerobicMono ? 1 : 2;
+  const minMoves = input.preview || aerobicMono ? 1 : 2;
   if (!Array.isArray(piece.movements) || piece.movements.length < minMoves || piece.movements.length > 4) return null;
   const catalog = new Map(movementCatalog().map((row) => [row.key, row.name_ko]));
   const movements = [];
