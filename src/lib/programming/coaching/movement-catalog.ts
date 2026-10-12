@@ -155,7 +155,15 @@ export function amountDecision(key: string, value: string): { ok: true; amount: 
   if (!row.units.includes(unit)) return { ok: false, reason: `${row.key} does not allow ${unit}` };
   const range = rangeFor(row.key, unit);
   if (range && (parsed.amount < range.min || parsed.amount > range.max)) {
-    return { ok: false, reason: `${row.key} ${parsed.amount} is outside ${range.min}–${range.max}` };
+    const others = row.units
+      .filter((candidate) => candidate !== unit)
+      .map((candidate) => {
+        const span = rangeFor(row.key, candidate);
+        return span ? `${candidate} ${span.min}–${span.max}` : candidate;
+      });
+    const shown = unit === "reps" ? String(parsed.amount) : `${parsed.amount}${unit}`;
+    const other = others.length ? ` Other allowed units: ${others.join(", ")}.` : "";
+    return { ok: false, reason: `${row.key} ${shown} is outside ${range.min}–${range.max} ${unit}.${other} Choose an integer inside one allowed span.` };
   }
   return { ok: true, amount: parsed.amount, unit };
 }

@@ -36,6 +36,12 @@ describe("movement catalog", () => {
     expect(checkCellEdit({ catalog_key: "front_squat", field: "amount", value: "3" })).toEqual({ ok: true });
     expect(checkCellEdit({ catalog_key: "fan_bike", field: "amount", value: "12" })).toEqual({ ok: true });
     expect(checkCellEdit({ catalog_key: "fan_bike", field: "amount", value: "9" }).ok).toBe(false);
+    const ski = checkCellEdit({ catalog_key: "ski_erg", field: "amount", value: "120m" });
+    expect(ski.ok).toBe(false);
+    if (!ski.ok) {
+      expect(ski.reason).toContain("120m is outside 200–2000 m");
+      expect(ski.reason).toContain("cal 8–20");
+    }
     expect(checkCellEdit({ catalog_key: "fan_bike", field: "amount", value: "12reps" }).ok).toBe(false);
     expect(checkCellEdit({ catalog_key: "dumbbell_farmers_carry", field: "amount", value: "40" }).ok).toBe(false);
     expect(checkCellEdit({ catalog_key: "dumbbell_farmers_carry", field: "amount", value: "40m" })).toEqual({ ok: true });
