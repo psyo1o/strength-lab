@@ -465,6 +465,12 @@ export type MonthlyCoachPlan = {
    * attached at month write does not set this.
    */
   reuse?: boolean;
+  /** monthId, profileId, input hash, schema version, prompt version. */
+  reuse_key?: string;
+  reuse_schema_version?: string;
+  reuse_prompt_version?: string;
+  direction_degraded?: boolean;
+  direction_reason?: string | null;
 };
 
 export type GenerationSource = "model" | "fallback";

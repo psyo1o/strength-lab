@@ -78,7 +78,7 @@ plan-lab의 `PROBE_PROVIDER`는 `COACH_MODEL_PROVIDER`에, `PROBE_MODEL`은 `COA
 
 휴식일은 세션 모델을 호출하지 않고 트레이스 `fallback_reason`이 `rest`다.
 
-주간 판정 호출은 `evaluateWeek` 한 곳이다. `judgeWeek`는 그 함수 안에서만 돈다. 결과는 `PASS`, `ADJUST`, `BLOCK`과 `ValidationIssue[]`다. `PASS`가 아니면 그 호출은 통과가 아니다. `too_similar`와 `language`는 `ADJUST`다. `language` 단계는 지우지 않는다. 그 외 실패는 `BLOCK`이다. 엔진, 키 없는 파이프라인, 오케스트레이터, 세션 조립, 폴백, 주 작성기, 최종 검증이 같은 함수를 쓴다.
+주간 판정 호출은 `evaluateWeek` 한 곳이다. `judgeWeek`는 그 함수 안에서만 돈다. 결과는 `PASS`, `ADJUST`, `BLOCK`과 `ValidationIssue[]`다. `PASS`가 아니면 그 호출은 통과가 아니다. `too_similar`와 `language`는 `ADJUST`다. `language` 단계는 지우지 않는다. 그 외 실패는 `BLOCK`이다. 엔진, 키 없는 파이프라인, 오케스트레이터, 세션 조립, 폴백, 주 작성기, 최종 검증이 같은 함수를 쓴다. `monthlyDirection`과 `weekSkeleton`이 같이 있으면 `validateSkeletonConformance`를 보고, 잠긴 뼈대는 `lockedSkeletonDrift`도 본다. 어긋나면 `BLOCK`이고 코드는 `skeleton.broken` 또는 `week.structure`다. 그 인자가 없으면 기존 판정과 같다. 잠긴 뼈대를 고치는 함수는 `amendLockedSkeleton`뿐이다. 실패하면 원래 잠금을 그대로 두고, 성공하면 `version`을 올리고 `previousHash`에 이전 `skeletonHash`를 남긴다.
 
 월간 코치가 스키마 검증에 실패하면 `MonthlyDirectionResult`는 `source: deterministic_fallback`, `degraded: true`다. 그 플래그는 그 주의 `finalizeWeekAdoption`으로 간다. 그 주는 모델로 채택하지 않고 `generation_source`는 fallback이며 저장하면 DB `status`는 failed다. 키가 없어 모델을 부르지 않은 경우는 `reason: no_model`이고 `degraded`가 아니다. 검증을 통과한 월간 응답은 `source: coach`, `degraded: false`다. 목표표가 파싱되지 않으면 모델 출처로 조용히 바꾸지 않고 `degraded`다.
 
@@ -144,7 +144,7 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 실패하면 `fallbackMonth`다. `coachingPipelineEnabled()`가 true일 때만 그 다음에 `withCoachingPlan`이 빈 `coaching_plan`에 `deterministicMonthlyPlan`을 붙인다. 월 코치 모델을 호출하지 않고 월 행 스탬프도 바꾸지 않는다.
 
-`coachMonthly`는 월 행을 쓰는 함수가 아니다. 문자열 키 주 생성 안의 트레이스다. 월 방향의 `coaching_plan.reuse`가 true이고 그 `goal_table`이 `goalTableErrors`를 통과하면 모델을 다시 부르지 않고 그 표를 쓴다. 그 트레이스는 `deterministic`이고 `token_usage`는 null이다. `withCoachingPlan`이 붙인 결정적 표는 `reuse`가 없어서 주 생성마다 월간 모델을 그대로 부른다. 주간 실패 뒤의 월간 재호출도 같은 기록 표를 반환한다.
+`coachMonthly`는 월 행을 쓰는 함수가 아니다. 문자열 키 주 생성 안의 트레이스다. 반환 계획에는 기본적으로 `reuse`, `reuse_key`, `reuse_schema_version`, `reuse_prompt_version`을 찍는다. 키는 `monthId`, `profileId`, 입력 해시, `monthly-direction-v1`, `monthly-coach-v4`다. 다음 호출이 같은 키와 같은 스키마·프롬프트 버전을 갖고 `goal_table`이 `goalTableErrors`를 통과하면 월간 모델을 부르지 않는다. `direction_degraded`인 기록은 그대로 두고 그 주는 채택하지 않는다. `profile_changed`, `goal_changed`, `injury_flag`, `coach_manual_regen`, `schema_version_bump`는 그 기록을 쓰지 않고 다시 부른다. `reuse_key`가 없는 옛 기록은 `reuse === true`이고 표가 유효할 때만 재사용한다. 그 트레이스는 `deterministic`이고 `token_usage`는 null이다. `withCoachingPlan`이 붙인 결정적 표는 `reuse`가 없어서 첫 월간 모델 호출을 막지 않는다. 키가 있는 주 저장은 그 계획을 `direction_json.coaching_plan`에 남긴다. 월 목표는 바꾸지 않는다.
 
 ## 종단 계획
 

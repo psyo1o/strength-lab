@@ -331,7 +331,13 @@ v2 파일: `v2/domain.ts`(타입), `v2/transition.ts`(상태 전이), `v2/issues
 | P19 | 영향 없음 | `coachWeekKeyless`는 키가 없을 때만 탄다. 지우지 않는다. 키가 없으면 `degraded`가 아니다. |
 | P20 | 영향 없음 | `replaceSimilarAfterHead`와 `callHeadSpecialistRewrite`는 꺼져 있다. 꺼진 분기 안의 판정도 `evaluateWeek`다. |
 
-## 7. 다음에 손댈 순서 제안 (참고)
+## 7. Phase 3 월간 방향과 잠긴 뼈대
+
+월간 코치는 동작·형식·수량을 정하지 않는다. 날짜별 방향은 초점, 강도 1–5, 타깃, 자극과 시간대, 목적 한 줄이다. `GOAL_TABLE_RULES`, `MonthlyDirectionResult`, `evaluateWeek`, `finalizeWeekAdoption`을 그대로 쓴다. 새 판정 경로는 없다.
+
+`reuse`가 켜진 계획은 키(`monthId`, `profileId`, 입력 해시, 스키마 버전, 프롬프트 버전)가 같을 때 월간 모델을 다시 부르지 않는다. 잠금 뒤 변경은 `amendLockedSkeleton`이 새 버전으로 남긴다. `evaluateWeek`는 방향과 뼈대가 같이 넘어올 때만 정합을 보고, 어긋나면 `BLOCK`이다. `FALLBACK_WEEK_DISPLAY` 기본값은 그대로 꺼져 있다.
+
+## 8. 다음에 손댈 순서 제안 (참고)
 1. 결정적 goal_table을 손보거나, 월간 실패를 명시적 실패로 바꾼다(P1, P2).
 2. `finalErrors`에 `finalWeekReport.hard`를 다시 연결하고, 헤드 셀 뒤에 재검증을 넣는다(P6).
 3. 채택 판정을 `decideModelAdoption` 한 곳으로 모으고, ADJUST를 채택에서 뺀다(P4, P5). 테스트 P18을 함께 갱신한다.

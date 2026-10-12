@@ -368,6 +368,11 @@ function insertGenerationLogs(
   }
 }
 
+/** 월 목표는 그대로 두고 coaching_plan만 direction_json에 남긴다. */
+export function saveMonthCoachingPlan(monthId: number, direction: MonthDirection): void {
+  getSqlite().prepare("UPDATE programming_months SET direction_json = ? WHERE id = ?").run(JSON.stringify(direction), monthId);
+}
+
 export function insertProgrammingMonth(
   input: {
     monthStart: string;

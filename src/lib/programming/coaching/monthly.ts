@@ -1,3 +1,4 @@
+import { MONTHLY_DIRECTION_SCHEMA_VERSION, type ReuseReason } from "../direction/contract";
 import type { FetchLike } from "../model";
 import type { WeekActual } from "../summary";
 import { previousLowerFatigue } from "../rules";
@@ -19,6 +20,34 @@ const COACH_DIRECTION: MonthlyDirectionResult = { source: "coach", degraded: fal
 
 function fallbackDirection(reason: string | null, degraded: boolean): MonthlyDirectionResult {
   return { source: "deterministic_fallback", degraded, reason };
+}
+
+/** 재사용 키. 스키마 버전과 프롬프트 버전이 바뀌면 같은 월이라도 다시 부른다. */
+export function monthlyReuseKey(input: { monthId: string; profileId: string; payload: unknown }): string {
+  return [input.monthId, input.profileId, inputHash(input.payload), MONTHLY_DIRECTION_SCHEMA_VERSION, MONTHLY_COACH_PROMPT_VERSION].join(":");
+}
+
+function tableReusable(plan: MonthlyCoachPlan, month: MonthDirection): boolean {
+  return Boolean(plan.goal_table) && goalTableErrors(plan.goal_table ?? null, month).length === 0;
+}
+
+function cachedDirection(plan: MonthlyCoachPlan): MonthlyDirectionResult {
+  if (plan.direction_degraded === true) return fallbackDirection(plan.direction_reason ?? "recorded_monthly_plan", true);
+  if (plan.source === "model") return COACH_DIRECTION;
+  return fallbackDirection(plan.direction_reason ?? "recorded_monthly_plan", false);
+}
+
+function stampReuse(plan: MonthlyCoachPlan, direction: MonthlyDirectionResult, key: string, enabled: boolean): MonthlyCoachPlan {
+  if (!enabled) return plan;
+  return {
+    ...plan,
+    reuse: true,
+    reuse_key: key,
+    reuse_schema_version: MONTHLY_DIRECTION_SCHEMA_VERSION,
+    reuse_prompt_version: MONTHLY_COACH_PROMPT_VERSION,
+    direction_degraded: direction.degraded,
+    direction_reason: direction.reason,
+  };
 }
 
 function emphasisText(month: MonthDirection): { gymnastics: string; olympic: string; conditioning: string } {
@@ -161,16 +190,35 @@ export async function coachMonthly(input: {
   timeoutMs: number;
   runId: string;
   weekId: string;
+  monthId?: string;
+  profileId?: string;
+  /** 이 사유면 같은 키라도 월간 코치를 다시 부른다. */
+  regen?: ReuseReason | null;
+  /** false면 반환 계획에 reuse를 찍지 않는다. 기본은 찍는다. */
+  reuse?: boolean;
 }): Promise<{ plan: MonthlyCoachPlan; trace: AgentTrace; direction: MonthlyDirectionResult }> {
   const started = Date.now();
   const deterministic = deterministicMonthlyPlan(input.month, input.actual);
   const payload = monthlyCoachPayload(input.month, input.actual);
+  const key = monthlyReuseKey({
+    monthId: input.monthId ?? "2099-07",
+    profileId: input.profileId ?? "class",
+    payload,
+  });
+  const stampOn = input.reuse !== false;
   const recorded = input.month.coaching_plan;
-  if (recorded?.reuse === true && recorded.goal_table && goalTableErrors(recorded.goal_table, input.month).length === 0) {
-    const fromModel = recorded.source === "model";
+  const keyed =
+    recorded?.reuse_key != null &&
+    recorded.reuse_key === key &&
+    recorded.reuse_schema_version === MONTHLY_DIRECTION_SCHEMA_VERSION &&
+    recorded.reuse_prompt_version === MONTHLY_COACH_PROMPT_VERSION;
+  const legacy = recorded?.reuse_key == null && recorded?.reuse === true;
+  if (input.regen == null && recorded && tableReusable(recorded, input.month) && (keyed || legacy)) {
+    const direction = cachedDirection(recorded);
+    const fromModel = recorded.source === "model" && direction.degraded !== true;
     return {
       plan: recorded,
-      direction: fromModel ? COACH_DIRECTION : fallbackDirection("recorded_monthly_plan", false),
+      direction,
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.weekId,
@@ -181,22 +229,23 @@ export async function coachMonthly(input: {
         input_summary: { method: recorded.strength_method, goal: recorded.block_goal, reuse: true },
         output: recorded,
         parsed_output: recorded,
-        validation_result: "pass",
+        validation_result: direction.degraded ? "fail" : "pass",
         validation_errors: [],
         retry_count: 0,
-        failure_reason: null,
+        failure_reason: direction.degraded ? direction.reason : null,
         deterministic: true,
         source: fromModel ? "model" : "fallback",
-        fallback_reason: fromModel ? null : "recorded_monthly_plan",
+        fallback_reason: fromModel ? null : (direction.reason ?? "recorded_monthly_plan"),
         revision_number: 0,
         token_usage: null,
       }),
     };
   }
   if (!input.key) {
+    const direction = fallbackDirection("no_model", false);
     return {
-      plan: deterministic,
-      direction: fallbackDirection("no_model", false),
+      plan: stampReuse(deterministic, direction, key, stampOn),
+      direction,
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.weekId,
@@ -239,9 +288,10 @@ export async function coachMonthly(input: {
     },
   });
   if (!asked.ok) {
+    const direction = fallbackDirection(asked.reason, true);
     return {
-      plan: deterministic,
-      direction: fallbackDirection(asked.reason, true),
+      plan: stampReuse(deterministic, direction, key, stampOn),
+      direction,
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.weekId,
@@ -268,9 +318,10 @@ export async function coachMonthly(input: {
   }
   const plan = planFromModel(asked.json, input.month);
   if (!plan) {
+    const direction = fallbackDirection("goal_table", true);
     return {
-      plan: deterministic,
-      direction: fallbackDirection("goal_table", true),
+      plan: stampReuse(deterministic, direction, key, stampOn),
+      direction,
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.weekId,
@@ -296,7 +347,7 @@ export async function coachMonthly(input: {
     };
   }
   return {
-    plan,
+    plan: stampReuse(plan, COACH_DIRECTION, key, stampOn),
     direction: COACH_DIRECTION,
     trace: finishTrace(started, {
       run_id: input.runId,

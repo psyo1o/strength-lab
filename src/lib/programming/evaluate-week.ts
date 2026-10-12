@@ -1,3 +1,4 @@
+import { lockedSkeletonDrift, validateSkeletonConformance, type MonthlyDirection, type WeekSkeleton } from "./direction";
 import { judgeWeek, type JudgeFailure, type WeekCheckContext } from "./rules";
 import type { MonthDirection, StoredStructure, WeekDraft, WeekIndex } from "./types";
 import type { IssueCode, ValidationIssue, Weekday } from "./v2/domain";
@@ -17,6 +18,11 @@ export type WeekVerdict =
   | (VerdictBase & { status: "ADJUST" | "BLOCK"; ok: false; reason: JudgeFailure; detail: string; draft?: undefined });
 
 const ADJUST_REASONS = new Set<JudgeFailure>(["too_similar", "language"]);
+
+export type EvaluateWeekContext = WeekCheckContext & {
+  monthlyDirection?: MonthlyDirection | null;
+  weekSkeleton?: WeekSkeleton | null;
+};
 
 function issueCode(reason: JudgeFailure): IssueCode {
   if (reason === "too_similar") return "similarity.over_threshold";
@@ -60,20 +66,70 @@ function issuesFor(reason: JudgeFailure, errors: readonly string[]): ValidationI
   });
 }
 
+function skeletonIssues(month: MonthDirection, context: EvaluateWeekContext): ValidationIssue[] {
+  const direction = context.monthlyDirection;
+  const skeleton = context.weekSkeleton;
+  if (!skeleton) return [];
+  const issues: ValidationIssue[] = [];
+  const drift = lockedSkeletonDrift(skeleton);
+  if (drift) {
+    issues.push(
+      makeIssue({
+        code: "skeleton.broken",
+        severity: "hard_error",
+        scope: "week",
+        message: drift,
+        expected: skeleton.lock.skeletonHash ?? "locked",
+        actual: "drift",
+      }),
+    );
+  }
+  if (!direction) return issues;
+  for (const row of validateSkeletonConformance(direction, skeleton, month)) {
+    if (row.day) {
+      issues.push(
+        makeIssue({
+          code: row.code,
+          severity: "hard_error",
+          scope: "day",
+          day: row.day,
+          message: row.message,
+          expected: row.expected,
+          actual: row.actual,
+        }),
+      );
+    } else {
+      issues.push(
+        makeIssue({
+          code: row.code,
+          severity: "hard_error",
+          scope: "week",
+          message: row.message,
+          expected: row.expected,
+          actual: row.actual,
+        }),
+      );
+    }
+  }
+  return issues;
+}
+
 /**
  * 주간 판정의 유일한 입구다. judgeWeek는 이 함수만 부른다.
  * too_similar와 language는 ADJUST다. 그 외 실패는 BLOCK이다. 둘 다 PASS가 아니다.
  * language는 하드 이슈로 남아 채택을 막는다. too_similar는 경고 이슈다.
+ * monthlyDirection과 weekSkeleton이 있으면 정합과 잠금 해시를 더 본다. 어긋나면 BLOCK이다.
  */
 export function evaluateWeek(
   raw: unknown,
   month: MonthDirection,
   weekIndex: WeekIndex,
   recent: readonly StoredStructure[],
-  context: WeekCheckContext = {},
+  context: EvaluateWeekContext = {},
 ): WeekVerdict {
   const judged = judgeWeek(raw, month, weekIndex, recent, context);
-  if (judged.ok) {
+  const extra = skeletonIssues(month, context);
+  if (judged.ok && extra.length === 0) {
     return {
       status: "PASS",
       ok: true,
@@ -85,14 +141,17 @@ export function evaluateWeek(
       draft: judged.draft,
     };
   }
-  const status: "ADJUST" | "BLOCK" = ADJUST_REASONS.has(judged.reason) ? "ADJUST" : "BLOCK";
+  const status: "ADJUST" | "BLOCK" = !judged.ok && extra.length === 0 && ADJUST_REASONS.has(judged.reason) ? "ADJUST" : "BLOCK";
+  const judgeIssues = judged.ok ? [] : issuesFor(judged.reason, judged.errors);
+  const issues = [...judgeIssues, ...extra];
+  const errors = [...(judged.ok ? [] : judged.errors), ...extra.map((issue) => issue.message)];
   return {
     status,
     ok: false,
-    reason: judged.reason,
-    issues: issuesFor(judged.reason, judged.errors),
-    detail: judged.detail,
-    errors: judged.errors,
+    reason: judged.ok ? "rule_break" : judged.reason,
+    issues,
+    detail: judged.ok ? (extra[0]?.message ?? "skeleton") : judged.detail,
+    errors,
     normalizations: judged.normalizations,
   };
 }

@@ -1,0 +1,19 @@
+{
+  "kind": "mocked",
+  "real_model": false,
+  "weeks": ["2099-07-06", "2099-07-13", "2099-07-20", "2099-07-27"],
+  "failure_injection": "monthly schema {}",
+  "reuse": {
+    "schema_version": "monthly-direction-v1",
+    "prompt_version": "monthly-coach-v4",
+    "four_week_mock_calls": 1,
+    "degraded_repeat_mock_calls": 0
+  },
+  "tally": { "adopted": 12, "fallback": 0, "failed": 12 },
+  "rows": [
+    { "profile": "531", "method": "531", "normal": "adopted", "injected": "failed" },
+    { "profile": "volume", "method": "ACCUMULATION", "normal": "adopted", "injected": "failed" },
+    { "profile": "intensity", "method": "INTENSITY_BLOCK", "normal": "adopted", "injected": "failed" }
+  ],
+  "tests": { "files": 72, "passed": 460, "tsc": true }
+}

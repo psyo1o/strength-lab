@@ -33,6 +33,7 @@ import {
   insertCoachTraces,
   insertProgrammingMonth,
   insertProgrammingWeek,
+  saveMonthCoachingPlan,
   recordFailedProgrammingWeek,
   linkProgrammingWeek,
   saveMonthlyProposal,
@@ -620,6 +621,9 @@ async function writeProgrammingWeek(
     return saved;
   }
   const coached = outcome.result;
+  if (coached.monthly_plan?.reuse === true) {
+    saveMonthCoachingPlan(month.id, { ...month.direction, coaching_plan: coached.monthly_plan });
+  }
   {
     if (coached.rejected_draft) {
       const rejectedDisplay = projectWeek(coached.rejected_draft, weekIndex, "rules", month.direction.strength_method);
