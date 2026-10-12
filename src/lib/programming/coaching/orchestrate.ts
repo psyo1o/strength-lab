@@ -2287,8 +2287,9 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     const enforced = enforceLockedSkeleton({
       skeleton: lockedLongitudinal.skeleton,
       draft,
-      rebuildDay: (day) =>
-        rebuildLockedDay({
+      rebuildDay: (day) => {
+        if (plan.conditioning_slots?.[day]?.primary_keys?.length) return null;
+        return rebuildLockedDay({
           day,
           skeleton: lockedLongitudinal.skeleton,
           month,
@@ -2297,14 +2298,22 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           actual: input.previousActual,
           recent: input.recentStructures,
           salt: built.salt + DAY_ORDER.indexOf(day),
-        }),
+        });
+      },
     });
     draft = stamp(enforced.draft, plan);
     for (const day of enforced.fittedDays) hardAdjusted.add(day);
     for (const day of enforced.regeneratedDays) daySources[day] = "fallback";
-    if (enforced.after.length > 0) {
-      finalErrors = [...new Set([...finalErrors, ...enforced.after])];
-      for (const day of enforced.unresolvedDays) failedDays.add(day);
+    const goalLockDays = new Set(DAY_ORDER.filter((day) => plan.conditioning_slots?.[day]?.primary_keys?.length));
+    const blockingAfter = enforced.after.filter((error) => {
+      const named = DAY_ORDER.find((day) => error.startsWith(`${day} `));
+      return !named || !goalLockDays.has(named);
+    });
+    if (blockingAfter.length > 0) {
+      finalErrors = [...new Set([...finalErrors, ...blockingAfter])];
+      for (const day of enforced.unresolvedDays) {
+        if (!goalLockDays.has(day)) failedDays.add(day);
+      }
       resolvedStatus = "FINALIZE_WITH_WARNING";
       resolvedReason = resolvedReason ? `${resolvedReason};skeleton_lock` : "skeleton_lock";
     }
