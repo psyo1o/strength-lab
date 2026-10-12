@@ -11,7 +11,7 @@ import {
   type WeeklyIntentPlan,
 } from "../types";
 import { movementCatalog } from "./pieces";
-import { catalogMovement, cellEditErrors, checkCellEdit, standardCatalogKeys } from "./movement-catalog";
+import { catalogMovement, catalogUnits, cellEditErrors, checkCellEdit, standardCatalogKeys } from "./movement-catalog";
 import { unitGuide } from "./stage13/units";
 import type { CoachAgentName } from "./models";
 
@@ -160,7 +160,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       enumLine("stimulus", STIMULI),
       enumLine("volume", VOLUME_BANDS),
       enumLine("intensity", INTENSITY_BANDS),
-      enumLine("unit", EDIT_UNITS),
+      "unit is only a unit that movement's catalog row allows. The response schema groups keys by those units.",
       "notes_ko is an English explanation. Display translation is later.",
     ].join("\n");
   }
@@ -255,6 +255,19 @@ const weeklyDaySchema = strictObject(
   ],
 );
 
+function movementUnitGroups(keys: readonly string[]): Array<{ keys: string[]; units: string[] }> {
+  const groups = new Map<string, { keys: string[]; units: string[] }>();
+  for (const key of keys) {
+    const listed = catalogUnits(key);
+    const units = listed && listed.length > 0 ? [...listed] : [...EDIT_UNITS];
+    const id = units.join(",");
+    const group = groups.get(id) ?? { keys: [], units };
+    group.keys.push(key);
+    groups.set(id, group);
+  }
+  return [...groups.values()].sort((left, right) => left.units.join(",").localeCompare(right.units.join(",")));
+}
+
 function conditioningMovementSchema(keys: readonly string[] = standardCatalogKeys()): Record<string, unknown> {
   const load = {
     anyOf: [
@@ -265,15 +278,19 @@ function conditioningMovementSchema(keys: readonly string[] = standardCatalogKey
       { type: "null" },
     ],
   };
-  return strictObject(
-    {
-      movement: stringEnum(keys),
-      amount: { type: "integer" },
-      unit: stringEnum(EDIT_UNITS),
-      load,
-    },
-    ["movement", "amount", "unit", "load"],
-  );
+  const branch = (group: { keys: string[]; units: string[] }) =>
+    strictObject(
+      {
+        movement: stringEnum(group.keys),
+        amount: { type: "integer" },
+        unit: stringEnum(group.units),
+        load,
+      },
+      ["movement", "amount", "unit", "load"],
+    );
+  const groups = movementUnitGroups(keys);
+  if (groups.length === 1) return branch(groups[0]!);
+  return { anyOf: groups.map(branch) };
 }
 
 /** One Korean field. The server copies only this string onto the failed day. */

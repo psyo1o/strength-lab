@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sessionCoachErrors } from "../src/lib/programming/coaching/contract";
+import { conditioningDayFormat, sessionCoachErrors } from "../src/lib/programming/coaching/contract";
 import { normalizeSessionPayload } from "../src/lib/programming/coaching/stage13/normalize";
 import type { DayIntent } from "../src/lib/programming/types";
 import {
@@ -170,6 +170,17 @@ describe("movement catalog", () => {
     expect(gym.length).toBeLessThan(138);
     expect(squat.length).toBeGreaterThan(0);
     expect(squat.length).toBeLessThan(138);
+    const format = conditioningDayFormat(["row_erg", "run", "burpee", "assault_bike"]);
+    const items = (
+      format.json_schema.schema as {
+        properties: { conditioning: { properties: { movements: { items: { anyOf: Array<{ properties: { movement: { enum: string[] }; unit: { enum: string[] } } }> } } } } };
+      }
+    ).properties.conditioning.properties.movements.items.anyOf;
+    const unitsFor = (key: string) => items.find((branch) => branch.properties.movement.enum.includes(key))?.properties.unit.enum;
+    expect(unitsFor("row_erg")).toEqual(["cal", "m"]);
+    expect(unitsFor("run")).toEqual(["m"]);
+    expect(unitsFor("assault_bike")).toEqual(["cal"]);
+    expect(unitsFor("burpee")).toEqual(["reps"]);
     expect(gym.some((row) => row.key === "toes_to_bar")).toBe(true);
     expect(gym.some((row) => row.key === "pull_up")).toBe(false);
     expect(gym.some((row) => row.key === "kipping_pull_up")).toBe(true);
