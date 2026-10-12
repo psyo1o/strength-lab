@@ -691,7 +691,7 @@ export function listRecentLiftMaps(weekStart: string): string[] {
 }
 
 export function listRecentStructures(weekStart: string): StoredStructure[] {
-  const from = addDays(weekStart, -40);
+  const from = addDays(weekStart, -28);
   const rows = getSqlite()
     .prepare(
       `SELECT w.id AS week_id, w.week_start, s.day_key, s.format, s.time_domain, s.stimulus, s.movement_patterns, s.movements, s.equipment,

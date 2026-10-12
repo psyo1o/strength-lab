@@ -11,7 +11,8 @@ import {
   type WeeklyIntentPlan,
 } from "../types";
 import { movementCatalog } from "./pieces";
-import { catalogMovement, catalogUnits, cellEditErrors, checkCellEdit, standardCatalogKeys } from "./movement-catalog";
+import { STRENGTH_GOAL_KEYS } from "./goal-table";
+import { catalogMovement, catalogUnits, cellEditErrors, checkCellEdit, rxLoadErrors, standardCatalogKeys } from "./movement-catalog";
 import { unitGuide } from "./stage13/units";
 import type { CoachAgentName } from "./models";
 
@@ -91,8 +92,10 @@ export function durationRuleText(): string {
 export function schemaBrief(agent: CoachAgentName): string {
   if (agent === "monthly") {
     return [
-      "JSON object. Do not wrap it. Do not write workouts.",
-      "Keys: block_goal, primary_adaptations, secondary_adaptations, strength_method, conditioning_emphasis, gymnastics_emphasis, olympic_emphasis, progression_strategy, volume_trend, intensity_trend, recovery_strategy, deload_strategy, benchmark_strategy, week_roles, fatigue_tolerance, variety_requirement.",
+      "JSON object. Do not wrap it. Do not write sets or amounts.",
+      "Keys: block_goal, primary_adaptations, secondary_adaptations, strength_method, conditioning_emphasis, gymnastics_emphasis, olympic_emphasis, progression_strategy, volume_trend, intensity_trend, recovery_strategy, deload_strategy, benchmark_strategy, week_roles, fatigue_tolerance, variety_requirement, goal_table.",
+      "goal_table keys: month_goal, weeks. weeks is 4 objects: week_index, goal, days. days is 7 objects: day, rest, strength_key, purpose, format, duration_min, stimulus, movement_pattern, primary_keys.",
+      "strength_key is none, back_squat, front_squat, strict_press, bench_press, or deadlift. primary_keys has 2 or 3 catalog keys on a training day and is empty on rest. The same key at most twice in a week and four times in the month. Do not reuse a primary_keys set.",
       "primary_adaptations and secondary_adaptations are arrays of strings.",
       `strength_method must repeat the month's current method. Catalog: ${IMPLEMENTED_STRENGTH_METHODS.join(" | ")}.`,
       "week_roles is an array of exactly 4 objects: week_index (1|2|3|4), role, note_ko.",
@@ -121,7 +124,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       "progression_required is a boolean, not a sentence. benchmark is a boolean.",
       enumLine("recovery_role", RECOVERY_ROLES),
       enumLine("strength_lift", STRENGTH_LIFTS),
-      "duration_profile is the class window, not the conditioning clock. Do not name movements or sets.",
+      "duration_profile is the class window, not the conditioning clock. Do not name movements or sets. Rest days, strength_lift, and long_conditioning follow week_goal.",
       "why_ko, focus, scheme_note, adjustment_ko, training_goal, and notes_ko are English explanations. Display translation is later.",
     ].join("\n");
   }
@@ -154,7 +157,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       "Do not return warmup_ko, strength_note_ko, sets, kilograms, or time_domain.",
       "conditioning keys: format, duration_min, stimulus, movements, volume, intensity, interval_work_sec, interval_rest_sec.",
       "Do not return equipment. The server fills it from the movement catalog for display.",
-      "Each movement is movement, amount, unit, and load. movement is a catalog key. amount is an integer inside that key's closed range when one is listed. unit is one of that key's allowed units. load is {male, female} or null. The server stores those cells and builds the display amount.",
+      "Each movement is movement, amount, unit, and load. movement is a catalog key. amount is an integer inside that key's closed range when one is listed. unit is one of that key's allowed units. load is {male, female}. When the catalog lists an Rx weight, both sides are required and must be one of those weights. Otherwise load may be null. Do not repeat a key. The server stores those cells and builds the display amount.",
       "The user message field movement_catalog lists the keys for this day. Choose only those keys.",
       enumLine("format", WOD_FORMATS),
       enumLine("stimulus", STIMULI),
@@ -442,6 +445,39 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           benchmark_strategy: TEXT,
           fatigue_tolerance: stringEnum(FATIGUE_TARGETS),
           variety_requirement: stringEnum(FATIGUE_TARGETS),
+          goal_table: strictObject(
+            {
+              month_goal: TEXT,
+              weeks: {
+                type: "array",
+                items: strictObject(
+                  {
+                    week_index: { type: "integer", enum: [1, 2, 3, 4] },
+                    goal: TEXT,
+                    days: {
+                      type: "array",
+                      items: strictObject(
+                        {
+                          day: stringEnum(DAY_ORDER),
+                          rest: { type: "boolean" },
+                          strength_key: stringEnum(STRENGTH_GOAL_KEYS),
+                          purpose: TEXT,
+                          format: stringEnum(["none", ...WOD_FORMATS]),
+                          duration_min: { type: "integer" },
+                          stimulus: stringEnum(["none", ...STIMULI]),
+                          movement_pattern: stringEnum(["none", "squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic"]),
+                          primary_keys: { type: "array", items: TEXT },
+                        },
+                        ["day", "rest", "strength_key", "purpose", "format", "duration_min", "stimulus", "movement_pattern", "primary_keys"],
+                      ),
+                    },
+                  },
+                  ["week_index", "goal", "days"],
+                ),
+              },
+            },
+            ["month_goal", "weeks"],
+          ),
           week_roles: {
             type: "array",
             items: strictObject(
@@ -470,6 +506,7 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           "benchmark_strategy",
           "fatigue_tolerance",
           "variety_requirement",
+          "goal_table",
           "week_roles",
         ],
       ),
@@ -867,6 +904,16 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
         const unitVerdict = checkCellEdit({ catalog_key: keyText, field: "unit", value: String(row.unit) });
         if (!unitVerdict.ok) errors.push(`${prefix}: ${unitVerdict.reason}`);
       }
+    });
+    const seenKeys = new Set<string>();
+    piece.movements.forEach((row, index) => {
+      if (!isRecord(row)) return;
+      const keyText = typeof row.key === "string" ? row.key : typeof row.movement === "string" ? row.movement : "";
+      if (!keyText) return;
+      if (seenKeys.has(keyText)) errors.push(`conditioning.movements[${index}].key: duplicate ${keyText}`);
+      seenKeys.add(keyText);
+      const load = isRecord(row.load) ? { male: typeof row.load.male === "string" ? row.load.male : null, female: typeof row.load.female === "string" ? row.load.female : null } : null;
+      errors.push(...rxLoadErrors(keyText, load).map((error) => `conditioning.movements[${index}]: ${error}`));
     });
   }
   errors.push(...intervalFieldErrors(piece));

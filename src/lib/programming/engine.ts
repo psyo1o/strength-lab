@@ -443,7 +443,7 @@ async function writeProgrammingWeek(
     weekIndex,
     previousActual: summary.previous_week?.actual ?? null,
     recentPlans: listProgrammingWeeksBefore(weekStart)
-      .slice(-3)
+      .slice(-4)
       .map((week) => weeklyIntentFrom(week.intent))
       .filter((plan): plan is NonNullable<typeof plan> => plan != null),
     recentStructures: recent,

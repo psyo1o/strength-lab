@@ -1007,7 +1007,26 @@ function listKey(values: readonly string[]): string {
   return [...values].sort().join("|");
 }
 
-/** One comparable token per configured feature. Movement names are not a feature. */
+function structureKeys(structure: StoredStructure): string[] {
+  return structure.movements.map((movement) => movement.key).filter(Boolean);
+}
+
+/**
+ * Conditioning keys overlap when they share 3 or more,
+ * or when both pieces have exactly two keys and those two match.
+ * A single shared name is not this axis. Empty lists do not match.
+ */
+export function movementKeysOverlap(left: readonly string[], right: readonly string[]): boolean {
+  const a = new Set(left.filter(Boolean));
+  const b = new Set(right.filter(Boolean));
+  if (a.size === 0 || b.size === 0) return false;
+  let shared = 0;
+  for (const key of a) if (b.has(key)) shared += 1;
+  if (a.size === 2 && b.size === 2 && shared === 2) return true;
+  return shared >= 3;
+}
+
+/** One comparable token per configured feature. movement_combo is matched by overlap, not by an empty list. */
 function featureValue(structure: StoredStructure, feature: SimilarityFeature): string {
   switch (feature) {
     case "format":
@@ -1022,6 +1041,8 @@ function featureValue(structure: StoredStructure, feature: SimilarityFeature): s
       return listKey(structure.equipment);
     case "volume":
       return structure.volume;
+    case "movement_combo":
+      return listKey(structureKeys(structure));
     case "rep_structure":
       return structure.rep_structure;
     case "work_rest_structure":
@@ -1040,7 +1061,11 @@ export function similarityMatch(left: StoredStructure, right: StoredStructure): 
   for (const feature of Object.keys(SIMILARITY_CONFIG.features) as SimilarityFeature[]) {
     const weight = SIMILARITY_CONFIG.features[feature] ?? 0;
     if (weight <= 0) continue;
-    if (featureValue(left, feature) === featureValue(right, feature)) {
+    const same =
+      feature === "movement_combo"
+        ? movementKeysOverlap(structureKeys(left), structureKeys(right))
+        : featureValue(left, feature) === featureValue(right, feature);
+    if (same) {
       score += weight;
       matched.push(feature);
     }
@@ -1150,6 +1175,9 @@ function featureChangeHint(feature: SimilarityFeature): string {
   if (feature === "movement_pattern") return "movement_pattern is derived from the movements. Change the movements so the pattern list differs.";
   if (feature === "equipment") return "equipment is filled by the server from the movements. Change to movements whose catalog equipment differs. Do not return equipment.";
   if (feature === "volume") return "Set conditioning.volume to a different volume.";
+  if (feature === "movement_combo") {
+    return "Change the conditioning movement keys. Sharing 3 or more keys overlaps, and a 2-movement piece overlaps when both keys match.";
+  }
   return "";
 }
 

@@ -126,6 +126,56 @@ export function displayAmount(amount: number, unit: CatalogUnit): string {
   return `${amount}sec`;
 }
 
+export type RxSide = { amount: number; unit: "lb" | "kg" };
+
+/** Numeric Rx weights from the catalog. "1RM %" and "-" are not a weight. */
+export function catalogRxWeights(key: string): { male: RxSide[]; female: RxSide[] } | null {
+  const row = catalogMovement(key) ?? catalogMovement(linkedCatalogKey(key).key);
+  if (!row?.rx) return null;
+  const read = (text: string | null): RxSide[] => {
+    if (!text || text.trim() === "-" || /1rm/i.test(text) && !/\d+\s*(lb|kg)/i.test(text)) return [];
+    const found: RxSide[] = [];
+    for (const match of text.matchAll(/(\d+(?:\.\d+)?)\s*(lb|kg)/gi)) {
+      found.push({ amount: Number(match[1]), unit: match[2]!.toLowerCase() as "lb" | "kg" });
+    }
+    return found;
+  };
+  const male = read(row.rx.male);
+  const female = read(row.rx.female);
+  if (!male.length && !female.length) return null;
+  return { male, female };
+}
+
+function loadMatches(text: string | null, options: readonly RxSide[]): boolean {
+  if (!text) return false;
+  return options.some((option) => new RegExp(`\\b${option.amount}\\s*${option.unit}\\b`, "i").test(text.replace(/\s+/g, " ")));
+}
+
+/** When the catalog lists an Rx weight, that side's load is required and must be one of those weights. */
+export function rxLoadErrors(key: string, load: { male?: string | null; female?: string | null } | null | undefined): string[] {
+  const weights = catalogRxWeights(key);
+  if (!weights) return [];
+  const errors: string[] = [];
+  if (weights.male.length && !loadMatches(load?.male ?? null, weights.male)) {
+    const allowed = weights.male.map((side) => `${side.amount} ${side.unit}`).join(" or ");
+    errors.push(`${key} load.male is required and must be ${allowed}`);
+  }
+  if (weights.female.length && !loadMatches(load?.female ?? null, weights.female)) {
+    const allowed = weights.female.map((side) => `${side.amount} ${side.unit}`).join(" or ");
+    errors.push(`${key} load.female is required and must be ${allowed}`);
+  }
+  return errors;
+}
+
+export function prescribedLoad(key: string): { male: string | null; female: string | null } | null {
+  const weights = catalogRxWeights(key);
+  if (!weights) return null;
+  return {
+    male: weights.male[0] ? `${weights.male[0].amount} ${weights.male[0].unit}` : null,
+    female: weights.female[0] ? `${weights.female[0].amount} ${weights.female[0].unit}` : null,
+  };
+}
+
 export function sampleAmount(key: string): string {
   const row = catalogMovement(key);
   const unit = row?.units[0] ?? "reps";

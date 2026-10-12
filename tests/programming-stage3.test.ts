@@ -130,7 +130,12 @@ describe("stage 3 fallback, similarity, and dry run", () => {
     const original = draft.sessions.find((row) => row.day === "wed" && row.conditioning);
     if (!original?.conditioning) throw new Error("wednesday missing");
     const before = toStructure(original)!;
-    const names = original.conditioning.movements.map((movement) => movement.name_ko);
+    const spare = ["double_under", "run", "ski", "fan_bike", "air_squat", "ring_row"].find(
+      (key) => !before.movements.some((movement) => movement.key === key),
+    );
+    if (!spare) throw new Error("no spare movement");
+    expect(before.movements.length).toBeGreaterThanOrEqual(2);
+    expect(structurallySimilar(before, { ...before, day: "sun", format: before.format === "amrap" ? "for_time" : "amrap" })).toBe(true);
     const formats: WodFormat[] = ["amrap", "for_time", "emom", "intervals"];
     const patterns: MovementPattern[] = ["press", "pull", "olympic", "engine", "gymnastic"];
     const gear: Equipment[] = ["rower", "ski", "bike", "jump_rope", "kettlebell", "rings"];
@@ -142,6 +147,26 @@ describe("stage 3 fallback, similarity, and dry run", () => {
           if (!current?.conditioning) throw new Error("wednesday missing");
           current.conditioning = {
             ...current.conditioning,
+            movements: current.conditioning.movements.map((movement, index, all) =>
+              index === all.length - 1
+                ? {
+                    ...movement,
+                    key: spare,
+                    name_ko:
+                      spare === "double_under"
+                        ? "더블언더"
+                        : spare === "run"
+                          ? "런"
+                          : spare === "ski"
+                            ? "스키"
+                            : spare === "fan_bike"
+                              ? "팬바이크"
+                              : spare === "air_squat"
+                                ? "에어 스쿼트"
+                                : "링 로우",
+                  }
+                : movement,
+            ),
             format,
             time_domain: "short",
             stimulus: before.stimulus,
@@ -171,7 +196,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
     expect(placed).toBe(true);
     const updated = draft.sessions.find((row) => row.day === "wed");
     if (!updated?.conditioning) throw new Error("wednesday missing after refresh");
-    expect(updated.conditioning.movements.map((movement) => movement.name_ko)).toEqual(names);
+    expect(updated.conditioning.movements.map((movement) => movement.key)).toContain(spare);
     expect(updated.metcon_purpose).toBe("같은 동작이지만 목적과 구조가 다릅니다.");
     expect(structurallySimilar(before, toStructure(updated)!)).toBe(false);
     expect(similarityViolations(draft, [before])).toEqual([]);

@@ -201,7 +201,7 @@ describe("stage 2 actuals and screen sync", () => {
     expect(packed).not.toContain(SECRET_EMAIL);
     expect(packed).not.toContain(SECRET_NOTE);
     expect(sent.agent_name).toBe("weekly_coach");
-    expect(String(sent.note)).toContain("Do not name movements");
+    expect(String(sent.note)).toContain("Do not name extra movements");
   });
 
   it("test 10 sends previous_generation_source fallback from a fallback week", async () => {

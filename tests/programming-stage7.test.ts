@@ -206,7 +206,8 @@ describe("stage 7 constraint delivery and probe isolation", () => {
     expect(report.threshold).toBe(4);
     expect(report.hits.length).toBeGreaterThan(0);
     expect(report.hits[0]?.score).toBeGreaterThanOrEqual(4);
-    expect(report.hits[0]?.matched.length).toBe(report.hits[0]?.score);
+    const hit = report.hits[0]!;
+    expect(hit.matched.reduce((sum, feature) => sum + (SIMILARITY_CONFIG.features[feature] ?? 0), 0)).toBe(hit.score);
     expect(similarityMatch(prior, { ...prior, day: "tue" }).matched).toEqual(
       expect.arrayContaining(["format", "time_domain", "stimulus", "movement_pattern", "equipment", "volume"]),
     );

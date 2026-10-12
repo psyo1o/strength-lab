@@ -109,13 +109,18 @@ export function weekPlanErrors(plan: WeeklyIntentPlan, rules: WeekRules): string
 }
 
 /** Monthly strategy checks that sit beside the field contract. No workouts. */
-export function monthlyStrategyErrors(value: unknown): string[] {
+export function monthlyStrategyErrors(
+  value: unknown,
+  month?: { scheme?: string; strength_method?: string },
+): string[] {
   if (!value || typeof value !== "object") return ["monthly plan is missing"];
   const body = value as { week_roles?: unknown };
   if (!Array.isArray(body.week_roles)) return [];
   const roles = body.week_roles.filter((row) => row && typeof row === "object") as Array<{ role?: unknown }>;
   const deloads = roles.filter((row) => row.role === "deload").length;
-  if (roles.length === 4 && deloads !== 1) {
+  const method = month?.strength_method || month?.scheme || "";
+  const recoveryMonth = method === "DELOAD_RECOVERY" || method === "deload" || month?.scheme === "deload";
+  if (roles.length === 4 && deloads !== 1 && !(recoveryMonth && deloads === 4)) {
     return [`monthly plan needs exactly one deload week role; current=${deloads}`];
   }
   return [];

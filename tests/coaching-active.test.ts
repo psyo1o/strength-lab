@@ -8,6 +8,7 @@ import { movementCatalog } from "../src/lib/programming/coaching/pieces";
 import { assertProbeWeek, coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
 import { schemaBrief, sessionCoachErrors, weeklyIntentErrors } from "../src/lib/programming/coaching/contract";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
+import { catalogMovement, prescribedLoad, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
 import { coachSystemPrompt } from "../src/lib/programming/coaching/prompts";
 import { qualityOf } from "../src/lib/programming/coaching/score";
 import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
@@ -86,8 +87,8 @@ function chat(content: unknown, status = 200) {
   );
 }
 
-function monthlyJson(month: MonthDirection) {
-  const plan = deterministicMonthlyPlan(month);
+function monthlyJson(month: MonthDirection, actual?: Script["actual"]) {
+  const plan = deterministicMonthlyPlan(month, actual);
   return {
     ...plan,
     fatigue_tolerance: "moderate",
@@ -109,9 +110,21 @@ function weeklyJson(plan: WeeklyIntentPlan) {
   };
 }
 
-function sessionJson(session: SessionDraft, mark: string) {
+function goalMovements(keys: readonly string[]) {
+  return keys.map((key) => ({
+    key,
+    movement: key,
+    amount: sampleAmount(key),
+    unit: catalogMovement(key)?.units[0] ?? "reps",
+    name_ko: movementCatalog().find((row) => row.key === key)?.name_ko ?? catalogMovement(key)?.name_ko ?? key,
+    load: prescribedLoad(key),
+  }));
+}
+
+function sessionJson(session: SessionDraft, mark: string, keys?: readonly string[]) {
   const piece = session.conditioning;
   if (!piece) return { day: session.day };
+  const movements = keys?.length ? goalMovements(keys) : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
   return {
     day: session.day,
     warmup_ko: `${mark} 준비 동작을 먼저 합니다.`,
@@ -120,7 +133,7 @@ function sessionJson(session: SessionDraft, mark: string) {
       format: piece.format,
       duration_min: piece.duration_min,
       stimulus: piece.stimulus,
-      movements: piece.movements,
+      movements,
       equipment: piece.equipment,
       volume: piece.volume,
       intensity: piece.intensity,
@@ -230,7 +243,7 @@ function fetchFor(script: Script) {
     const revision = Number(user.revision_number ?? (user.context as { revision_number?: number } | undefined)?.revision_number ?? 0);
     if (agent === "monthly_coach" || agent === "context:monthly") {
       if (script.monthly === "bad_json") return chat("not-json");
-      return chat(monthlyJson(script.month));
+      return chat(monthlyJson(script.month, script.actual));
     }
     if (agent === "weekly_coach" || agent === "context:weekly") {
       if (script.weekly === "bad_json") return chat("not-json");
@@ -264,7 +277,14 @@ function fetchFor(script: Script) {
       const session = baseSession(script, day as DayKey);
       if (!session) return chat({ day });
       const mark = revision > 0 ? `수정${revision} ${day}` : `모델 ${day}`;
-      const full = sessionJson(session, mark);
+      const slot = user.conditioning_slot as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
+      const full = sessionJson(session, mark, slot?.primary_keys);
+      if (slot?.primary_keys?.length && full.conditioning) {
+        full.conditioning.format = slot.format ?? full.conditioning.format;
+        full.conditioning.duration_min = slot.duration_min ?? full.conditioning.duration_min;
+        full.conditioning.stimulus = slot.stimulus ?? full.conditioning.stimulus;
+        full.conditioning.volume = slot.volume ?? full.conditioning.volume;
+      }
       return chat({ day, notes_ko: full.notes_ko, conditioning: full.conditioning });
     }
     if (agent === "load_coach" || agent === "context:load") {

@@ -6,7 +6,8 @@ import { resetDbConnection } from "../src/lib/db/client";
 import { DAY_ORDER, type DayKey } from "../src/lib/month-plan/types";
 import { dryRunWeek } from "../src/lib/programming/admin-tools";
 import { dayRecoveryPayload, recoveryDrift, rejectedRevisionSpecs, setTransientAreaRetryMs } from "../src/lib/programming/coaching/day-recovery";
-import { catalogUnits, rangeFor } from "../src/lib/programming/coaching/movement-catalog";
+import { catalogMovement, catalogUnits, prescribedLoad, rangeFor, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
+import { movementCatalog as pieceNames } from "../src/lib/programming/coaching/pieces";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
 import { HEAD_COACH_PROMPT_VERSION, STAGE16_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
@@ -77,28 +78,76 @@ function weeklyJson(plan: WeeklyIntentPlan) {
   };
 }
 
-function sessionJson(session: SessionDraft) {
+function slotFrom(user: Record<string, unknown> | undefined): {
+  primary_keys?: string[];
+  format?: string;
+  duration_min?: number;
+  stimulus?: string;
+  volume?: string;
+} | null {
+  if (!user) return null;
+  const read = (value: unknown) => {
+    if (!value || typeof value !== "object") return null;
+    const slot = value as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string };
+    return slot.primary_keys?.length ? slot : null;
+  };
+  return read(user.conditioning_slot) ?? read((user.original_input as { conditioning_slot?: unknown } | undefined)?.conditioning_slot);
+}
+
+function goalMovements(keys: readonly string[]) {
+  return keys.map((key) => ({
+    key,
+    movement: key,
+    amount: sampleAmount(key),
+    unit: catalogMovement(key)?.units[0] ?? "reps",
+    name_ko: pieceNames().find((row) => row.key === key)?.name_ko ?? catalogMovement(key)?.name_ko ?? key,
+    load: prescribedLoad(key),
+  }));
+}
+
+function goalMondayKeys(): string[] {
+  return deterministicMonthlyPlan(month531()).goal_table?.weeks.find((week) => week.week_index === 1)?.days.find((day) => day.day === "mon")?.primary_keys ?? [];
+}
+
+function repsCellFromKeys(keys: readonly string[]): { key: string; value: string } | null {
+  for (const key of keys) {
+    if (!key || !catalogUnits(key)?.includes("reps")) continue;
+    const range = rangeFor(key, "reps");
+    const current = Number(sampleAmount(key));
+    const candidate = range ? (current === range.min && range.max > range.min ? range.min + 1 : range.min) : current === 10 ? 11 : 10;
+    if (range && (candidate < range.min || candidate > range.max)) continue;
+    if (String(candidate) === sampleAmount(key)) continue;
+    return { key, value: String(candidate) };
+  }
+  return null;
+}
+
+function sessionJson(session: SessionDraft, user?: Record<string, unknown>) {
   const piece = session.conditioning;
   if (!piece) return { day: session.day, notes_ko: "휴식입니다.", conditioning: null };
+  const slot = slotFrom(user);
+  const movements = slot?.primary_keys?.length
+    ? goalMovements(slot.primary_keys)
+    : piece.movements.map((row) => ({ ...row, load: row.load ?? prescribedLoad(row.key) }));
   return {
     day: session.day,
     notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
     conditioning: {
-      format: piece.format,
-      duration_min: piece.duration_min,
-      stimulus: piece.stimulus,
-      movements: piece.movements.map((row) => ({ ...row })),
+      format: slot?.format ?? piece.format,
+      duration_min: slot?.duration_min ?? piece.duration_min,
+      stimulus: slot?.stimulus ?? piece.stimulus,
+      movements,
       equipment: piece.equipment,
-      volume: piece.volume,
+      volume: slot?.volume ?? piece.volume,
       intensity: piece.intensity,
-      interval_work_sec: piece.format === "intervals" ? 30 : null,
-      interval_rest_sec: piece.format === "intervals" ? 30 : null,
+      interval_work_sec: (slot?.format ?? piece.format) === "intervals" ? 30 : null,
+      interval_rest_sec: (slot?.format ?? piece.format) === "intervals" ? 30 : null,
     },
   };
 }
 
-function repsOnly(session: SessionDraft) {
-  const full = sessionJson(session);
+function repsOnly(session: SessionDraft, user?: Record<string, unknown>) {
+  const full = sessionJson(session, user);
   const conditioning = full.conditioning as { movements?: Array<{ amount?: string }> } | null;
   if (conditioning?.movements) {
     conditioning.movements = conditioning.movements.map((movement) => ({ ...movement, amount: "reps" }));
@@ -106,17 +155,18 @@ function repsOnly(session: SessionDraft) {
   return full;
 }
 
-function illegalAmount(session: SessionDraft) {
-  const full = sessionJson(session);
+function illegalAmount(session: SessionDraft, user?: Record<string, unknown>) {
+  const full = sessionJson(session, user);
   const conditioning = full.conditioning as { movements?: Array<{ key?: string; amount?: string }> } | null;
   const movements = conditioning?.movements ?? [];
-  const target = movements.find((row) => row.key === "push_up") ?? movements[0];
+  const cell = repsCellFromKeys(movements.map((row) => row.key ?? ""));
+  const target = movements.find((row) => row.key === cell?.key) ?? movements[0];
   if (target) target.amount = "10회/라운드";
   return full;
 }
 
-function driftedRecovery(session: SessionDraft) {
-  const full = sessionJson(session);
+function driftedRecovery(session: SessionDraft, user?: Record<string, unknown>) {
+  const full = sessionJson(session, user);
   full.notes_ko = "형식을 바꿉니다.";
   const conditioning = full.conditioning as {
     format?: string;
@@ -152,20 +202,7 @@ function dayOf(user: Record<string, unknown>): string {
   return original?.day_intent?.day ?? "";
 }
 
-function repsCell(session: SessionDraft | undefined): { key: string; value: string } | null {
-  for (const movement of session?.conditioning?.movements ?? []) {
-    if (!catalogUnits(movement.key)?.includes("reps")) continue;
-    const range = rangeFor(movement.key, "reps");
-    const current = Number(String(movement.amount).match(/\d+/)?.[0] ?? "");
-    const candidate = range ? (current === range.min && range.max > range.min ? range.min + 1 : range.min) : current === 10 ? 11 : 10;
-    if (range && (candidate < range.min || candidate > range.max)) continue;
-    if (String(candidate) === movement.amount) continue;
-    return { key: movement.key, value: String(candidate) };
-  }
-  return null;
-}
-
-function headBody(mode: Mode, plan: WeeklyIntentPlan, sessions: readonly SessionDraft[]) {
+function headBody(mode: Mode, plan: WeeklyIntentPlan) {
   const training = plan.days.filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest").map((day) => day.day);
   const rest = plan.days.find((day) => day.primary_training === "rest" || day.recovery_role === "rest")?.day ?? "sun";
   if (mode === "block") {
@@ -212,7 +249,7 @@ function headBody(mode: Mode, plan: WeeklyIntentPlan, sessions: readonly Session
     };
   }
   if (mode === "cell_head") {
-    const cell = repsCell(sessions.find((session) => session.day === "mon"));
+    const cell = repsCellFromKeys(goalMondayKeys());
     return {
       status: "REVISE",
       note_ko: "월요일 수량만 바꿉니다.",
@@ -309,16 +346,17 @@ function harness(mode: Mode) {
       const original = user.original_input as { revision_number?: number; day_recovery?: unknown } | undefined;
       const revision = Number(user.revision_number ?? context?.revision_number ?? original?.revision_number ?? 0);
       const recovery = user.day_recovery ?? original?.day_recovery;
-      if (mode === "recover" && day === "mon" && !recovery) return chat(repsOnly(session));
-      if (mode === "always_bad" && day === "mon") return chat(repsOnly(session));
-      if (mode === "keep_valid" && day === "mon" && revision > 0 && !recovery) return chat(repsOnly(session));
-      if ((mode === "field_fix" || mode === "field_drift" || mode === "cell_fix") && day === "mon" && !recovery) return chat(illegalAmount(session));
-      if (mode === "field_drift" && day === "mon" && recovery) return chat(driftedRecovery(session));
+      if (mode === "recover" && day === "mon" && !recovery) return chat(repsOnly(session, user));
+      if (mode === "always_bad" && day === "mon") return chat(repsOnly(session, user));
+      if (mode === "keep_valid" && day === "mon" && revision > 0 && !recovery) return chat(repsOnly(session, user));
+      if ((mode === "field_fix" || mode === "field_drift" || mode === "cell_fix") && day === "mon" && !recovery) return chat(illegalAmount(session, user));
+      if (mode === "field_drift" && day === "mon" && recovery) return chat(driftedRecovery(session, user));
       if (mode === "cell_fix" && day === "mon" && recovery) {
-        const cell = repsCell(session);
+        const keys = (sessionJson(session, user).conditioning as { movements?: Array<{ key?: string }> } | null)?.movements?.map((row) => row.key ?? "") ?? [];
+        const cell = repsCellFromKeys(keys);
         return chat({ cells: [{ catalog_key: cell?.key ?? "wall_ball", field: "amount", value: cell?.value ?? "15" }] });
       }
-      return chat(sessionJson(session));
+      return chat(sessionJson(session, user));
     }
     if (agent === "load_coach" || agent === "context:load") {
       return chat({
@@ -327,7 +365,7 @@ function harness(mode: Mode) {
           .map((row) => ({ day: row.day, action: "hold", reason_ko: "방법 표를 유지합니다.", target_effort: "moderate", relative_intensity: "same" })),
       });
     }
-    if (agent === "head_coach" || agent === "context:head") return chat(headBody(mode, plan, built.draft.sessions));
+    if (agent === "head_coach" || agent === "context:head") return chat(headBody(mode, plan));
     return chat({ status: "APPROVE", note_ko: "이번 주는 유지합니다.", revisions: [], adjustments: [] });
   };
   const input: CoachWeekInput = {
@@ -550,19 +588,18 @@ describe("day recovery orchestrator", () => {
   });
 
   it("adopts monday when recovery fixes only the named amount", async () => {
-    const { result, calls, plan } = await run("field_fix");
-    const legal = assembleLegalWeek({ month: month531(), weekIndex: 1, plan });
-    const original = legal.draft.sessions.find((session) => session.day === "mon");
+    const { result, calls } = await run("field_fix");
     const monday = result.draft.sessions.find((session) => session.day === "mon");
+    const slot = result.plan.conditioning_slots?.mon;
     const recovery = calls.find((call) => call.agent === "conditioning_coach" && call.day === "mon" && call.user.day_recovery);
     const fieldEdits = (recovery?.user.day_recovery as { field_edits?: Array<{ field?: string; current_value?: string }> } | undefined)?.field_edits ?? [];
     const amountEdit = fieldEdits.find((row) => row.current_value === "10회/라운드");
     expect(amountEdit?.field).toMatch(/conditioning\.movements\.[A-Za-z0-9_]+\.amount/);
-    expect(monday?.conditioning?.format).toBe(original?.conditioning?.format);
-    expect(monday?.conditioning?.movements?.map((row) => row.key)).toEqual(original?.conditioning?.movements?.map((row) => row.key));
-    expect(monday?.conditioning?.movements?.map((row) => row.amount)).toEqual(original?.conditioning?.movements?.map((row) => row.amount));
+    expect(monday?.conditioning?.format).toBe(slot?.format);
+    expect(monday?.conditioning?.movements?.map((row) => row.key)).toEqual(slot?.primary_keys);
+    expect(monday?.conditioning?.movements?.map((row) => row.amount)).toEqual(slot?.primary_keys?.map((key) => sampleAmount(key)));
     expect(JSON.stringify(monday?.conditioning)).not.toContain("10회/라운드");
-    expect(monday?.conditioning?.stimulus).toBe(result.plan.conditioning_slots?.mon?.stimulus ?? original?.conditioning?.stimulus);
+    expect(monday?.conditioning?.stimulus).toBe(slot?.stimulus);
     expect(result.day_sources.mon).toBe("model");
     expect(result.day_records?.mon?.revision_reason).toBe("schema recovery");
     expect(result.generation_source).toBe("model");
@@ -573,19 +610,18 @@ describe("day recovery orchestrator", () => {
   });
 
   it("writes only the named amount and does not call the conditioning coach again", async () => {
-    const { result, calls, plan } = await run("cell_head");
-    const legal = assembleLegalWeek({ month: month531(), weekIndex: 1, plan });
-    const original = legal.draft.sessions.find((session) => session.day === "mon");
+    const { result, calls } = await run("cell_head");
     const monday = result.draft.sessions.find((session) => session.day === "mon");
-    const cell = repsCell(original);
-    const diffs = (monday?.conditioning?.movements ?? []).filter((row, index) => row.amount !== original?.conditioning?.movements[index]?.amount);
+    const slot = result.plan.conditioning_slots?.mon;
+    const cell = repsCellFromKeys(slot?.primary_keys ?? goalMondayKeys());
+    const diffs = (monday?.conditioning?.movements ?? []).filter((row) => row.amount !== sampleAmount(row.key));
     expect(cell?.value).toBeTruthy();
     expect(diffs).toHaveLength(1);
     expect(diffs[0]?.key).toBe(cell?.key);
     expect(diffs[0]?.amount).toBe(cell?.value);
     expect(diffs[0]?.amount_value).toBe(Number(cell?.value));
-    expect(monday?.conditioning?.format).toBe(original?.conditioning?.format);
-    expect(monday?.conditioning?.movements.map((row) => row.key)).toEqual(original?.conditioning?.movements.map((row) => row.key));
+    expect(monday?.conditioning?.format).toBe(slot?.format);
+    expect(monday?.conditioning?.movements.map((row) => row.key)).toEqual(slot?.primary_keys);
     expect(calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon")).toHaveLength(1);
     expect(result.traces.some((trace) => trace.agent_name === "revision_compliance" && trace.day === "mon" && trace.token_usage == null)).toBe(true);
     expect(result.day_sources.mon).toBe("model");
@@ -603,16 +639,15 @@ describe("day recovery orchestrator", () => {
   });
 
   it("patches one recovery cell and leaves the format", async () => {
-    const { result, calls, plan } = await run("cell_fix");
-    const legal = assembleLegalWeek({ month: month531(), weekIndex: 1, plan });
-    const original = legal.draft.sessions.find((session) => session.day === "mon");
+    const { result, calls } = await run("cell_fix");
     const monday = result.draft.sessions.find((session) => session.day === "mon");
-    const cell = repsCell(original);
-    const diffs = (monday?.conditioning?.movements ?? []).filter((row, index) => row.amount !== original?.conditioning?.movements[index]?.amount);
+    const slot = result.plan.conditioning_slots?.mon;
+    const cell = repsCellFromKeys(slot?.primary_keys ?? []);
+    const diffs = (monday?.conditioning?.movements ?? []).filter((row) => row.amount !== sampleAmount(row.key));
     expect(diffs).toHaveLength(1);
     expect(diffs[0]?.key).toBe(cell?.key);
     expect(diffs[0]?.amount).toBe(cell?.value);
-    expect(monday?.conditioning?.format).toBe(original?.conditioning?.format);
+    expect(monday?.conditioning?.format).toBe(slot?.format);
     expect(monday?.notes_ko ?? monday?.metcon_purpose).toBeTruthy();
     expect(JSON.stringify(monday?.conditioning)).not.toContain("10회/라운드");
     expect(result.day_sources.mon).toBe("model");

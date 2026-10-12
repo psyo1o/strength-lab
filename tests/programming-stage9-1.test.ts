@@ -90,6 +90,7 @@ describe("stage 9.1 weekly structure planning", () => {
         movement_pattern: 1,
         equipment: 1,
         volume: 1,
+        movement_combo: 4,
         rep_structure: 0,
         work_rest_structure: 0,
         duration: 0,
@@ -135,6 +136,7 @@ describe("stage 9.1 weekly structure planning", () => {
       "movement_pattern",
       "equipment",
       "volume",
+      "movement_combo",
     ]);
     expect(prompt.structure_planning.share_at_most).toBe(3);
     expect(prompt.structure_planning.rejected_at).toBe(4);

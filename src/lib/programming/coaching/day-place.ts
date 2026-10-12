@@ -77,7 +77,10 @@ export function placeTrainingDays(input: {
   plan: WeeklyIntentPlan;
   skeleton: WeeklySkeleton | null;
   recent?: readonly StoredStructure[];
+  /** Monthly day goals already named the weekday. Do not move rest or the session. */
+  lockWeekdays?: boolean;
 }): DayPlacement {
+  if (input.lockWeekdays) return identity(input, [], true);
   const recent = input.recent ?? [];
   const slots = trainingSlots(input.plan, input.skeleton);
   const bundles: Bundle[] = [];

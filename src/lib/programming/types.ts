@@ -87,6 +87,38 @@ export type ConditioningSlot = {
   companions: readonly string[];
   /** The 20 minute cell. A long-conditioning day stretches this cell into the long bucket. */
   stretch: boolean;
+  /** One-line purpose from the monthly goal table. Absent on older board cells. */
+  purpose?: string;
+  /** Exact strength key for this day. Null when the day has no lift. */
+  strength_key?: string | null;
+  /** Primary conditioning keys the daily coach fills amounts for. */
+  primary_keys?: readonly string[];
+};
+
+/** One day's session goal. The monthly table sets it. Specialists fill amounts. */
+export type DaySessionGoal = {
+  day: DayKey;
+  rest: boolean;
+  strength_key: string | null;
+  purpose: string;
+  format: WodFormat | null;
+  duration_min: number | null;
+  time_domain: TimeDomain | null;
+  stimulus: Stimulus | null;
+  movement_pattern: MovementPattern | null;
+  primary_keys: string[];
+};
+
+export type WeekGoal = {
+  week_index: WeekIndex;
+  goal: string;
+  days: DaySessionGoal[];
+};
+
+/** Month goal, four week goals, and a session goal for every date. */
+export type MonthGoalTable = {
+  month_goal: string;
+  weeks: WeekGoal[];
 };
 
 export type MovementDraft = {
@@ -396,6 +428,8 @@ export type MonthlyCoachPlan = {
   week_roles: { week_index: WeekIndex; role: string; note_ko: string }[];
   fatigue_tolerance?: "low" | "moderate" | "high";
   variety_requirement?: "low" | "moderate" | "high";
+  /** Day goals for the block. Absent on rows written before the goal table. */
+  goal_table?: MonthGoalTable;
   source: "model" | "deterministic";
 };
 
@@ -439,7 +473,8 @@ export type PlanStatus = "active" | "superseded" | "failed";
  * Similarity lives here only.
  * SIMILARITY_THRESHOLD is `threshold` (4). A feature counts when its weight is above 0.
  * rep_structure, work_rest_structure, duration, and intensity stay at 0 until they should count.
- * Movement names are not features. Benchmarks are exempt in the checker, not in this map.
+ * movement_combo counts only when conditioning keys overlap (3 or more, or both keys of a 2-movement piece).
+ * An empty movement list does not match. Benchmarks are exempt in the checker, not in this map.
  */
 export const SIMILARITY_FEATURES = [
   "format",
@@ -448,6 +483,7 @@ export const SIMILARITY_FEATURES = [
   "movement_pattern",
   "equipment",
   "volume",
+  "movement_combo",
   "rep_structure",
   "work_rest_structure",
   "duration",
@@ -468,6 +504,7 @@ export const SIMILARITY_CONFIG: {
     movement_pattern: 1,
     equipment: 1,
     volume: 1,
+    movement_combo: 4,
     rep_structure: 0,
     work_rest_structure: 0,
     duration: 0,

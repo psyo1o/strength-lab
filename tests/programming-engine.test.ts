@@ -158,7 +158,7 @@ describe("long-term programming engine", () => {
     expect(packed).not.toContain(SECRET_NOTE);
     expect(packed).not.toContain('"candidate_id"');
     expect(sent.agent_name).toBe("weekly_coach");
-    expect(sent.note).toContain("Do not name movements");
+    expect(sent.note).toContain("Do not name extra movements");
     const agents = fetchImpl.mock.calls.map((call) => {
       const body = JSON.parse(String((call[1] as RequestInit).body)) as { messages?: Array<{ role: string; content: string }> };
       const user = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as { agent_name?: string };
@@ -189,7 +189,10 @@ describe("long-term programming engine", () => {
       equipment: ["rower" as const],
       volume: "high" as const,
     };
-    expect(structurallySimilar(monday, sameMovement)).toBe(false);
+    expect(structurallySimilar(monday, sameMovement)).toBe(
+      monday.movements.filter((movement) => movement.key).length >= 2 &&
+        monday.movements.every((movement) => sameMovement.movements.some((other) => other.key === movement.key)),
+    );
     const benchmark = { ...renamed, benchmark: true };
     expect(structurallySimilar(monday, benchmark)).toBe(false);
 

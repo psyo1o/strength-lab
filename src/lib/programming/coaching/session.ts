@@ -22,6 +22,7 @@ import {
 } from "../types";
 import { timeDomainFromMinutes } from "./canonical";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
+import { exactStrengthKey, strengthFamily } from "./goal-table";
 import { catalogMovement, equipmentForKeys, type CatalogLoad, type CatalogUnit } from "./movement-catalog";
 import { movementCatalog, recipePool, roleFor, type Recipe } from "./pieces";
 
@@ -150,12 +151,15 @@ function fatigueMode(actual: WeekActual | null | undefined): "high" | "low" | "u
   return "unknown";
 }
 
-function strengthFor(lift: MainLift, month: MonthDirection, weekIndex: WeekIndex, actual: WeekActual | null | undefined) {
+function strengthFor(lift: MainLift, month: MonthDirection, weekIndex: WeekIndex, actual: WeekActual | null | undefined, day?: DayKey) {
   const mode = lift === "squat" || lift === "deadlift" ? fatigueMode(actual) : "unknown";
   const sets = exampleSets(month.strength_method || month.scheme, weekIndex, mode, lift);
   if (!sets) return null;
-  const movement_key = lift === "squat" ? (weekIndex % 2 === 1 ? "back_squat" : "front_squat") : undefined;
-  return movement_key ? { lift, sets, movement_key } : { lift, sets };
+  const fromGoal = month.coaching_plan?.goal_table?.weeks
+    .find((week) => week.week_index === weekIndex)
+    ?.days.find((row) => row.day === day)?.strength_key;
+  const movement_key = fromGoal && strengthFamily(fromGoal) === lift ? fromGoal : exactStrengthKey(lift, weekIndex);
+  return { lift, sets, movement_key };
 }
 
 const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
@@ -252,7 +256,7 @@ export function sessionFromCoachJson(input: {
     mono: movements.length < 2,
   };
   const lift = longPiece || input.intent.strength_lift === "none" ? null : input.intent.strength_lift;
-  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual) : null;
+  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual, input.intent.day) : null;
   const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
   const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark);
   if (
@@ -316,7 +320,7 @@ export function buildSession(input: {
   const scaled = longPiece ? recipe : { ...recipe, minutes: input.shortClock ? Math.min(recipe.minutes, 12) : recipe.minutes };
   if (!longPiece && timeDomainFromMinutes(scaled.minutes) === "long") return null;
   const conditioning = conditioningFrom(day.day, scaled, day.benchmark);
-  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual) : null;
+  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual, day.day) : null;
   return fillSessionFields(
     {
       day: day.day,

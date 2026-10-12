@@ -19,6 +19,7 @@ import {
 import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
 import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "./conditioning-board";
+import { goalWeek, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
 import type { ConditioningSlot } from "../types";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
@@ -189,7 +190,7 @@ function sessionUser(
       ? {
           conditioning_slot: slot,
           slot_rule:
-            "Keep conditioning_slot format, duration_min, stimulus, volume, and primary_key. Write the other movements, amounts, units, and catalog Rx loads. amount is the number and unit is separate. A metcon uses 3 to 5 movements and mixes monostructural, gymnastics, and weightlifting. Do not use squat, pause_squat, pin_squat, or the day's strength lift.",
+            "Follow conditioning_slot. Use its format, duration_min, stimulus, volume, and primary_keys. Do not add or replace those keys. Fill amount, unit, and load only. If the catalog lists an Rx weight, load.male and load.female are required and must be one of those weights. Do not repeat a key. Do not use squat, pause_squat, or pin_squat.",
         }
       : {}),
     locked_day: locked
@@ -319,7 +320,9 @@ function adoptDay(input: {
     ...sessionSelfErrors(normalized.json, input.day),
     ...(locked ? lockedSessionFieldErrors(normalized.json, locked) : []),
     ...(slot
-      ? slotFitErrors(normalized.json, slot, input.day.strength_lift).filter((error) => error.includes("is banned"))
+      ? slotFitErrors(normalized.json, slot, input.day.strength_lift).filter((error) =>
+          slot.primary_keys?.length ? true : error.includes("is banned"),
+        )
       : []),
   ];
   if (schemaErrors.length) return { ok: false, errors: schemaErrors, json: normalized.json, normalizations: normalized.normalizations };
@@ -967,6 +970,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const monthly = await coachMonthly({
     month: input.month,
     actual: input.previousActual,
+    weekIndex: input.weekIndex,
+    recentStructures: input.recentStructures,
     key,
     fetchImpl: input.fetchImpl,
     timeoutMs,
@@ -1057,7 +1062,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       const parsed = parseWeeklyIntent(json, deterministic);
       if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
       const ruleErrors = weekPlanErrors(parsed, rules);
-      if (ruleErrors.length) return { ok: false, errors: ruleErrors };
+      const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
+      const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
+      const planErrors = [...ruleErrors, ...alignErrors];
+      if (planErrors.length) return { ok: false, errors: planErrors };
       return { ok: true };
     },
   });
@@ -1133,6 +1141,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     const again = await coachMonthly({
       month: input.month,
       actual: input.previousActual,
+      weekIndex: input.weekIndex,
+      recentStructures: input.recentStructures,
       key,
       fetchImpl: input.fetchImpl,
       timeoutMs,
@@ -1185,7 +1195,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         const parsed = parseWeeklyIntent(json, deterministic);
         if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
         const ruleErrors = weekPlanErrors(parsed, rules);
-        if (ruleErrors.length) return { ok: false, errors: ruleErrors };
+        const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
+        const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
+        const planErrors = [...ruleErrors, ...alignErrors];
+        if (planErrors.length) return { ok: false, errors: planErrors };
         return { ok: true };
       },
     });
@@ -1322,12 +1335,14 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let draft = stamp(built.draft, plan);
   plan = {
     ...plan,
-    conditioning_slots: placeConditioningSlots({
-      weekIndex: input.weekIndex,
-      days: plan.days,
-      recent: input.recentStructures ?? [],
-      lockedDays: plan.days.filter((day) => lockedSkeletonDay(week, day.day)).map((day) => day.day),
-    }),
+    conditioning_slots: goalWeek(month.coaching_plan?.goal_table, input.weekIndex)
+      ? slotsFromWeekGoal(goalWeek(month.coaching_plan?.goal_table, input.weekIndex)!)
+      : placeConditioningSlots({
+          weekIndex: input.weekIndex,
+          days: plan.days,
+          recent: input.recentStructures ?? [],
+          lockedDays: plan.days.filter((day) => lockedSkeletonDay(week, day.day)).map((day) => day.day),
+        }),
   };
   const queue = trainingDays(plan);
   for (let index = 0; index < queue.length; index += 1) {
@@ -1498,6 +1513,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     plan,
     skeleton: input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal.skeleton : null,
     recent: input.recentStructures ?? [],
+    lockWeekdays: Boolean(goalWeek(month.coaching_plan?.goal_table, input.weekIndex)),
   });
   const sourceSnap = { ...daySources };
   const normalizedSnap = new Set(normalizedDays);

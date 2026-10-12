@@ -237,6 +237,7 @@ async function databasePass(pass: string) {
   }
   const scenarios = probeScenarios();
   const weeks: unknown[] = [];
+  let tokenStop: { cap: number; spent: number; after: string } | null = null;
   for (let index = 0; index < scenarios.length; index += 1) {
     const scenario = scenarios[index]!;
     const previousWeek = index === 0 ? predecessor : SCENARIOS[index - 1]!.weekStart;
@@ -277,6 +278,10 @@ async function databasePass(pass: string) {
     const lock = saved.intent.plan?.skeleton_lock;
     const records = saved.intent.plan?.day_records ?? {};
     const sources = Object.values(records).map((row) => row?.final_source ?? "missing");
+    const spent =
+      weeks.reduce<number>((sum, row) => sum + (typeof (row as { tokens?: number | null }).tokens === "number" ? (row as { tokens: number }).tokens : 0), 0) +
+      (tokens ?? 0);
+    const cap = Number(process.env.PROBE_TOKEN_CAP ?? "");
     weeks.push({
       id: scenario.id,
       week: saved.weekStart,
@@ -317,9 +322,14 @@ async function databasePass(pass: string) {
         record: !previousActual ? "missing" : previousActual.class_summary ? "summary" : "no_record",
       },
     });
-    console.error(`pass ${pass} ${scenario.id} done before=${(lock?.before ?? []).length} after=${(lock?.after ?? []).length} calls=${modelCalls}`);
+    console.error(`pass ${pass} ${scenario.id} done before=${(lock?.before ?? []).length} after=${(lock?.after ?? []).length} calls=${modelCalls} tokens=${spent}`);
+    if (cap > 0 && spent > cap) {
+      tokenStop = { cap, spent, after: scenario.id };
+      console.error(`token cap ${cap} reached at ${spent} after ${scenario.id}`);
+      break;
+    }
   }
-  return { pass, weeks };
+  return { pass, weeks, token_stop: tokenStop };
 }
 
 function classifySessionLogs(rawLogs: string[]) {

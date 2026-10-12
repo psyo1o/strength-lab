@@ -61,7 +61,7 @@ plan-lab의 `PROBE_PROVIDER`는 `COACH_MODEL_PROVIDER`에, `PROBE_MODEL`은 `COA
 
 오케스트레이터가 `{ kind: "no-model" }`을 돌려준 뒤의 초안은 이전과 같다. `authorWeeklyIntent` 다음 `authorWeek`이고, 둘 다 `key: null`이라 모델을 호출하지 않는다. `authored.reason`은 `no_model`이다. 저장 스탬프는 `weekly-program-v10` (`WEEKLY_PROMPT_VERSION`)이다. 이 스탬프는 `weekPrompt`가 돌았다는 뜻이 아니다.
 
-`realizeWeekFromIntent`가 `judgeWeek`를 통과하면 그 초안을 저장할 수 있다. `no_model`이면 그 분기를 타지 않고 `buildFallbackWeek`다. `generation_source`는 `fallback`, `fallback_reason`은 `no_model`이다.
+`realizeWeekFromIntent`가 `judgeWeek`를 통과하면 그 초안을 저장할 수 있다. `no_model`이면 그 분기를 타지 않고 `buildFallbackWeek`다. `generation_source`는 `fallback`, `fallback_reason`은 `no_model`이다. 카탈로그가 주를 못 채우면 `assignGuaranteedConditioning`이 합성 조합을 고른다. 같은 키 조합은 한 번이고, 한 목록 안의 초안은 서로 유사도 4 미만이다.
 
 이 분기를 `coachWeekKeyless`로 보내지 않는 이유: 키가 없으면 모델을 부르면 안 되고, 화면의 클래스 블록은 `warmup`, `main`, `metcon`인 결정적 초안이다. `coachWeekKeyless`는 스탬프가 `coaching-pipeline-v2`라 그 계약을 바꾼다. 키 없음은 오케스트레이터가 `no-model`로 고른 뒤 기존 초안을 쓴다. `COACHING_PIPELINE`이 `"1"`이어도 이 분기는 같다.
 
@@ -73,7 +73,7 @@ plan-lab의 `PROBE_PROVIDER`는 `COACH_MODEL_PROVIDER`에, `PROBE_MODEL`은 `COA
 
 `persistWeekDocument`는 테스트 fetch를 다시 부르지 않는다. 합성 fetch가 그 주 JSON을 200으로 돌려주고, `planWeeklyIntent` 다음 `authorWeek`가 `judgeWeek`로 채택한다. 성공 스탬프는 `wod-from-intent-v1`이다. 유사도 실패의 저장 사유는 `too_similar`이고 시도 번호는 2다. 이것은 두 번째 생성 알고리즘이 아니다. 한 번에 주 JSON을 돌려주던 기존 작성기의 판정을 유지하는 입구다. 전문 코치가 만든 주에는 `wod-from-intent-v1`을 찍지 않는다.
 
-그 외 문자열 키의 순서: `coachMonthly` (`monthly-coach-v2`), 잠긴 스켈레톤이 없으면 주간 코치 `weekly-coach-v2`, 훈련일마다 전문 코치 셋, 스키마 실패인 영역만 하루 복구 1회, 부하 `load-coach-v2`, 피로·변이 엔진, 전문 코치 검토(stage13, 생성기가 아님), 헤드 `head-coach-v8`, `runAdjustmentPass`, REVISE는 칸 편집 목록이고 문장만 있으면 스키마 오류로 헤드를 한 번 더 묻는다, 칸 수정은 서버가 그 칸만 쓰고 전문 코치를 다시 부르지 않는다, 예전 `action` 목록을 받은 날만 그 코치가 다시 쓰고 `compareEditList`가 목록과 실제 변경을 한 번 비교해 맞는 출력만 그 날을 바꾼다, `finalWeekReport`. 하드 오류가 남으면 헤드의 APPROVE와 APPROVE_WITH_NOTE는 채택되지 않는다. 장비 누락과 장비 보유는 그 하드 오류에 넣지 않는다.
+그 외 문자열 키의 순서: `coachMonthly` (`monthly-coach-v3`), 잠긴 스켈레톤이 없으면 주간 코치 `weekly-coach-v3`, 훈련일마다 전문 코치 셋, 스키마 실패인 영역만 하루 복구 1회, 부하 `load-coach-v2`, 피로·변이 엔진, 전문 코치 검토(stage13, 생성기가 아님), 헤드 `head-coach-v8`, `runAdjustmentPass`, REVISE는 칸 편집 목록이고 문장만 있으면 스키마 오류로 헤드를 한 번 더 묻는다, 칸 수정은 서버가 그 칸만 쓰고 전문 코치를 다시 부르지 않는다, 예전 `action` 목록을 받은 날만 그 코치가 다시 쓰고 `compareEditList`가 목록과 실제 변경을 한 번 비교해 맞는 출력만 그 날을 바꾼다, `finalWeekReport`. 하드 오류가 남으면 헤드의 APPROVE와 APPROVE_WITH_NOTE는 채택되지 않는다. 장비 누락과 장비 보유는 그 하드 오류에 넣지 않는다.
 
 휴식일은 세션 모델을 호출하지 않고 트레이스 `fallback_reason`이 `rest`다.
 
@@ -139,11 +139,11 @@ plan-lab의 `PROBE_PROVIDER`는 `COACH_MODEL_PROVIDER`에, `PROBE_MODEL`은 `COA
 
 설명은 영어다. 생성, 검증, 헤드 어디에서도 한국어 비율 0.7이나 `language`로 거절하거나 BLOCK하지 않는다. `*_ko` 칸은 나중에 번역할 자리다.
 
-월간 컨디셔닝 설계표는 `monthConditioningBoard`가 4주 × 6칸으로 코드에서 짠다. 월 코치 스키마에는 칸을 넣지 않는다. 주 생성에서 `placeConditioningSlots`가 그 주의 칸을 훈련일에 둔다. 먼저 요일을 바꾸고, 그래도 이웃 날이나 지난주 같은 요일이 4축 이상 겹치면 다른 주의 칸과 바꾼다. 맞는 배치가 없어도 그 주로 fallback하지 않는다. 잠긴 뼈대 날은 칸을 덮지 않는다. 일간 코치는 `conditioning_slot`을 받아 동작과 수량과 부하를 쓴다. 서버는 첫 작성에서 format, duration_min, stimulus, volume을 칸에 맞춘다. 최근 주 재작성은 그 축을 다시 덮지 않고 패턴만 칸에 맞춘다. 저장된 amount가 숫자이고 unit이 `cal`, `m`, `sec`이면 수량 검사는 그 단위로 읽는다. 숫자만 보고 `reps`로 보지 않는다. 컨디셔닝 동작 스키마는 키를 카탈로그 허용 단위별로 묶는다. `row_erg`에 `reps`를 고를 수 없다. 메트콘 칸의 프롬프트는 동작 3–5개와 모노구조·체조·웨이트리프팅 혼합을 요구한다. 서버가 그 날을 거절하는 것은 `squat`, `pause_squat`, `pin_squat`와 그날 스트렝스 리프트 계열이다. 모델 입력 목록과 스키마 enum은 `modelSelectable`이 참인 키만 둔다. `proposed_key`가 다른 카탈로그 키로 이어지면 그 키는 별칭이고, 화면은 저장된 기록을 읽을 때 새 키로 옮긴다. `abs`와 `kettlebell`은 저장 키 그대로 표시하고 모델 목록과 스키마 enum에서는 뺀다. 복근은 `toes_to_bar`, `glute_ham_developer_sit_up`, `abmat_sit_up`, `v_up` 중에서 고른다. `free_accessory`는 수행자가 고르는 보조 운동으로 목록에 남긴다. 나눈 키 목록은 `docs/catalog-key-split.md`에 있다. 스트렝스 스쿼트는 방법 리프트 `squat`를 유지하고 `movement_key`만 홀수 주 `back_squat`, 짝수 주 `front_squat`다. amount에 `15m`, `40cal`, `400m`처럼 단위가 붙으면 저장 amount는 숫자이고 unit에 단위를 둔다. 화면은 단위를 다시 붙인다. `warmup_ko`는 영어로 두고, `display_term` 치환만으로는 `MODEL_REVISED`가 되지 않는다. format에 `chipper`를 더했다. 동작 수 상한은 5다. 강도 기본값은 `SESSION_INTENSITY_LEVEL` 3이다. 프롬프트 버전은 올리지 않았다.
+월간 코치 한 호출(`monthly-coach-v3`)이 월 목표, 주별 목표, 날짜별 목표 세션을 `goal_table`로 낸다. 날짜 목표는 스트렝스 리프트의 정확한 키, 컨디셔닝 format·duration_min·stimulus·movement_pattern, 주 동작 2–3개, 목적 한 줄이다. 휴식일은 그 표의 요일이다. 디로드 주는 상체 리프트를 표에 적지 않는다. 주간 계획도 디로드 주의 상체 리프트를 비운다. 회복 달(`DELOAD_RECOVERY` 또는 deload)은 네 주 역할이 모두 deload여도 된다. 일반 블록은 deload 역할이 한 주다. 코드는 표에서 같은 주 동작이 주에 2회, 월에 4회를 넘는지와 키 조합 재사용을 검사한다. 어기면 `askCoach`가 월간 표만 한 번 더 묻는다. 그래도 실패하면 결정적 표로 떨어지고 그 호출은 성공이 아니다. 주간 코치(`weekly-coach-v3`)는 그 주 목표를 입력으로 받아 휴식일, 스트렝스 키, 긴 날을 옮기지 않고 세부만 정한다. 어긋나면 주간 의도도 거절되고, 대체 계획은 표의 요일을 따른다. 2099-07-20 주간 의도 schema는 JSON 모양이 아니라 `weekPlanErrors`였다. 긴 컨디셔닝 주가 아닌데 long day를 두고, 피로로 하체 상한이 1인데 하체를 2개 뒀다. 두 번째도 하체 상한에서 막혀 대체 계획이 휴식일을 금요일로 옮겼다. 이제 그 상한은 월간 표 검사에 있고, 대체 계획은 표의 휴식일을 유지한다. 일간 컨디셔닝 코치는 그날 `primary_keys`의 수량과 부하만 채운다. 같은 키를 한 세션에 두 번 두지 않는다. 카탈로그 Rx에 lb 또는 kg 숫자가 있으면 load.male과 load.female이 필수이고 그 숫자 중 하나여야 한다. `1RM %`와 `-`는 무게가 아니다. `placeConditioningSlots`는 목표 표가 없을 때만 훈련일에 칸을 둔다. 목표 표가 있으면 `slotsFromWeekGoal`이 요일을 고정하고 `placeTrainingDays`는 요일을 바꾸지 않는다. 예전 설계표 `monthConditioningBoard`는 그 대체 배치에 남아 있다. 주 생성에서 `placeConditioningSlots`가 목표 표가 없는 주의 칸을 훈련일에 둔다. 먼저 요일을 바꾸고, 그래도 이웃 날이나 지난주 같은 요일이 4축 이상 겹치면 다른 주의 칸과 바꾼다. 맞는 배치가 없어도 그 주로 fallback하지 않는다. 잠긴 뼈대 날은 칸을 덮지 않는다. 일간 코치는 `conditioning_slot`을 받아 동작과 수량과 부하를 쓴다. 서버는 첫 작성에서 format, duration_min, stimulus, volume을 칸에 맞춘다. 최근 주 재작성은 그 축을 다시 덮지 않고 패턴만 칸에 맞춘다. 저장된 amount가 숫자이고 unit이 `cal`, `m`, `sec`이면 수량 검사는 그 단위로 읽는다. 숫자만 보고 `reps`로 보지 않는다. 컨디셔닝 동작 스키마는 키를 카탈로그 허용 단위별로 묶는다. `row_erg`에 `reps`를 고를 수 없다. 메트콘 칸의 프롬프트는 동작 3–5개와 모노구조·체조·웨이트리프팅 혼합을 요구한다. 서버가 그 날을 거절하는 것은 `squat`, `pause_squat`, `pin_squat`와 그날 스트렝스 리프트 계열이다. 모델 입력 목록과 스키마 enum은 `modelSelectable`이 참인 키만 둔다. `proposed_key`가 다른 카탈로그 키로 이어지면 그 키는 별칭이고, 화면은 저장된 기록을 읽을 때 새 키로 옮긴다. `abs`와 `kettlebell`은 저장 키 그대로 표시하고 모델 목록과 스키마 enum에서는 뺀다. 복근은 `toes_to_bar`, `glute_ham_developer_sit_up`, `abmat_sit_up`, `v_up` 중에서 고른다. `free_accessory`는 수행자가 고르는 보조 운동으로 목록에 남긴다. 나눈 키 목록은 `docs/catalog-key-split.md`에 있다. 스트렝스 저장 키와 화면 이름은 `movement_key`다. 스쿼트는 `back_squat` 또는 `front_squat`, 프레스는 `strict_press`, 벤치는 `bench_press`, 데드리프트는 `deadlift`다. 방법 계산용 `lift`는 그 계열로 남는다. 목표 표가 없으면 홀수 주 `back_squat`, 짝수 주 `front_squat`다. amount에 `15m`, `40cal`, `400m`처럼 단위가 붙으면 저장 amount는 숫자이고 unit에 단위를 둔다. 화면은 단위를 다시 붙인다. `warmup_ko`는 영어로 두고, `display_term` 치환만으로는 `MODEL_REVISED`가 되지 않는다. format에 `chipper`를 더했다. 동작 수 상한은 5다. 강도 기본값은 `SESSION_INTENSITY_LEVEL` 3이다. 프롬프트 버전은 올리지 않았다.
 
 첫 작성은 이웃 자극과 유사도로 그 날을 다시 짜지 않는다. 훈련일을 다 쓴 뒤 `placeTrainingDays`가 요일만 바꾼다. 잠긴 뼈대가 있으면 훈련일 안에서만 바꾸고, 뼈대도 세션과 함께 옮긴다. 교환은 이웃 자극, 연속 유사도(임계값 4), 스쿼트 다음 날 헤비 풀 같은 간격을 먼저 보고, 그다음 같은 주와 최근 주의 `similarityViolations`를 본다. 교환 뒤에도 최근 주와 점수 4 이상인 날은 `recentOverlapPayload`로 그 날만 한 번 다시 쓴다. 입력에는 겹친 최근 세션의 format, duration_min, time_domain, stimulus, movement_pattern, 동작 key와 수량, 그리고 `matched` 축이 들어간다. 지시는 그 축 중 최소 하나를 바꾸라는 문장이다. `revisionNumber`는 1이라 스키마 복구를 다시 타지 않는다. 그래도 겹치면 `recent_overlap_after_rewrite`로 헤드 입력에만 남고 fallback하지 않는다.
 
-`judgeWeek`와 유사도는 헤드 전에 한 번 돌아 그 결과가 헤드 입력이다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language다. language 단계는 비어 있다. 유사도 임계값은 4다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이다. 최근 주 유사도도 그 입력이다. 헤드 뒤에 `judgeWeek`를 다시 돌려도 `post_head_judge` 진단일 뿐이고 채택을 거절하지 않는다. 저장 함수는 최근 주 유사도로 fallback하지 않는다.
+`judgeWeek`와 유사도는 헤드 전에 한 번 돌아 그 결과가 헤드 입력이다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language다. language 단계는 비어 있다. 유사도 임계값은 4다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이고, 동작 조합이 겹치면 `movement_combo`가 4를 더한다. 컨디셔닝 키가 3개 이상 같거나, 두 동작 세션의 키가 둘 다 같으면 겹친다. 키가 없는 칸은 이 축에서 맞지 않는다. 최근 구조는 4주(`week_start` 28일)까지 비교한다. 최근 주 유사도도 그 입력이다. 헤드 뒤에 `judgeWeek`를 다시 돌려도 `post_head_judge` 진단일 뿐이고 채택을 거절하지 않는다. 저장 함수는 최근 주 유사도로 fallback하지 않는다.
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 
@@ -151,7 +151,7 @@ plan-lab의 `PROBE_PROVIDER`는 `COACH_MODEL_PROVIDER`에, `PROBE_MODEL`은 `COA
 
 ## 아직 오케스트레이터를 타지 않는 입구
 
-`dry-run-week` (`admin-tools.ts` `dryRunWeek`)는 `authorWeek`를 직접 부른다. DB에 쓰지 않는다. HTTP 500이면 호출은 2번이고 스탬프는 `weekly-program-v10`이다. 이 계약은 유지한다. 월 행 작성기는 `authorMonth`다. `simulateFourWeeks`는 키 없는 `coachWeek`를 점수 계산에만 쓴다. 저장하는 주 생성은 `writeProgrammingWeek` → `runCoachingOrchestrator`다.
+`dry-run-week` (`admin-tools.ts` `dryRunWeek`)는 `authorWeek`를 직접 부른다. DB에 쓰지 않는다. HTTP 500이면 호출은 2번이고 스탬프는 `weekly-program-v10`이다. 이 계약은 유지한다. 월 행 작성기는 `authorMonth`다. `simulateFourWeeks`는 키 없는 `coachWeek`를 점수 계산에만 쓴다. 그 레시피 풀은 두 동작 이상을 단일 동작보다 먼저 고르고, 보통 날은 중간 시간이 최근 주와 겹치면 10분 또는 12분도 쓴다. 저장하는 주 생성은 `writeProgrammingWeek` → `runCoachingOrchestrator`다.
 
 ## 계측
 
@@ -165,11 +165,11 @@ plan-lab은 코치 트레이스 중 `deterministic === false`이고 `source === 
 | 주간, 키 없음 | `programming_weeks` | `weekly-program-v10` |
 | 주간, 키 문자열, 코칭 | `programming_weeks` | `coaching-pipeline-v6` |
 | 주간, 주 JSON을 월 응답으로 받은 경우 | `programming_weeks` | `wod-from-intent-v1` |
-| 주간 코치 트레이스 | 코치 로그 | `weekly-coach-v2` |
+| 주간 코치 트레이스 | 코치 로그 | `weekly-coach-v3` |
 | 일 집계 트레이스 | 코치 로그 | `session-coach-v4` |
 | 스트렝스 코치 | 코치 로그 | `strength-coach-v2` |
 | 컨디셔닝 코치 | 코치 로그 | `conditioning-coach-v5` |
 | 워밍업 코치 | 코치 로그 | `warmup-coach-v2` |
 | 헤드 코치 | 코치 로그 | `head-coach-v8` |
-| 월 코치 트레이스 | 코치 로그 | `monthly-coach-v2` |
+| 월 코치 트레이스 | 코치 로그 | `monthly-coach-v3` |
 | 스켈레톤 | 종단 계획 객체 | `skeleton-v1` |

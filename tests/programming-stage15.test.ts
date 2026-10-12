@@ -7,6 +7,8 @@ import type { WeekIndex } from "../src/lib/month-plan/types";
 import { coachWeek } from "../src/lib/programming/coaching/pipeline";
 import { schemaBrief } from "../src/lib/programming/coaching/contract";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
+import { catalogMovement, prescribedLoad, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
+import { movementCatalog } from "../src/lib/programming/coaching/pieces";
 import { coachSystemPrompt } from "../src/lib/programming/coaching/prompts";
 import { setsForAction } from "../src/lib/programming/coaching/load";
 import { analyzeWeekInteraction } from "../src/lib/programming/coaching/stage13/analyzers";
@@ -317,20 +319,35 @@ describe("stage15 router execution", () => {
         const session = built.draft.sessions.find((row) => row.day === day);
         if (agent === "strength_coach") return chat({ day, strength_note_ko: "이 날의 스트렝스 목적을 유지합니다." });
         if (agent === "warmup_coach") return chat({ day, warmup_ko: "준비 동작을 먼저 합니다." });
+        const slot = (user.conditioning_slot ??
+          (user.original_input as { conditioning_slot?: { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } } | undefined)
+            ?.conditioning_slot) as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
+        const keys = slot?.primary_keys;
+        const movements = keys?.length
+          ? keys.map((key) => ({
+              key,
+              movement: key,
+              amount: sampleAmount(key),
+              unit: catalogMovement(key)?.units[0] ?? "reps",
+              name_ko: movementCatalog().find((row) => row.key === key)?.name_ko ?? catalogMovement(key)?.name_ko ?? key,
+              load: prescribedLoad(key),
+            }))
+          : (session?.conditioning?.movements ?? []).map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
+        const format = slot?.format ?? session?.conditioning?.format ?? "amrap";
         return chat({
           day,
           notes_ko: "이 날의 목적을 유지합니다.",
           conditioning: session?.conditioning
             ? {
-                format: session.conditioning.format,
-                duration_min: session.conditioning.duration_min,
-                stimulus: session.conditioning.stimulus,
-                movements: session.conditioning.movements,
+                format,
+                duration_min: slot?.duration_min ?? session.conditioning.duration_min,
+                stimulus: slot?.stimulus ?? session.conditioning.stimulus,
+                movements,
                 equipment: session.conditioning.equipment,
-                volume: session.conditioning.volume,
+                volume: slot?.volume ?? session.conditioning.volume,
                 intensity: session.conditioning.intensity,
-                interval_work_sec: session.conditioning.format === "intervals" ? 30 : null,
-                interval_rest_sec: session.conditioning.format === "intervals" ? 30 : null,
+                interval_work_sec: format === "intervals" ? 30 : null,
+                interval_rest_sec: format === "intervals" ? 30 : null,
               }
             : { format: "amrap", duration_min: 12, stimulus: "high_rep", movements: [], equipment: ["bodyweight"], volume: "moderate", intensity: "moderate", interval_work_sec: null, interval_rest_sec: null },
         });

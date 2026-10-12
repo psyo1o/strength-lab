@@ -7,6 +7,7 @@ import type { DayKey } from "../src/lib/month-plan/types";
 import { editItemErrors } from "../src/lib/programming/coaching/contract";
 import { MAX_DAY_SCHEMA_RECOVERIES } from "../src/lib/programming/coaching/day-recovery";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
+import { catalogMovement, prescribedLoad, rangeFor, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
 import { movementCatalog } from "../src/lib/programming/coaching/pieces";
 import { coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
 import {
@@ -70,22 +71,53 @@ function weeklyJson(plan: WeeklyIntentPlan) {
   };
 }
 
-function sessionJson(session: SessionDraft) {
+function slotFrom(user: Record<string, unknown> | undefined): {
+  primary_keys?: string[];
+  format?: string;
+  duration_min?: number;
+  stimulus?: string;
+  volume?: string;
+} | null {
+  if (!user) return null;
+  const read = (value: unknown) => {
+    if (!value || typeof value !== "object") return null;
+    const slot = value as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string };
+    return slot.primary_keys?.length ? slot : null;
+  };
+  return read(user.conditioning_slot) ?? read((user.original_input as { conditioning_slot?: unknown } | undefined)?.conditioning_slot);
+}
+
+function goalMovements(keys: readonly string[]) {
+  return keys.map((key) => ({
+    key,
+    movement: key,
+    amount: sampleAmount(key),
+    unit: catalogMovement(key)?.units[0] ?? "reps",
+    name_ko: movementCatalog().find((row) => row.key === key)?.name_ko ?? catalogMovement(key)?.name_ko ?? key,
+    load: prescribedLoad(key),
+  }));
+}
+
+function sessionJson(session: SessionDraft, user?: Record<string, unknown>) {
   const piece = session.conditioning;
   if (!piece) return { day: session.day, notes_ko: "휴식입니다.", conditioning: null };
+  const slot = slotFrom(user);
+  const movements = slot?.primary_keys?.length
+    ? goalMovements(slot.primary_keys)
+    : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
   return {
     day: session.day,
     notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
     conditioning: {
-      format: piece.format,
-      duration_min: piece.duration_min,
-      stimulus: piece.stimulus,
-      movements: piece.movements.map((movement) => ({ ...movement })),
+      format: slot?.format ?? piece.format,
+      duration_min: slot?.duration_min ?? piece.duration_min,
+      stimulus: slot?.stimulus ?? piece.stimulus,
+      movements,
       equipment: [...piece.equipment],
-      volume: piece.volume,
+      volume: slot?.volume ?? piece.volume,
       intensity: piece.intensity,
-      interval_work_sec: piece.format === "intervals" ? 30 : null,
-      interval_rest_sec: piece.format === "intervals" ? 30 : null,
+      interval_work_sec: (slot?.format ?? piece.format) === "intervals" ? 30 : null,
+      interval_rest_sec: (slot?.format ?? piece.format) === "intervals" ? 30 : null,
     },
   };
 }
@@ -94,8 +126,8 @@ function nextCount(amount: string): string {
   return String(Number(amount.match(/^\d+/)?.[0] ?? "8") + 1);
 }
 
-function withAmounts(session: SessionDraft, keys: readonly string[]) {
-  const full = sessionJson(session);
+function withAmounts(session: SessionDraft, keys: readonly string[], user?: Record<string, unknown>) {
+  const full = sessionJson(session, user);
   const conditioning = full.conditioning as { movements?: Array<{ key: string; amount: string }> } | null;
   if (conditioning?.movements) {
     conditioning.movements = conditioning.movements.map((movement) =>
@@ -105,8 +137,8 @@ function withAmounts(session: SessionDraft, keys: readonly string[]) {
   return full;
 }
 
-function repsOnly(session: SessionDraft) {
-  const full = sessionJson(session);
+function repsOnly(session: SessionDraft, user?: Record<string, unknown>) {
+  const full = sessionJson(session, user);
   const conditioning = full.conditioning as { movements?: Array<{ amount?: string }> } | null;
   if (conditioning?.movements) conditioning.movements = conditioning.movements.map((movement) => ({ ...movement, amount: "reps" }));
   return full;
@@ -119,9 +151,9 @@ function replacementFor(session: SessionDraft) {
   return pick;
 }
 
-function withReplacement(session: SessionDraft, key: string) {
+function withReplacement(session: SessionDraft, key: string, user?: Record<string, unknown>) {
   const next = replacementFor(session);
-  const full = sessionJson(session);
+  const full = sessionJson(session, user);
   const conditioning = full.conditioning as { movements?: Array<{ key: string; amount: string; name_ko: string }> } | null;
   if (conditioning?.movements) {
     conditioning.movements = conditioning.movements.map((movement) =>
@@ -161,14 +193,26 @@ function revisionOf(user: Record<string, unknown>): number {
 
 type Target = { day: DayKey; key: string; other: string; session: SessionDraft; nextAmount: string };
 
-function targetOf(sessions: readonly SessionDraft[]): Target {
-  const training = sessions.filter((session) => session.conditioning && session.conditioning.movements.length >= 2);
-  const session = training.find((row) => row.conditioning?.movements.some((movement) => movement.key === "box_jump")) ?? training[0];
-  if (!session?.conditioning) throw new Error("no multi-movement day");
-  const key = session.conditioning.movements.find((movement) => movement.key === "box_jump")?.key ?? session.conditioning.movements[0]!.key;
-  const other = session.conditioning.movements.find((movement) => movement.key !== key)?.key ?? key;
-  const current = session.conditioning.movements.find((movement) => movement.key === key)?.amount ?? "8";
-  return { day: session.day, key, other, session, nextAmount: nextCount(current) };
+function targetOf(month: MonthDirection): Target {
+  const day = deterministicMonthlyPlan(month).goal_table?.weeks.find((week) => week.week_index === 1)?.days.find((row) => !row.rest && row.primary_keys.length >= 2);
+  if (!day) throw new Error("no multi-movement day");
+  const key =
+    day.primary_keys.find((candidate) => {
+      const range = rangeFor(candidate, "reps");
+      return Boolean(range && range.min <= 20 && range.max >= 20);
+    }) ?? day.primary_keys[0]!;
+  const other = day.primary_keys.find((candidate) => candidate !== key) ?? key;
+  const session = {
+    day: day.day,
+    conditioning: {
+      movements: day.primary_keys.map((candidate) => ({
+        key: candidate,
+        amount: sampleAmount(candidate),
+        name_ko: catalogMovement(candidate)?.name_ko ?? candidate,
+      })),
+    },
+  } as SessionDraft;
+  return { day: day.day, key, other, session, nextAmount: nextCount(sampleAmount(key)) };
 }
 
 function edit(day: string, action: string, target: string | null, next: string | null, amount: string | null, unit: string | null, reason: string) {
@@ -242,7 +286,7 @@ function harness(mode: Mode) {
   const month = month531();
   const plan = planCoachedWeek({ month, weekIndex: 1 });
   const built = assembleLegalWeek({ month, weekIndex: 1, plan });
-  const target = targetOf(built.draft.sessions);
+  const target = targetOf(month);
   const calls: Array<{ agent: string; day: string; revision: number; recovery: boolean; user: Record<string, unknown> }> = [];
   const fetchImpl = async (_url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body)) as { messages?: Array<{ role: string; content: string }> };
@@ -263,17 +307,17 @@ function harness(mode: Mode) {
     if (agent === "conditioning_coach") {
       const session = built.draft.sessions.find((row) => row.day === day);
       if (!session) return chat({ day });
-      if (mode === "recover" && day === "mon" && !recovery) return chat(repsOnly(session));
-      if (mode === "no_session" && day === target.day && (revision === 0 || recovery)) return chat(repsOnly(session));
-      if (mode === "amount_exact" && day === target.day && revision > 0 && !recovery) return chat(withAmounts(session, [target.key]));
+      if (mode === "recover" && day === "mon" && !recovery) return chat(repsOnly(session, user));
+      if (mode === "no_session" && day === target.day && (revision === 0 || recovery)) return chat(repsOnly(session, user));
+      if (mode === "amount_exact" && day === target.day && revision > 0 && !recovery) return chat(withAmounts(session, [target.key], user));
       if ((mode === "amount_extra" || mode === "replace_amount") && day === target.day && revision > 0 && !recovery) {
-        const keys = mode === "amount_extra" ? (session.conditioning?.movements.map((movement) => movement.key) ?? []) : [target.key];
-        return chat(withAmounts(session, keys));
+        const keys = mode === "amount_extra" ? (slotFrom(user)?.primary_keys ?? session.conditioning?.movements.map((movement) => movement.key) ?? []) : [target.key];
+        return chat(withAmounts(session, keys, user));
       }
       if ((mode === "replace_exact" || mode === "no_session") && day === target.day && revision > 0 && !recovery) {
-        return chat(mode === "replace_exact" ? withReplacement(session, target.key).body : withAmounts(session, [target.key]));
+        return chat(mode === "replace_exact" ? withReplacement(session, target.key, user).body : withAmounts(session, [target.key], user));
       }
-      return chat(sessionJson(session));
+      return chat(sessionJson(session, user));
     }
     if (agent === "load_coach" || agent === "context:load") {
       return chat({

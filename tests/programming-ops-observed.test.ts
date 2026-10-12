@@ -132,20 +132,32 @@ describe("ops-observed weekly similarity and monthly json labels", () => {
     resetDbConnection();
   });
 
-  it("keeps the similarity threshold and ignores movement names", () => {
+  it("keeps the similarity threshold and scores movement keys apart from display names", () => {
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
     const month = month531();
     const draft = buildFallbackWeek({ month, weekIndex: 1, intent: fallbackIntent(month, 1, "names") });
     const monday = toStructure(draft.sessions.find((session) => session.conditioning)!)!;
-    const renamed = {
+    const displayOnly = {
       ...monday,
-      movements: [{ key: "not-the-same-movement", amount: "8", name_ko: "전혀 다른 이름" }],
+      movements: monday.movements.map((movement) => ({ ...movement, name_ko: "표시 이름만 바꿈" })),
     };
     const sameNames = similarityMatch(monday, monday);
-    const renamedScore = similarityMatch(monday, renamed);
-    expect(renamedScore.score).toBe(sameNames.score);
+    expect(similarityMatch(monday, displayOnly).score).toBe(sameNames.score);
+    const left = {
+      ...monday,
+      movements: ["row_erg", "burpee", "box_jump"].map((key) => ({ key, amount: "8", name_ko: key })),
+    };
+    const renamed = {
+      ...left,
+      movements: [{ key: "not-the-same-movement", amount: "8", name_ko: "전혀 다른 이름" }],
+    };
+    const kept = similarityMatch(left, left);
+    const renamedScore = similarityMatch(left, renamed);
+    expect(kept.matched).toContain("movement_combo");
+    expect(renamedScore.matched).not.toContain("movement_combo");
+    expect(renamedScore.score).toBe(kept.score - SIMILARITY_CONFIG.features.movement_combo);
     expect(renamedScore.score).toBeGreaterThanOrEqual(SIMILARITY_CONFIG.threshold);
-    expect(structurallySimilar(monday, renamed)).toBe(true);
+    expect(structurallySimilar(left, renamed)).toBe(true);
     const changed = {
       ...renamed,
       format: monday.format === "amrap" ? ("for_time" as const) : ("amrap" as const),
@@ -154,10 +166,10 @@ describe("ops-observed weekly similarity and monthly json labels", () => {
       equipment: ["rower" as const],
       volume: monday.volume === "low" ? ("high" as const) : ("low" as const),
     };
-    const changedScore = similarityMatch(monday, changed);
+    const changedScore = similarityMatch(left, changed);
     expect(changedScore.score).toBeLessThan(SIMILARITY_CONFIG.threshold);
-    expect(structurallySimilar(monday, changed)).toBe(false);
-    expect(changedScore.matched).not.toEqual(expect.arrayContaining(["format", "time_domain", "stimulus", "equipment", "volume"]));
+    expect(structurallySimilar(left, changed)).toBe(false);
+    expect(changedScore.matched).not.toEqual(expect.arrayContaining(["format", "time_domain", "stimulus", "equipment", "volume", "movement_combo"]));
   });
 
   it("scores the 2026-10-07 response as thursday against saturday inside the same week", () => {
@@ -199,7 +211,7 @@ describe("ops-observed weekly similarity and monthly json labels", () => {
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
   });
 
-  it("compares only active weeks inside the forty day window", async () => {
+  it("compares only active weeks inside the four week window", async () => {
     freshDb();
     await ensureProgrammingWeek(OLD_WEEK, { nowMs: NOW, key: null });
     await ensureProgrammingWeek(MID_WEEK, { nowMs: NOW, key: null });
@@ -217,8 +229,8 @@ describe("ops-observed weekly similarity and monthly json labels", () => {
     expect(rows.some((row) => row.week_start === OLD_WEEK && row.status === "active" && row.structures > 0)).toBe(true);
 
     const recent = listRecentStructures(NEXT_WEEK);
-    const windowStart = addDays(NEXT_WEEK, -40);
-    expect(windowStart).toBe("2099-06-03");
+    const windowStart = addDays(NEXT_WEEK, -28);
+    expect(windowStart).toBe("2099-06-15");
     expect(OLD_WEEK < windowStart).toBe(true);
     const inWindow = rows
       .filter((row) => row.status === "active" && row.week_start < NEXT_WEEK && row.week_start >= windowStart)

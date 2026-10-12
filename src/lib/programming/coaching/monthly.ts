@@ -1,8 +1,9 @@
 import type { FetchLike } from "../model";
 import type { WeekActual } from "../summary";
 import { previousLowerFatigue } from "../rules";
-import type { MonthDirection, MonthlyCoachPlan, WeekIndex } from "../types";
+import type { MonthDirection, MonthlyCoachPlan, StoredStructure, WeekIndex } from "../types";
 import { monthlyPlanErrors } from "./contract";
+import { deterministicGoalTable, goalTableErrors, parseGoalTable, recentCombos } from "./goal-table";
 import { monthlyStrategyErrors } from "./stage13/rules";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { MONTHLY_COACH_PROMPT_VERSION } from "./prompts";
@@ -45,6 +46,7 @@ export function deterministicMonthlyPlan(month: MonthDirection, actual?: WeekAct
     deload_strategy: month.deload_strategy,
     benchmark_strategy: month.benchmark_direction,
     week_roles: roles,
+    goal_table: deterministicGoalTable(month, actual),
     source: "deterministic",
   };
 }
@@ -93,12 +95,14 @@ export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual |
     week_themes: month.week_themes,
     long_conditioning_weeks: month.long_conditioning_weeks,
     benchmark_week: month.benchmark_week,
+    programming_week_index: null as number | null,
+    max_lower_lifts: actual?.class_summary?.fatigue_signal === "high" ? 1 : 2,
     reported_fatigue: actual?.class_summary?.fatigue_signal ?? null,
     planned_volume: actual?.class_summary?.actual_volume ?? null,
     completion: actual?.class_summary
       ? { completed_days: actual.class_summary.completed_days, missed_days: actual.class_summary.missed_days }
       : null,
-    note: "Choose the month strategy. Do not write workouts. Repeat current_method exactly.",
+    note: "Choose the month strategy and goal_table in this one call. goal_table is the month goal, one goal for each of 4 weeks, and one session goal for each date. A training day names strength_key as back_squat, front_squat, strict_press, bench_press, deadlift, or none, plus format, duration_min, stimulus, movement_pattern, 2 or 3 primary_keys, and one purpose line. Rest days set rest true, strength_key none, and primary_keys empty. The same primary key may appear at most 2 times in one week and 4 times in the month. Do not reuse a primary_keys set, including sets already listed in recent_combinations. Long days (30–40 min) only on long_conditioning_weeks, one per such week. The week in programming_week_index may use at most max_lower_lifts lower strength keys (back_squat, front_squat, deadlift). Do not write sets or amounts. Repeat current_method exactly.",
   };
 }
 
@@ -129,6 +133,7 @@ function planFromModel(json: unknown, month: MonthDirection): MonthlyCoachPlan {
     week_roles: roles,
     fatigue_tolerance: body.fatigue_tolerance as MonthlyCoachPlan["fatigue_tolerance"],
     variety_requirement: body.variety_requirement as MonthlyCoachPlan["variety_requirement"],
+    goal_table: parseGoalTable(body.goal_table) ?? deterministicGoalTable(month),
     source: "model",
   };
 }
@@ -137,6 +142,8 @@ function planFromModel(json: unknown, month: MonthDirection): MonthlyCoachPlan {
 export async function coachMonthly(input: {
   month: MonthDirection;
   actual?: WeekActual | null;
+  weekIndex?: WeekIndex;
+  recentStructures?: readonly StoredStructure[];
   key?: string | null;
   fetchImpl?: FetchLike;
   timeoutMs: number;
@@ -146,6 +153,16 @@ export async function coachMonthly(input: {
   const started = Date.now();
   const deterministic = deterministicMonthlyPlan(input.month, input.actual);
   const payload = monthlyCoachPayload(input.month, input.actual);
+  if (payload && typeof payload === "object") {
+    const body = payload as { programming_week_index?: number | null; recent_combinations?: string[] };
+    body.programming_week_index = input.weekIndex ?? null;
+    body.recent_combinations = recentCombos(input.recentStructures ?? []);
+  }
+  const tableCheck = {
+    weekIndex: input.weekIndex,
+    fatigued: input.actual?.class_summary?.fatigue_signal === "high",
+    recentCombos: recentCombos(input.recentStructures ?? []),
+  };
   if (!input.key) {
     return {
       plan: deterministic,
@@ -176,12 +193,17 @@ export async function coachMonthly(input: {
     key: input.key,
     fetchImpl: input.fetchImpl,
     timeoutMs: input.timeoutMs,
-    maxTokens: 2000,
+    maxTokens: 8000,
     promptVersion: MONTHLY_COACH_PROMPT_VERSION,
     runId: input.runId,
     retryContext: { current_method: input.month.strength_method || input.month.scheme },
     validate: (json) => {
-      const errors = [...monthlyPlanErrors(json, input.month), ...monthlyStrategyErrors(json)];
+      const table = json && typeof json === "object" ? parseGoalTable((json as { goal_table?: unknown }).goal_table) : null;
+      const errors = [
+        ...monthlyPlanErrors(json, input.month),
+        ...monthlyStrategyErrors(json, input.month),
+        ...goalTableErrors(table, input.month, tableCheck),
+      ];
       return errors.length ? { ok: false, errors } : { ok: true };
     },
   });

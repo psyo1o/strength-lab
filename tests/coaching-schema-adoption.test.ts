@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetDbConnection } from "../src/lib/db/client";
 import type { DayKey } from "../src/lib/month-plan/types";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
+import { catalogMovement, prescribedLoad, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
+import { movementCatalog } from "../src/lib/programming/coaching/pieces";
 import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
 import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
 import { STAGE16_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
@@ -73,23 +75,33 @@ function specialistFetch(input: { alignDay?: { day: DayKey; format: string; dura
     if (agent === "conditioning_coach") {
       const piece = session?.conditioning;
       if (!piece) return chat({ day, notes_ko: "휴식", conditioning: null });
+      const slot = user.conditioning_slot as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
       const aligned = input.alignDay && day === input.alignDay.day ? input.alignDay : null;
-      // sessionFromCoachJson stamps movement_pattern from the day intent, so mixed days share one pattern.
-      // A 10 minute Tuesday is a different time domain from the other mixed days and stays under threshold 4.
-      const duration_min = aligned?.duration_min ?? (day === "tue" ? 10 : piece.duration_min);
+      const keys = slot?.primary_keys;
+      const movements = keys?.length
+        ? keys.map((key) => ({
+            key,
+            movement: key,
+            amount: sampleAmount(key),
+            unit: catalogMovement(key)?.units[0] ?? "reps",
+            name_ko: movementCatalog().find((row) => row.key === key)?.name_ko ?? catalogMovement(key)?.name_ko ?? key,
+            load: prescribedLoad(key),
+          }))
+        : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
+      const format = slot?.format ?? aligned?.format ?? piece.format;
       return chat({
         day,
         notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
         conditioning: {
-          format: aligned?.format ?? piece.format,
-          duration_min,
-          stimulus: aligned?.stimulus ?? piece.stimulus,
-          movements: piece.movements,
+          format,
+          duration_min: slot?.duration_min ?? aligned?.duration_min ?? piece.duration_min,
+          stimulus: slot?.stimulus ?? aligned?.stimulus ?? piece.stimulus,
+          movements,
           equipment: aligned?.equipment ?? piece.equipment,
-          volume: aligned?.volume ?? piece.volume,
+          volume: slot?.volume ?? aligned?.volume ?? piece.volume,
           intensity: aligned?.intensity ?? piece.intensity,
-          interval_work_sec: (aligned?.format ?? piece.format) === "intervals" ? 30 : null,
-          interval_rest_sec: (aligned?.format ?? piece.format) === "intervals" ? 30 : null,
+          interval_work_sec: format === "intervals" ? 30 : null,
+          interval_rest_sec: format === "intervals" ? 30 : null,
         },
       });
     }
