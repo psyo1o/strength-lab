@@ -1,7 +1,7 @@
 import { coerceMovementRow, equipmentForKeys } from "../movement-catalog";
 import { movementCatalog } from "../pieces";
 import { TIME_DOMAIN_RANGES, rewriteMonthLanguageTokens } from "../../rules";
-import { MOVEMENT_UNITS, amountUnit, parsedAmount, prescriptionAmountIssue, unitError, type AmountUnit } from "./units";
+import { MOVEMENT_UNITS, amountTextForCheck, amountUnit, parsedAmount, prescriptionAmountIssue, unitError, type AmountUnit } from "./units";
 
 /**
  * Display and unit normalization for one session payload.
@@ -78,7 +78,7 @@ export function normalizeSessionPayload(value: unknown, options?: NormalizeOptio
       movement.name_ko = next;
     }
     if (typeof movement.amount !== "string" || !key) return;
-    const amount = movement.amount;
+    const amount = amountTextForCheck(movement.amount, movement.unit);
     if (!unitError(key, amount)) return;
     const parsed = parsedAmount(amount);
     const verdict = prescriptionAmountIssue(key, amount, durationMin);

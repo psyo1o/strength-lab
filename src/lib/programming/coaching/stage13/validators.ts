@@ -2,7 +2,7 @@ import { sessionCoachErrors } from "../contract";
 import { judgeWeek, TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rules";
 import type { DayIntent, MonthDirection, SessionDraft, WeekDraft, WeekIndex } from "../../types";
 import { COACHING_POLICY, isCoachingSignal } from "./policy";
-import { intervalFitIssues, prescriptionAmountIssue } from "./units";
+import { amountTextForCheck, intervalFitIssues, prescriptionAmountIssue } from "./units";
 import { longConditioningCountAllowed } from "../stage15/week-policy";
 import { deloadHeavyConditioningErrors } from "../stage15/week-structure";
 import { weekPlanErrors, type WeekRules } from "./rules";
@@ -46,9 +46,9 @@ function movementsOf(value: unknown): Array<{ key: string; amount: string }> {
   if (!conditioning || !Array.isArray(conditioning.movements)) return [];
   return conditioning.movements.flatMap((row) => {
     if (!row || typeof row !== "object") return [];
-    const item = row as { key?: unknown; amount?: unknown };
+    const item = row as { key?: unknown; amount?: unknown; unit?: unknown };
     if (typeof item.key !== "string" || typeof item.amount !== "string") return [];
-    return [{ key: item.key, amount: item.amount }];
+    return [{ key: item.key, amount: amountTextForCheck(item.amount, item.unit) }];
   });
 }
 
@@ -120,7 +120,7 @@ export function sessionUnitErrors(session: SessionDraft): string[] {
   const minutes = session.conditioning?.duration_min ?? null;
   const movements = session.conditioning?.movements ?? [];
   return movements.flatMap((movement) => {
-    const verdict = prescriptionAmountIssue(movement.key, movement.amount, minutes);
+    const verdict = prescriptionAmountIssue(movement.key, amountTextForCheck(movement.amount, movement.unit), minutes);
     return verdict.status === "ok" ? [] : [`${session.day} prescription: ${verdict.message}`];
   });
 }

@@ -242,6 +242,12 @@ export function amountRepairHint(key: string, amount: string): string {
   return `${key} amount ${amount} is the wrong field for that value. Allowed amount units: ${allowed}. Put a work/rest clock in interval_work_sec and interval_rest_sec only when format is intervals. Do not only rename the unit, and do not invent a calorie or rep count.`;
 }
 
+/** A numeric amount plus a separate unit is the same work as 20cal or 400m. */
+export function amountTextForCheck(amount: string, unit: unknown): string {
+  if ((unit === "cal" || unit === "m" || unit === "sec") && /^\d+$/.test(amount)) return `${amount}${unit}`;
+  return amount;
+}
+
 export function unitError(key: string, amount: string): string | null {
   const unit = amountUnit(amount);
   const allowed = allowedUnits(key);

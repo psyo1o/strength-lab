@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { conditioningDayFormat, sessionCoachErrors } from "../src/lib/programming/coaching/contract";
+import { sessionSelfErrors } from "../src/lib/programming/coaching/stage13/validators";
 import { normalizeSessionPayload } from "../src/lib/programming/coaching/stage13/normalize";
 import type { DayIntent } from "../src/lib/programming/types";
 import {
@@ -161,6 +162,48 @@ describe("movement catalog", () => {
     expect((normalized.json as { conditioning: { equipment: string[] } }).conditioning.equipment).toEqual(["rings", "pullup_bar"]);
     const errors = sessionCoachErrors(normalized.json, intent);
     expect(errors.some((error) => /requires equipment|lists no equipment|received missing/.test(error))).toBe(false);
+  });
+
+  it("reads a numeric amount with its stored unit", () => {
+    const intent: DayIntent = {
+      day: "mon",
+      primary_training: "mixed_modal",
+      secondary_training: "short_anaerobic",
+      training_goal: "엔진을 엽니다.",
+      stimulus: "threshold",
+      intensity_profile: "moderate",
+      volume_profile: "moderate",
+      duration_profile: "45-60",
+      fatigue_target: "moderate",
+      movement_pattern: "mixed",
+      progression_required: false,
+      recovery_role: "train",
+      strength_lift: "none",
+      benchmark: false,
+      notes_ko: "진행입니다.",
+    };
+    const errors = sessionSelfErrors(
+      {
+        day: "mon",
+        warmup_ko: "Easy bike, then two easy row pulls.",
+        notes_ko: "Keep the pace.",
+        conditioning: {
+          format: "amrap",
+          duration_min: 12,
+          stimulus: "high_rep",
+          volume: "moderate",
+          intensity: "moderate",
+          interval_work_sec: null,
+          interval_rest_sec: null,
+          movements: [
+            { key: "row_erg", movement: "row_erg", amount: "20", unit: "cal", name_ko: "로우어" },
+            { key: "burpee", movement: "burpee", amount: "12", unit: "reps", name_ko: "버피" },
+          ],
+        },
+      },
+      intent,
+    );
+    expect(errors.join("\n")).not.toMatch(/row_erg/);
   });
 
   it("puts only the day's pattern in the catalog prompt", () => {
