@@ -277,9 +277,13 @@ function fetchFor(script: Script) {
       const session = baseSession(script, day as DayKey);
       if (!session) return chat({ day });
       const mark = revision > 0 ? `수정${revision} ${day}` : `모델 ${day}`;
-      const slot = user.conditioning_slot as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
+      const slot = user.conditioning_slot as { from_goal?: boolean; time_domain?: string; primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
       const full = sessionJson(session, mark, slot?.primary_keys);
-      if (slot?.primary_keys?.length && full.conditioning) {
+      if (slot?.from_goal && full.conditioning) {
+        full.conditioning.duration_min = slot.time_domain === "long" ? 32 : slot.time_domain === "medium" ? 16 : 10;
+        full.conditioning.stimulus = slot.stimulus ?? full.conditioning.stimulus;
+        if (full.conditioning.stimulus === "heavy" && full.conditioning.intensity === "light") full.conditioning.intensity = "moderate";
+      } else if (slot?.primary_keys?.length && full.conditioning) {
         full.conditioning.format = slot.format ?? full.conditioning.format;
         full.conditioning.duration_min = slot.duration_min ?? full.conditioning.duration_min;
         full.conditioning.stimulus = slot.stimulus ?? full.conditioning.stimulus;

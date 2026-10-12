@@ -89,24 +89,52 @@ export type ConditioningSlot = {
   stretch: boolean;
   /** One-line purpose from the monthly goal table. Absent on older board cells. */
   purpose?: string;
-  /** Exact strength key for this day. Null when the day has no lift. */
+  /** Exact strength key for this day. Null when the day has no lift. Older slots only. */
   strength_key?: string | null;
-  /** Primary conditioning keys the daily coach fills amounts for. */
+  /** Primary conditioning keys the daily coach fills amounts for. Older slots only. */
   primary_keys?: readonly string[];
+  /** Monthly target cell. The daily coach chooses movements, format, and amounts. */
+  from_goal?: boolean;
+  focus?: SessionFocus | null;
+  goal_intensity?: number | null;
+  body_region?: BodyRegion | null;
+  energy_system?: EnergySystem | null;
 };
 
-/** One day's session goal. The monthly table sets it. Specialists fill amounts. */
+export const SESSION_FOCUSES = [
+  "lower_strength",
+  "upper_strength",
+  "gymnastics_skill",
+  "engine_endurance",
+  "weightlifting_cycling",
+] as const;
+
+export type SessionFocus = (typeof SESSION_FOCUSES)[number];
+
+export const BODY_REGIONS = ["lower", "upper", "full", "midline"] as const;
+
+export type BodyRegion = (typeof BODY_REGIONS)[number];
+
+export const ENERGY_SYSTEMS = ["phosphagen", "glycolytic", "oxidative"] as const;
+
+export type EnergySystem = (typeof ENERGY_SYSTEMS)[number];
+
+export type SessionTarget = {
+  movement_pattern: MovementPattern;
+  body_region: BodyRegion;
+  energy_system: EnergySystem;
+};
+
+/** One day's session goal. The monthly table sets the target. Coaches choose the movements. */
 export type DaySessionGoal = {
   day: DayKey;
   rest: boolean;
-  strength_key: string | null;
   purpose: string;
-  format: WodFormat | null;
-  duration_min: number | null;
-  time_domain: TimeDomain | null;
+  focus: SessionFocus | null;
+  intensity: number | null;
+  target: SessionTarget | null;
   stimulus: Stimulus | null;
-  movement_pattern: MovementPattern | null;
-  primary_keys: string[];
+  time_domain: TimeDomain | null;
 };
 
 export type WeekGoal = {

@@ -1,11 +1,11 @@
 import { schemaBrief } from "./contract";
 import type { CoachAgentName } from "./models";
 
-export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v3";
-export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v3";
+export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v4";
+export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v4";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
 export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v2";
-export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v5";
+export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v6";
 export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v2";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
 export const HEAD_COACH_PROMPT_VERSION = "head-coach-v8";
@@ -41,18 +41,18 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose the adaptation, the strength method, and how the four weeks should feel. Week roles are a decision about this athlete, not a fixed accumulation-progression-intensification-deload template. 5/3/1 is one method, not the default.",
     constraints:
-      "Name the day's strength key and 2 or 3 conditioning keys. Do not write sets or amounts. Do not invent kilograms. Do not change a method mid-block. The same key at most twice in a week and four times in the month. Do not reuse a key set. Write explanations in English. Display translation is later.",
+      "Do not name movement keys, format, or amounts. A training day names focus, intensity 1–5, target, stimulus, time_domain, and one purpose. The same focus, target, and stimulus may not repeat on the same weekday, a neighboring training day, or the previous week. Do not invent kilograms. Do not change a method mid-block. Write explanations in English. Display translation is later.",
     output_schema: "The OUTPUT SCHEMA block is the contract. Do not rename keys.",
     failure_behavior: "If you cannot return that JSON, return nothing. The server keeps its deterministic month and records fallback_used.",
   },
   weekly: {
     role: "You are the weekly coach for one shared class.",
-    objective: "Fill the details of the week goal. Do not move the rest day or the day's strength and long-conditioning choice.",
+    objective: "Fill the details of the week goal. Do not move the rest day or the long-conditioning day.",
     inputs: "Immutable monthly plan, previous weeks, reported fatigue, completion, and recent stimuli.",
     decision_principles:
       "Place purposes, not exercises. Monday is not squat. A repeated pattern is allowed only when progression needs it. High reported fatigue reduces lower exposure. Missed days repeat the purpose at lower volume.",
     constraints:
-      "Do not write movements, sets, kilograms, time_domain, or similarity scores. duration_profile is the class window, not the conditioning clock. Keep the month's strength method. week_rules and week_goal are immutable. Rest days stay on the goal's weekday.",
+      "Do not write conditioning movement keys, formats, amounts, sets, or kilograms. duration_profile is the class window, not the conditioning clock. Keep the month's strength method. week_rules and week_goal are immutable. Rest days stay on the goal's weekday. Copy movement_pattern from the goal target. A time_domain of long is the only long-conditioning day.",
     output_schema: 'The day array key is "days". Enum values in the OUTPUT SCHEMA block are the only allowed values.',
     failure_behavior: "Invalid JSON is discarded. The deterministic weekly plan is used and the model is not recorded as the source.",
   },
@@ -84,7 +84,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose format, duration, stimulus, movements, volume, and intensity. Do not return equipment. Do not rename a movement to escape a similar structure. Use other_training_days, previous_training_stimulus, and next_training_stimulus.",
     constraints:
-      "Do not return warmup_ko, strength notes, sets, kilograms, time_domain, or equipment. The server fills equipment from the catalog. duration_min is the piece length. One day only. When conditioning_slot is present, keep its format, duration_min, stimulus, volume, and primary_keys. Fill amount, unit, and load for those keys only. Do not repeat a key. If the catalog lists an Rx weight, load.male and load.female are required and must be one of those weights. Do not use squat, pause_squat, or pin_squat, and do not repeat the day's strength lift. amount is the number. unit is separate. conditioning.stimulus must differ from previous_training_stimulus and next_training_stimulus. A repeated neighbor stimulus is rejected. Do not share 4 or more of format, time_domain, stimulus, movement_pattern, equipment, volume, or an overlapping movement combination with a day in other_training_days or avoid_structures. The threshold stays 4. Sharing 3 or more conditioning keys overlaps, and a 2-movement piece overlaps when both keys match. Movements come from movement_catalog in the user message. amount is an integer inside a closed range when the catalog lists one. unit is one of that key's allowed units. Do not invent a range. When edit_list is present, apply each item exactly. Do not change a movement, amount, format, duration, or day that is not in edit_list. When day_recovery names cells, return only those cells. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
+      "Do not return warmup_ko, strength notes, sets, kilograms, time_domain, or equipment. The server fills equipment from the catalog. duration_min is the piece length. One day only. When conditioning_slot.from_goal is true, choose the format, the movements, and the amounts. Follow its focus, movement_pattern, body_region, energy_system, stimulus, and time_domain. duration_min must stay in that time_domain. movement_frequency counts keys over the last 4 weeks. Prefer a lower count. When conditioning_slot.primary_keys is present, keep those keys and fill amount, unit, and load only. Do not repeat a key. If the catalog lists an Rx weight, load.male and load.female are required and must be one of those weights. Do not use squat, pause_squat, or pin_squat, and do not repeat the day's strength lift. amount is the number. unit is separate. conditioning.stimulus must differ from previous_training_stimulus and next_training_stimulus. A repeated neighbor stimulus is rejected. Do not share 4 or more of format, time_domain, stimulus, movement_pattern, equipment, volume, or an overlapping movement combination with a day in other_training_days or avoid_structures. The threshold stays 4. Sharing 3 or more conditioning keys overlaps, and a 2-movement piece overlaps when both keys match. That overlap rewrites this day once. Movements come from movement_catalog in the user message. amount is an integer inside a closed range when the catalog lists one. unit is one of that key's allowed units. Do not invent a range. When edit_list is present, apply each item exactly. Do not change a movement, amount, format, duration, or day that is not in edit_list. When day_recovery names cells, return only those cells. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
     output_schema: "Keys: day, notes_ko, conditioning. conditioning matches the conditioning object in the session schema.",
     failure_behavior: "A bad piece is rejected. Other days and the strength and warmup of this day stay.",
   },

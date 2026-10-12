@@ -11,6 +11,7 @@ import type {
   WeekIndex,
   WodFormat,
 } from "../types";
+import { minutesFitDomain } from "./canonical";
 import { catalogGear, catalogMovement, rxLoadErrors } from "./movement-catalog";
 
 /** Normal class difficulty. Later intensity settings change this one value. */
@@ -115,7 +116,7 @@ function movementKey(row: unknown): string {
 
 /** Reject a piece that misses the cell, uses an ambiguous squat, or repeats the day's strength lift. */
 export function slotFitErrors(json: unknown, slot: ConditioningSlot, strengthLift: string | null | undefined): string[] {
-  const body = json && typeof json === "object" ? (json as { conditioning?: { movements?: unknown } }).conditioning : null;
+  const body = json && typeof json === "object" ? (json as { conditioning?: { movements?: unknown; stimulus?: unknown; duration_min?: unknown } }).conditioning : null;
   const rows = Array.isArray(body?.movements) ? body.movements : [];
   const keys = rows.map(movementKey).filter(Boolean);
   const errors: string[] = [];
@@ -124,18 +125,24 @@ export function slotFitErrors(json: unknown, slot: ConditioningSlot, strengthLif
     if (banned.has(key)) errors.push(`conditioning movement ${key} is banned on this day`);
   }
   if (new Set(keys).size !== keys.length) errors.push("conditioning repeats a movement key");
-  const goalKeys = slot.primary_keys ?? [];
-  if (goalKeys.length) {
-    const expected = [...goalKeys].sort().join("|");
-    const actual = [...keys].sort().join("|");
-    if (expected !== actual) errors.push(`conditioning keys must be ${goalKeys.join(", ")}`);
-  } else if (!keys.includes(slot.primary_key)) errors.push(`conditioning must include ${slot.primary_key}`);
   rows.forEach((row, index) => {
     const key = movementKey(row);
     if (!key) return;
     const load = row && typeof row === "object" ? (row as { load?: { male?: string | null; female?: string | null } | null }).load : null;
     errors.push(...rxLoadErrors(key, load).map((error) => `conditioning.movements[${index}]: ${error}`));
   });
+  if (slot.from_goal) {
+    if (typeof body?.duration_min === "number" && !minutesFitDomain(body.duration_min, slot.time_domain)) {
+      errors.push(`conditioning duration must stay in ${slot.time_domain}`);
+    }
+    return errors;
+  }
+  const goalKeys = slot.primary_keys ?? [];
+  if (goalKeys.length) {
+    const expected = [...goalKeys].sort().join("|");
+    const actual = [...keys].sort().join("|");
+    if (expected !== actual) errors.push(`conditioning keys must be ${goalKeys.join(", ")}`);
+  } else if (!keys.includes(slot.primary_key)) errors.push(`conditioning must include ${slot.primary_key}`);
   if (slot.metcon) {
     if (keys.length < 3 || keys.length > 5) errors.push(`metcon movements: length ${keys.length}; allowed: 3–5`);
     const seen = new Set(keys.map(modality).filter((value): value is Modality => value != null));

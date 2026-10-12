@@ -75,7 +75,7 @@ function specialistFetch(input: { alignDay?: { day: DayKey; format: string; dura
     if (agent === "conditioning_coach") {
       const piece = session?.conditioning;
       if (!piece) return chat({ day, notes_ko: "휴식", conditioning: null });
-      const slot = user.conditioning_slot as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
+      const slot = user.conditioning_slot as { from_goal?: boolean; primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
       const aligned = input.alignDay && day === input.alignDay.day ? input.alignDay : null;
       const keys = slot?.primary_keys;
       const movements = keys?.length
@@ -88,7 +88,7 @@ function specialistFetch(input: { alignDay?: { day: DayKey; format: string; dura
             load: prescribedLoad(key),
           }))
         : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
-      const format = slot?.format ?? aligned?.format ?? piece.format;
+      const format = slot?.from_goal ? (aligned?.format ?? piece.format) : (slot?.format ?? aligned?.format ?? piece.format);
       return chat({
         day,
         notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
@@ -99,7 +99,10 @@ function specialistFetch(input: { alignDay?: { day: DayKey; format: string; dura
           movements,
           equipment: aligned?.equipment ?? piece.equipment,
           volume: slot?.volume ?? aligned?.volume ?? piece.volume,
-          intensity: aligned?.intensity ?? piece.intensity,
+          intensity:
+            (slot?.stimulus ?? aligned?.stimulus ?? piece.stimulus) === "heavy" && (aligned?.intensity ?? piece.intensity) === "light"
+              ? "moderate"
+              : (aligned?.intensity ?? piece.intensity),
           interval_work_sec: format === "intervals" ? 30 : null,
           interval_rest_sec: format === "intervals" ? 30 : null,
         },

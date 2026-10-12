@@ -79,6 +79,8 @@ function weeklyJson(plan: WeeklyIntentPlan) {
 }
 
 function slotFrom(user: Record<string, unknown> | undefined): {
+  from_goal?: boolean;
+  time_domain?: string;
   primary_keys?: string[];
   format?: string;
   duration_min?: number;
@@ -88,10 +90,17 @@ function slotFrom(user: Record<string, unknown> | undefined): {
   if (!user) return null;
   const read = (value: unknown) => {
     if (!value || typeof value !== "object") return null;
-    const slot = value as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string };
-    return slot.primary_keys?.length ? slot : null;
+    const slot = value as { from_goal?: boolean; time_domain?: string; primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string };
+    return slot.from_goal || slot.primary_keys?.length ? slot : null;
   };
   return read(user.conditioning_slot) ?? read((user.original_input as { conditioning_slot?: unknown } | undefined)?.conditioning_slot);
+}
+
+function durationForSlot(slot: { time_domain?: string; duration_min?: number }): number {
+  if (slot.time_domain === "long") return 32;
+  if (slot.time_domain === "medium") return 16;
+  if (slot.time_domain === "short") return 10;
+  return slot.duration_min ?? 12;
 }
 
 function goalMovements(keys: readonly string[]) {
@@ -106,7 +115,9 @@ function goalMovements(keys: readonly string[]) {
 }
 
 function goalMondayKeys(): string[] {
-  return deterministicMonthlyPlan(month531()).goal_table?.weeks.find((week) => week.week_index === 1)?.days.find((day) => day.day === "mon")?.primary_keys ?? [];
+  const month = month531();
+  const plan = planCoachedWeek({ month, weekIndex: 1 });
+  return assembleLegalWeek({ month, weekIndex: 1, plan }).draft.sessions.find((row) => row.day === "mon")?.conditioning?.movements.map((row) => row.key) ?? [];
 }
 
 function repsCellFromKeys(keys: readonly string[]): { key: string; value: string } | null {
@@ -128,20 +139,27 @@ function sessionJson(session: SessionDraft, user?: Record<string, unknown>) {
   const slot = slotFrom(user);
   const movements = slot?.primary_keys?.length
     ? goalMovements(slot.primary_keys)
-    : piece.movements.map((row) => ({ ...row, load: row.load ?? prescribedLoad(row.key) }));
+    : piece.movements.map((row) => ({
+        ...row,
+        amount: sampleAmount(row.key),
+        unit: catalogMovement(row.key)?.units[0] ?? "reps",
+        load: row.load ?? prescribedLoad(row.key),
+      }));
+  const format = slot?.from_goal ? piece.format : (slot?.format ?? piece.format);
+  const stimulus = slot?.stimulus ?? piece.stimulus;
   return {
     day: session.day,
     notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
     conditioning: {
-      format: slot?.format ?? piece.format,
-      duration_min: slot?.duration_min ?? piece.duration_min,
-      stimulus: slot?.stimulus ?? piece.stimulus,
+      format,
+      duration_min: slot?.from_goal ? durationForSlot(slot) : (slot?.duration_min ?? piece.duration_min),
+      stimulus,
       movements,
       equipment: piece.equipment,
       volume: slot?.volume ?? piece.volume,
-      intensity: piece.intensity,
-      interval_work_sec: (slot?.format ?? piece.format) === "intervals" ? 30 : null,
-      interval_rest_sec: (slot?.format ?? piece.format) === "intervals" ? 30 : null,
+      intensity: stimulus === "heavy" && piece.intensity === "light" ? "moderate" : piece.intensity,
+      interval_work_sec: format === "intervals" ? 30 : null,
+      interval_rest_sec: format === "intervals" ? 30 : null,
     },
   };
 }
@@ -595,9 +613,8 @@ describe("day recovery orchestrator", () => {
     const fieldEdits = (recovery?.user.day_recovery as { field_edits?: Array<{ field?: string; current_value?: string }> } | undefined)?.field_edits ?? [];
     const amountEdit = fieldEdits.find((row) => row.current_value === "10회/라운드");
     expect(amountEdit?.field).toMatch(/conditioning\.movements\.[A-Za-z0-9_]+\.amount/);
-    expect(monday?.conditioning?.format).toBe(slot?.format);
-    expect(monday?.conditioning?.movements?.map((row) => row.key)).toEqual(slot?.primary_keys);
-    expect(monday?.conditioning?.movements?.map((row) => row.amount)).toEqual(slot?.primary_keys?.map((key) => sampleAmount(key)));
+    expect(monday?.conditioning?.movements?.length).toBeGreaterThan(0);
+    expect(monday?.conditioning?.movements?.map((row) => row.amount)).toEqual(monday?.conditioning?.movements?.map((row) => sampleAmount(row.key)));
     expect(JSON.stringify(monday?.conditioning)).not.toContain("10회/라운드");
     expect(monday?.conditioning?.stimulus).toBe(slot?.stimulus);
     expect(result.day_sources.mon).toBe("model");
@@ -613,15 +630,14 @@ describe("day recovery orchestrator", () => {
     const { result, calls } = await run("cell_head");
     const monday = result.draft.sessions.find((session) => session.day === "mon");
     const slot = result.plan.conditioning_slots?.mon;
-    const cell = repsCellFromKeys(slot?.primary_keys ?? goalMondayKeys());
+    const cell = repsCellFromKeys(goalMondayKeys());
     const diffs = (monday?.conditioning?.movements ?? []).filter((row) => row.amount !== sampleAmount(row.key));
     expect(cell?.value).toBeTruthy();
     expect(diffs).toHaveLength(1);
     expect(diffs[0]?.key).toBe(cell?.key);
     expect(diffs[0]?.amount).toBe(cell?.value);
     expect(diffs[0]?.amount_value).toBe(Number(cell?.value));
-    expect(monday?.conditioning?.format).toBe(slot?.format);
-    expect(monday?.conditioning?.movements.map((row) => row.key)).toEqual(slot?.primary_keys);
+    expect(monday?.conditioning?.stimulus).toBe(slot?.stimulus);
     expect(calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon")).toHaveLength(1);
     expect(result.traces.some((trace) => trace.agent_name === "revision_compliance" && trace.day === "mon" && trace.token_usage == null)).toBe(true);
     expect(result.day_sources.mon).toBe("model");
@@ -642,12 +658,12 @@ describe("day recovery orchestrator", () => {
     const { result, calls } = await run("cell_fix");
     const monday = result.draft.sessions.find((session) => session.day === "mon");
     const slot = result.plan.conditioning_slots?.mon;
-    const cell = repsCellFromKeys(slot?.primary_keys ?? []);
+    const cell = repsCellFromKeys((monday?.conditioning?.movements ?? []).map((row) => row.key));
     const diffs = (monday?.conditioning?.movements ?? []).filter((row) => row.amount !== sampleAmount(row.key));
     expect(diffs).toHaveLength(1);
     expect(diffs[0]?.key).toBe(cell?.key);
     expect(diffs[0]?.amount).toBe(cell?.value);
-    expect(monday?.conditioning?.format).toBe(slot?.format);
+    expect(monday?.conditioning?.stimulus).toBe(slot?.stimulus);
     expect(monday?.notes_ko ?? monday?.metcon_purpose).toBeTruthy();
     expect(JSON.stringify(monday?.conditioning)).not.toContain("10회/라운드");
     expect(result.day_sources.mon).toBe("model");

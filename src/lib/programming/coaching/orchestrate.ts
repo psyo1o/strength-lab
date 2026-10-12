@@ -19,7 +19,7 @@ import {
 import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
 import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "./conditioning-board";
-import { goalWeek, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
+import { goalWeek, movementFrequency, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
 import type { ConditioningSlot } from "../types";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
@@ -148,6 +148,10 @@ function adjacentStimulus(days: ReturnType<typeof otherTrainingDays>, day: DayKe
   return neighbor?.stimulus ?? null;
 }
 
+function goalLocked(slot: ConditioningSlot | null | undefined): boolean {
+  return Boolean(slot?.from_goal || slot?.primary_keys?.length);
+}
+
 function sessionUser(
   input: CoachWeekInput,
   plan: WeeklyIntentPlan,
@@ -162,7 +166,7 @@ function sessionUser(
 ) {
   const locked = lockedSkeletonDay(input, day.day);
   const rawSlot = plan.conditioning_slots?.[day.day] ?? null;
-  const goalOwned = Boolean(rawSlot?.primary_keys?.length);
+  const goalOwned = goalLocked(rawSlot);
   const slot = locked && !goalOwned ? null : rawSlot;
   const lockedRange =
     !goalOwned && locked && locked.conditioning.duration_class !== "rest"
@@ -190,12 +194,14 @@ function sessionUser(
         : day.secondary_training === "long_conditioning"
           ? "30-40"
           : "8-20",
-    intensity_level: SESSION_INTENSITY_LEVEL,
+    intensity_level: slot?.from_goal && slot.goal_intensity ? slot.goal_intensity : SESSION_INTENSITY_LEVEL,
+    movement_frequency: movementFrequency(input.recentStructures ?? []),
     ...(slot
       ? {
           conditioning_slot: slot,
-          slot_rule:
-            "Follow conditioning_slot. Use its format, duration_min, stimulus, volume, and primary_keys. Do not add or replace those keys. Fill amount, unit, and load only. If the catalog lists an Rx weight, load.male and load.female are required and must be one of those weights. Do not repeat a key. Do not use squat, pause_squat, or pin_squat.",
+          slot_rule: slot.from_goal
+            ? "conditioning_slot is a monthly target, not a movement list. Follow focus, movement_pattern, body_region, energy_system, stimulus, and time_domain. intensity_level is 1–5. Choose the format, the movements, and the amounts. duration_min must stay in that time_domain. Do not repeat a key. If the catalog lists an Rx weight, load.male and load.female are required and must be one of those weights. movement_frequency counts keys over the last 4 weeks. Prefer a lower count. Do not reuse a movement combination from avoid_structures or other_training_days. Sharing 3 or more keys overlaps, and a 2-movement piece overlaps when both keys match. That overlap rewrites this day once. The threshold stays 4. Do not use squat, pause_squat, or pin_squat."
+            : "Follow conditioning_slot. Use its format, duration_min, stimulus, volume, and primary_keys. Do not add or replace those keys. Fill amount, unit, and load only. If the catalog lists an Rx weight, load.male and load.female are required and must be one of those weights. Do not repeat a key. Do not use squat, pause_squat, or pin_squat.",
         }
       : {}),
     locked_day: locked
@@ -320,16 +326,16 @@ function adoptDay(input: {
   | { ok: false; errors: string[]; json: unknown; normalizations: SessionNormalization[] } {
   const locked = lockedSkeletonDay(input.week, input.day.day);
   const rawSlot = input.plan.conditioning_slots?.[input.day.day] ?? null;
-  const goalOwned = Boolean(rawSlot?.primary_keys?.length);
+  const goalOwned = goalLocked(rawSlot);
   const slot = locked && !goalOwned ? null : rawSlot;
-  const source = slot && input.stampAxes !== false ? stampSlotAxes(input.json, slot) : input.json;
+  const source = slot && input.stampAxes !== false && !slot.from_goal ? stampSlotAxes(input.json, slot) : input.json;
   const normalized = normalizeSessionPayload(source, { inventWorkFromClock: false });
   const schemaErrors = [
     ...sessionSelfErrors(normalized.json, input.day),
     ...(locked && !goalOwned ? lockedSessionFieldErrors(normalized.json, locked) : []),
     ...(slot
       ? slotFitErrors(normalized.json, slot, input.day.strength_lift).filter((error) =>
-          slot.primary_keys?.length ? true : error.includes("is banned"),
+          slot.from_goal || slot.primary_keys?.length ? true : error.includes("is banned"),
         )
       : []),
   ];
@@ -349,7 +355,7 @@ function adoptDay(input: {
       normalizations: normalized.normalizations,
     };
   }
-  if (slot && session.conditioning) session.conditioning.movement_patterns = [slot.movement_pattern];
+  if (slot && !slot.from_goal && session.conditioning) session.conditioning.movement_patterns = [slot.movement_pattern];
   const sessions = input.draft.sessions.map((row) => (row.day === input.day.day ? session : row));
   const candidate = stamp({ ...input.draft, sessions }, input.plan);
   const ignoreDays = input.ignoreDays ?? [];
@@ -1550,11 +1556,20 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     if (pending) unresolvedDays.set(day, pending);
   }
   const recentRewrites: { day: DayKey; rewritten: boolean; still_overlapping: number }[] = [];
-  for (const dayKey of recentOverlapDays(draft, input.recentStructures ?? [])) {
+  const rewriteDays = new Set(recentOverlapDays(draft, input.recentStructures ?? []));
+  for (const hit of similarityDiagnostics(draft, input.recentStructures ?? []).hits) {
+    if (hit.matched.includes("movement_combo") && (DAY_ORDER as readonly string[]).includes(hit.candidate_day)) {
+      rewriteDays.add(hit.candidate_day as DayKey);
+    }
+  }
+  for (const dayKey of DAY_ORDER.filter((day) => rewriteDays.has(day))) {
     const intent = plan.days.find((row) => row.day === dayKey);
     const session = draft.sessions.find((row) => row.day === dayKey);
     if (!intent || !session?.conditioning) continue;
     const payload = recentOverlapPayload(draft, dayKey, input.recentStructures ?? []);
+    if (payload.sessions.length === 0) {
+      payload.sessions = overlapSessionsFor(draft, dayKey, input.recentStructures ?? []).filter((row) => row.matched.includes("movement_combo"));
+    }
     if (payload.sessions.length === 0) continue;
     const written = await writeSession({
       week,
@@ -2288,7 +2303,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       skeleton: lockedLongitudinal.skeleton,
       draft,
       rebuildDay: (day) => {
-        if (plan.conditioning_slots?.[day]?.primary_keys?.length) return null;
+        if (goalLocked(plan.conditioning_slots?.[day])) return null;
         return rebuildLockedDay({
           day,
           skeleton: lockedLongitudinal.skeleton,
@@ -2304,7 +2319,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     draft = stamp(enforced.draft, plan);
     for (const day of enforced.fittedDays) hardAdjusted.add(day);
     for (const day of enforced.regeneratedDays) daySources[day] = "fallback";
-    const goalLockDays = new Set(DAY_ORDER.filter((day) => plan.conditioning_slots?.[day]?.primary_keys?.length));
+    const goalLockDays = new Set(DAY_ORDER.filter((day) => goalLocked(plan.conditioning_slots?.[day])));
     const blockingAfter = enforced.after.filter((error) => {
       const named = DAY_ORDER.find((day) => error.startsWith(`${day} `));
       return !named || !goalLockDays.has(named);

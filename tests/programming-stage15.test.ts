@@ -320,8 +320,8 @@ describe("stage15 router execution", () => {
         if (agent === "strength_coach") return chat({ day, strength_note_ko: "이 날의 스트렝스 목적을 유지합니다." });
         if (agent === "warmup_coach") return chat({ day, warmup_ko: "준비 동작을 먼저 합니다." });
         const slot = (user.conditioning_slot ??
-          (user.original_input as { conditioning_slot?: { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } } | undefined)
-            ?.conditioning_slot) as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
+          (user.original_input as { conditioning_slot?: { from_goal?: boolean; primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } } | undefined)
+            ?.conditioning_slot) as { from_goal?: boolean; primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
         const keys = slot?.primary_keys;
         const movements = keys?.length
           ? keys.map((key) => ({
@@ -333,7 +333,7 @@ describe("stage15 router execution", () => {
               load: prescribedLoad(key),
             }))
           : (session?.conditioning?.movements ?? []).map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
-        const format = slot?.format ?? session?.conditioning?.format ?? "amrap";
+        const format = slot?.from_goal ? (session?.conditioning?.format ?? "amrap") : (slot?.format ?? session?.conditioning?.format ?? "amrap");
         return chat({
           day,
           notes_ko: "이 날의 목적을 유지합니다.",
@@ -345,7 +345,7 @@ describe("stage15 router execution", () => {
                 movements,
                 equipment: session.conditioning.equipment,
                 volume: slot?.volume ?? session.conditioning.volume,
-                intensity: session.conditioning.intensity,
+                intensity: (slot?.stimulus ?? session.conditioning.stimulus) === "heavy" && session.conditioning.intensity === "light" ? "moderate" : session.conditioning.intensity,
                 interval_work_sec: format === "intervals" ? 30 : null,
                 interval_rest_sec: format === "intervals" ? 30 : null,
               }

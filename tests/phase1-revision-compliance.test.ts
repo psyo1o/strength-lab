@@ -72,6 +72,8 @@ function weeklyJson(plan: WeeklyIntentPlan) {
 }
 
 function slotFrom(user: Record<string, unknown> | undefined): {
+  from_goal?: boolean;
+  time_domain?: string;
   primary_keys?: string[];
   format?: string;
   duration_min?: number;
@@ -81,8 +83,8 @@ function slotFrom(user: Record<string, unknown> | undefined): {
   if (!user) return null;
   const read = (value: unknown) => {
     if (!value || typeof value !== "object") return null;
-    const slot = value as { primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string };
-    return slot.primary_keys?.length ? slot : null;
+    const slot = value as { from_goal?: boolean; time_domain?: string; primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string };
+    return slot.from_goal || slot.primary_keys?.length ? slot : null;
   };
   return read(user.conditioning_slot) ?? read((user.original_input as { conditioning_slot?: unknown } | undefined)?.conditioning_slot);
 }
@@ -98,6 +100,13 @@ function goalMovements(keys: readonly string[]) {
   }));
 }
 
+function durationForSlot(slot: { time_domain?: string; duration_min?: number }): number {
+  if (slot.time_domain === "long") return 32;
+  if (slot.time_domain === "medium") return 16;
+  if (slot.time_domain === "short") return 10;
+  return slot.duration_min ?? 12;
+}
+
 function sessionJson(session: SessionDraft, user?: Record<string, unknown>) {
   const piece = session.conditioning;
   if (!piece) return { day: session.day, notes_ko: "휴식입니다.", conditioning: null };
@@ -105,19 +114,20 @@ function sessionJson(session: SessionDraft, user?: Record<string, unknown>) {
   const movements = slot?.primary_keys?.length
     ? goalMovements(slot.primary_keys)
     : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
+  const stimulus = slot?.stimulus ?? piece.stimulus;
   return {
     day: session.day,
     notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
     conditioning: {
-      format: slot?.format ?? piece.format,
-      duration_min: slot?.duration_min ?? piece.duration_min,
-      stimulus: slot?.stimulus ?? piece.stimulus,
+      format: slot?.from_goal ? piece.format : (slot?.format ?? piece.format),
+      duration_min: slot?.from_goal ? durationForSlot(slot) : (slot?.duration_min ?? piece.duration_min),
+      stimulus,
       movements,
       equipment: [...piece.equipment],
       volume: slot?.volume ?? piece.volume,
-      intensity: piece.intensity,
-      interval_work_sec: (slot?.format ?? piece.format) === "intervals" ? 30 : null,
-      interval_rest_sec: (slot?.format ?? piece.format) === "intervals" ? 30 : null,
+      intensity: stimulus === "heavy" && piece.intensity === "light" ? "moderate" : piece.intensity,
+      interval_work_sec: (slot?.from_goal ? piece.format : (slot?.format ?? piece.format)) === "intervals" ? 30 : null,
+      interval_rest_sec: (slot?.from_goal ? piece.format : (slot?.format ?? piece.format)) === "intervals" ? 30 : null,
     },
   };
 }
@@ -194,25 +204,24 @@ function revisionOf(user: Record<string, unknown>): number {
 type Target = { day: DayKey; key: string; other: string; session: SessionDraft; nextAmount: string };
 
 function targetOf(month: MonthDirection): Target {
-  const day = deterministicMonthlyPlan(month).goal_table?.weeks.find((week) => week.week_index === 1)?.days.find((row) => !row.rest && row.primary_keys.length >= 2);
-  if (!day) throw new Error("no multi-movement day");
-  const key =
-    day.primary_keys.find((candidate) => {
+  const plan = planCoachedWeek({ month, weekIndex: 1 });
+  const built = assembleLegalWeek({ month, weekIndex: 1, plan });
+  const session = built.draft.sessions.find((row) => {
+    const keys = row.conditioning?.movements.map((movement) => movement.key) ?? [];
+    return keys.length >= 2 && keys.some((candidate) => {
       const range = rangeFor(candidate, "reps");
       return Boolean(range && range.min <= 20 && range.max >= 20);
-    }) ?? day.primary_keys[0]!;
-  const other = day.primary_keys.find((candidate) => candidate !== key) ?? key;
-  const session = {
-    day: day.day,
-    conditioning: {
-      movements: day.primary_keys.map((candidate) => ({
-        key: candidate,
-        amount: sampleAmount(candidate),
-        name_ko: catalogMovement(candidate)?.name_ko ?? candidate,
-      })),
-    },
-  } as SessionDraft;
-  return { day: day.day, key, other, session, nextAmount: nextCount(sampleAmount(key)) };
+    });
+  });
+  if (!session?.conditioning) throw new Error("no multi-movement day");
+  const keys = session.conditioning.movements.map((movement) => movement.key);
+  const key =
+    keys.find((candidate) => {
+      const range = rangeFor(candidate, "reps");
+      return Boolean(range && range.min <= 20 && range.max >= 20);
+    }) ?? keys[0]!;
+  const other = keys.find((candidate) => candidate !== key) ?? key;
+  return { day: session.day, key, other, session, nextAmount: nextCount(sampleAmount(key)) };
 }
 
 function edit(day: string, action: string, target: string | null, next: string | null, amount: string | null, unit: string | null, reason: string) {
@@ -459,7 +468,7 @@ describe("explicit edit list", () => {
     expect(headStanceOf({ status: "BLOCK" })).toBe("ACCEPT_WITH_NOTE");
     expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v8");
     expect(STRENGTH_COACH_PROMPT_VERSION).toBe("strength-coach-v2");
-    expect(CONDITIONING_COACH_PROMPT_VERSION).toBe("conditioning-coach-v5");
+    expect(CONDITIONING_COACH_PROMPT_VERSION).toBe("conditioning-coach-v6");
     expect(WARMUP_COACH_PROMPT_VERSION).toBe("warmup-coach-v2");
     expect(coachSystemPrompt("conditioning")).toContain("edit_list");
     expect(coachSystemPrompt("conditioning")).toContain("not in edit_list");

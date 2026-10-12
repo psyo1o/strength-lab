@@ -1,34 +1,30 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../../month-plan/types";
 import { monthEmphasis, performanceRead } from "../weekly-intent";
 import type { WeekActual } from "../summary";
-import type {
-  BlockPhase,
-  ConditioningSlot,
-  DaySessionGoal,
-  MonthDirection,
-  MonthGoalTable,
-  MovementPattern,
-  Stimulus,
-  StoredStructure,
-  TimeDomain,
-  VolumeBand,
-  WeekGoal,
-  WeekIndex,
-  WeeklyIntentPlan,
-  WodFormat,
+import {
+  BODY_REGIONS,
+  ENERGY_SYSTEMS,
+  SESSION_FOCUSES,
+  STIMULI,
+  type BlockPhase,
+  type BodyRegion,
+  type ConditioningSlot,
+  type DaySessionGoal,
+  type EnergySystem,
+  type MonthDirection,
+  type MonthGoalTable,
+  type MovementPattern,
+  type SessionFocus,
+  type SessionTarget,
+  type Stimulus,
+  type StoredStructure,
+  type TimeDomain,
+  type WeekGoal,
+  type WeekIndex,
+  type WeeklyIntentPlan,
 } from "../types";
-import { timeDomainFromMinutes } from "./canonical";
-import { strengthConditioningBan } from "./conditioning-board";
-import { catalogMovement, modelSelectable, standardCatalogKeys } from "./movement-catalog";
 
-/** A primary key may show up twice in one week and four times in the month. */
-export const WEEKLY_PRIMARY_CAP = 2;
-export const MONTHLY_PRIMARY_CAP = 4;
-
-export const STRENGTH_GOAL_KEYS = ["none", "back_squat", "front_squat", "strict_press", "bench_press", "deadlift"] as const;
-
-const FORMATS: readonly WodFormat[] = ["amrap", "for_time", "emom", "intervals", "chipper"];
-const STIMULUS_CYCLE: readonly Stimulus[] = ["heavy", "high_rep", "technical"];
+const PATTERNS: readonly MovementPattern[] = ["squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic"];
 
 export type WeekTrainingLayout = {
   phase: BlockPhase;
@@ -150,159 +146,126 @@ export function weekTrainingLayout(input: {
 
 export function layoutFromGoal(layout: WeekTrainingLayout, goal: WeekGoal): WeekTrainingLayout {
   const rest = goal.days.find((day) => day.rest)?.day ?? layout.rest;
-  const lowers = new Map<DayKey, MainLift>();
-  const uppers = new Map<DayKey, MainLift>();
-  let longDay: DayKey | null = null;
-  for (const day of goal.days) {
-    if (day.rest) continue;
-    const family = strengthFamily(day.strength_key);
-    if (family === "squat" || family === "deadlift") lowers.set(day.day, family);
-    if (family === "bench" || family === "ohp") uppers.set(day.day, family);
-    if ((day.duration_min ?? 0) >= 30 || day.time_domain === "long") longDay = day.day;
-  }
+  const longDay = goal.days.find((day) => !day.rest && day.time_domain === "long")?.day ?? null;
+  const lowers = new Map([...layout.lowers].filter(([day]) => day !== rest));
+  const uppers = new Map([...layout.uppers].filter(([day]) => day !== rest && layout.phase !== "deload"));
   return { ...layout, rest, lowers, uppers, longDay };
 }
 
-type Modality = "mono" | "gym" | "lift";
-
-function modality(key: string): Modality | null {
-  const category = catalogMovement(key)?.category ?? "";
-  if (category === "monostructural") return "mono";
-  if (category === "gymnastics") return "gym";
-  if (category === "weightlifting" || category === "kettlebell" || category === "dumbbell") return "lift";
-  return null;
+export function placementSignature(day: DaySessionGoal): string {
+  const target = day.target;
+  return [day.focus ?? "", target?.movement_pattern ?? "", target?.body_region ?? "", target?.energy_system ?? "", day.stimulus ?? ""].join("|");
 }
 
-function patternOf(key: string): MovementPattern {
-  const pattern = catalogMovement(key)?.pattern;
-  if (
-    pattern === "squat" ||
-    pattern === "hinge" ||
-    pattern === "press" ||
-    pattern === "pull" ||
-    pattern === "olympic" ||
-    pattern === "engine" ||
-    pattern === "gymnastic"
-  ) {
-    return pattern;
-  }
-  return "engine";
-}
+type FocusCell = {
+  focus: SessionFocus;
+  pattern: MovementPattern;
+  region: BodyRegion;
+  energy: EnergySystem;
+  stimulus: Stimulus;
+};
 
-function pools(): Record<Modality, string[]> {
-  const out: Record<Modality, string[]> = { mono: [], gym: [], lift: [] };
-  for (const key of standardCatalogKeys()) {
-    const kind = modality(key);
-    if (kind) out[kind].push(key);
-  }
-  return out;
-}
-
-function pickKeys(input: {
-  count: number;
-  ban: ReadonlySet<string>;
-  weekCounts: Map<string, number>;
-  monthCounts: Map<string, number>;
-  used: Set<string>;
-  pools: Record<Modality, string[]>;
-}): string[] | null {
-  const ok = (key: string) =>
-    !input.ban.has(key) && (input.weekCounts.get(key) ?? 0) < WEEKLY_PRIMARY_CAP && (input.monthCounts.get(key) ?? 0) < MONTHLY_PRIMARY_CAP;
-  const take = (groups: string[][]): string[] | null => {
-    const walk = (index: number, chosen: string[]): string[] | null => {
-      if (chosen.length === input.count) {
-        if (new Set(chosen).size !== chosen.length) return null;
-        const combo = comboKey(chosen);
-        if (input.used.has(combo)) return null;
-        return chosen;
+function focusCatalog(): FocusCell[] {
+  const cells: FocusCell[] = [];
+  for (const focus of SESSION_FOCUSES) {
+    for (const pattern of PATTERNS) {
+      for (const region of BODY_REGIONS) {
+        for (const energy of ENERGY_SYSTEMS) {
+          for (const stimulus of STIMULI) cells.push({ focus, pattern, region, energy, stimulus });
+        }
       }
-      const group = groups[index % groups.length] ?? [];
-      for (const key of group) {
-        if (!ok(key) || chosen.includes(key)) continue;
-        const next = walk(index + 1, [...chosen, key]);
-        if (next) return next;
-      }
-      return null;
-    };
-    return walk(0, []);
-  };
-  if (input.count >= 3) return take([input.pools.mono, input.pools.gym, input.pools.lift]);
-  return take([input.pools.gym, input.pools.lift]) ?? take([input.pools.mono, input.pools.gym]);
+    }
+  }
+  return cells;
+}
+
+function cellSignature(cell: FocusCell): string {
+  return [cell.focus, cell.pattern, cell.region, cell.energy, cell.stimulus].join("|");
 }
 
 function restGoal(day: DayKey): DaySessionGoal {
   return {
     day,
     rest: true,
-    strength_key: null,
     purpose: "Rest. No training is written.",
-    format: null,
-    duration_min: null,
-    time_domain: null,
+    focus: null,
+    intensity: null,
+    target: null,
     stimulus: null,
-    movement_pattern: null,
-    primary_keys: [],
+    time_domain: null,
   };
 }
 
-function remember(keys: readonly string[], weekCounts: Map<string, number>, monthCounts: Map<string, number>, used: Set<string>) {
-  used.add(comboKey(keys));
-  for (const key of keys) {
-    weekCounts.set(key, (weekCounts.get(key) ?? 0) + 1);
-    monthCounts.set(key, (monthCounts.get(key) ?? 0) + 1);
+function pickCell(input: {
+  day: DayKey;
+  weekIndex: WeekIndex;
+  blocked: ReadonlySet<string>;
+  neighborStimulus: Stimulus | null;
+}): FocusCell {
+  const cells = focusCatalog();
+  const shift = (input.weekIndex * 11 + DAY_ORDER.indexOf(input.day) * 3) % cells.length;
+  for (let step = 0; step < cells.length; step += 1) {
+    const cell = cells[(shift + step) % cells.length]!;
+    if (input.blocked.has(cellSignature(cell))) continue;
+    if (input.neighborStimulus && cell.stimulus === input.neighborStimulus) continue;
+    return cell;
   }
+  throw new Error(`goal table could not place week ${input.weekIndex} ${input.day}`);
 }
 
 /**
- * Four weeks of day goals. Rest, strength, and the long day follow the weekly layout.
- * Conditioning keys rotate inside the weekly and monthly caps, and no key set is reused.
+ * Four weeks of day targets. Rest and the long day follow the weekly layout.
+ * A training day names focus, intensity, target, stimulus, and time domain. It does not name movements.
  */
 export function deterministicGoalTable(month: MonthDirection, actual?: WeekActual | null): MonthGoalTable {
-  const catalog = pools();
-  const monthCounts = new Map<string, number>();
-  const used = new Set<string>();
+  const byWeekday = new Map<DayKey, Set<string>>();
+  let previous = new Set<string>();
   const weeks: WeekGoal[] = [];
   for (const weekIndex of [1, 2, 3, 4] as const) {
     const layout = weekTrainingLayout({ month, weekIndex, previousActual: actual });
-    const weekCounts = new Map<string, number>();
-    const training = DAY_ORDER.filter((day) => day !== layout.rest);
-    let metcons = 0;
+    const blocked = new Set(previous);
+    const weekSignatures = new Set<string>();
+    let previousTrainingIndex = -2;
+    let previousStimulus: Stimulus | null = null;
+    let trainingIndex = 0;
     const days = DAY_ORDER.map((day) => {
       if (day === layout.rest) return restGoal(day);
-      const lift = layout.lowers.get(day) ?? (layout.phase === "deload" ? null : layout.uppers.get(day)) ?? null;
-      const long = day === layout.longDay;
-      const metcon = long || metcons < 4;
-      if (metcon) metcons += 1;
-      const count = metcon ? 3 : 2;
-      const keys = pickKeys({
-        count,
-        ban: new Set(strengthConditioningBan(lift)),
-        weekCounts,
-        monthCounts,
-        used,
-        pools: catalog,
+      const index = DAY_ORDER.indexOf(day);
+      const adjacent = index - previousTrainingIndex === 1;
+      const weekday = byWeekday.get(day) ?? new Set<string>();
+      const cell = pickCell({
+        day,
+        weekIndex,
+        blocked: new Set([...blocked, ...weekSignatures, ...weekday]),
+        neighborStimulus: adjacent ? previousStimulus : null,
       });
-      if (!keys) throw new Error(`goal table could not place week ${weekIndex} ${day}`);
-      remember(keys, weekCounts, monthCounts, used);
-      const slotIndex = training.indexOf(day);
-      const minutes = long ? 32 : metcon ? [12, 16, 18, 14][slotIndex % 4]! : 10;
-      const format = FORMATS[slotIndex % FORMATS.length]!;
-      const stimulus = STIMULUS_CYCLE[slotIndex % STIMULUS_CYCLE.length]!;
-      const domain = timeDomainFromMinutes(minutes);
-      const strength = lift ? exactStrengthKey(lift, weekIndex) : null;
+      const signature = cellSignature(cell);
+      weekSignatures.add(signature);
+      weekday.add(signature);
+      byWeekday.set(day, weekday);
+      previousTrainingIndex = index;
+      previousStimulus = cell.stimulus;
+      const long = day === layout.longDay;
+      const time_domain: TimeDomain = long ? "long" : (weekIndex + trainingIndex) % 2 === 0 ? "short" : "medium";
+      trainingIndex += 1;
+      const intensity = layout.phase === "deload" ? 2 : long ? 3 : [3, 4, 4, 5, 3, 4][trainingIndex % 6]!;
+      const target: SessionTarget = {
+        movement_pattern: cell.pattern,
+        body_region: cell.region,
+        energy_system: cell.energy,
+      };
       return {
         day,
         rest: false,
-        strength_key: strength,
-        purpose: `${format} ${minutes} min around ${keys.join(", ")}.`,
-        format,
-        duration_min: minutes,
-        time_domain: domain,
-        stimulus,
-        movement_pattern: patternOf(keys[0]!),
-        primary_keys: keys,
+        purpose: `${cell.focus.replaceAll("_", " ")}. Target ${cell.pattern}, ${cell.region}, ${cell.energy}. Stimulus ${cell.stimulus.replaceAll("_", " ")}.`,
+        focus: cell.focus,
+        intensity,
+        target,
+        stimulus: cell.stimulus,
+        time_domain,
       } satisfies DaySessionGoal;
     });
+    previous = weekSignatures;
     const theme = month.week_themes.find((row) => row.week_index === weekIndex)?.theme_ko ?? "";
     weeks.push({
       week_index: weekIndex,
@@ -317,14 +280,38 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
 
-function asKeys(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+function asFocus(value: unknown): SessionFocus | null {
+  return typeof value === "string" && (SESSION_FOCUSES as readonly string[]).includes(value) ? (value as SessionFocus) : null;
 }
 
-function blankToNull(value: unknown): string | null {
-  if (typeof value !== "string" || value === "none" || value === "") return null;
-  return value;
+function asPattern(value: unknown): MovementPattern | null {
+  return typeof value === "string" && (PATTERNS as readonly string[]).includes(value) ? (value as MovementPattern) : null;
+}
+
+function asRegion(value: unknown): BodyRegion | null {
+  return typeof value === "string" && (BODY_REGIONS as readonly string[]).includes(value) ? (value as BodyRegion) : null;
+}
+
+function asEnergy(value: unknown): EnergySystem | null {
+  return typeof value === "string" && (ENERGY_SYSTEMS as readonly string[]).includes(value) ? (value as EnergySystem) : null;
+}
+
+function asStimulus(value: unknown): Stimulus | null {
+  return typeof value === "string" && (STIMULI as readonly string[]).includes(value) ? (value as Stimulus) : null;
+}
+
+function asDomain(value: unknown): TimeDomain | null {
+  return value === "short" || value === "medium" || value === "long" ? value : null;
+}
+
+function targetFrom(value: unknown): SessionTarget | null {
+  const body = asRecord(value);
+  if (!body) return null;
+  const movement_pattern = asPattern(body.movement_pattern);
+  const body_region = asRegion(body.body_region);
+  const energy_system = asEnergy(body.energy_system);
+  if (!movement_pattern || !body_region || !energy_system) return null;
+  return { movement_pattern, body_region, energy_system };
 }
 
 /** Read a model goal table. Invalid shapes return null and the caller reports the field errors. */
@@ -341,18 +328,16 @@ export function parseGoalTable(value: unknown): MonthGoalTable | null {
       const day = asRecord(item);
       if (!day || typeof day.day !== "string") return null;
       const rest = day.rest === true;
-      const duration = typeof day.duration_min === "number" ? day.duration_min : null;
+      const target = rest ? null : targetFrom(day.target);
       days.push({
         day: day.day as DayKey,
         rest,
-        strength_key: rest ? null : blankToNull(day.strength_key),
         purpose: typeof day.purpose === "string" ? day.purpose : "",
-        format: rest ? null : (blankToNull(day.format) as WodFormat | null),
-        duration_min: rest ? null : duration,
-        time_domain: rest ? null : duration != null && duration > 0 ? timeDomainFromMinutes(duration) : null,
-        stimulus: rest ? null : (blankToNull(day.stimulus) as Stimulus | null),
-        movement_pattern: rest ? null : (blankToNull(day.movement_pattern) as MovementPattern | null),
-        primary_keys: rest ? [] : asKeys(day.primary_keys),
+        focus: rest ? null : asFocus(day.focus),
+        intensity: rest ? null : typeof day.intensity === "number" ? day.intensity : null,
+        target,
+        stimulus: rest ? null : asStimulus(day.stimulus),
+        time_domain: rest ? null : asDomain(day.time_domain),
       });
     }
     weeks.push({ week_index: week.week_index, goal: week.goal, days });
@@ -360,35 +345,25 @@ export function parseGoalTable(value: unknown): MonthGoalTable | null {
   return { month_goal: body.month_goal, weeks };
 }
 
-function selectable(key: string): boolean {
-  const row = catalogMovement(key);
-  return Boolean(row && modelSelectable(row));
-}
-
 /**
- * Rotation check for one monthly table.
- * The same primary key is capped per week and per month. A key set is not reused.
- * The week being programmed also keeps the fatigue lower-lift cap and the month's long days.
+ * Placement check for one monthly table.
+ * The same focus, target, and stimulus may not repeat on a weekday, a neighboring day, or the previous week.
+ * Rest stays one day. Long time domains stay on the month's long weeks.
  */
-export function goalTableErrors(
-  table: MonthGoalTable | null,
-  month: MonthDirection,
-  options?: { weekIndex?: WeekIndex; fatigued?: boolean; recentCombos?: readonly string[] },
-): string[] {
+export function goalTableErrors(table: MonthGoalTable | null, month: MonthDirection): string[] {
   if (!table) return ["goal_table is missing"];
   const errors: string[] = [];
   if (!table.month_goal.trim()) errors.push("goal_table.month_goal is empty");
   if (table.weeks.length !== 4) errors.push("goal_table.weeks: expected 4 weeks");
-  const monthCounts = new Map<string, number>();
-  const used = new Set<string>();
-  const recent = new Set(options?.recentCombos ?? []);
-  for (const week of table.weeks) {
+  const weekdaySeen = new Map<DayKey, Set<string>>();
+  const ordered = [...table.weeks].sort((left, right) => left.week_index - right.week_index);
+  let previous = new Set<string>();
+  for (const week of ordered) {
     const seen = new Set<string>();
-    const weekCounts = new Map<string, number>();
     if (week.days.length !== 7) errors.push(`goal_table week ${week.week_index} must contain seven days`);
     let rests = 0;
-    let lowers = 0;
     let longs = 0;
+    const training: DaySessionGoal[] = [];
     for (const day of week.days) {
       if (!DAY_ORDER.includes(day.day)) errors.push(`goal_table week ${week.week_index} day ${day.day} is not a weekday`);
       if (seen.has(day.day)) errors.push(`goal_table week ${week.week_index} repeats ${day.day}`);
@@ -398,62 +373,54 @@ export function goalTableErrors(
         rests += 1;
         continue;
       }
-      if (day.strength_key && !STRENGTH_GOAL_KEYS.includes(day.strength_key as (typeof STRENGTH_GOAL_KEYS)[number])) {
-        errors.push(`goal_table ${week.week_index} ${day.day} strength_key ${day.strength_key} is not an exact lift`);
+      if (!day.focus || !day.target || !day.stimulus || !day.time_domain) {
+        errors.push(`goal_table ${week.week_index} ${day.day} needs focus, target, stimulus, and time_domain`);
       }
-      const family = strengthFamily(day.strength_key);
-      if (family === "squat" || family === "deadlift") lowers += 1;
-      if ((day.duration_min ?? 0) >= 30 || day.time_domain === "long") longs += 1;
-      if (!day.format || !day.stimulus || !day.movement_pattern) {
-        errors.push(`goal_table ${week.week_index} ${day.day} needs format, stimulus, and movement_pattern`);
+      if (day.intensity == null || !Number.isInteger(day.intensity) || day.intensity < 1 || day.intensity > 5) {
+        errors.push(`goal_table ${week.week_index} ${day.day} intensity must be 1–5`);
       }
-      const minutes = day.duration_min ?? 0;
-      const long = minutes >= 30;
-      if (long && (minutes < 30 || minutes > 40)) errors.push(`goal_table ${week.week_index} ${day.day} long piece is not 30–40 minutes`);
-      if (!long && (minutes < 8 || minutes > 20)) errors.push(`goal_table ${week.week_index} ${day.day} duration_min is not 8–20`);
-      if (day.primary_keys.length < 2 || day.primary_keys.length > 3) {
-        errors.push(`goal_table ${week.week_index} ${day.day} primary_keys: length ${day.primary_keys.length}; allowed 2–3`);
-      }
-      if (new Set(day.primary_keys).size !== day.primary_keys.length) {
-        errors.push(`goal_table ${week.week_index} ${day.day} repeats a primary key`);
-      }
-      for (const key of day.primary_keys) {
-        if (!selectable(key)) errors.push(`goal_table ${week.week_index} ${day.day} key ${key} is not selectable`);
-        if (strengthConditioningBan(family).includes(key)) errors.push(`goal_table ${week.week_index} ${day.day} key ${key} repeats the strength lift`);
-        weekCounts.set(key, (weekCounts.get(key) ?? 0) + 1);
-        monthCounts.set(key, (monthCounts.get(key) ?? 0) + 1);
-      }
-      if (day.primary_keys.length >= 2) {
-        const combo = comboKey(day.primary_keys);
-        if (used.has(combo) || recent.has(combo)) errors.push(`goal_table reuses movement combination ${combo}`);
-        used.add(combo);
+      if (day.time_domain === "long") longs += 1;
+      training.push(day);
+      if (!day.focus || !day.target || !day.stimulus) continue;
+      const signature = placementSignature(day);
+      const prior = weekdaySeen.get(day.day) ?? new Set<string>();
+      if (prior.has(signature)) errors.push(`goal_table ${day.day} repeats focus target stimulus ${signature}`);
+      prior.add(signature);
+      weekdaySeen.set(day.day, prior);
+      if (previous.has(signature)) errors.push(`goal_table week ${week.week_index} ${day.day} repeats the previous week ${signature}`);
+    }
+    training.sort((left, right) => DAY_ORDER.indexOf(left.day) - DAY_ORDER.indexOf(right.day));
+    for (let index = 1; index < training.length; index += 1) {
+      const left = training[index - 1]!;
+      const right = training[index]!;
+      if (DAY_ORDER.indexOf(right.day) - DAY_ORDER.indexOf(left.day) !== 1) continue;
+      if (!left.focus || !right.focus) continue;
+      if (placementSignature(left) === placementSignature(right)) {
+        errors.push(`goal_table week ${week.week_index} ${left.day} and ${right.day} repeat focus target stimulus`);
       }
     }
     for (const day of DAY_ORDER) if (!seen.has(day)) errors.push(`goal_table week ${week.week_index} is missing ${day}`);
     if (rests !== 1) errors.push(`goal_table week ${week.week_index} needs exactly one rest day; current=${rests}`);
-    for (const [key, count] of weekCounts) {
-      if (count > WEEKLY_PRIMARY_CAP) errors.push(`goal_table week ${week.week_index} uses ${key} ${count} times; weekly cap is ${WEEKLY_PRIMARY_CAP}`);
-    }
     const longRequired = month.long_conditioning_weeks.includes(week.week_index);
     if (longRequired && longs !== 1) errors.push(`goal_table week ${week.week_index} needs exactly one long day; current=${longs}`);
     if (!longRequired && longs !== 0) errors.push(`goal_table week ${week.week_index} is not a long-conditioning week`);
-    const cap = options?.fatigued && options.weekIndex === week.week_index ? 1 : 2;
-    if (lowers > cap) errors.push(`goal_table week ${week.week_index} lower lifts ${lowers} exceed ${cap}`);
-  }
-  for (const [key, count] of monthCounts) {
-    if (count > MONTHLY_PRIMARY_CAP) errors.push(`goal_table uses ${key} ${count} times; monthly cap is ${MONTHLY_PRIMARY_CAP}`);
+    previous = new Set(training.filter((day) => day.focus && day.target && day.stimulus).map((day) => placementSignature(day)));
   }
   return errors;
 }
 
-export function recentCombos(rows: readonly StoredStructure[]): string[] {
-  const combos: string[] = [];
+export function movementFrequency(rows: readonly StoredStructure[]): { key: string; count: number }[] {
+  const counts = new Map<string, number>();
   for (const row of rows) {
     if (row.benchmark) continue;
-    const keys = row.movements.map((movement) => movement.key).filter(Boolean);
-    if (keys.length >= 2) combos.push(comboKey(keys));
+    for (const movement of row.movements) {
+      if (!movement.key) continue;
+      counts.set(movement.key, (counts.get(movement.key) ?? 0) + 1);
+    }
   }
-  return combos;
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([key, count]) => ({ key, count }));
 }
 
 export function weekGoalAlignmentErrors(plan: WeeklyIntentPlan, goal: WeekGoal): string[] {
@@ -467,11 +434,12 @@ export function weekGoalAlignmentErrors(plan: WeeklyIntentPlan, goal: WeekGoal):
     const rest = intent.primary_training === "rest" || intent.recovery_role === "rest";
     if (day.rest !== rest) errors.push(`${day.day} rest must follow the monthly table (${day.rest ? "rest" : "train"})`);
     if (day.rest) continue;
-    const family = strengthFamily(day.strength_key);
-    if (intent.strength_lift !== family) errors.push(`${day.day} strength_lift must be ${family}`);
-    const long = (day.duration_min ?? 0) >= 30 || day.time_domain === "long";
+    const long = day.time_domain === "long";
     const intentLong = intent.secondary_training === "long_conditioning";
     if (long !== intentLong) errors.push(`${day.day} long conditioning must follow the monthly table`);
+    if (day.target && intent.movement_pattern !== day.target.movement_pattern) {
+      errors.push(`${day.day} movement_pattern must be ${day.target.movement_pattern}`);
+    }
   }
   return errors;
 }
@@ -479,24 +447,26 @@ export function weekGoalAlignmentErrors(plan: WeeklyIntentPlan, goal: WeekGoal):
 export function slotsFromWeekGoal(goal: WeekGoal): Partial<Record<DayKey, ConditioningSlot>> {
   const slots: Partial<Record<DayKey, ConditioningSlot>> = {};
   for (const day of goal.days) {
-    if (day.rest || !day.format || !day.stimulus || !day.movement_pattern || day.duration_min == null) continue;
-    const keys = day.primary_keys;
-    const long = day.time_domain === "long" || day.duration_min >= 30;
+    if (day.rest || !day.focus || !day.target || !day.stimulus || !day.time_domain) continue;
+    const duration = day.time_domain === "long" ? 32 : day.time_domain === "medium" ? 16 : 10;
     slots[day.day] = {
-      format: day.format,
-      time_domain: long ? "long" : timeDomainFromMinutes(day.duration_min),
-      duration_min: day.duration_min,
+      format: "amrap",
+      time_domain: day.time_domain,
+      duration_min: duration,
       stimulus: day.stimulus,
-      movement_pattern: day.movement_pattern,
-      primary_key: keys[0] ?? "",
-      volume: long ? "moderate" : "moderate",
-      metcon: keys.length >= 3,
-      movement_count: keys.length,
-      companions: keys.slice(1),
-      stretch: long,
+      movement_pattern: day.target.movement_pattern,
+      primary_key: "",
+      volume: "moderate",
+      metcon: false,
+      movement_count: 0,
+      companions: [],
+      stretch: day.time_domain === "long",
       purpose: day.purpose,
-      strength_key: day.strength_key,
-      primary_keys: keys,
+      from_goal: true,
+      focus: day.focus,
+      goal_intensity: day.intensity,
+      body_region: day.target.body_region,
+      energy_system: day.target.energy_system,
     };
   }
   return slots;

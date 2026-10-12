@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { fallbackMonth } from "../src/lib/programming/fallback";
 import {
-  WEEKLY_PRIMARY_CAP,
-  MONTHLY_PRIMARY_CAP,
-  comboKey,
   deterministicGoalTable,
   goalTableErrors,
+  movementFrequency,
+  placementSignature,
   slotsFromWeekGoal,
   weekGoalAlignmentErrors,
   weekTrainingLayout,
@@ -15,7 +14,8 @@ import { slotFitErrors } from "../src/lib/programming/coaching/conditioning-boar
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
 import { movementKeysOverlap, similarityScore } from "../src/lib/programming/rules";
-import { SIMILARITY_CONFIG, type StoredStructure } from "../src/lib/programming/types";
+import { SIMILARITY_CONFIG, type DaySessionGoal, type StoredStructure } from "../src/lib/programming/types";
+import { DAY_ORDER } from "../src/lib/month-plan/types";
 
 function month() {
   return fallbackMonth({ summary_ko: "블록을 유지합니다.", next_scheme: "531", strength_method: "531" });
@@ -41,51 +41,50 @@ function structure(keys: string[]): StoredStructure {
 }
 
 describe("monthly goal table", () => {
-  it("rotates primary keys and keeps one rest day on the layout weekday", () => {
+  it("places focus targets without movement keys and keeps the layout rest day", () => {
     const table = deterministicGoalTable(month());
     expect(goalTableErrors(table, month())).toEqual([]);
-    const counts = new Map<string, number>();
-    const combos = new Set<string>();
+    const weekday = new Map<string, Set<string>>();
     for (const week of table.weeks) {
       const layout = weekTrainingLayout({ month: month(), weekIndex: week.week_index });
-      const rests = week.days.filter((day) => day.rest);
-      expect(rests.map((day) => day.day)).toEqual([layout.rest]);
-      const weekCounts = new Map<string, number>();
+      expect(week.days.filter((day) => day.rest).map((day) => day.day)).toEqual([layout.rest]);
+      const signatures = new Set<string>();
       for (const day of week.days) {
+        expect(day).not.toHaveProperty("primary_keys");
+        expect(day).not.toHaveProperty("strength_key");
         if (day.rest) continue;
-        expect(day.primary_keys.length).toBeGreaterThanOrEqual(2);
-        expect(day.primary_keys.length).toBeLessThanOrEqual(3);
-        expect(new Set(day.primary_keys).size).toBe(day.primary_keys.length);
+        expect(day.focus).toBeTruthy();
+        expect(day.target?.movement_pattern).toBeTruthy();
+        expect(day.intensity).toBeGreaterThanOrEqual(1);
+        expect(day.intensity).toBeLessThanOrEqual(5);
         expect(day.purpose.length).toBeGreaterThan(0);
-        const combo = comboKey(day.primary_keys);
-        expect(combos.has(combo)).toBe(false);
-        combos.add(combo);
-        for (const key of day.primary_keys) {
-          weekCounts.set(key, (weekCounts.get(key) ?? 0) + 1);
-          counts.set(key, (counts.get(key) ?? 0) + 1);
-        }
+        expect(day.purpose).not.toMatch(/[a-z]+_[a-z]+/);
+        const signature = placementSignature(day);
+        expect(signatures.has(signature)).toBe(false);
+        signatures.add(signature);
+        const seen = weekday.get(day.day) ?? new Set<string>();
+        expect(seen.has(signature)).toBe(false);
+        seen.add(signature);
+        weekday.set(day.day, seen);
       }
-      for (const count of weekCounts.values()) expect(count).toBeLessThanOrEqual(WEEKLY_PRIMARY_CAP);
-      const long = week.days.filter((day) => (day.duration_min ?? 0) >= 30);
+      const long = week.days.filter((day) => day.time_domain === "long");
       expect(long.length).toBe(month().long_conditioning_weeks.includes(week.week_index) ? 1 : 0);
     }
-    for (const count of counts.values()) expect(count).toBeLessThanOrEqual(MONTHLY_PRIMARY_CAP);
   });
 
-  it("rejects a reused metcon and a third weekly use, and locks rest to the table", () => {
+  it("rejects a repeated focus target and locks rest to the table", () => {
     const table = deterministicGoalTable(month());
     const broken = structuredClone(table);
     const first = broken.weeks[0]!.days.find((day) => !day.rest)!;
-    const second = broken.weeks[1]!.days.find((day) => !day.rest)!;
-    second.primary_keys = [...first.primary_keys];
-    expect(goalTableErrors(broken, month()).join(" ")).toMatch(/reuses movement combination/);
-    const crowded = structuredClone(table);
-    const training = crowded.weeks[0]!.days.filter((day) => !day.rest);
-    const key = training[0]!.primary_keys[0]!;
-    for (const day of training) {
-      day.primary_keys = [key, `extra-${day.day}`, `more-${day.day}`];
-    }
-    expect(goalTableErrors(crowded, month()).join(" ")).toMatch(/weekly cap/);
+    const neighborIndex = DAY_ORDER.indexOf(first.day) + 1;
+    const neighbor = broken.weeks[0]!.days.find((day) => day.day === DAY_ORDER[neighborIndex] && !day.rest);
+    const target = neighbor ?? broken.weeks[0]!.days.find((day) => !day.rest && day.day !== first.day)!;
+    copyTarget(target, first);
+    expect(goalTableErrors(broken, month()).join(" ")).toMatch(/repeat focus target stimulus|repeats the previous week|repeats focus target stimulus/);
+    const sameWeekday = structuredClone(table);
+    const later = sameWeekday.weeks[2]!.days.find((day) => day.day === first.day && !day.rest);
+    if (later) copyTarget(later, first);
+    if (later) expect(goalTableErrors(sameWeekday, month()).join(" ")).toMatch(/repeats focus target stimulus/);
     const source = month();
     const planned = { ...source, coaching_plan: deterministicMonthlyPlan(source) };
     const goal = planned.coaching_plan.goal_table!.weeks[2]!;
@@ -121,6 +120,11 @@ describe("monthly goal table", () => {
     };
     expect(similarityScore(left, right)).toBe(4);
     expect(movementKeysOverlap([], [])).toBe(false);
+    expect(movementFrequency([left, right])).toEqual([
+      { key: "barbell_thruster", count: 2 },
+      { key: "burpee", count: 2 },
+      { key: "row_erg", count: 2 },
+    ]);
   });
 
   it("requires catalog Rx weights and rejects a duplicate key", () => {
@@ -130,13 +134,38 @@ describe("monthly goal table", () => {
     expect(rxLoadErrors("front_squat", null).join(" ")).toMatch(/load.male/);
     expect(rxLoadErrors("front_squat", { male: "95 lb", female: "65 lb" })).toEqual([]);
     expect(rxLoadErrors("front_squat", { male: "999 lb", female: "65 lb" }).join(" ")).toMatch(/95 lb/);
-    const slot = slotsFromWeekGoal(deterministicGoalTable(month()).weeks[0]!)[ "mon" ];
-    expect(slot?.primary_keys?.length).toBeGreaterThan(0);
+    const slot = slotsFromWeekGoal(deterministicGoalTable(month()).weeks[0]!)["mon"];
+    expect(slot?.from_goal).toBe(true);
+    expect(slot?.primary_keys).toBeUndefined();
     const dup = slotFitErrors(
-      { conditioning: { movements: [{ key: slot!.primary_keys![0], load: null }, { key: slot!.primary_keys![0], load: null }] } },
+      {
+        conditioning: {
+          duration_min: slot!.duration_min,
+          stimulus: slot!.stimulus,
+          movements: [
+            { key: "push_up", load: null },
+            { key: "push_up", load: null },
+          ],
+        },
+      },
       slot!,
       "none",
     );
     expect(dup.join(" ")).toMatch(/repeats a movement key/);
+    const wrongDomain = slotFitErrors(
+      { conditioning: { duration_min: slot!.time_domain === "short" ? 20 : 8, movements: [{ key: "push_up", load: null }] } },
+      slot!,
+      "none",
+    );
+    expect(wrongDomain.join(" ")).toMatch(/time_domain|duration must stay/);
   });
 });
+
+function copyTarget(into: DaySessionGoal, from: DaySessionGoal) {
+  into.focus = from.focus;
+  into.target = from.target ? { ...from.target } : null;
+  into.stimulus = from.stimulus;
+  into.intensity = from.intensity;
+  into.time_domain = from.time_domain;
+  into.purpose = from.purpose;
+}

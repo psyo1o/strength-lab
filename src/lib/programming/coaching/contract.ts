@@ -2,16 +2,18 @@ import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { IMPLEMENTED_STRENGTH_METHODS } from "../strength-methods";
 import { TIME_DOMAIN_RANGES } from "../rules";
 import {
+  BODY_REGIONS,
   COACHING_STIMULI,
+  ENERGY_SYSTEMS,
   PRIMARY_TRAININGS,
   SECONDARY_TRAININGS,
+  SESSION_FOCUSES,
   STIMULI,
   type DayIntent,
   type MonthDirection,
   type WeeklyIntentPlan,
 } from "../types";
 import { movementCatalog } from "./pieces";
-import { STRENGTH_GOAL_KEYS } from "./goal-table";
 import { catalogMovement, catalogUnits, cellEditErrors, checkCellEdit, rxLoadErrors, standardCatalogKeys } from "./movement-catalog";
 import { unitGuide } from "./stage13/units";
 import type { CoachAgentName } from "./models";
@@ -94,8 +96,8 @@ export function schemaBrief(agent: CoachAgentName): string {
     return [
       "JSON object. Do not wrap it. Do not write sets or amounts.",
       "Keys: block_goal, primary_adaptations, secondary_adaptations, strength_method, conditioning_emphasis, gymnastics_emphasis, olympic_emphasis, progression_strategy, volume_trend, intensity_trend, recovery_strategy, deload_strategy, benchmark_strategy, week_roles, fatigue_tolerance, variety_requirement, goal_table.",
-      "goal_table keys: month_goal, weeks. weeks is 4 objects: week_index, goal, days. days is 7 objects: day, rest, strength_key, purpose, format, duration_min, stimulus, movement_pattern, primary_keys.",
-      "strength_key is none, back_squat, front_squat, strict_press, bench_press, or deadlift. primary_keys has 2 or 3 catalog keys on a training day and is empty on rest. The same key at most twice in a week and four times in the month. Do not reuse a primary_keys set.",
+      "goal_table keys: month_goal, weeks. weeks is 4 objects: week_index, goal, days. days is 7 objects: day, rest, purpose, focus, intensity, target, stimulus, time_domain.",
+      "A training day does not name movement keys, format, or amounts. focus, stimulus, and time_domain are enums. intensity is an integer 1–5. target is movement_pattern, body_region, and energy_system. Rest uses focus none, intensity 0, stimulus none, time_domain none, and target none for each field. The same focus, target, and stimulus may not repeat on the same weekday, a neighboring training day, or the previous week.",
       "primary_adaptations and secondary_adaptations are arrays of strings.",
       `strength_method must repeat the month's current method. Catalog: ${IMPLEMENTED_STRENGTH_METHODS.join(" | ")}.`,
       "week_roles is an array of exactly 4 objects: week_index (1|2|3|4), role, note_ko.",
@@ -460,15 +462,21 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
                         {
                           day: stringEnum(DAY_ORDER),
                           rest: { type: "boolean" },
-                          strength_key: stringEnum(STRENGTH_GOAL_KEYS),
                           purpose: TEXT,
-                          format: stringEnum(["none", ...WOD_FORMATS]),
-                          duration_min: { type: "integer" },
+                          focus: stringEnum(["none", ...SESSION_FOCUSES]),
+                          intensity: { type: "integer" },
+                          target: strictObject(
+                            {
+                              movement_pattern: stringEnum(["none", "squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic"]),
+                              body_region: stringEnum(["none", ...BODY_REGIONS]),
+                              energy_system: stringEnum(["none", ...ENERGY_SYSTEMS]),
+                            },
+                            ["movement_pattern", "body_region", "energy_system"],
+                          ),
                           stimulus: stringEnum(["none", ...STIMULI]),
-                          movement_pattern: stringEnum(["none", "squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic"]),
-                          primary_keys: { type: "array", items: TEXT },
+                          time_domain: stringEnum(["none", "short", "medium", "long"]),
                         },
-                        ["day", "rest", "strength_key", "purpose", "format", "duration_min", "stimulus", "movement_pattern", "primary_keys"],
+                        ["day", "rest", "purpose", "focus", "intensity", "target", "stimulus", "time_domain"],
                       ),
                     },
                   },

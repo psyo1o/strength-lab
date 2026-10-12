@@ -91,7 +91,7 @@ export function weeklyCoachPayload(input: {
       input.inputSummary && typeof input.inputSummary === "object" && "previous_week" in input.inputSummary
         ? ((input.inputSummary as { previous_week?: { generation_source?: string } | null }).previous_week?.generation_source ?? null)
         : null,
-    note: "Return seven day purposes under the key days. week_goal already chose the rest day, the strength_key, and the long day. Copy those. Fill only the remaining day details. Do not move the rest day. Do not add a lower lift or a long-conditioning day the goal does not list. week_rules are immutable. Do not name extra movements, sets, or kilograms.",
+    note: "Return seven day purposes under the key days. week_goal chose the rest day, and for each training day the focus, target, stimulus, time_domain, and purpose. Copy the rest day. A day with time_domain long is the only long-conditioning day. Copy movement_pattern from target.movement_pattern. Choose the strength lift and the other day fields. Do not name extra movements, conditioning movement keys, formats, or amounts. week_rules are immutable.",
   };
 }
 
@@ -105,8 +105,8 @@ export function planCoachedWeek(input: {
   previousActual?: WeekActual | null;
   recentSignatures?: readonly string[];
 }): WeeklyIntentPlan {
-  const lockedGoal = goalWeek(input.month.coaching_plan?.goal_table, input.weekIndex);
   const month = input.month.coaching_plan ? input.month : { ...input.month, coaching_plan: deterministicMonthlyPlan(input.month, input.previousActual) };
+  const lockedGoal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
   const baseLayout = weekTrainingLayout({
     month,
     weekIndex: input.weekIndex,
@@ -163,7 +163,13 @@ export function planCoachedWeek(input: {
       upper: uppers.get(day) ?? null,
       emphasis,
     });
-    return intentFrom(day, built);
+    const intent = intentFrom(day, built);
+    const goalDay = lockedGoal?.days.find((row) => row.day === day);
+    if (goalDay && !goalDay.rest && goalDay.target) {
+      intent.movement_pattern = goalDay.target.movement_pattern;
+      intent.training_goal = goalDay.purpose;
+    }
+    return intent;
   });
 
   const adjustment = fatigued

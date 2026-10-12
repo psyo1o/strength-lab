@@ -3,7 +3,7 @@ import type { WeekActual } from "../summary";
 import { previousLowerFatigue } from "../rules";
 import type { MonthDirection, MonthlyCoachPlan, StoredStructure, WeekIndex } from "../types";
 import { monthlyPlanErrors } from "./contract";
-import { deterministicGoalTable, goalTableErrors, parseGoalTable, recentCombos } from "./goal-table";
+import { deterministicGoalTable, goalTableErrors, parseGoalTable } from "./goal-table";
 import { monthlyStrategyErrors } from "./stage13/rules";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { MONTHLY_COACH_PROMPT_VERSION } from "./prompts";
@@ -95,14 +95,12 @@ export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual |
     week_themes: month.week_themes,
     long_conditioning_weeks: month.long_conditioning_weeks,
     benchmark_week: month.benchmark_week,
-    programming_week_index: null as number | null,
-    max_lower_lifts: actual?.class_summary?.fatigue_signal === "high" ? 1 : 2,
     reported_fatigue: actual?.class_summary?.fatigue_signal ?? null,
     planned_volume: actual?.class_summary?.actual_volume ?? null,
     completion: actual?.class_summary
       ? { completed_days: actual.class_summary.completed_days, missed_days: actual.class_summary.missed_days }
       : null,
-    note: "Choose the month strategy and goal_table in this one call. goal_table is the month goal, one goal for each of 4 weeks, and one session goal for each date. A training day names strength_key as back_squat, front_squat, strict_press, bench_press, deadlift, or none, plus format, duration_min, stimulus, movement_pattern, 2 or 3 primary_keys, and one purpose line. Rest days set rest true, strength_key none, and primary_keys empty. The same primary key may appear at most 2 times in one week and 4 times in the month. Do not reuse a primary_keys set, including sets already listed in recent_combinations. Long days (30–40 min) only on long_conditioning_weeks, one per such week. The week in programming_week_index may use at most max_lower_lifts lower strength keys (back_squat, front_squat, deadlift). Do not write sets or amounts. Repeat current_method exactly.",
+    note: "Choose the month strategy and goal_table in this one call. goal_table is the month growth goal, one goal for each of 4 weeks, and one target for each date. A training day names focus, intensity 1–5, target (movement_pattern, body_region, energy_system), stimulus, time_domain, and one purpose line. Do not name movement keys, format, or amounts. Rest days set rest true and the other enums to none, with intensity 0. The same focus, target, and stimulus may not repeat on the same weekday, a neighboring training day, or the previous week. time_domain long only on long_conditioning_weeks, one per such week. Repeat current_method exactly.",
   };
 }
 
@@ -153,16 +151,6 @@ export async function coachMonthly(input: {
   const started = Date.now();
   const deterministic = deterministicMonthlyPlan(input.month, input.actual);
   const payload = monthlyCoachPayload(input.month, input.actual);
-  if (payload && typeof payload === "object") {
-    const body = payload as { programming_week_index?: number | null; recent_combinations?: string[] };
-    body.programming_week_index = input.weekIndex ?? null;
-    body.recent_combinations = recentCombos(input.recentStructures ?? []);
-  }
-  const tableCheck = {
-    weekIndex: input.weekIndex,
-    fatigued: input.actual?.class_summary?.fatigue_signal === "high",
-    recentCombos: recentCombos(input.recentStructures ?? []),
-  };
   if (!input.key) {
     return {
       plan: deterministic,
@@ -202,7 +190,7 @@ export async function coachMonthly(input: {
       const errors = [
         ...monthlyPlanErrors(json, input.month),
         ...monthlyStrategyErrors(json, input.month),
-        ...goalTableErrors(table, input.month, tableCheck),
+        ...goalTableErrors(table, input.month),
       ];
       return errors.length ? { ok: false, errors } : { ok: true };
     },
