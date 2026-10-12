@@ -2,7 +2,8 @@ import { DAY_ORDER, type DayKey, type MainLift } from "../../month-plan/types";
 import { classMetconPurpose } from "../../wod/purpose";
 import { fillSessionFields } from "../session-fields";
 import { exampleSets } from "../strength-methods";
-import { judgeWeek, similarityScore, toStructure, type WeekCheckContext } from "../rules";
+import { evaluateWeek } from "../evaluate-week";
+import { similarityScore, toStructure, type WeekCheckContext } from "../rules";
 import { strengthIsHeavy } from "../schemes";
 import type { WeekActual } from "../summary";
 import {
@@ -391,7 +392,7 @@ export function assembleWeek(input: {
     },
     sessions,
   };
-  const judged = judgeWeek(bare(draft), input.month, input.weekIndex, recent, context(input.actual, input.recentLiftMaps));
+  const judged = evaluateWeek(bare(draft), input.month, input.weekIndex, recent, context(input.actual, input.recentLiftMaps));
   return { draft, judgeOk: judged.ok, errors: judged.ok ? [] : judged.errors };
 }
 
@@ -446,7 +447,7 @@ export function replaceDays(input: {
     if (built) sessions[index] = built;
   }
   const draft: WeekDraft = { ...input.draft, sessions };
-  const judged = judgeWeek(bare(draft), input.month, input.weekIndex, input.recent ?? [], context(input.actual, input.recentLiftMaps));
+  const judged = evaluateWeek(bare(draft), input.month, input.weekIndex, input.recent ?? [], context(input.actual, input.recentLiftMaps));
   return { draft, judgeOk: judged.ok, errors: judged.ok ? [] : judged.errors };
 }
 

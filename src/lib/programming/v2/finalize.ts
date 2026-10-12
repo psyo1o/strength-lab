@@ -23,6 +23,8 @@ export type FinalizeWeekInput = {
   lockedSkeletonHeld: boolean;
   /** 테스트를 위해 스위치를 직접 넘긴다. 없으면 환경 변수를 읽는다. */
   fallbackDisplay?: boolean;
+  /** 월간 코치 스키마 실패. 하위 주는 모델로 채택하지 않는다. */
+  monthlyDegraded?: boolean;
 };
 
 export type WeekAdoption = {
@@ -58,7 +60,7 @@ export function finalizeWeekAdoption(input: FinalizeWeekInput): WeekAdoption {
 
   let origin: GenerationOrigin;
   if (!input.modelCalled) origin = "no_model";
-  else if (!input.weeklyCoachFromModel && !input.skeletonLocked) origin = "fallback";
+  else if (input.monthlyDegraded || (!input.weeklyCoachFromModel && !input.skeletonLocked)) origin = "fallback";
   else {
     origin = classifyWeekOrigin({
       modelCalled: true,
@@ -84,10 +86,11 @@ export function finalizeWeekAdoption(input: FinalizeWeekInput): WeekAdoption {
     verdict = decideModelAdoption(modelInput);
   }
 
-  const fallbackAccepted = origin === "fallback" && structureOk && headApproves && fallbackDisplay;
-  const persistActive = verdict.modelSuccess || fallbackAccepted;
-  const finalStatus = finalStatusFor(input.head, verdict.modelSuccess);
-  const weekStatus = structureOk && headApproves ? "VALIDATED" : "FAILED";
+  const fallbackAccepted =
+    !input.monthlyDegraded && origin === "fallback" && structureOk && headApproves && fallbackDisplay;
+  const persistActive = !input.monthlyDegraded && (verdict.modelSuccess || fallbackAccepted);
+  const finalStatus = finalStatusFor(input.head, verdict.modelSuccess && !input.monthlyDegraded);
+  const weekStatus = persistActive ? "VALIDATED" : "FAILED";
 
   return {
     verdict,

@@ -9,6 +9,18 @@ import { askCoach, coachAttemptRecord } from "./llm";
 import { MONTHLY_COACH_PROMPT_VERSION } from "./prompts";
 import { finishTrace, inputHash, type AgentTrace } from "./trace";
 
+export type MonthlyDirectionResult = {
+  source: "coach" | "deterministic_fallback";
+  degraded: boolean;
+  reason: string | null;
+};
+
+const COACH_DIRECTION: MonthlyDirectionResult = { source: "coach", degraded: false, reason: null };
+
+function fallbackDirection(reason: string | null, degraded: boolean): MonthlyDirectionResult {
+  return { source: "deterministic_fallback", degraded, reason };
+}
+
 function emphasisText(month: MonthDirection): { gymnastics: string; olympic: string; conditioning: string } {
   const text = `${month.focus_ko}\n${month.skill_direction}\n${month.conditioning_direction}\n${month.monthly_goal}`;
   const olympic = /올림픽|스내치|클린|역도|olympic/i.test(text);
@@ -104,8 +116,10 @@ export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual |
   };
 }
 
-function planFromModel(json: unknown, month: MonthDirection): MonthlyCoachPlan {
+function planFromModel(json: unknown, month: MonthDirection): MonthlyCoachPlan | null {
   const body = json as Record<string, unknown>;
+  const table = parseGoalTable(body.goal_table);
+  if (!table) return null;
   const base = deterministicMonthlyPlan(month);
   const roles = Array.isArray(body.week_roles)
     ? body.week_roles.map((row) => {
@@ -131,7 +145,7 @@ function planFromModel(json: unknown, month: MonthDirection): MonthlyCoachPlan {
     week_roles: roles,
     fatigue_tolerance: body.fatigue_tolerance as MonthlyCoachPlan["fatigue_tolerance"],
     variety_requirement: body.variety_requirement as MonthlyCoachPlan["variety_requirement"],
-    goal_table: parseGoalTable(body.goal_table) ?? deterministicGoalTable(month),
+    goal_table: table,
     source: "model",
   };
 }
@@ -147,7 +161,7 @@ export async function coachMonthly(input: {
   timeoutMs: number;
   runId: string;
   weekId: string;
-}): Promise<{ plan: MonthlyCoachPlan; trace: AgentTrace }> {
+}): Promise<{ plan: MonthlyCoachPlan; trace: AgentTrace; direction: MonthlyDirectionResult }> {
   const started = Date.now();
   const deterministic = deterministicMonthlyPlan(input.month, input.actual);
   const payload = monthlyCoachPayload(input.month, input.actual);
@@ -156,6 +170,7 @@ export async function coachMonthly(input: {
     const fromModel = recorded.source === "model";
     return {
       plan: recorded,
+      direction: fromModel ? COACH_DIRECTION : fallbackDirection("recorded_monthly_plan", false),
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.weekId,
@@ -181,6 +196,7 @@ export async function coachMonthly(input: {
   if (!input.key) {
     return {
       plan: deterministic,
+      direction: fallbackDirection("no_model", false),
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.weekId,
@@ -225,6 +241,7 @@ export async function coachMonthly(input: {
   if (!asked.ok) {
     return {
       plan: deterministic,
+      direction: fallbackDirection(asked.reason, true),
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.weekId,
@@ -250,8 +267,37 @@ export async function coachMonthly(input: {
     };
   }
   const plan = planFromModel(asked.json, input.month);
+  if (!plan) {
+    return {
+      plan: deterministic,
+      direction: fallbackDirection("goal_table", true),
+      trace: finishTrace(started, {
+        run_id: input.runId,
+        week_id: input.weekId,
+        agent_name: "monthly_coach",
+        model: asked.model,
+        prompt_version: asked.promptVersion,
+        input_hash: inputHash(payload),
+        input_summary: { method: deterministic.strength_method },
+        output: asked.json,
+        raw_output: asked.raw,
+        model_input: payload,
+        validation_result: "fail",
+        validation_errors: ["goal_table did not parse"],
+        ...coachAttemptRecord(asked),
+        retry_count: asked.retryCount,
+        failure_reason: "goal_table",
+        deterministic: false,
+        source: "fallback",
+        fallback_reason: "goal_table",
+        revision_number: 0,
+        token_usage: asked.usage,
+      }),
+    };
+  }
   return {
     plan,
+    direction: COACH_DIRECTION,
     trace: finishTrace(started, {
       run_id: input.runId,
       week_id: input.weekId,

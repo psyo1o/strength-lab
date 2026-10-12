@@ -1,5 +1,6 @@
 import { sessionCoachErrors } from "../contract";
-import { judgeWeek, TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rules";
+import { evaluateWeek } from "../../evaluate-week";
+import { TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rules";
 import type { DayIntent, MonthDirection, SessionDraft, WeekDraft, WeekIndex } from "../../types";
 import { makeIssue, type IssueCode, type IssueSeverity, type ValidationIssue, type Weekday } from "../../v2";
 import { COACHING_POLICY, isCoachingSignal } from "./policy";
@@ -174,7 +175,7 @@ export function finalWeekReport(input: {
     intent: { why_ko: input.draft.intent.why_ko, focus: input.draft.intent.focus, scheme_note: input.draft.intent.scheme_note },
     sessions: input.draft.sessions,
   };
-  const judged = judgeWeek(bare, input.month, input.weekIndex, input.recent, input.context ?? {});
+  const judged = evaluateWeek(bare, input.month, input.weekIndex, input.recent, input.context ?? {});
   const judgedErrors = judged.ok ? [] : judged.errors;
   const hard = judgedErrors.filter((error) => !isCoachingSignal(error));
   const signals = judgedErrors.filter((error) => isCoachingSignal(error));

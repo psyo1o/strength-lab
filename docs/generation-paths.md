@@ -62,7 +62,7 @@ plan-lab의 `PROBE_PROVIDER`는 `COACH_MODEL_PROVIDER`에, `PROBE_MODEL`은 `COA
 
 오케스트레이터가 `{ kind: "no-model" }`을 돌려준 뒤의 초안은 이전과 같다. `authorWeeklyIntent` 다음 `authorWeek`이고, 둘 다 `key: null`이라 모델을 호출하지 않는다. `authored.reason`은 `no_model`이다. 저장 스탬프는 `weekly-program-v10` (`WEEKLY_PROMPT_VERSION`)이다. 이 스탬프는 `weekPrompt`가 돌았다는 뜻이 아니다.
 
-`realizeWeekFromIntent`가 `judgeWeek`를 통과하면 그 초안을 저장할 수 있다. `no_model`이면 그 분기를 타지 않고 `buildFallbackWeek`다. `generation_source`는 `fallback`, `fallback_reason`은 `no_model`이다. 카탈로그가 주를 못 채우면 `assignGuaranteedConditioning`이 합성 조합을 고른다. 같은 키 조합은 한 번이고, 한 목록 안의 초안은 서로 유사도 4 미만이다.
+`realizeWeekFromIntent`가 `evaluateWeek`를 통과하면 그 초안을 저장할 수 있다. `no_model`이면 그 분기를 타지 않고 `buildFallbackWeek`다. `generation_source`는 `fallback`, `fallback_reason`은 `no_model`이다. 카탈로그가 주를 못 채우면 `assignGuaranteedConditioning`이 합성 조합을 고른다. 같은 키 조합은 한 번이고, 한 목록 안의 초안은 서로 유사도 4 미만이다.
 
 이 분기를 `coachWeekKeyless`로 보내지 않는 이유: 키가 없으면 모델을 부르면 안 되고, 화면의 클래스 블록은 `warmup`, `main`, `metcon`인 결정적 초안이다. `coachWeekKeyless`는 스탬프가 `coaching-pipeline-v2`라 그 계약을 바꾼다. 키 없음은 오케스트레이터가 `no-model`로 고른 뒤 기존 초안을 쓴다. `COACHING_PIPELINE`이 `"1"`이어도 이 분기는 같다.
 
@@ -72,11 +72,19 @@ plan-lab의 `PROBE_PROVIDER`는 `COACH_MODEL_PROVIDER`에, `PROBE_MODEL`은 `COA
 
 월 코치 응답의 `raw_output` 또는 `output`이 `parseWeekDraft`로 세션 7개면, 월 트레이스를 넣기 전에 `WeekDocumentResponse`를 던진다. 오케스트레이터는 그것을 `week-document`로 받는다. 실제 월 JSON은 세션 7개가 아니므로 이 분기를 타지 않는다. HTTP 실패 문구도 주 JSON이 아니다.
 
-`persistWeekDocument`는 테스트 fetch를 다시 부르지 않는다. 합성 fetch가 그 주 JSON을 200으로 돌려주고, `planWeeklyIntent` 다음 `authorWeek`가 `judgeWeek`로 채택한다. 성공 스탬프는 `wod-from-intent-v1`이다. 유사도 실패의 저장 사유는 `too_similar`이고 시도 번호는 2다. 이것은 두 번째 생성 알고리즘이 아니다. 한 번에 주 JSON을 돌려주던 기존 작성기의 판정을 유지하는 입구다. 전문 코치가 만든 주에는 `wod-from-intent-v1`을 찍지 않는다.
+`persistWeekDocument`는 테스트 fetch를 다시 부르지 않는다. 합성 fetch가 그 주 JSON을 200으로 돌려주고, `planWeeklyIntent` 다음 `authorWeek`가 `evaluateWeek`로 채택한다. 성공 스탬프는 `wod-from-intent-v1`이다. 유사도 실패의 저장 사유는 `too_similar`이고 시도 번호는 2다. 이것은 두 번째 생성 알고리즘이 아니다. 한 번에 주 JSON을 돌려주던 기존 작성기의 판정을 유지하는 입구다. 전문 코치가 만든 주에는 `wod-from-intent-v1`을 찍지 않는다.
 
 그 외 문자열 키의 순서: `coachMonthly` (`monthly-coach-v4`), 잠긴 스켈레톤이 없으면 주간 코치 `weekly-coach-v4`, 훈련일마다 전문 코치 셋, 스키마 실패인 영역만 하루 복구 1회, 부하 `load-coach-v2`, 피로·변이 엔진, 전문 코치 검토(stage13, 생성기가 아님), 헤드 `head-coach-v8`, `runAdjustmentPass`, REVISE는 칸 편집 목록이고 문장만 있으면 스키마 오류로 헤드를 한 번 더 묻는다, 칸 수정은 서버가 그 칸만 쓰고 전문 코치를 다시 부르지 않는다, 예전 `action` 목록을 받은 날만 그 코치가 다시 쓰고 `compareEditList`가 목록과 실제 변경을 한 번 비교해 맞는 출력만 그 날을 바꾼다, `finalWeekReport`. 하드 오류가 남으면 헤드의 APPROVE와 APPROVE_WITH_NOTE는 채택되지 않는다. 장비 누락과 장비 보유는 그 하드 오류에 넣지 않는다.
 
 휴식일은 세션 모델을 호출하지 않고 트레이스 `fallback_reason`이 `rest`다.
+
+주간 판정 호출은 `evaluateWeek` 한 곳이다. `judgeWeek`는 그 함수 안에서만 돈다. 결과는 `PASS`, `ADJUST`, `BLOCK`과 `ValidationIssue[]`다. `PASS`가 아니면 그 호출은 통과가 아니다. `too_similar`와 `language`는 `ADJUST`다. `language` 단계는 지우지 않는다. 그 외 실패는 `BLOCK`이다. 엔진, 키 없는 파이프라인, 오케스트레이터, 세션 조립, 폴백, 주 작성기, 최종 검증이 같은 함수를 쓴다.
+
+월간 코치가 스키마 검증에 실패하면 `MonthlyDirectionResult`는 `source: deterministic_fallback`, `degraded: true`다. 그 플래그는 그 주의 `finalizeWeekAdoption`으로 간다. 그 주는 모델로 채택하지 않고 `generation_source`는 fallback이며 저장하면 DB `status`는 failed다. 키가 없어 모델을 부르지 않은 경우는 `reason: no_model`이고 `degraded`가 아니다. 검증을 통과한 월간 응답은 `source: coach`, `degraded: false`다. 목표표가 파싱되지 않으면 모델 출처로 조용히 바꾸지 않고 `degraded`다.
+
+논리 `week_status`는 파이프라인 결과에 직접 쓰지 않는다. DB `status`에서 `deriveWeekStatus`로만 읽는다. `active`만 `VALIDATED`다. `finalizeWeekAdoption`의 `weekStatus`는 그 함수만 쓰고, 활성으로 저장할 때만 `VALIDATED`다.
+
+`goal_table`은 `buildGoalTable`이 월 방향, 주차, 직전 주 부하, 가용 요일을 보고 만든다. 생성기와 `goalTableErrors`는 `GOAL_TABLE_RULES` 하나를 쓴다. 이웃 훈련일의 범주가 같으면 안 된다. 주당 lower, upper, full, engine, gymnastics 개수는 그 상수의 범위 안이어야 한다. 같은 요일 강도는 직전 주와 `loadDeltaMax` 2를 넘기면 안 된다. 한 범주만 있으면 생성 실패다.
 
 채택은 `finalizeWeekAdoption` 한 곳이다. `generation_source === "model"`은 그 함수가 `modelSuccess`일 때만이다. 주간 코치가 실패해 결정적 계획으로 바뀌면 훈련일이 모두 모델이어도 model이 아니다. 일부 일만 모델이면 출처는 fallback이고 사유는 `fallback_after_model_failure:채택/훈련일수`다. 헤드 `ADJUST`와 `BLOCK`은 승인이 아니다. 최종 하드 오류가 있으면 채택하지 않는다. 경고만 있으면 채택을 막지 않는다. 미해결 날이면 `final_validation.ok`는 false이고 활성 정상 주로 저장하지 않는다.
 
@@ -86,7 +94,7 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 요일 고정은 `lockWeekdaysForPlacement`가 잠긴 스켈레톤일 때만 참이다. `goal_table`만으로 요일을 고정하지 않는다. 배치 결과는 호출자가 넘긴 스켈레톤 객체에 다시 쓰지 않는다. `adoptDay`는 goal 슬롯이 있어도 잠긴 스켈레톤 필드 검사를 건너뛰지 않는다.
 
-저장 직전의 `too_similar` 교체(`judgeWeek` 뒤 `replaceDays`)는 코드에 남아 있다. 그 판정은 `placeTrainingDays`로 옮겨 헤드 전에 돈다. 이 저장 경로에서는 `replaceSimilarAfterHead`가 꺼져 있어 최근 주 유사도로 fallback하지 않는다. 저장된 초안과 `generation_source`는 오케스트레이터 결과다. 주 JSON 경로(`persistWeekDocument`)의 `too_similar` 저장은 그대로다. 프롬프트 스탬프는 `coaching-pipeline-v6`로 남는다.
+저장 직전의 `too_similar` 교체(`evaluateWeek` 뒤 `replaceDays`)는 코드에 남아 있다. 그 판정은 `placeTrainingDays`로 옮겨 헤드 전에 돈다. 이 저장 경로에서는 `replaceSimilarAfterHead`가 꺼져 있어 최근 주 유사도로 fallback하지 않는다. 저장된 초안과 `generation_source`는 오케스트레이터 결과다. 주 JSON 경로(`persistWeekDocument`)의 `too_similar` 저장은 그대로다. 프롬프트 스탬프는 `coaching-pipeline-v6`로 남는다.
 
 `STRENGTH_LAB_PROBE === "1"`이고 키가 비어 있지 않은 문자열이며 `weekStart === "2026-10-05"`이면 오케스트레이터 호출 전에 예외를 던진다. 프로브가 아니면 그 날짜를 막지 않는다. 화면이 그 주를 만들 수 있어야 하고, plan-lab은 2099만 쓴다.
 
@@ -150,7 +158,7 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 첫 작성은 이웃 자극과 유사도로 그 날을 다시 짜지 않는다. 훈련일을 다 쓴 뒤 `placeTrainingDays`가 요일만 바꾼다. 잠긴 뼈대가 있으면 훈련일 안에서만 바꾸고, 뼈대도 세션과 함께 옮긴다. 교환은 이웃 자극, 연속 유사도(임계값 4), 스쿼트 다음 날 헤비 풀 같은 간격을 먼저 보고, 그다음 같은 주와 최근 주의 `similarityViolations`를 본다. 교환 뒤에도 최근 주와 점수 4 이상인 날, 그리고 동작 조합 축이 같은 주나 최근 주와 겹친 날은 그 날만 한 번 다시 쓴다. 입력에는 최근 4주 `movement_frequency`가 들어간다. `recentOverlapPayload`가 겹친 세션을 담는다. 입력에는 겹친 최근 세션의 format, duration_min, time_domain, stimulus, movement_pattern, 동작 key와 수량, 그리고 `matched` 축이 들어간다. 지시는 그 축 중 최소 하나를 바꾸라는 문장이다. `revisionNumber`는 1이라 스키마 복구를 다시 타지 않는다. 그래도 겹치면 `recent_overlap_after_rewrite`로 헤드 입력에만 남고 fallback하지 않는다.
 
-`judgeWeek`와 유사도는 헤드 전에 한 번 돌아 그 결과가 헤드 입력이다. 순서대로 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language다. language 단계는 비어 있다. 유사도 임계값은 4다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이고, 동작 조합이 겹치면 `movement_combo`가 4를 더한다. 컨디셔닝 키가 3개 이상 같거나, 두 동작 세션의 키가 둘 다 같으면 겹친다. 키가 없는 칸은 이 축에서 맞지 않는다. 최근 구조는 4주(`week_start` 28일)까지 비교한다. 최근 주 유사도도 그 입력이다. 헤드 뒤에 `judgeWeek`를 다시 돌려도 `post_head_judge` 진단일 뿐이고 채택을 거절하지 않는다. 저장 함수는 최근 주 유사도로 fallback하지 않는다.
+`evaluateWeek`와 유사도는 헤드 전에 한 번 돌아 그 결과가 헤드 입력이다. 안의 순서는 schema, invented_weight, rule_break(세트), feedback, weekday_pattern, rule_break(구성), too_similar, language다. language 단계의 현재 구현은 오류를 비워 두지만 호출 순서는 그대로다. 유사도 임계값은 4다. 점수는 format, time_domain, stimulus, movement_pattern, equipment, volume이고, 동작 조합이 겹치면 `movement_combo`가 4를 더한다. 컨디셔닝 키가 3개 이상 같거나, 두 동작 세션의 키가 둘 다 같으면 겹친다. 키가 없는 칸은 이 축에서 맞지 않는다. 최근 구조는 4주(`week_start` 28일)까지 비교한다. 최근 주 유사도도 그 입력이다. 헤드 뒤에 `judgeWeek`를 다시 돌려도 `post_head_judge` 진단일 뿐이고 채택을 거절하지 않는다. 저장 함수는 최근 주 유사도로 fallback하지 않는다.
 
 `normalizeWeekPayload`는 검사 전에 빈 세션 미러만 같은 날 conditioning에 이미 있는 값으로 복사한다. 이미 적힌 `time_domain`과 `duration_min`은 고치지 않는다. conditioning이 없는 훈련일은 `missing session fields because conditioning is null`이다. 복사는 모델 성공이 아니다.
 

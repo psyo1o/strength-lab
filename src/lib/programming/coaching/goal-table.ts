@@ -165,22 +165,95 @@ type FocusCell = {
   stimulus: Stimulus;
 };
 
-function focusCatalog(): FocusCell[] {
-  const cells: FocusCell[] = [];
-  for (const focus of SESSION_FOCUSES) {
-    for (const pattern of PATTERNS) {
-      for (const region of BODY_REGIONS) {
-        for (const energy of ENERGY_SYSTEMS) {
-          for (const stimulus of STIMULI) cells.push({ focus, pattern, region, energy, stimulus });
-        }
+export const GOAL_TABLE_RULES = {
+  categories: ["lower", "upper", "full", "engine", "gymnastics"] as const,
+  focusCategory: {
+    lower_strength: "lower",
+    upper_strength: "upper",
+    weightlifting_cycling: "full",
+    engine_endurance: "engine",
+    gymnastics_skill: "gymnastics",
+  } satisfies Record<SessionFocus, "lower" | "upper" | "full" | "engine" | "gymnastics">,
+  share: {
+    lower: { min: 1, max: 2 },
+    upper: { min: 1, max: 2 },
+    full: { min: 0, max: 2 },
+    engine: { min: 0, max: 2 },
+    gymnastics: { min: 0, max: 2 },
+  },
+  forbidConsecutiveSameCategory: true,
+  loadDeltaMax: 2,
+  monopolyFails: true,
+} as const;
+
+export type GoalCategory = (typeof GOAL_TABLE_RULES.categories)[number];
+
+const FOCUS_FOR: Record<GoalCategory, SessionFocus> = {
+  lower: "lower_strength",
+  upper: "upper_strength",
+  full: "weightlifting_cycling",
+  engine: "engine_endurance",
+  gymnastics: "gymnastics_skill",
+};
+
+const REGION_FOR: Record<GoalCategory, BodyRegion> = {
+  lower: "lower",
+  upper: "upper",
+  full: "full",
+  engine: "full",
+  gymnastics: "upper",
+};
+
+function rotateCategories(shift: number): GoalCategory[] {
+  const items = GOAL_TABLE_RULES.categories;
+  const offset = ((shift % items.length) + items.length) % items.length;
+  return [...items.slice(offset), ...items.slice(0, offset)];
+}
+
+function calendarNeighbors(day: DayKey): [DayKey, DayKey] {
+  const index = DAY_ORDER.indexOf(day);
+  return [DAY_ORDER[(index + 6) % 7]!, DAY_ORDER[(index + 1) % 7]!];
+}
+
+function placeCategories(training: readonly DayKey[], weekIndex: WeekIndex): Map<DayKey, GoalCategory> | null {
+  const prefs = rotateCategories(weekIndex - 1);
+  const counts: Record<GoalCategory, number> = { lower: 0, upper: 0, full: 0, engine: 0, gymnastics: 0 };
+  const assigned = new Map<DayKey, GoalCategory>();
+  for (const day of training) {
+    const blocked = new Set<GoalCategory>();
+    if (GOAL_TABLE_RULES.forbidConsecutiveSameCategory) {
+      for (const neighbor of calendarNeighbors(day)) {
+        const category = assigned.get(neighbor);
+        if (category) blocked.add(category);
       }
     }
+    const open = prefs.filter((category) => !blocked.has(category) && counts[category] < GOAL_TABLE_RULES.share[category].max);
+    open.sort((left, right) => {
+      const leftNeed = counts[left] < GOAL_TABLE_RULES.share[left].min ? 0 : 1;
+      const rightNeed = counts[right] < GOAL_TABLE_RULES.share[right].min ? 0 : 1;
+      if (leftNeed !== rightNeed) return leftNeed - rightNeed;
+      return prefs.indexOf(left) - prefs.indexOf(right);
+    });
+    const pick = open[0];
+    if (!pick) return null;
+    assigned.set(day, pick);
+    counts[pick] += 1;
   }
-  return cells;
+  for (const category of GOAL_TABLE_RULES.categories) {
+    if (counts[category] < GOAL_TABLE_RULES.share[category].min) return null;
+  }
+  const used = GOAL_TABLE_RULES.categories.filter((category) => counts[category] > 0);
+  if (GOAL_TABLE_RULES.monopolyFails && used.length < 2) return null;
+  return assigned;
 }
 
 function cellSignature(cell: FocusCell): string {
   return [cell.focus, cell.pattern, cell.region, cell.energy, cell.stimulus].join("|");
+}
+
+function categoryOfFocus(focus: SessionFocus | null): GoalCategory | null {
+  if (!focus) return null;
+  return GOAL_TABLE_RULES.focusCategory[focus];
 }
 
 function restGoal(day: DayKey): DaySessionGoal {
@@ -196,49 +269,82 @@ function restGoal(day: DayKey): DaySessionGoal {
   };
 }
 
-function pickCell(input: {
-  day: DayKey;
+function pickWithin(input: {
+  category: GoalCategory;
   weekIndex: WeekIndex;
+  dayIndex: number;
   blocked: ReadonlySet<string>;
   neighborStimulus: Stimulus | null;
-}): FocusCell {
-  const cells = focusCatalog();
-  const shift = (input.weekIndex * 11 + DAY_ORDER.indexOf(input.day) * 3) % cells.length;
-  for (let step = 0; step < cells.length; step += 1) {
-    const cell = cells[(shift + step) % cells.length]!;
+}): FocusCell | null {
+  const focus = FOCUS_FOR[input.category];
+  const region = REGION_FOR[input.category];
+  const span = PATTERNS.length * ENERGY_SYSTEMS.length * STIMULI.length;
+  for (let step = 0; step < span; step += 1) {
+    const pattern = PATTERNS[(input.weekIndex * 3 + input.dayIndex + step) % PATTERNS.length]!;
+    const energy = ENERGY_SYSTEMS[(input.weekIndex + input.dayIndex + step) % ENERGY_SYSTEMS.length]!;
+    const stimulus = STIMULI[(input.weekIndex * 2 + input.dayIndex + Math.floor(step / PATTERNS.length)) % STIMULI.length]!;
+    if (input.neighborStimulus && stimulus === input.neighborStimulus && step < span - STIMULI.length) continue;
+    const cell: FocusCell = { focus, pattern, region, energy, stimulus };
     if (input.blocked.has(cellSignature(cell))) continue;
-    if (input.neighborStimulus && cell.stimulus === input.neighborStimulus) continue;
     return cell;
   }
-  throw new Error(`goal table could not place week ${input.weekIndex} ${input.day}`);
+  return null;
 }
 
+function intensityFor(layout: WeekTrainingLayout, trainingIndex: number, previous: number | null): number {
+  const base = layout.phase === "deload" || layout.fatigued ? 2 : 3 + (trainingIndex % 2);
+  if (previous == null) return base;
+  const low = Math.max(1, previous - GOAL_TABLE_RULES.loadDeltaMax);
+  const high = Math.min(5, previous + GOAL_TABLE_RULES.loadDeltaMax);
+  return Math.min(high, Math.max(low, base));
+}
+
+export type GoalTableBuild =
+  | { ok: true; table: MonthGoalTable }
+  | { ok: false; reason: string };
+
 /**
- * Four weeks of day targets. Rest and the long day follow the weekly layout.
- * A training day names focus, intensity, target, stimulus, and time domain. It does not name movements.
+ * 월 방향, 주차, 직전 주 부하, 가용 요일로 표를 만든다.
+ * 한 범주만 남거나 GOAL_TABLE_RULES를 어기면 표를 돌려주지 않는다.
  */
-export function deterministicGoalTable(month: MonthDirection, actual?: WeekActual | null): MonthGoalTable {
+export function buildGoalTable(input: { month: MonthDirection; previousActual?: WeekActual | null }): GoalTableBuild {
   const byWeekday = new Map<DayKey, Set<string>>();
   let previous = new Set<string>();
+  const previousIntensity = new Map<DayKey, number>();
   const weeks: WeekGoal[] = [];
   for (const weekIndex of [1, 2, 3, 4] as const) {
-    const layout = weekTrainingLayout({ month, weekIndex, previousActual: actual });
+    const layout = weekTrainingLayout({
+      month: input.month,
+      weekIndex,
+      previousActual: input.previousActual,
+    });
+    const trainingDays = DAY_ORDER.filter((day) => day !== layout.rest);
+    const categories = placeCategories(trainingDays, weekIndex);
+    if (!categories) return { ok: false, reason: `goal table week ${weekIndex} could not satisfy GOAL_TABLE_RULES` };
     const blocked = new Set(previous);
     const weekSignatures = new Set<string>();
     let previousTrainingIndex = -2;
     let previousStimulus: Stimulus | null = null;
     let trainingIndex = 0;
-    const days = DAY_ORDER.map((day) => {
-      if (day === layout.rest) return restGoal(day);
+    const days: DaySessionGoal[] = [];
+    for (const day of DAY_ORDER) {
+      if (day === layout.rest) {
+        days.push(restGoal(day));
+        continue;
+      }
+      const category = categories.get(day);
+      if (!category) return { ok: false, reason: `goal table week ${weekIndex} ${day} has no category` };
       const index = DAY_ORDER.indexOf(day);
       const adjacent = index - previousTrainingIndex === 1;
       const weekday = byWeekday.get(day) ?? new Set<string>();
-      const cell = pickCell({
-        day,
+      const cell = pickWithin({
+        category,
         weekIndex,
+        dayIndex: index,
         blocked: new Set([...blocked, ...weekSignatures, ...weekday]),
         neighborStimulus: adjacent ? previousStimulus : null,
       });
+      if (!cell) return { ok: false, reason: `goal table week ${weekIndex} ${day} could not place a target` };
       const signature = cellSignature(cell);
       weekSignatures.add(signature);
       weekday.add(signature);
@@ -247,33 +353,103 @@ export function deterministicGoalTable(month: MonthDirection, actual?: WeekActua
       previousStimulus = cell.stimulus;
       const long = day === layout.longDay;
       const time_domain: TimeDomain = long ? "long" : (weekIndex + trainingIndex) % 2 === 0 ? "short" : "medium";
+      const intensity = intensityFor(layout, trainingIndex, previousIntensity.get(day) ?? null);
       trainingIndex += 1;
-      const intensity = layout.phase === "deload" ? 2 : long ? 3 : [3, 4, 4, 5, 3, 4][trainingIndex % 6]!;
-      const target: SessionTarget = {
-        movement_pattern: cell.pattern,
-        body_region: cell.region,
-        energy_system: cell.energy,
-      };
-      return {
+      days.push({
         day,
         rest: false,
         purpose: `${cell.focus.replaceAll("_", " ")}. Target ${cell.pattern}, ${cell.region}, ${cell.energy}. Stimulus ${cell.stimulus.replaceAll("_", " ")}.`,
         focus: cell.focus,
         intensity,
-        target,
+        target: {
+          movement_pattern: cell.pattern,
+          body_region: cell.region,
+          energy_system: cell.energy,
+        },
         stimulus: cell.stimulus,
         time_domain,
-      } satisfies DaySessionGoal;
-    });
+      });
+    }
+    for (const day of days) {
+      if (!day.rest && day.intensity != null) previousIntensity.set(day.day, day.intensity);
+    }
     previous = weekSignatures;
-    const theme = month.week_themes.find((row) => row.week_index === weekIndex)?.theme_ko ?? "";
+    const theme = input.month.week_themes.find((row) => row.week_index === weekIndex)?.theme_ko ?? "";
     weeks.push({
       week_index: weekIndex,
-      goal: theme || `${month.monthly_goal} week ${weekIndex}.`,
+      goal: theme || `${input.month.monthly_goal} week ${weekIndex}.`,
       days,
     });
   }
-  return { month_goal: month.monthly_goal, weeks };
+  const table = { month_goal: input.month.monthly_goal, weeks };
+  const errors = goalTableErrors(table, input.month);
+  if (errors.length) return { ok: false, reason: errors[0]! };
+  return { ok: true, table };
+}
+
+/**
+ * Four weeks of day targets. Rest and the long day follow the weekly layout.
+ * A training day names focus, intensity, target, stimulus, and time domain. It does not name movements.
+ * 규칙을 만족하지 못하면 예외다. 한 범주 표를 조용히 돌려주지 않는다.
+ */
+export function deterministicGoalTable(month: MonthDirection, actual?: WeekActual | null): MonthGoalTable {
+  const built = buildGoalTable({ month, previousActual: actual });
+  if (!built.ok) throw new Error(built.reason);
+  return built.table;
+}
+
+/** 생성기와 검증기가 같이 쓰는 범주·비율·부하 한도. */
+export function goalTableRuleErrors(table: MonthGoalTable): string[] {
+  const errors: string[] = [];
+  const previousIntensity = new Map<DayKey, number>();
+  const ordered = [...table.weeks].sort((left, right) => left.week_index - right.week_index);
+  for (const week of ordered) {
+    const training = week.days
+      .filter((day) => !day.rest)
+      .sort((left, right) => DAY_ORDER.indexOf(left.day) - DAY_ORDER.indexOf(right.day));
+    const counts: Record<GoalCategory, number> = { lower: 0, upper: 0, full: 0, engine: 0, gymnastics: 0 };
+    for (const day of training) {
+      const category = categoryOfFocus(day.focus);
+      if (category) counts[category] += 1;
+    }
+    const used = GOAL_TABLE_RULES.categories.filter((category) => counts[category] > 0);
+    if (GOAL_TABLE_RULES.monopolyFails && training.length > 0 && used.length < 2) {
+      errors.push(`goal_table week ${week.week_index} is a single category`);
+    }
+    for (const category of GOAL_TABLE_RULES.categories) {
+      const count = counts[category];
+      const share = GOAL_TABLE_RULES.share[category];
+      if (count < share.min || count > share.max) {
+        errors.push(`goal_table week ${week.week_index} ${category} count ${count} is outside ${share.min}-${share.max}`);
+      }
+    }
+    if (GOAL_TABLE_RULES.forbidConsecutiveSameCategory) {
+      const byDay = new Map(week.days.map((day) => [day.day, day]));
+      for (const day of training) {
+        const nextName = calendarNeighbors(day.day)[1];
+        const next = byDay.get(nextName);
+        if (!next || next.rest) continue;
+        const left = categoryOfFocus(day.focus);
+        const right = categoryOfFocus(next.focus);
+        if (left && right && left === right) {
+          errors.push(`goal_table week ${week.week_index} ${day.day} and ${next.day} repeat category ${left}`);
+        }
+      }
+    }
+    for (const day of training) {
+      if (day.intensity == null) continue;
+      const prior = previousIntensity.get(day.day);
+      if (prior != null && Math.abs(day.intensity - prior) > GOAL_TABLE_RULES.loadDeltaMax) {
+        errors.push(
+          `goal_table week ${week.week_index} ${day.day} intensity moved more than ${GOAL_TABLE_RULES.loadDeltaMax}`,
+        );
+      }
+    }
+    for (const day of training) {
+      if (day.intensity != null) previousIntensity.set(day.day, day.intensity);
+    }
+  }
+  return errors;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -406,6 +582,7 @@ export function goalTableErrors(table: MonthGoalTable | null, month: MonthDirect
     if (!longRequired && longs !== 0) errors.push(`goal_table week ${week.week_index} is not a long-conditioning week`);
     previous = new Set(training.filter((day) => day.focus && day.target && day.stimulus).map((day) => placementSignature(day)));
   }
+  errors.push(...goalTableRuleErrors(table));
   return errors;
 }
 

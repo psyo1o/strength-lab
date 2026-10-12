@@ -1,0 +1,12 @@
+{
+  "kind": "mocked",
+  "real_model": false,
+  "weeks": ["2099-07-06", "2099-07-13", "2099-07-20", "2099-07-27"],
+  "failure_injection": "monthly schema {}",
+  "tally": { "adopted": 12, "fallback": 0, "failed": 12 },
+  "rows": [
+    { "profile": "531", "method": "531", "normal": "adopted", "injected": "failed" },
+    { "profile": "volume", "method": "ACCUMULATION", "normal": "adopted", "injected": "failed" },
+    { "profile": "intensity", "method": "INTENSITY_BLOCK", "normal": "adopted", "injected": "failed" }
+  ]
+}

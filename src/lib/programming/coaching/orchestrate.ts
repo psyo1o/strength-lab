@@ -1,6 +1,7 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { adoptionCollisionErrors, judgeWeek, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, recentOverlapDays, recentOverlapPayload, similarityDiagnostics, TIME_DOMAIN_RANGES, type OverlapSession } from "../rules";
+import { evaluateWeek } from "../evaluate-week";
+import { adoptionCollisionErrors, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, recentOverlapDays, recentOverlapPayload, similarityDiagnostics, TIME_DOMAIN_RANGES, type OverlapSession } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
@@ -32,8 +33,8 @@ import { applyHeadPolicy } from "./stage13/revision";
 import { analyzeBundle, selfValidatorTraces } from "./stage13/wire";
 import { evaluateHead, toCoachReview } from "./stage14/decide";
 import { recoveryNeedsJudge, variationNeedsJudge } from "./stage14/judges";
-import { hardFindings, lateDiscovered } from "./stage15/hard-rules";
-import { dayStillHard, isolationPlan, weekStatusFor } from "./stage15/isolate";
+import { lateDiscovered } from "./stage15/hard-rules";
+import { dayStillHard, isolationPlan } from "./stage15/isolate";
 import {
   RECOVERY_JUDGE_PROMPT_VERSION,
   VARIATION_JUDGE_PROMPT_VERSION,
@@ -1005,6 +1006,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   if (weekDocument) throw new WeekDocumentResponse(weekDocument);
   traces.push(monthly.trace);
   usage = addUsage(usage, monthly.trace.token_usage);
+  let monthlyDegraded = monthly.direction.degraded;
   if (monthly.trace.source !== "model") noteFailure(monthly.trace.failure_reason);
   let month = { ...input.month, coaching_plan: monthly.plan };
   let week: CoachWeekInput = { ...input, month };
@@ -1174,6 +1176,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     });
     traces.push({ ...again.trace, revision_number: 1 });
     usage = addUsage(usage, again.trace.token_usage);
+    monthlyDegraded = again.direction.degraded;
     month = { ...input.month, coaching_plan: again.plan };
     week = { ...week, month };
     rules = extractWeekRules({ month, weekIndex: input.weekIndex, actual: input.previousActual });
@@ -1344,7 +1347,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       previousActual: input.previousActual,
       recentLiftMaps: input.recentLiftMaps,
     });
-    const judged = judgeWeek(bare(legacy), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+    const judged = evaluateWeek(bare(legacy), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
     if (legacy.sessions.length === DAY_ORDER.length) {
       built = { draft: stamp(legacy, plan), judgeOk: judged.ok, errors: judged.ok ? [] : judged.errors, salt: built.salt };
     }
@@ -1494,7 +1497,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }),
   );
 
-  const loadRuleErrors = judgeWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week)).errors.filter((error) =>
+  const loadRuleErrors = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week)).errors.filter((error) =>
     error.includes("sets do not match"),
   );
   traces.push(
@@ -1663,7 +1666,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }),
   );
   let lastHeadHardCodes: string[] = [];
-  const currentHardErrors = () =>
+  const currentReport = () =>
     finalWeekReport({
       draft,
       month,
@@ -1671,7 +1674,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       recent: input.recentStructures ?? [],
       context: judgeContext(week),
       rules,
-    }).hard;
+    });
 
   const askHead = async (revisionNumber: number): Promise<HeadCoachReview> => {
     const started = Date.now();
@@ -1826,13 +1829,13 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         }),
       );
     }
-    const headHard = hardFindings(currentHardErrors());
-    lastHeadHardCodes = [...new Set(headHard.map((row) => row.code))];
-    const preHeadJudge = judgeWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+    const headIssues = currentReport().issues.filter((issue) => issue.severity === "hard_error");
+    lastHeadHardCodes = [...new Set(headIssues.map((issue) => issue.code))];
+    const preHeadJudge = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
     const preHeadSimilarity = similarityDiagnostics(draft, input.recentStructures ?? []);
     const user = {
       ...(headUser(week, plan, draft, loadDecisions, revisionNumber) as Record<string, unknown>),
-      hard_rule_findings: headHard,
+      hard_rule_findings: headIssues,
       pre_head_judge: {
         ok: preHeadJudge.ok,
         reason: preHeadJudge.ok ? null : preHeadJudge.reason,
@@ -2560,14 +2563,13 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     ],
     repairRequests,
     repairResults,
+    monthlyDegraded,
     requiredDaysValid: !anyDayFailed && unresolvedDays.size === 0,
     weekStructureValid:
       planRuleErrors.length === 0 &&
       !closing.issues.some((issue) => issue.code === "week.structure" && issue.severity === "hard_error"),
     lockedSkeletonHeld: skeletonHeld,
   });
-  const weekStatus =
-    weekStatusFor({ hardErrors: finalErrors, anyDayFailed }) === "FAILED" || adoption.weekStatus === "FAILED" ? "FAILED" : "VALIDATED";
   resolvedStatus = adoption.finalStatus;
   modelAdopted = adoption.verdict.modelSuccess;
   if (!modelAdopted && !resolvedReason) resolvedReason = adoption.origin === "no_model" ? "no_model" : (failure ?? "not_adopted");
@@ -2575,7 +2577,6 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     ...plan,
     day_sources: { ...daySources },
     day_records: dayRecords,
-    week_status: weekStatus,
     prescription_source: origin,
     final_status: resolvedStatus,
     coach_notes: notes,
@@ -2590,7 +2591,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   draft = stamp(draft, plan);
   const late = lateDiscovered(
     lastHeadHardCodes,
-    hardFindings(rejectedErrors.length ? rejectedErrors : finalErrors).map((row) => row.code),
+    closing.issues.filter((issue) => issue.severity === "hard_error").map((issue) => issue.code),
   );
   traces.push(
     finishTrace(Date.now(), {
@@ -2605,7 +2606,6 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         errors: finalErrors.slice(0, 8),
         signals: finalReport.signals.slice(0, 8),
         late_discovered_hard_rule: late,
-        week_status: weekStatus,
       },
       validation_result: finalErrors.length ? "fail" : "pass",
       validation_errors: (rejectedErrors.length ? rejectedErrors : finalErrors).slice(0, 8),
@@ -2649,6 +2649,5 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     prescription_source: origin,
     rejected_draft: rejectedDraft,
     day_records: dayRecords,
-    week_status: weekStatus,
   };
 }

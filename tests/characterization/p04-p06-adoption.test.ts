@@ -58,7 +58,8 @@ describe("특성화 P4 P5 P6", () => {
     if (report.hard.length > 0) {
       expect(result.final_validation?.ok).toBe(false);
       expect(result.final_validation?.errors.length).toBeGreaterThan(0);
-      expect(result.week_status).toBe("FAILED");
+      expect(result.adoption?.weekStatus).toBe("FAILED");
+      expect(result.week_status).toBeUndefined();
       expect(result.generation_source).toBe("fallback");
       expect(result.adoption?.persistActive).toBe(false);
     }

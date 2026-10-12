@@ -4,7 +4,6 @@ import { MONTH_PLAN_OPENAI_MODEL, MONTH_PLAN_OPENAI_URL } from "../month-plan/we
 import {
   allowedStrengthProgramming,
   hardConstraints,
-  judgeWeek,
   MONTH_REQUIRED_KEYS,
   monthSchemaErrors,
   monthShapeDetail,
@@ -23,6 +22,7 @@ import {
   TIME_DOMAIN_RANGES,
   weeklyRequirements,
 } from "./rules";
+import { evaluateWeek } from "./evaluate-week";
 import { exampleSets, prescriptionGuide } from "./strength-methods";
 import { monthlyTimeoutMs, weeklyTimeoutMs } from "./timeouts";
 import {
@@ -1645,7 +1645,7 @@ export async function authorWeek(input: {
         ? wodFromIntentPrompt({ ...promptInput, weeklyIntent: intent, retryErrors: errors, previousDraft: previous })
         : weekPrompt({ ...promptInput, retryErrors: errors, previousDraft: previous }),
     accept: (json, meta) => {
-      const judged = judgeWeek(json, input.month, input.weekIndex, input.recent, context);
+      const judged = evaluateWeek(json, input.month, input.weekIndex, input.recent, context);
       const draft = judged.ok ? judged.draft : parseWeekDraft(normalizeWeekPayload(json).value);
       const previousDraft = meta.previous ? parseWeekDraft(normalizeWeekPayload(meta.previous).value) : null;
       const retryRepair =

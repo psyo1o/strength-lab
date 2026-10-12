@@ -1,7 +1,8 @@
 import type { FetchLike } from "../model";
 import { weeklyTimeoutMs } from "../timeouts";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { judgeWeek, toStructure } from "../rules";
+import { evaluateWeek } from "../evaluate-week";
+import { toStructure } from "../rules";
 import type { WeekActual } from "../summary";
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import type { DayPrescriptionRecord, MonthDirection, MonthlyCoachPlan, StoredStructure, WeekDraft, WeekIndex, WeekLifecycle, WeeklyIntentPlan } from "../types";
@@ -196,7 +197,7 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
       previousActual: input.previousActual,
       recentLiftMaps: input.recentLiftMaps,
     });
-    const judged = judgeWeek(bare(legacy), input.month, input.weekIndex, input.recentStructures ?? [], {
+    const judged = evaluateWeek(bare(legacy), input.month, input.weekIndex, input.recentStructures ?? [], {
       previousActual: input.previousActual ?? null,
       recentLiftMaps: input.recentLiftMaps ?? [],
     });
@@ -322,7 +323,7 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
     };
     draft = stamp(draft, plan);
   }
-  const judge = judgeWeek(bare(draft), input.month, input.weekIndex, input.recentStructures ?? [], {
+  const judge = evaluateWeek(bare(draft), input.month, input.weekIndex, input.recentStructures ?? [], {
     previousActual: input.previousActual ?? null,
     recentLiftMaps: input.recentLiftMaps ?? [],
   });

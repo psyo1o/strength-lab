@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { coachMonthly, deterministicMonthlyPlan } from "../../src/lib/programming/coaching/monthly";
+import { deriveWeekStatus } from "../../src/lib/programming/v2";
 import { month531, runCoach } from "./support";
 
 describe("특성화 P1", () => {
   /**
-   * P1. 근거 monthly.ts:225-251, monthly.ts:134.
-   * 현재 동작: 검증이 두 번 실패해도 예외 없이 결정적 계획을 돌려주고, 주 생성은 그 계획으로 7일을 끝까지 만든다.
-   * 목표 동작: 월간 검증 실패를 조용히 넘기지 않는다. 아직 구현하지 않는다.
+   * 월간 스키마 실패는 direction.degraded다. 그 주는 모델로 채택하지 않는다.
    */
-  it("P1: 월간 코치 검증이 2회 실패하면 deterministicMonthlyPlan으로 조용히 대체되고, 주 생성이 계속 진행된다", async () => {
+  it("P1: 월간 코치 검증이 2회 실패하면 degraded이고 모델 채택이 아니다", async () => {
     const month = month531();
     let calls = 0;
     const fetchImpl = async () => {
@@ -35,6 +34,12 @@ describe("특성화 P1", () => {
     expect(monthly.trace.validation_result).toBe("fail");
     expect(monthly.plan.source).toBe("deterministic");
     expect(monthly.plan.goal_table).toEqual(deterministicMonthlyPlan(month).goal_table);
+    expect(monthly.direction).toEqual({
+      source: "deterministic_fallback",
+      degraded: true,
+      reason: monthly.trace.failure_reason,
+    });
+    expect(monthly.direction.degraded).toBe(true);
 
     const { result } = await runCoach({ monthly: "invalid" });
     const trace = result.traces.find((row) => row.agent_name === "monthly_coach");
@@ -42,6 +47,11 @@ describe("특성화 P1", () => {
     expect(trace?.retry_count).toBe(1);
     expect(result.monthly_plan.source).toBe("deterministic");
     expect(result.draft.sessions).toHaveLength(7);
-    expect(result.week_status).toBe("VALIDATED");
+    expect(result.generation_source).toBe("fallback");
+    expect(result.adoption?.verdict.modelSuccess).toBe(false);
+    expect(result.adoption?.persistActive).toBe(false);
+    expect(result.adoption?.weekStatus).toBe("FAILED");
+    expect(deriveWeekStatus({ status: "failed" })).toBe(result.adoption?.weekStatus);
+    expect(result.week_status).toBeUndefined();
   });
 });

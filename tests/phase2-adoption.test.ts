@@ -98,15 +98,28 @@ describe("phase 2 채택", () => {
     expect(off.generationSource).toBe("fallback");
     expect(off.persistActive).toBe(false);
     expect(off.syncScreen).toBe(false);
-    expect(off.weekStatus).toBe("VALIDATED");
+    expect(off.weekStatus).toBe("FAILED");
     const on = finalizeWeekAdoption({ ...base, fallbackDisplay: true });
     expect(on.origin).toBe("fallback");
     expect(on.generationSource).toBe("fallback");
     expect(on.persistActive).toBe(true);
     expect(on.syncScreen).toBe(true);
+    expect(on.weekStatus).toBe("VALIDATED");
     expect(on.verdict.modelSuccess).toBe(false);
     const broken = finalizeWeekAdoption({ ...base, fallbackDisplay: true, weekStructureValid: false });
     expect(broken.persistActive).toBe(false);
+  });
+
+  it("월간 degraded는 구조가 맞아도 모델로 채택하지 않는다", () => {
+    const verdict = finalizeWeekAdoption(input({ monthlyDegraded: true }));
+    expect(verdict.origin).toBe("fallback");
+    expect(verdict.generationSource).toBe("fallback");
+    expect(verdict.verdict.modelSuccess).toBe(false);
+    expect(verdict.persistActive).toBe(false);
+    expect(verdict.weekStatus).toBe("FAILED");
+    const shown = finalizeWeekAdoption(input({ monthlyDegraded: true, fallbackDisplay: true }));
+    expect(shown.persistActive).toBe(false);
+    expect(shown.weekStatus).toBe("FAILED");
   });
 
   it("T10: no_model은 fallback과 다른 출처다", () => {

@@ -2,9 +2,9 @@ import { buildWeek } from "../month-plan/build-week";
 import { listPieceMaterial } from "../month-plan/pieces";
 import type { DayKey, MainLift, MetconPiece, MetconStimulus, PlannedWeek, WeekIndex } from "../month-plan/types";
 import { DAY_ORDER } from "../month-plan/types";
+import { evaluateWeek } from "./evaluate-week";
 import { completeMonthDirection } from "./month-direction";
 import {
-  judgeWeek,
   monthAllowsSameLiftDays,
   previousLowerFatigue,
   structurallySimilar,
@@ -758,7 +758,7 @@ function stimulusOrder(recovery: boolean): Stimulus[] {
 
 /**
  * Last path when the catalog cannot fill every training day.
- * Still has to pass judgeWeek: legal stimulus, duration, no same-week conflict, not too similar.
+ * Still has to pass evaluateWeek: legal stimulus, duration, no same-week conflict, not too similar.
  */
 function assignGuaranteedConditioning(
   slots: DaySlot[],
@@ -1116,6 +1116,6 @@ export function assertFallbackLegal(
   weekIndex: WeekIndex,
   context: WeekCheckContext & { recent?: readonly StoredStructure[] } = {},
 ): void {
-  const judged = judgeWeek(draft, month, weekIndex, context.recent ?? [], context);
+  const judged = evaluateWeek(draft, month, weekIndex, context.recent ?? [], context);
   if (!judged.ok) throw new Error(`fallback broke a rule: ${judged.detail}`);
 }

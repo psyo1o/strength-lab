@@ -3,7 +3,7 @@ import { SIMILARITY_CONFIG } from "../../types";
 /**
  * Stage 13 policy. The similarity threshold stays 4.
  * In this pipeline a score at or above the threshold is a signal, not a hard reject.
- * Stage 10 judgeWeek still uses SIMILARITY_CONFIG directly and is not changed here.
+ * Stage 10 evaluateWeek still uses SIMILARITY_CONFIG directly and is not changed here.
  */
 export const COACHING_POLICY = {
   similarity_threshold: SIMILARITY_CONFIG.threshold,

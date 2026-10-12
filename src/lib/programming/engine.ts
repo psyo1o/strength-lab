@@ -22,7 +22,8 @@ import { planWeeklyIntent, weeklyIntentFrom, type WeeklyIntentContext } from "./
 import { projectWeek } from "./project";
 import { daysInText } from "./coaching/stage15/hard-rules";
 import { replaceDays } from "./coaching/session";
-import { judgeWeek, sessionLoad, similarityViolations } from "./rules";
+import { evaluateWeek } from "./evaluate-week";
+import { sessionLoad, similarityViolations } from "./rules";
 import {
   getMonthlyEvaluationForStart,
   getProgrammingMonth,
@@ -350,7 +351,7 @@ async function persistWeekDocument(input: {
       scheme_note: realized.intent.scheme_note,
     },
   };
-  const realizedJudged = judgeWeek(checkDraft, input.month.direction, input.weekIndex, input.recent, {
+  const realizedJudged = evaluateWeek(checkDraft, input.month.direction, input.weekIndex, input.recent, {
     previousActual: input.summary.previous_week?.actual ?? null,
     recentLiftMaps: input.recentLiftMaps,
   });
@@ -542,7 +543,7 @@ async function writeProgrammingWeek(
         scheme_note: realized.intent.scheme_note,
       },
     };
-    const realizedJudged = judgeWeek(checkDraft, month.direction, weekIndex, recent, {
+    const realizedJudged = evaluateWeek(checkDraft, month.direction, weekIndex, recent, {
       previousActual: summary.previous_week?.actual ?? null,
       recentLiftMaps,
     });
@@ -687,7 +688,7 @@ async function writeProgrammingWeek(
         longitudinal?.skeleton.skeleton_locked !== true &&
         coachingWeekMayUseLegacyFallback({
           pipeline: coached.pipeline,
-          weekStatus: coached.week_status,
+          weekStatus: coached.adoption?.weekStatus,
           salvage,
         });
       if (!allowLegacyWeek) {
@@ -732,7 +733,7 @@ async function writeProgrammingWeek(
     // This save path does not judge it again and does not fallback because of it.
     const replaceSimilarAfterHead = false;
     if (replaceSimilarAfterHead && coached.generation_source === "model") {
-      const judged = judgeWeek(coached.draft, month.direction, weekIndex, recent, {
+      const judged = evaluateWeek(coached.draft, month.direction, weekIndex, recent, {
         previousActual: summary.previous_week?.actual ?? null,
         recentLiftMaps,
       });
@@ -752,7 +753,7 @@ async function writeProgrammingWeek(
             recentLiftMaps,
             salt,
           });
-          const check = judgeWeek(rebuilt.draft, month.direction, weekIndex, recent, context);
+          const check = evaluateWeek(rebuilt.draft, month.direction, weekIndex, recent, context);
           if (check.ok) repaired = rebuilt.draft;
         }
         if (repaired) {

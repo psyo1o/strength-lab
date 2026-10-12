@@ -17,6 +17,7 @@ export {
   type Weekday,
 } from "./domain";
 export { classifyWeekOrigin, decideModelAdoption, judgeFallback, judgeNoModel, type ModelAdoptionInput } from "./adoption";
+export { deriveWeekStatus, type StoredWeekStatus } from "./derive-status";
 export { fallbackWeekDisplayEnabled } from "./fallback-display";
 export { finalizeWeekAdoption, type FinalizeWeekInput, type WeekAdoption, type WeekFinalStatus } from "./finalize";
 export { issueIsRepairable, makeIssue, repairKindsForCode, repairRequestFitsIssue } from "./issues";

@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { deterministicGoalTable } from "../../src/lib/programming/coaching/goal-table";
+import { deterministicGoalTable, goalTableErrors, GOAL_TABLE_RULES } from "../../src/lib/programming/coaching/goal-table";
 import { DAY_ORDER } from "../../src/lib/month-plan/types";
 import { BODY_REGIONS, ENERGY_SYSTEMS, MOVEMENT_PATTERNS, SESSION_FOCUSES, STIMULI } from "../../src/lib/programming/types";
 import { month531 } from "./support";
 
 describe("특성화 P2", () => {
   /**
-   * P2. 근거 goal-table.ts:168-180, goal-table.ts:206.
-   * 현재 동작: 시작 칸이 focus 하나 안에 머물러 훈련일 focus가 lower_strength이고 패턴은 squat 또는 hinge다.
-   * 목표 동작: 주와 요일이 focus와 패턴을 골고루 돈다. 아직 구현하지 않는다.
+   * 예전 인덱서는 shift가 focus 한 칸 안에 머문다. 그 식은 회귀로만 남긴다.
+   * 지금 표는 그 격자이면 안 되고, GOAL_TABLE_RULES를 통과해야 한다.
    */
-  it("P2: deterministicGoalTable 훈련일은 모두 lower_strength이고 squat 또는 hinge만 고른다", () => {
+  it("P2: 예전 shift는 lower_strength 독점이고, month531 표는 그 격자가 아니다", () => {
     const band = MOVEMENT_PATTERNS.length * BODY_REGIONS.length * ENERGY_SYSTEMS.length * STIMULI.length;
     const cells = SESSION_FOCUSES.length * band;
     expect(band).toBe(252);
@@ -26,26 +25,25 @@ describe("특성화 P2", () => {
       }
     }
 
-    const table = deterministicGoalTable(month531());
-    const grid = table.weeks.map((week) =>
-      week.days.map((day) => (day.rest ? "rest" : `${day.focus}/${day.target?.movement_pattern}`)).join(","),
-    );
-    expect(grid).toEqual([
+    const monopoly = [
       "lower_strength/squat,lower_strength/squat,lower_strength/squat,lower_strength/squat,lower_strength/squat,lower_strength/squat,rest",
       "lower_strength/squat,lower_strength/squat,rest,lower_strength/squat,lower_strength/squat,lower_strength/hinge,lower_strength/hinge",
       "lower_strength/squat,lower_strength/hinge,lower_strength/hinge,lower_strength/hinge,rest,lower_strength/hinge,lower_strength/hinge",
       "lower_strength/hinge,lower_strength/hinge,lower_strength/hinge,lower_strength/hinge,lower_strength/hinge,lower_strength/hinge,rest",
-    ]);
+    ];
+    const month = month531();
+    const table = deterministicGoalTable(month);
+    const grid = table.weeks.map((week) =>
+      week.days.map((day) => (day.rest ? "rest" : `${day.focus}/${day.target?.movement_pattern}`)).join(","),
+    );
+    expect(grid).not.toEqual(monopoly);
+    expect(goalTableErrors(table, month)).toEqual([]);
     for (const week of table.weeks) {
       expect(week.days).toHaveLength(DAY_ORDER.length);
-      for (const day of week.days) {
-        if (day.rest) {
-          expect(day.focus).toBeNull();
-          continue;
-        }
-        expect(day.focus).toBe("lower_strength");
-        expect(day.target?.movement_pattern === "squat" || day.target?.movement_pattern === "hinge").toBe(true);
-      }
+      const focuses = new Set(week.days.filter((day) => !day.rest).map((day) => day.focus));
+      expect(focuses.size).toBeGreaterThan(1);
+      expect(focuses.has("lower_strength") && focuses.size === 1).toBe(false);
     }
+    expect(GOAL_TABLE_RULES.monopolyFails).toBe(true);
   });
 });

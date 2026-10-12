@@ -6,6 +6,7 @@ import { deterministicMonthlyPlan } from "../../src/lib/programming/coaching/mon
 import { assembleLegalWeek } from "../../src/lib/programming/coaching/session";
 import { planCoachedWeek } from "../../src/lib/programming/coaching/weekly";
 import { fallbackMonth } from "../../src/lib/programming/fallback";
+import type { WeekActual } from "../../src/lib/programming/summary";
 import type { MonthDirection, SessionDraft, WeekIndex, WeeklyIntentPlan } from "../../src/lib/programming/types";
 
 export const NOW = Date.parse("2099-07-06T01:00:00.000Z");
@@ -25,6 +26,7 @@ type Script = {
   weekly: "valid" | "seven_days";
   head: "approve" | "revise" | "block" | "swap";
   longitudinal?: CoachWeekInput["longitudinal"];
+  previousActual?: WeekActual | null;
 };
 
 function chat(content: unknown, status = 200) {
@@ -90,12 +92,12 @@ function sessionJson(session: SessionDraft, mark: string, keys?: readonly string
 }
 
 function basePlan(script: Script) {
-  return planCoachedWeek({ month: script.month, weekIndex: script.weekIndex });
+  return planCoachedWeek({ month: script.month, weekIndex: script.weekIndex, previousActual: script.previousActual });
 }
 
 function baseSession(script: Script, day: DayKey): SessionDraft | undefined {
   const plan = basePlan(script);
-  const built = assembleLegalWeek({ month: script.month, weekIndex: script.weekIndex, plan });
+  const built = assembleLegalWeek({ month: script.month, weekIndex: script.weekIndex, plan, actual: script.previousActual });
   return built.draft.sessions.find((session) => session.day === day);
 }
 
@@ -243,6 +245,7 @@ export async function runCoach(partial: Partial<Script> = {}) {
     weekly: partial.weekly ?? "valid",
     head: partial.head ?? "approve",
     longitudinal: partial.longitudinal,
+    previousActual: partial.previousActual,
   };
   const result = await coachWeek({
     month: script.month,
@@ -252,6 +255,7 @@ export async function runCoach(partial: Partial<Script> = {}) {
     fetchImpl: fetchFor(script),
     timeoutMs: 1000,
     longitudinal: script.longitudinal,
+    previousActual: script.previousActual,
     nowMs: NOW,
   });
   return { result, script };

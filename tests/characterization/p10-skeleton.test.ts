@@ -108,7 +108,8 @@ describe("특성화 P10", () => {
     const payload = { conditioning: { duration_min: 10, volume: "moderate" } };
     expect(lockedSessionFieldErrors(payload, skeletonDay!).join(" ")).toContain("medium");
     const { result } = await runCoach({ month, longitudinal });
-    const quietlyAdopted = result.day_sources[target!.day] === "model" && result.week_status === "VALIDATED" && result.generation_source === "model";
+    const quietlyAdopted =
+      result.day_sources[target!.day] === "model" && result.adoption?.weekStatus === "VALIDATED" && result.generation_source === "model";
     expect(quietlyAdopted).toBe(false);
   });
 
@@ -132,7 +133,7 @@ describe("특성화 P10", () => {
       expect(result.final_validation?.errors ?? []).toEqual(
         expect.arrayContaining([expect.stringContaining(`${target!.day} duration class`)]),
       );
-      expect(result.week_status).toBe("FAILED");
+      expect(result.adoption?.weekStatus).toBe("FAILED");
     }
     expect(result.generation_source).toBe("fallback");
     expect(result.adoption?.persistActive).toBe(false);
@@ -186,6 +187,6 @@ describe("특성화 P10", () => {
     expect(result.draft.sessions).toHaveLength(7);
     expect(result.adoption?.warningCodes).toContain("week.structure");
     const hardStructure = (result.adoption?.verdict.issueCodes ?? []).includes("week.structure");
-    if (!hardStructure) expect(result.week_status).toBe("VALIDATED");
+    if (!hardStructure) expect(result.adoption?.weekStatus).toBe("VALIDATED");
   });
 });

@@ -318,7 +318,20 @@ v2 파일: `v2/domain.ts`(타입), `v2/transition.ts`(상태 전이), `v2/issues
 
 ---
 
-## 6. 다음에 손댈 순서 제안 (참고)
+## 6. Phase 2.5 채택 영향 분류 (P12–P17, P19, P20)
+
+| # | 채택 경로 | 이번 처리 |
+|---|---|---|
+| P12 | 영향 있음 | `evaluateWeek` 하나로 주간 판정을 모았다. `src`의 직접 `judgeWeek` 호출은 정의와 그 래퍼뿐이다. |
+| P13 | 영향 있음 | `language` 단계는 그대로 두고 `ADJUST`로 매핑한다. `PASS`가 아니면 채택 호출은 통과가 아니다. 단계 본문이 지금 빈 배열을 돌려주는 것은 이전과 같다. |
+| P14 | 영향 없음 | `FallbackReason` 밖 문자열은 채택 조건이 아니다. 이번엔 사유 타입을 넓히지 않는다. |
+| P15 | 영향 있음 | 주마다 월간 코치를 다시 부를 수 있다. 그 주가 실제로 쓰는 호출의 `direction.degraded`만 채택에 넣는다. `coaching_plan.reuse`는 켜지 않는다. |
+| P16 | 영향 없음 | 문서 버전 표기 차이는 채택 식을 바꾸지 않는다. |
+| P17 | 영향 없음 | 카탈로그 개수 차이는 채택 식을 바꾸지 않는다. |
+| P19 | 영향 없음 | `coachWeekKeyless`는 키가 없을 때만 탄다. 지우지 않는다. 키가 없으면 `degraded`가 아니다. |
+| P20 | 영향 없음 | `replaceSimilarAfterHead`와 `callHeadSpecialistRewrite`는 꺼져 있다. 꺼진 분기 안의 판정도 `evaluateWeek`다. |
+
+## 7. 다음에 손댈 순서 제안 (참고)
 1. 결정적 goal_table을 손보거나, 월간 실패를 명시적 실패로 바꾼다(P1, P2).
 2. `finalErrors`에 `finalWeekReport.hard`를 다시 연결하고, 헤드 셀 뒤에 재검증을 넣는다(P6).
 3. 채택 판정을 `decideModelAdoption` 한 곳으로 모으고, ADJUST를 채택에서 뺀다(P4, P5). 테스트 P18을 함께 갱신한다.
