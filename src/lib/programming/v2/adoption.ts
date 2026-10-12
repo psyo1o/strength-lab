@@ -96,12 +96,10 @@ export function decideModelAdoption(input: ModelAdoptionInput): AdoptionVerdict 
     return verdict("model", moved.ok ? moved.status : input.status, false, codes.length ? codes : ["repair.unrepairable"]);
   }
   if (codes.length > 0) {
-    if (input.status === "validated") {
-      const moved = transitionGenerationStatus("validated", "needs_repair");
-      return verdict("model", moved.ok ? moved.status : input.status, false, codes);
-    }
-    return verdict("model", input.status, false, codes);
+    const moved = transitionGenerationStatus(input.status, "needs_repair");
+    return verdict("model", moved.ok ? moved.status : input.status, false, codes);
   }
+  if (input.status === "approved") return verdict("model", "approved", true, []);
   const moved = transitionGenerationStatus("validated", "approved");
   if (!moved.ok) return verdict("model", input.status, false, [moved.code]);
   return verdict("model", moved.status, true, []);

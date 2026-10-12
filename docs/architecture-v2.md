@@ -81,7 +81,8 @@
 - `draft` → `validated`, `needs_repair`, `rejected`
 - `needs_repair` → `validated`, `rejected`
 - `validated` → `needs_repair`, `approved`, `rejected`
-- `approved`와 `rejected`에서는 더 나가지 않는다.
+- `approved` → `needs_repair`, `rejected`. 채택 조건을 다시 봤을 때 깨지면 승인 라벨을 유지하지 않는다.
+- `rejected`에서는 더 나가지 않는다.
 
 `draft` → `approved`는 거부된다. `needs_repair` → `approved`도 거부된다. 재검증이 통과하면 `advanceAfterRevalidation`이 `validated`까지만 올린다. 재검증이 실패하면 `needs_repair`에 머물거나 그 상태로 들어가며, `approved`가 되지 않는다.
 

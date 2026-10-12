@@ -172,6 +172,7 @@ describe("아키텍처 v2 계약", () => {
     expect(transitionGenerationStatus("rejected", "approved").ok).toBe(false);
     expect(transitionGenerationStatus("needs_repair", "approved").ok).toBe(false);
     expect(transitionGenerationStatus("approved", "draft").ok).toBe(false);
+    expect(transitionGenerationStatus("approved", "validated").ok).toBe(false);
     expect(persistApproved("draft", "unsaved").ok).toBe(false);
     expect(persistApproved("validated", "unsaved").ok).toBe(false);
     const persisted = persistApproved("approved", "unsaved");
@@ -237,6 +238,10 @@ describe("아키텍처 v2 계약", () => {
     expect(judged.adopted).toBe(false);
     expect(judged.modelSuccess).toBe(false);
     expect(judged.status).toBe("rejected");
+    const alreadyApproved = decideModelAdoption(ready({ status: "approved", head: "block", issues: [blocked] }));
+    expect(alreadyApproved.adopted).toBe(false);
+    expect(alreadyApproved.status).toBe("rejected");
+    expect(alreadyApproved.issueCodes).toContain("head.block");
   });
 
   it("일부 날짜만 모델이면 주 출처가 model이 아니다", () => {

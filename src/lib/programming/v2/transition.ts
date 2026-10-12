@@ -4,7 +4,7 @@ const NEXT: Record<GenerationStatus, readonly GenerationStatus[]> = {
   draft: ["validated", "needs_repair", "rejected"],
   needs_repair: ["validated", "rejected"],
   validated: ["needs_repair", "approved", "rejected"],
-  approved: [],
+  approved: ["needs_repair", "rejected"],
   rejected: [],
 };
 
