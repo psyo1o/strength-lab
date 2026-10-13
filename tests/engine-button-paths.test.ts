@@ -177,6 +177,11 @@ describe("engine button paths", () => {
       lastSession: null,
       sex: null,
       isAdmin: true,
+      name: null,
+      birthDate: null,
+      status: "active",
+      role: "admin",
+      rejectionReason: null,
     });
     fetchMock.mockClear();
     vi.stubGlobal("fetch", fetchMock);
