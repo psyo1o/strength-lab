@@ -1,3 +1,4 @@
+import { ENGINE_DRY_ACTIONS, ENGINE_LIVE_ACTIONS, ENGINE_WRITE_ACTIONS } from "./admin-actions";
 import { getSqlite } from "../db/client";
 import { classWeekToTrain, kstParts } from "../month-plan/calendar";
 import { recomputeWeeklyActual } from "./actual";
@@ -142,6 +143,28 @@ function redact(value: unknown): unknown {
 
 function monthKey(nowMs: number): string {
   return `${kstParts(nowMs).date.slice(0, 7)}-01`;
+}
+
+export function adminEngineWeek(action: string, nowMs = Date.now(), mode?: SaveWeekMode): string | null {
+  if (action === "save-model-week") return mode === "production" ? classWeekToTrain(nowMs) : PROBE_MODEL_WEEK;
+  if (action === "regenerate-week" || action === "validate" || action === "fallback-test" || action === "save-forced-fallback") {
+    return classWeekToTrain(nowMs);
+  }
+  if (action === "generate-next-week" || action === "dry-run-week") return targetWeekStart(nowMs);
+  if (action === "seed-week-actual") return PROBE_ACTUAL_WEEK;
+  if (action === "simulate-month-cycle") return PROBE_CYCLE_WEEKS[0];
+  return null;
+}
+
+function adminActionLabel(action: string): string {
+  const found = [...ENGINE_LIVE_ACTIONS, ...ENGINE_DRY_ACTIONS, ...ENGINE_WRITE_ACTIONS].find(([id]) => id === action);
+  return found?.[1] ?? (action || "알 수 없는 동작");
+}
+
+/** Korean sentence for the engine result pane. The caller redacts the message first. */
+export function adminEngineErrorText(action: string, weekStart: string | null, message: string): string {
+  const week = weekStart ?? "없음";
+  return `「${adminActionLabel(action)}」 실행이 실패했습니다. 대상 주는 ${week}. 사유: ${message}`;
 }
 
 export function targetWeekStart(nowMs = Date.now()): string {
