@@ -111,5 +111,27 @@
       {"id": "six-a", "week": "2099-07-06", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1},
       {"id": "six-sun", "week": "2099-01-19", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"}
     ]
-  }
+  },
+  "zone2": {
+    "pass": true,
+    "adopted": "5/5",
+    "zone2_fail": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "tokens": 674928,
+    "token_cap": 1200000,
+    "week_average": 238292,
+    "max_starts": 5,
+    "scheduled": 5,
+    "stopped": null,
+    "http_429": false,
+    "runs": [
+      {"id": "z3", "week": "2099-03-02", "days": 3, "zone2_day": "mon", "form": "addon", "modality": "row_erg", "duration_min": 25, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "z4", "week": "2099-04-06", "days": 4, "zone2_day": "tue", "form": "addon", "modality": "row_erg", "duration_min": 20, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "z5", "week": "2099-05-04", "days": 5, "zone2_day": "wed", "form": "day", "modality": "row_erg", "duration_min": 35, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "z6", "week": "2099-06-01", "days": 6, "zone2_day": "tue", "form": "day", "modality": "row_erg", "duration_min": 40, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "z-deload", "week": "2099-08-24", "days": 6, "deload": true, "zone2_day": "mon", "form": "day", "modality": "row_erg", "duration_min": 30, "effort": "1", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1}
+    ]
+  },
+  "tests_zone2": {"files": 79, "passed": 500}
 }

@@ -24,6 +24,8 @@ export {
   type SlotRole,
   type WeekDirection,
   type WeekSkeleton,
+  type Zone2Annotation,
+  type Zone2Form,
 } from "./contract";
 export { buildMonthlyDirection, directionToGoalTable, validateMonthlyDirection } from "./month";
 export {

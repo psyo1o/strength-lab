@@ -733,7 +733,18 @@ function textError(path: string, value: unknown, korean: boolean): string | null
 
 export function weeklyIntentErrors(
   value: unknown,
-  bounds?: readonly { day: string; intensity_profile: readonly string[]; strength_lift: readonly string[] }[] | null,
+  bounds?:
+    | readonly {
+        day: string;
+        intensity_profile: readonly string[];
+        strength_lift: readonly string[];
+        zone2?: readonly string[];
+        zone2_modality?: readonly string[];
+        zone2_duration?: readonly string[];
+        zone2_effort?: readonly string[];
+        zone2_hr?: readonly string[];
+      }[]
+    | null,
 ): string[] {
   if (!isRecord(value)) return ["expected a JSON object with key days"];
   const errors: string[] = [];
@@ -791,6 +802,19 @@ export function weeklyIntentErrors(
     }
     if (typeof row.benchmark !== "boolean") {
       errors.push(`${prefix}.benchmark: received ${received(row.benchmark)}; allowed: boolean true or false`);
+    }
+    if (bound?.zone2) {
+      const zoneChecks: Array<[string, unknown, readonly string[]]> = [
+        ["zone2", row.zone2, bound.zone2],
+        ["zone2_modality", row.zone2_modality, bound.zone2_modality ?? ["none"]],
+        ["zone2_duration", row.zone2_duration, bound.zone2_duration ?? ["0"]],
+        ["zone2_effort", row.zone2_effort, bound.zone2_effort ?? ["none"]],
+        ["zone2_hr", row.zone2_hr, bound.zone2_hr ?? ["none"]],
+      ];
+      for (const [field, fieldValue, allowed] of zoneChecks) {
+        const issue = enumError(`${prefix}.${field}`, fieldValue, allowed);
+        if (issue) errors.push(`${issue} day=${String(row.day)}`);
+      }
     }
   });
   for (const day of DAY_ORDER) {

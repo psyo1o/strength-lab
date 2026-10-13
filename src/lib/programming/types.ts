@@ -200,6 +200,14 @@ export type SessionDraft = {
   volume: VolumeBand | null;
   intensity: IntensityBand | null;
   expected_duration: number | null;
+  /** 주간 enum에서 고른 존 2. 컨디셔닝 시계와 별도다. */
+  zone2?: {
+    form: "addon" | "day";
+    modality: string;
+    duration_min: number;
+    effort: string;
+    hr: string;
+  } | null;
 };
 
 export type ProgrammingIntent = {
@@ -289,6 +297,12 @@ export type DayIntent = {
   strength_lift: StrengthLiftChoice;
   benchmark: boolean;
   notes_ko: string;
+  /** 존 2 블록. 없으면 이 날은 존 2가 아니다. */
+  zone2?: "none" | "addon" | "day";
+  zone2_modality?: string;
+  zone2_duration?: number;
+  zone2_effort?: string;
+  zone2_hr?: string;
 };
 
 /**

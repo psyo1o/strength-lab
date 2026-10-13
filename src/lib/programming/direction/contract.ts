@@ -125,6 +125,19 @@ export type SkeletonLock = {
   reason: string | null;
 };
 
+export type Zone2Form = "none" | "addon" | "day";
+
+/** 잠긴 뼈대 위의 존 2. skeletonContentHash에는 넣지 않는다. */
+export type Zone2Annotation = {
+  form: Zone2Form;
+  allowedDays: DayKey[];
+  /** addon에서 run을 빼는 요일. heavy 하체 다음 날과 하체 날. */
+  lowerAdjacent: DayKey[];
+  /** 다음 날이 heavy 하체라 존 2를 둘 수 없는 요일. 주 경계의 일요일을 포함한다. */
+  blockedNext: DayKey[];
+  deload: boolean;
+};
+
 export type WeekSkeleton = {
   weekId: string;
   monthId: string;
@@ -133,6 +146,8 @@ export type WeekSkeleton = {
   rulesVersion: typeof DIRECTION_RULES_VERSION;
   days: SkeletonDay[];
   lock: SkeletonLock;
+  /** 잠금 해시 뒤에 붙는다. 요일 내용이 바뀌지 않으면 해시도 바뀌지 않는다. */
+  zone2?: Zone2Annotation;
 };
 
 export type ConformanceIssue = {

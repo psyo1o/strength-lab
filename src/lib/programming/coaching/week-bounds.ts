@@ -1,8 +1,9 @@
 import { DAY_ORDER, type DayKey, type WeekIndex } from "../../month-plan/types";
-import type { WeekSkeleton } from "../direction/contract";
+import type { WeekSkeleton, Zone2Annotation } from "../direction/contract";
 import { strengthIsHeavy } from "../schemes";
 import { exampleSets } from "../strength-methods";
 import { COACHING_STIMULI, PRIMARY_TRAININGS, SECONDARY_TRAININGS } from "../types";
+import { zone2Durations, zone2Effort, zone2Modalities } from "./zone2";
 import {
   BLOCK_PHASES,
   DURATION_PROFILES,
@@ -24,7 +25,7 @@ const NON_LOWER = ["ohp", "bench", "none"] as const;
 export type DayBound = {
   day: DayKey;
   heavy: boolean;
-  intensity_band: "4-5" | "1-3";
+  intensity_band: "4-5" | "1-3" | "1-2";
   intensity_profile: readonly string[];
   strength_lift: readonly string[];
   /** 잠긴 뼈대에서 파생한 허용 조합. `lift:load`. 세션 enum은 이 목록만 따른다. */
@@ -33,6 +34,11 @@ export type DayBound = {
   deadliftConditioning: boolean;
   /** 그 요일이 squat 또는 deadlift를 낼 수 있으면 1. 주 합계가 max_lower_lifts를 넘지 않는다. */
   lower_lift_cap: 0 | 1;
+  zone2?: readonly string[];
+  zone2_modality?: readonly string[];
+  zone2_duration?: readonly string[];
+  zone2_effort?: readonly string[];
+  zone2_hr?: readonly string[];
 };
 
 export type DayBoundOptions = {
@@ -40,6 +46,8 @@ export type DayBoundOptions = {
   method?: string;
   /** 지난주 뼈대. 월요일은 그 일요일까지 실제 날짜로 본다. */
   previousWeek?: WeekSkeleton | null;
+  /** 직전 주 존 2 모달. 이번 주 enum에서 뺀다. */
+  previousModality?: string | null;
 };
 
 function enumOf(values: readonly string[]): Record<string, unknown> {
@@ -156,6 +164,27 @@ function squatWouldBeHeavy(seed: BoundSeed, method: string | undefined): boolean
   return !method && seed.loadClass === "heavy";
 }
 
+function withZone2(bound: DayBound, zone2: Zone2Annotation, previousModality: string | null | undefined): DayBound {
+  const designated = zone2.form === "none" ? null : (zone2.allowedDays[0] ?? null);
+  const host = designated === bound.day;
+  const lower = zone2.lowerAdjacent.includes(bound.day);
+  const dayHost = zone2.form === "day" && host;
+  const modalities = host ? zone2Modalities(lower, previousModality) : [];
+  const durations = host ? zone2Durations(zone2.form, zone2.deload) : [];
+  const effort = host ? zone2Effort(zone2.deload) : [];
+  return {
+    ...bound,
+    heavy: dayHost ? false : bound.heavy,
+    intensity_band: dayHost ? "1-2" : bound.intensity_band,
+    intensity_profile: dayHost ? ["light"] : bound.intensity_profile,
+    zone2: host ? [zone2.form] : ["none"],
+    zone2_modality: host ? modalities : ["none"],
+    zone2_duration: host ? durations.map(String) : ["0"],
+    zone2_effort: host ? [...effort] : ["none"],
+    zone2_hr: host ? ["60-70", "unspecified"] : ["none"],
+  };
+}
+
 function finishBound(seed: BoundSeed, lifts: readonly string[]): DayBound {
   const deadliftConditioning = !seed.rest && (lockedDeadlift(seed.pattern) || lifts.includes("deadlift"));
   return {
@@ -199,7 +228,9 @@ export function dayBoundsFromSkeleton(
     filtered.set(seed.day, lifts);
     priorHeavy = heavyDeadliftSource({ ...seed, strength_lift: lifts }, method);
   }
-  return seeds.map((seed) => finishBound(seed, filtered.get(seed.day) ?? seed.strength_lift));
+  const bounds = seeds.map((seed) => finishBound(seed, filtered.get(seed.day) ?? seed.strength_lift));
+  if (!skeleton.zone2) return bounds;
+  return bounds.map((bound) => withZone2(bound, skeleton.zone2!, options?.previousModality));
 }
 
 export function lowerLiftCapSum(bounds: readonly DayBound[]): number {
@@ -209,9 +240,13 @@ export function lowerLiftCapSum(bounds: readonly DayBound[]): number {
 export function weekBoundsNote(bounds: readonly DayBound[]): string {
   const lines = bounds.map(
     (day) =>
-      `${day.day} heavy=${day.heavy} intensity_band=${day.intensity_band} intensity_profile=${day.intensity_profile.join("|")} strength_lift=${day.strength_lift.join("|")} combinations=${day.combinations.join("|")} lower_lift_cap=${day.lower_lift_cap}`,
+      `${day.day} heavy=${day.heavy} intensity_band=${day.intensity_band} intensity_profile=${day.intensity_profile.join("|")} strength_lift=${day.strength_lift.join("|")} combinations=${day.combinations.join("|")} lower_lift_cap=${day.lower_lift_cap}${day.zone2 ? ` zone2=${day.zone2.join("|")} zone2_modality=${day.zone2_modality?.join("|") ?? ""} zone2_duration=${day.zone2_duration?.join("|") ?? ""} zone2_effort=${day.zone2_effort?.join("|") ?? ""} zone2_hr=${day.zone2_hr?.join("|") ?? ""}` : ""}`,
   );
-  return ["Per-day enums are closed. Do not use a value outside that day.", ...lines].join("\n");
+  return [
+    "Per-day enums are closed. Do not use a value outside that day.",
+    "When zone2 is listed, the week has exactly one addon or day block, or zero when every day is none. zone2_effort conversational means RPE 2-3, a conversational pace. zone2_hr 60-70 is auxiliary and may be unspecified. A zone2 day uses intensity_profile light (band 1-2) and does not count toward the high-intensity cap. Default day duration is 40 or 45.",
+    ...lines,
+  ].join("\n");
 }
 
 const DAY_FIELDS = [
@@ -250,8 +285,17 @@ function daySchema(bound: DayBound): Record<string, unknown> {
       strength_lift: enumOf(bound.strength_lift),
       benchmark: { type: "boolean" },
       notes_ko: { type: "string" },
+      ...(bound.zone2
+        ? {
+            zone2: enumOf(bound.zone2),
+            zone2_modality: enumOf(bound.zone2_modality ?? ["none"]),
+            zone2_duration: enumOf(bound.zone2_duration ?? ["0"]),
+            zone2_effort: enumOf(bound.zone2_effort ?? ["none"]),
+            zone2_hr: enumOf(bound.zone2_hr ?? ["none"]),
+          }
+        : {}),
     },
-    [...DAY_FIELDS],
+    bound.zone2 ? [...DAY_FIELDS, "zone2", "zone2_modality", "zone2_duration", "zone2_effort", "zone2_hr"] : [...DAY_FIELDS],
   );
 }
 

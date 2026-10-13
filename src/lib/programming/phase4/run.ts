@@ -17,7 +17,7 @@ import type { FetchLike } from "../model";
 import type { DayKey, MonthDirection, MonthGoalTable } from "../types";
 import { weekIndexFromStart } from "../types";
 import { assertPhase4Budget, configurePhase4Run, logPhase4Call, PHASE4_TOKEN_CAP, phase4RunCap, phase4TokensSpent, Phase4Stop } from "./budget";
-import { phase4DPass, phase4ProfilePass, phase4RegressionPass, runStageD, runStageFollow, type DRunReport } from "./chain";
+import { phase4DPass, phase4ProfilePass, phase4RegressionPass, phase4Zone2Pass, runStageD, runStageFollow, type DRunReport } from "./chain";
 import { assertIsolated2099Database } from "./isolation";
 import { smokeCoaches } from "./smoke";
 
@@ -293,6 +293,29 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
         `P rates weeks=${stage.weeks} adopted=${stage.adopted} preModel=${preModelReject} headBlock=${headBlock} fallback_adopted=${fallbackAdopted} drift=${drift}`,
       );
       if (!pass) throw new Phase4Stop("stage P failed");
+    }
+    if (wanted.has("Z")) {
+      process.env.PHASE4_STAGE = "Z";
+      process.env.PHASE4_ZONE2 = "1";
+      process.env.PHASE4_PROFILE = "";
+      const stage = await runStageD({
+        key: input.key,
+        fetchImpl,
+        adoptedWeek: phase4WeekAdopted,
+        firstPoint,
+        fail: (coach, point) => fail("Z", coach, point),
+        tokens: phase4TokensSpent,
+      });
+      dRuns = stage.reports;
+      adopted += stage.adopted;
+      weeks += stage.weeks;
+      const fallbackAdopted = stage.reports.reduce((sum, row) => sum + row.fallbackAdopted, 0);
+      const drift = stage.reports.reduce((sum, row) => sum + row.drift, 0);
+      const zone2Fail = stage.reports.reduce((sum, row) => sum + row.zone2Fail, 0);
+      const pass = phase4Zone2Pass({ adopted: stage.adopted, weeks: stage.weeks, fallbackAdopted, drift, zone2Fail });
+      stages.push({ stage: "Z", pass, detail: `${stage.adopted}/${stage.weeks} zone2Fail=${zone2Fail} fallbackAdopted=${fallbackAdopted} drift=${drift}` });
+      console.log(`Z rates weeks=${stage.weeks} adopted=${stage.adopted} zone2Fail=${zone2Fail} fallback_adopted=${fallbackAdopted} drift=${drift}`);
+      if (!pass) throw new Phase4Stop("stage Z failed");
     }
     if (wanted.has("F")) {
       process.env.PHASE4_STAGE = "F";

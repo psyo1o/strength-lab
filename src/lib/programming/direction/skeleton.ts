@@ -1,5 +1,6 @@
 import { DAY_ORDER } from "../../month-plan/types";
-import { GOAL_TABLE_RULES, goalTableRuleErrors } from "../coaching/goal-table";
+import { GOAL_TABLE_RULES, goalTableRuleErrors, profileTrainingDayCount } from "../coaching/goal-table";
+import { placeZone2 } from "../coaching/zone2";
 import { TIME_DOMAIN_RANGES } from "../rules";
 import type { MonthDirection, WeekIndex } from "../types";
 import {
@@ -190,6 +191,8 @@ export function lockWeekSkeleton(input: {
   month: MonthDirection;
   lockedBy?: string;
   now?: string;
+  previousWeek?: WeekSkeleton | null;
+  nextWeek?: WeekSkeleton | null;
 }): { ok: true; skeleton: WeekSkeleton } | { ok: false; errors: ConformanceIssue[] } {
   const errors = validateSkeletonConformance(input.direction, input.skeleton, input.month);
   if (errors.length) return { ok: false, errors };
@@ -205,6 +208,14 @@ export function lockWeekSkeleton(input: {
     },
   };
   locked.lock.skeletonHash = skeletonContentHash(locked);
+  const method = input.month.strength_method || input.month.scheme;
+  locked.zone2 = placeZone2({
+    skeleton: locked,
+    trainingDays: profileTrainingDayCount(input.month),
+    previous: input.previousWeek ?? null,
+    next: input.nextWeek ?? null,
+    deload: locked.weekIndex === 4 || method === "DELOAD_RECOVERY" || method === "deload",
+  });
   return { ok: true, skeleton: locked };
 }
 

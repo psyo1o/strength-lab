@@ -22,7 +22,8 @@ import { applyIntensityPatch, intensityPatchFormat, intensityPatchUser } from ".
 import { dayBoundsFromSkeleton, weekBoundsNote, weeklyResponseFormat } from "./week-bounds";
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
 import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "./conditioning-board";
-import { goalWeek, movementFrequency, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
+import { goalWeek, movementFrequency, profileTrainingDayCount, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
+import { pinZone2, previousZone2Modality, stampZone2Sessions, zone2RuleErrors } from "./zone2";
 import type { ConditioningSlot } from "../types";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, isCoachingSignal, prescriptionSource } from "./stage13/policy";
@@ -1190,7 +1191,26 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const dayBounds = dayBoundsFromSkeleton(input.weekSkeleton ?? null, rules.max_lower_lifts, {
     method: month.strength_method || month.scheme,
     previousWeek: input.previousWeekSkeleton ?? null,
+    previousModality: previousZone2Modality(input.recentPlans),
   });
+  const weeklyGate = (json: unknown) => {
+    const errors = weeklyIntentErrors(json, dayBounds);
+    if (errors.length) return { ok: false as const, errors };
+    const parsed = parseWeeklyIntent(json, deterministic);
+    if (!parsed) return { ok: false as const, errors: ["weekly intent parser rejected the payload"] };
+    const ruleErrors = weekPlanErrors(parsed, rules);
+    const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
+    const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
+    const zoneErrors = zone2RuleErrors({
+      trainingDays: profileTrainingDayCount(month),
+      planDays: parsed.days,
+      zone2: input.weekSkeleton?.zone2 ?? null,
+      previousModality: previousZone2Modality(input.recentPlans),
+    });
+    const planErrors = [...ruleErrors, ...alignErrors, ...zoneErrors];
+    if (planErrors.length) return { ok: false as const, errors: planErrors, retry: !planErrors.some((error) => /high intensity days/.test(error)) };
+    return { ok: true as const };
+  };
   const weeklyFormat = dayBounds ? weeklyResponseFormat(dayBounds) : undefined;
   const weeklySchemaNote = dayBounds ? weekBoundsNote(dayBounds) : undefined;
   const weeklyUser = weeklyCoachPayload({
@@ -1216,18 +1236,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     promptVersion: WEEKLY_COACH_PROMPT_VERSION,
     runId,
     retryContext: { agent: "weekly", week_index: input.weekIndex },
-    validate: (json) => {
-      const errors = weeklyIntentErrors(json, dayBounds);
-      if (errors.length) return { ok: false, errors };
-      const parsed = parseWeeklyIntent(json, deterministic);
-      if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
-      const ruleErrors = weekPlanErrors(parsed, rules);
-      const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
-      const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
-      const planErrors = [...ruleErrors, ...alignErrors];
-      if (planErrors.length) return { ok: false, errors: planErrors, retry: !planErrors.some((error) => /high intensity days/.test(error)) };
-      return { ok: true };
-    },
+    validate: weeklyGate,
   });
   modelName = weekly.model;
   usage = addUsage(usage, weekly.usage);
@@ -1428,18 +1437,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       promptVersion: WEEKLY_COACH_PROMPT_VERSION,
       runId,
       retryContext: { agent: "weekly", week_index: input.weekIndex, revision_number: 1 },
-      validate: (json) => {
-        const errors = weeklyIntentErrors(json, dayBounds);
-        if (errors.length) return { ok: false, errors };
-        const parsed = parseWeeklyIntent(json, deterministic);
-        if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
-        const ruleErrors = weekPlanErrors(parsed, rules);
-        const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
-        const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
-        const planErrors = [...ruleErrors, ...alignErrors];
-        if (planErrors.length) return { ok: false, errors: planErrors, retry: !planErrors.some((error) => /high intensity days/.test(error)) };
-        return { ok: true };
-      },
+      validate: weeklyGate,
     });
     usage = addUsage(usage, weeklyRetry.usage);
     modelName = weeklyRetry.model;
@@ -1767,7 +1765,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const recoveredSnap = new Set(recoveredDays);
   const unresolvedSnap = new Map(unresolvedDays);
   draft = placed.draft;
-  plan = placed.plan;
+  plan = pinZone2(placed.plan, input.weekSkeleton?.zone2 ?? null);
   if (plan.conditioning_slots) {
     const moved: NonNullable<WeeklyIntentPlan["conditioning_slots"]> = {};
     for (const day of DAY_ORDER) {
@@ -2863,7 +2861,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       final_prescription: draft.sessions,
     },
   };
-  draft = stamp(draft, plan);
+  draft = stamp(stampZone2Sessions(draft, plan), plan);
   const late = lateDiscovered(
     lastHeadHardCodes,
     closing.issues.filter((issue) => issue.severity === "hard_error").map((issue) => issue.code),

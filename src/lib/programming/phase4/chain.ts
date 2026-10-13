@@ -12,6 +12,8 @@ import {
   type MonthlyDirection,
   type WeekSkeleton,
 } from "../direction";
+import { profileTrainingDayCount } from "../coaching/goal-table";
+import { attachZone2, zone2RuleErrors } from "../coaching/zone2";
 import { fallbackMonth } from "../fallback";
 import { structurallySimilar, toStructure } from "../rules";
 import type { WeekActual } from "../summary";
@@ -67,6 +69,8 @@ export type DRunReport = {
   monthlyModel: number;
   patches: number;
   failures: string[];
+  zone2Fail: number;
+  zone2: string[];
 };
 
 /** 수정 전 D 21주의 사용 토큰 5004132를 21로 나눈 값. 재실행은 이 평균으로 상한 전에 멈춘다. */
@@ -77,6 +81,8 @@ export const STRUCT_TOKEN_CAP = 1_500_000;
 export const STRUCT_MAX_STARTS = Math.floor(STRUCT_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
 export const PROFILE_TOKEN_CAP = 1_200_000;
 export const PROFILE_MAX_STARTS = Math.floor(PROFILE_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
+export const ZONE2_TOKEN_CAP = 1_200_000;
+export const ZONE2_MAX_STARTS = Math.floor(ZONE2_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
 
 export function phase4DPass(input: {
   adopted: number;
@@ -211,6 +217,7 @@ export function lockRunSkeletons(direction: MonthlyDirection, month: MonthDirect
     if (!locked.ok) return { ok: false, error: locked.errors[0]?.message ?? "lock" };
     skeletons.push(locked.skeleton);
   }
+  attachZone2(skeletons, month);
   return { ok: true, skeletons };
 }
 
@@ -295,6 +302,30 @@ export const PHASE4_ODD_RUNS: readonly DRunSpec[] = [
   { id: "six-b", profile: "531", monthId: "2099-12", weeks: ["2099-12-07", "2099-12-14", "2099-12-21", "2099-12-28"], coachWeeks: ["2099-12-07"] },
 ];
 
+export const PHASE4_ZONE2_RUNS: readonly DRunSpec[] = [
+  { id: "z3", profile: "531", monthId: "2099-z3", weeks: ["2099-03-02", "2099-03-09", "2099-03-16", "2099-03-23"], coachWeeks: ["2099-03-02"], availableDays: ["mon", "wed", "fri"] },
+  { id: "z4", profile: "531", monthId: "2099-z4", weeks: ["2099-04-06", "2099-04-13", "2099-04-20", "2099-04-27"], coachWeeks: ["2099-04-06"], availableDays: ["mon", "tue", "thu", "fri"] },
+  { id: "z5", profile: "531", monthId: "2099-z5", weeks: ["2099-05-04", "2099-05-11", "2099-05-18", "2099-05-25"], coachWeeks: ["2099-05-04"], availableDays: ["mon", "tue", "wed", "thu", "fri"] },
+  { id: "z6", profile: "531", monthId: "2099-z6", weeks: ["2099-06-01", "2099-06-08", "2099-06-15", "2099-06-22"], coachWeeks: ["2099-06-01"] },
+  { id: "z-deload", profile: "531", monthId: "2099-zd", weeks: ["2099-08-03", "2099-08-10", "2099-08-17", "2099-08-24"], coachWeeks: ["2099-08-24"] },
+];
+
+export function phase4Zone2Pass(input: {
+  adopted: number;
+  weeks: number;
+  fallbackAdopted: number;
+  drift: number;
+  zone2Fail: number;
+}): boolean {
+  return (
+    input.weeks === PHASE4_ZONE2_RUNS.length &&
+    input.adopted === PHASE4_ZONE2_RUNS.length &&
+    input.fallbackAdopted === 0 &&
+    input.drift === 0 &&
+    input.zone2Fail === 0
+  );
+}
+
 export function phase4ProfilePass(input: {
   adopted: number;
   weeks: number;
@@ -351,17 +382,20 @@ export async function runStageD(input: ListedInput): Promise<{ reports: DRunRepo
   const repair = process.env.PHASE4_D_REPAIR === "1";
   const struct = process.env.PHASE4_STRUCT === "1";
   const profile = process.env.PHASE4_PROFILE === "1";
-  const source = profile ? PHASE4_PROFILE_RUNS : struct ? PHASE4_STRUCT_RUNS : PHASE4_D_RUNS;
+  const zone2 = process.env.PHASE4_ZONE2 === "1";
+  const source = zone2 ? PHASE4_ZONE2_RUNS : profile ? PHASE4_PROFILE_RUNS : struct ? PHASE4_STRUCT_RUNS : PHASE4_D_RUNS;
   const runs = source.filter((run) => only.size === 0 || only.has(run.id)).map((run) =>
     repair && run.id === "531-b" ? { ...run, coachWeeks: ["2099-11-02"] as const } : run,
   );
-  if (repair || struct || profile) {
+  if (repair || struct || profile || zone2) {
     const scheduled = runs.reduce((sum, run) => sum + (run.coachWeeks?.length ?? run.weeks.length), 0);
-    const cap = profile
-      ? Math.min(phase4RunCap(), PROFILE_TOKEN_CAP)
-      : struct
-        ? Math.min(phase4RunCap(), STRUCT_TOKEN_CAP)
-        : Math.min(phase4RunCap(), D_REPAIR_TOKEN_CAP);
+    const cap = zone2
+      ? Math.min(phase4RunCap(), ZONE2_TOKEN_CAP)
+      : profile
+        ? Math.min(phase4RunCap(), PROFILE_TOKEN_CAP)
+        : struct
+          ? Math.min(phase4RunCap(), STRUCT_TOKEN_CAP)
+          : Math.min(phase4RunCap(), D_REPAIR_TOKEN_CAP);
     const maxStarts = Math.floor(cap / D_REPAIR_WEEK_AVERAGE);
     console.log(`D stop plan average=${D_REPAIR_WEEK_AVERAGE} cap=${cap} max_starts=${maxStarts} scheduled=${scheduled}`);
   }
@@ -427,6 +461,8 @@ async function runOne(
     monthlyModel: 0,
     patches: 0,
     failures: [],
+    zone2Fail: 0,
+    zone2: [],
   };
   const openedMonth = openRunMonth(spec);
   if (!openedMonth.ok) {
@@ -477,16 +513,18 @@ async function runOne(
   let recentSignatures: string[] = [];
   let previousWeekStart: string | null = null;
   for (const weekStart of spec.coachWeeks ?? spec.weeks) {
-    if (process.env.PHASE4_D_REPAIR === "1" || process.env.PHASE4_STRUCT === "1" || process.env.PHASE4_PROFILE === "1" || process.env.PHASE4_STAGE === "F") {
+    if (process.env.PHASE4_D_REPAIR === "1" || process.env.PHASE4_STRUCT === "1" || process.env.PHASE4_PROFILE === "1" || process.env.PHASE4_ZONE2 === "1" || process.env.PHASE4_STAGE === "F") {
       const spent = input.tokens();
       const cap =
-        process.env.PHASE4_PROFILE === "1"
-          ? Math.min(phase4RunCap(), PROFILE_TOKEN_CAP)
-          : process.env.PHASE4_STRUCT === "1"
-            ? Math.min(phase4RunCap(), STRUCT_TOKEN_CAP)
-            : process.env.PHASE4_STAGE === "F"
-              ? Math.min(phase4RunCap(), 2_500_000)
-              : Math.min(phase4RunCap(), D_REPAIR_TOKEN_CAP);
+        process.env.PHASE4_ZONE2 === "1"
+          ? Math.min(phase4RunCap(), ZONE2_TOKEN_CAP)
+          : process.env.PHASE4_PROFILE === "1"
+            ? Math.min(phase4RunCap(), PROFILE_TOKEN_CAP)
+            : process.env.PHASE4_STRUCT === "1"
+              ? Math.min(phase4RunCap(), STRUCT_TOKEN_CAP)
+              : process.env.PHASE4_STAGE === "F"
+                ? Math.min(phase4RunCap(), 2_500_000)
+                : Math.min(phase4RunCap(), D_REPAIR_TOKEN_CAP);
       if (spent + D_REPAIR_WEEK_AVERAGE > cap) {
         console.log(`${process.env.PHASE4_STAGE ?? "D"} stop before ${spec.id} ${weekStart}: spent ${spent} + average ${D_REPAIR_WEEK_AVERAGE} > ${cap}`);
         break;
@@ -540,6 +578,25 @@ async function runOne(
     if (result.review.status === "BLOCK") report.headBlock += 1;
     report.patches += result.intensity_patch_count ?? 0;
     const ok = input.adoptedWeek(result);
+    if (process.env.PHASE4_ZONE2 === "1") {
+      const zoneErrors = zone2RuleErrors({
+        trainingDays: profileTrainingDayCount(month),
+        planDays: result.plan.days,
+        zone2: skeleton?.zone2 ?? null,
+        previousModality: null,
+      });
+      const host = result.plan.days.find((day) => day.zone2 === "addon" || day.zone2 === "day");
+      const line = host
+        ? `${host.day} ${host.zone2} ${host.zone2_modality ?? "-"} ${host.zone2_duration ?? "-"} ${host.zone2_effort ?? "-"}`
+        : "none";
+      report.zone2.push(`${weekStart} ${line}`);
+      if (zoneErrors.length) {
+        report.zone2Fail += 1;
+        input.fail("zone2", zoneErrors[0]!.slice(0, 180));
+        report.failures.push(`${weekStart} zone2: ${zoneErrors[0]}`);
+      }
+      console.log(`zone2 ${spec.id} ${weekStart} ${line} errors=${zoneErrors.join(" | ") || "0"}`);
+    }
     if (ok) report.adopted += 1;
     else {
       const point = input.firstPoint(result);
