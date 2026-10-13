@@ -267,7 +267,7 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
       console.log(
         `D rates weeks=${stage.weeks} adopted=${stage.adopted} degraded=${degraded} fallback=${fallback} fallback_adopted=${fallbackAdopted} drift=${drift} lock=${lockFailed} unclassified=${unclassified} head_unresolved=${headOpen} head_applied=${headDone}`,
       );
-      if (!pass && process.env.PHASE4_D_REPAIR !== "1") throw new Phase4Stop("stage D failed");
+      if (!pass && process.env.PHASE4_D_REPAIR !== "1" && process.env.PHASE4_STRUCT !== "1") throw new Phase4Stop("stage D failed");
     }
     if (wanted.has("F")) {
       process.env.PHASE4_STAGE = "F";

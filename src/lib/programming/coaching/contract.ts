@@ -731,7 +731,10 @@ function textError(path: string, value: unknown, korean: boolean): string | null
 }
 
 
-export function weeklyIntentErrors(value: unknown): string[] {
+export function weeklyIntentErrors(
+  value: unknown,
+  bounds?: readonly { day: string; intensity_profile: readonly string[]; strength_lift: readonly string[] }[] | null,
+): string[] {
   if (!isRecord(value)) return ["expected a JSON object with key days"];
   const errors: string[] = [];
   if (!Array.isArray(value.days)) {
@@ -755,22 +758,25 @@ export function weeklyIntentErrors(value: unknown): string[] {
       errors.push(`${prefix}: expected an object`);
       return;
     }
+    const bound = bounds?.find((item) => item.day === row.day);
     const checks: Array<[string, unknown, readonly string[]]> = [
       ["day", row.day, DAY_ORDER],
       ["primary_training", row.primary_training, PRIMARY_TRAININGS],
       ["secondary_training", row.secondary_training, SECONDARY_TRAININGS],
       ["stimulus", row.stimulus, COACHING_STIMULI],
-      ["intensity_profile", row.intensity_profile, INTENSITY_PROFILES],
+      ["intensity_profile", row.intensity_profile, bound?.intensity_profile ?? INTENSITY_PROFILES],
       ["volume_profile", row.volume_profile, VOLUME_BANDS],
       ["duration_profile", row.duration_profile, DURATION_PROFILES],
       ["fatigue_target", row.fatigue_target, FATIGUE_TARGETS],
       ["movement_pattern", row.movement_pattern, MOVEMENT_PATTERNS],
       ["recovery_role", row.recovery_role, RECOVERY_ROLES],
-      ["strength_lift", row.strength_lift, STRENGTH_LIFTS],
+      ["strength_lift", row.strength_lift, bound?.strength_lift ?? STRENGTH_LIFTS],
     ];
     for (const [field, fieldValue, allowed] of checks) {
       const issue = enumError(`${prefix}.${field}`, fieldValue, allowed);
-      if (issue) errors.push(issue);
+      if (!issue) continue;
+      const named = bound && (field === "intensity_profile" || field === "strength_lift");
+      errors.push(named ? `${issue} day=${String(row.day)}` : issue);
     }
     if (typeof row.day === "string") {
       if (seen.has(row.day)) errors.push(`${prefix}.day: duplicate ${row.day}`);

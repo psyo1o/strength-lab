@@ -2,7 +2,7 @@ import { schemaBrief } from "./contract";
 import type { CoachAgentName } from "./models";
 
 export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v11";
-export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v4";
+export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v5";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
 export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v3";
 export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v7";
@@ -52,7 +52,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Place purposes, not exercises. Monday is not squat. A repeated pattern is allowed only when progression needs it. High reported fatigue reduces lower exposure. Missed days repeat the purpose at lower volume.",
     constraints:
-      "Do not write conditioning movement keys, formats, amounts, sets, or kilograms. duration_profile is the class window, not the conditioning clock. Keep the month's strength method. week_rules and week_goal are immutable. Rest days stay on the goal's weekday. Copy movement_pattern from the goal target. A time_domain of long is the only long-conditioning day.",
+      "Do not write conditioning movement keys, formats, amounts, sets, or kilograms. duration_profile is the class window, not the conditioning clock. Keep the month's strength method. week_rules and week_goal are immutable. Rest days stay on the goal's weekday. Copy movement_pattern from the goal target. A time_domain of long is the only long-conditioning day. day_bounds lists each weekday's heavy flag. A heavy day may use only intensity band 4-5. Any other day may use only intensity band 1-3. strength_lift must be one of that day's allowed values.",
     output_schema: 'The day array key is "days". Enum values in the OUTPUT SCHEMA block are the only allowed values.',
     failure_behavior: "Invalid JSON is discarded. The deterministic weekly plan is used and the model is not recorded as the source.",
   },

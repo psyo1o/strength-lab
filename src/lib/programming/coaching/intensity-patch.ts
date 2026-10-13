@@ -1,5 +1,6 @@
 import { DAY_ORDER } from "../../month-plan/types";
-import { INTENSITY_PROFILES, type ResponseFormat } from "./contract";
+import type { ResponseFormat } from "./contract";
+import { intensityAllowed, type DayBound } from "./week-bounds";
 
 const LOWER_LIFTS = new Set(["squat", "deadlift"]);
 
@@ -81,7 +82,18 @@ export function intensityPatchUser(input: { base: unknown; errors: readonly stri
 }
 
 /** 출력 칸은 요일과 intensity_profile뿐이다. */
-export function intensityPatchFormat(): ResponseFormat {
+export function intensityPatchFormat(bounds?: readonly DayBound[] | null): ResponseFormat {
+  const properties = Object.fromEntries(
+    DAY_ORDER.map((day) => [
+      day,
+      {
+        type: "object",
+        additionalProperties: false,
+        properties: { intensity_profile: { type: "string", enum: [...intensityAllowed(bounds ?? null, day)] } },
+        required: ["intensity_profile"],
+      },
+    ]),
+  );
   return {
     type: "json_schema",
     json_schema: {
@@ -90,20 +102,7 @@ export function intensityPatchFormat(): ResponseFormat {
       schema: {
         type: "object",
         additionalProperties: false,
-        properties: {
-          days: {
-            type: "array",
-            items: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                day: { type: "string", enum: [...DAY_ORDER] },
-                intensity_profile: { type: "string", enum: [...INTENSITY_PROFILES] },
-              },
-              required: ["day", "intensity_profile"],
-            },
-          },
-        },
+        properties: { days: { type: "object", additionalProperties: false, properties, required: [...DAY_ORDER] } },
         required: ["days"],
       },
     },
@@ -114,17 +113,31 @@ export function intensityPatchFormat(): ResponseFormat {
  * 모델이 준 intensity_profile만 해당 요일에 복사한다.
  * 빠진 요일은 그대로 둔다. 다른 칸은 패치에 있어도 쓰지 않는다.
  */
-export function applyIntensityPatch(base: unknown, patch: unknown): unknown {
-  if (!base || typeof base !== "object") return base;
-  const copy = structuredClone(base) as { days?: unknown };
-  if (!Array.isArray(copy.days)) return copy;
+function patchUpdates(patch: unknown, bounds?: readonly DayBound[] | null): Map<string, string> {
   const updates = new Map<string, string>();
+  const days = patch && typeof patch === "object" ? (patch as { days?: unknown }).days : null;
+  if (days && typeof days === "object" && !Array.isArray(days)) {
+    for (const [day, row] of Object.entries(days)) {
+      const intensity = row && typeof row === "object" ? text((row as { intensity_profile?: unknown }).intensity_profile) : null;
+      if (!intensity || !intensityAllowed(bounds ?? null, day).includes(intensity)) continue;
+      updates.set(day, intensity);
+    }
+    return updates;
+  }
   for (const row of dayRows(patch)) {
     const day = text(row.day);
     const intensity = text(row.intensity_profile);
-    if (!day || !intensity || !(INTENSITY_PROFILES as readonly string[]).includes(intensity)) continue;
+    if (!day || !intensity || !intensityAllowed(bounds ?? null, day).includes(intensity)) continue;
     updates.set(day, intensity);
   }
+  return updates;
+}
+
+export function applyIntensityPatch(base: unknown, patch: unknown, bounds?: readonly DayBound[] | null): unknown {
+  if (!base || typeof base !== "object") return base;
+  const copy = structuredClone(base) as { days?: unknown };
+  if (!Array.isArray(copy.days)) return copy;
+  const updates = patchUpdates(patch, bounds);
   copy.days = copy.days.map((row) => {
     if (!row || typeof row !== "object") return row;
     const day = text((row as { day?: unknown }).day);

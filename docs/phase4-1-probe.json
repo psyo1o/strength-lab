@@ -43,7 +43,8 @@
       {"week": "2099-02-09", "point": "high intensity days 4 exceed the week rule 3", "after_patch": "lower lifts 3 exceed the week rule 2"}
     ]
   },
-  "config_hash": "63ee5f4d1e7a86c2b6ee089b869a5b3e512604dad0ee4452d2a270d08f28e383",
+  "config_hash": "893bbee3c1418feade1349ba277bb17ff0b5980f5467864c549058df3f16caa3",
+  "previous_config_hash": "63ee5f4d1e7a86c2b6ee089b869a5b3e512604dad0ee4452d2a270d08f28e383",
   "regression": {
     "pass": false,
     "finished_weeks": 10,
@@ -59,5 +60,31 @@
     "odd_profiles": "not started"
   },
   "shadow": {"flag": "SHADOW_GENERATOR", "default": "off", "live": false, "mock": true},
-  "tests": {"files": 76, "passed": 483}
+  "struct": {
+    "pass": false,
+    "reason": "odd profiles were not both adopted",
+    "priority_1_adopted": "3/3",
+    "priority_2_adopted": "2/2",
+    "priority_3_adopted": "0/2",
+    "patches": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "unclassified": 0,
+    "tokens": 1134713,
+    "token_cap": 1500000,
+    "week_average": 238292,
+    "max_starts": 6,
+    "scheduled": 7,
+    "lower_lift_rule": "week total: lower lifts N exceed the week rule 2",
+    "runs": [
+      {"id": "531-b", "week": "2099-11-02", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "intensity-b", "week": "2099-02-02", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "intensity-b", "week": "2099-02-09", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "reg-intensity", "week": "2099-05-18", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "reg-intensity", "week": "2099-05-25", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "two-a", "week": null, "adopted": false, "point": "goal_table week 1 needs exactly one rest day; current=5"},
+      {"id": "six-a", "week": "2099-07-06", "adopted": false, "source": "fallback", "fallback_adopted": false, "point": "heavy squat the day after deadlift (mon)"}
+    ]
+  },
+  "tests": {"files": 77, "passed": 486}
 }

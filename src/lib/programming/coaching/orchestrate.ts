@@ -19,6 +19,7 @@ import {
 } from "./prompts";
 import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
 import { applyIntensityPatch, intensityPatchFormat, intensityPatchUser } from "./intensity-patch";
+import { dayBoundsFromSkeleton, weekBoundsNote, weeklyResponseFormat } from "./week-bounds";
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
 import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "./conditioning-board";
 import { goalWeek, movementFrequency, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
@@ -1146,6 +1147,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   });
   let plan = deterministic;
   let weeklyFromModel = false;
+  let intensityPatchCount = 0;
   const lockedLongitudinal = input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal : null;
   if (lockedLongitudinal) {
     plan = planFromLockedSkeleton(lockedLongitudinal, month);
@@ -1169,6 +1171,9 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     );
   }
   if (!lockedLongitudinal) {
+  const dayBounds = dayBoundsFromSkeleton(input.weekSkeleton ?? null, rules.max_lower_lifts);
+  const weeklyFormat = dayBounds ? weeklyResponseFormat(dayBounds) : undefined;
+  const weeklySchemaNote = dayBounds ? weekBoundsNote(dayBounds) : undefined;
   const weeklyUser = weeklyCoachPayload({
     month,
     weekIndex: input.weekIndex,
@@ -1176,11 +1181,14 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     recentPlans: input.recentPlans,
     recentStructures: input.recentStructures,
     inputSummary: input.inputSummary,
+    dayBounds,
   });
   const weeklyStarted = Date.now();
   const weekly = await askCoach({
     agent: "weekly",
     retryTransport: true,
+    format: weeklyFormat,
+    schemaNote: weeklySchemaNote,
     user: weeklyUser,
     key,
     fetchImpl: input.fetchImpl,
@@ -1190,7 +1198,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     runId,
     retryContext: { agent: "weekly", week_index: input.weekIndex },
     validate: (json) => {
-      const errors = weeklyIntentErrors(json);
+      const errors = weeklyIntentErrors(json, dayBounds);
       if (errors.length) return { ok: false, errors };
       const parsed = parseWeeklyIntent(json, deterministic);
       if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
@@ -1293,12 +1301,14 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   }
   const intensityFailure = weekly.validationErrors.some((error) => /high intensity days/.test(error));
   if (!weeklyFromModel && intensityFailure && weekly.json && MAX_WEEKLY_ROUTER_RETRIES > 0) {
+    intensityPatchCount += 1;
     const patchUser = intensityPatchUser({ base: weekly.json, errors: weekly.validationErrors });
     const patchStarted = Date.now();
     const patch = await askCoach({
       agent: "weekly",
       maxAttempts: 1,
-      format: intensityPatchFormat(),
+      format: intensityPatchFormat(dayBounds),
+      schemaNote: weeklySchemaNote,
       user: patchUser,
       key,
       fetchImpl: input.fetchImpl,
@@ -1308,7 +1318,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       runId,
       retryContext: { agent: "weekly", week_index: input.weekIndex, revision_number: 1, patch: "intensity_profile" },
       validate: (json) => {
-        const merged = applyIntensityPatch(weekly.json, json);
+        const merged = applyIntensityPatch(weekly.json, json, dayBounds);
         const parsed = parseWeeklyIntent(merged, deterministic);
         if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the patched payload"], retry: false };
         const ruleErrors = weekPlanErrors(parsed, rules);
@@ -1322,7 +1332,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     usage = addUsage(usage, patch.usage);
     modelName = patch.model;
     if (patch.ok && patch.json) {
-      const parsed = parseWeeklyIntent(applyIntensityPatch(weekly.json, patch.json), deterministic);
+      const parsed = parseWeeklyIntent(applyIntensityPatch(weekly.json, patch.json, dayBounds), deterministic);
       const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
       const alignErrors = goal && parsed ? weekGoalAlignmentErrors(parsed, goal) : [];
       if (parsed && weekPlanErrors(parsed, rules).length === 0 && alignErrors.length === 0) {
@@ -1389,6 +1399,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     const weeklyRetry = await askCoach({
       agent: "weekly",
       retryTransport: true,
+      format: weeklyFormat,
+      schemaNote: weeklySchemaNote,
       user: weeklyRetryUser,
       key,
       fetchImpl: input.fetchImpl,
@@ -1398,7 +1410,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       runId,
       retryContext: { agent: "weekly", week_index: input.weekIndex, revision_number: 1 },
       validate: (json) => {
-        const errors = weeklyIntentErrors(json);
+        const errors = weeklyIntentErrors(json, dayBounds);
         if (errors.length) return { ok: false, errors };
         const parsed = parseWeeklyIntent(json, deterministic);
         if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the payload"] };
@@ -2873,6 +2885,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     day_sources: daySources,
     origin_log: originLog,
     head_revise: headCatalogOutcome,
+    intensity_patch_count: intensityPatchCount,
     final_status: resolvedStatus,
     coach_notes: notes,
     monthly_plan: monthly.plan,

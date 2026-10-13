@@ -17,6 +17,7 @@ import type {
 import { goalWeek, layoutFromGoal, restDayFor, weekTrainingLayout } from "./goal-table";
 import { deterministicMonthlyPlan } from "./monthly";
 import { extractWeekRules } from "./stage13/rules";
+import type { DayBound } from "./week-bounds";
 
 const DAY_KO: Record<DayKey, string> = {
   mon: "월요일",
@@ -57,6 +58,7 @@ export function weeklyCoachPayload(input: {
   recentPlans?: readonly WeeklyIntentPlan[];
   recentStructures?: readonly { format: string; stimulus: string | null; movement_patterns: readonly string[]; duration_min: number }[];
   inputSummary?: unknown;
+  dayBounds?: readonly DayBound[] | null;
 }): unknown {
   const month = input.month.coaching_plan ?? deterministicMonthlyPlan(input.month, input.previousActual);
   const summary = input.previousActual?.class_summary;
@@ -85,13 +87,14 @@ export function weeklyCoachPayload(input: {
       })),
     })),
     week_goal: goalWeek(month.goal_table, input.weekIndex),
+    day_bounds: input.dayBounds ?? null,
     recent_structures: (input.recentStructures ?? []).slice(-24),
     summary: input.inputSummary ?? null,
     previous_generation_source:
       input.inputSummary && typeof input.inputSummary === "object" && "previous_week" in input.inputSummary
         ? ((input.inputSummary as { previous_week?: { generation_source?: string } | null }).previous_week?.generation_source ?? null)
         : null,
-    note: "Return seven day purposes under the key days. week_goal chose the rest day, and for each training day the focus, target, stimulus, time_domain, and purpose. Copy the rest day. A day with time_domain long is the only long-conditioning day. Copy movement_pattern from target.movement_pattern. Choose the strength lift and the other day fields. Do not name extra movements, conditioning movement keys, formats, or amounts. week_rules are immutable.",
+    note: "Return seven day purposes under the key days, in mon-to-sun order. week_goal chose the rest day, and for each training day the focus, target, stimulus, time_domain, and purpose. Copy the rest day. A day with time_domain long is the only long-conditioning day. Copy movement_pattern from target.movement_pattern. Choose the strength lift and the other day fields from that day's day_bounds. heavy true allows only intensity_profile heavy (band 4-5). heavy false allows only light or moderate (band 1-3). Do not name extra movements, conditioning movement keys, formats, or amounts. week_rules are immutable. The server does not fill intensity_profile or strength_lift.",
   };
 }
 

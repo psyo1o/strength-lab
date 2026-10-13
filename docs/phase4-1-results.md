@@ -49,3 +49,30 @@
 `SHADOW_GENERATOR` 기본값은 꺼짐이다. mock만 통과했고 라이브로 켜지 않았다.
 
 테스트 76파일 483개 통과. tsc --noEmit 통과.
+
+## 구조 상한
+
+하체 리프트 두 건의 로그는 `lower lifts N exceed the week rule 2`다. 주 합계다. 요일당 상한이나 연속일 문장은 없었다. 요일 상한의 합이 그 주 합계를 넘지 않게 뼈대 슬롯 순서로 나눴다. `weekPlanErrors`의 고강도 3과 하체 합계는 그대로다.
+
+주간 스키마의 요일별 `intensity_profile`은 잠긴 뼈대 heavy 요일만 `heavy`(4–5), 나머지 요일은 `light`·`moderate`(1–3)다. `strength_lift` enum도 요일 상한이다. 코드는 그 값을 넣지 않는다. 프롬프트 `day_bounds`에 heavy 여부를 적는다. patch 재요청은 남고 `intensity_patch_count`에 센다. 해시 `893bbee3c1418feade1349ba277bb17ff0b5980f5467864c549058df3f16caa3`.
+
+상한 150만. 평균 238292. 시작 상한 6주, 예정 7주. 앞 5주가 971418을 쓴 뒤 주 2일 표가 예외로 끊겼다. 이어서 남은 상한 528582로 주 2일과 주 6일만 돌렸다. 합계 토큰 1134713. 429는 없다. 주간 호출은 `weekly-coach-v5`이고 schema 거절은 없다. patch 발동은 0이다.
+
+| 단계 | 주 | 채택 | patch | fallback 채택 | 뼈대 변경 |
+| --- | --- | --- | --- | --- | --- |
+| ① 531-b | 2099-11-02 | 1/1 모델 | 0 | 0 | 0 |
+| ① intensity-b | 2099-02-02 | 1/1 모델 | 0 | 0 | 0 |
+| ① intensity-b | 2099-02-09 | 1/1 모델 | 0 | 0 | 0 |
+| ② reg-intensity | 2099-05-18 | 1/1 모델 | 0 | 0 | 0 |
+| ② reg-intensity | 2099-05-25 | 1/1 모델 | 0 | 0 | 0 |
+| ③ two-a | 주 2일 | 표 거절, 주 0 | 0 | 0 | 0 |
+| ③ six-a | 2099-07-06 | 0/1 fallback | 0 | 0 | 0 |
+
+① 3/3, ② 2/2 채택. ③은 채택이 아니다. fallback 채택 0, 뼈대 무단 변경 0, 분류 안 된 실패 0.
+
+실패 분류.
+
+- `two-a`: 월간 표. `goal_table week 1 needs exactly one rest day; current=5`. 휴식일 규칙은 그대로다. 모델 호출은 없다.
+- `six-a` `2099-07-06`: 최종 검증. `heavy squat the day after deadlift (mon)`. 헤드 BLOCK, fallback, 미채택. 주간 schema와 하체 주 합계는 통과했다.
+
+테스트 77파일 486개 통과. tsc --noEmit 통과. `SHADOW_GENERATOR`는 끄고 돌렸다.

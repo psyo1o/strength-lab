@@ -72,6 +72,8 @@ export type CoachWeekResult = {
   origin_log?: string;
   /** 헤드 REVISE의 칸 수정. none은 카탈로그 칸 REVISE가 아니다. */
   head_revise?: "none" | "applied" | "unresolved";
+  /** 고강도 patch 재요청을 부른 횟수. 코드가 강도를 넣으면 0이어도 이 수는 오르지 않는다. */
+  intensity_patch_count?: number;
   final_status: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING";
   coach_notes: string[];
   monthly_plan: MonthlyCoachPlan;

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { legalMonthlyCellJson } from "../src/lib/programming/coaching/goal-candidates";
 import { askCoach } from "../src/lib/programming/coaching/llm";
+import { coachWeek } from "../src/lib/programming/coaching/pipeline";
+import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
 import { coachMonthly } from "../src/lib/programming/coaching/monthly";
 import { applyIntensityPatch, intensityFailureFacts, intensityPatchFormat, intensityPatchUser, lockedWeekView } from "../src/lib/programming/coaching/intensity-patch";
 import { extractWeekRules } from "../src/lib/programming/coaching/stage13/rules";
@@ -14,6 +16,8 @@ import {
   D_REPAIR_WEEK_AVERAGE,
   directionFromGoalTable,
   lockRunSkeletons,
+  openRunMonth,
+  PHASE4_STRUCT_RUNS,
   phase4DPass,
   phase4RegressionPass,
   weekActualFromDraft,
@@ -22,7 +26,7 @@ import { PINNED_COACHING_CONFIG_HASH } from "../src/lib/programming/phase4/pin";
 import { chooseShadowDisplay, shadowGeneratorEnabled, shadowObservation } from "../src/lib/programming/shadow";
 import { lockedSkeletonDrift } from "../src/lib/programming/direction";
 import type { WeekDraft } from "../src/lib/programming/types";
-import { month531 } from "./characterization/support";
+import { fetchFor, month531 } from "./characterization/support";
 
 function chat(content: unknown) {
   return new Response(
@@ -204,14 +208,70 @@ describe("phase 4 D", () => {
     });
     expect(result.ok).toBe(true);
     expect(bodies).toHaveLength(1);
-    const sent = JSON.parse(bodies[0]!) as { messages: Array<{ content: string }>; response_format: { json_schema: { schema: { properties: { days: { items: { required: string[] } } } } } } };
+    const sent = JSON.parse(bodies[0]!) as {
+      messages: Array<{ content: string }>;
+      response_format: { json_schema: { schema: { properties: { days: { properties: Record<string, { required: string[] }> } } } } };
+    };
     const content = JSON.parse(sent.messages[1]!.content) as { locked: unknown; failure: { heavy_count: number; heavy_days: string[] } };
     expect(content.failure.heavy_count).toBe(5);
     expect(content.failure.heavy_days).toContain("wed");
     expect(content.locked).toBeTruthy();
-    expect(sent.response_format.json_schema.schema.properties.days.items.required).toEqual(["day", "intensity_profile"]);
+    expect(sent.response_format.json_schema.schema.properties.days.properties.mon?.required).toEqual(["intensity_profile"]);
     expect(D_REPAIR_WEEK_AVERAGE * D_REPAIR_MAX_STARTS).toBeLessThanOrEqual(D_REPAIR_TOKEN_CAP);
     expect(D_REPAIR_MAX_STARTS).toBe(8);
+  });
+
+  it("고강도 주 규칙 실패에서 patch는 한 번만 발동하고 횟수를 남긴다", async () => {
+    const month = month531();
+    const plan = planCoachedWeek({ month, weekIndex: 1, previousActual: null, recentSignatures: [] });
+    const heavy = {
+      block_phase: plan.block_phase,
+      emphasis: plan.emphasis,
+      why_ko: plan.why_ko,
+      focus: plan.focus,
+      scheme_note: plan.scheme_note,
+      adjustment_ko: plan.adjustment_ko,
+      days: plan.days.map((day) =>
+        day.primary_training === "rest" || day.recovery_role === "rest" ? day : { ...day, intensity_profile: "heavy" as const },
+      ),
+    };
+    expect(heavy.days.filter((day) => day.intensity_profile === "heavy").length).toBeGreaterThan(3);
+    const inner = fetchFor({ month, weekIndex: 1, monthly: "valid", weekly: "valid", head: "approve" });
+    let weeklyCalls = 0;
+    let patchCalls = 0;
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { messages?: Array<{ role: string; content: string }> };
+      const raw = body.messages?.find((message) => message.role === "user")?.content ?? "{}";
+      let user: Record<string, unknown> = {};
+      try {
+        user = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        user = {};
+      }
+      if (user.failure && user.locked) {
+        patchCalls += 1;
+        return chat({
+          days: Object.fromEntries(plan.days.map((day) => [day.day, { intensity_profile: day.intensity_profile }])),
+        });
+      }
+      if (user.agent_name === "weekly_coach") {
+        weeklyCalls += 1;
+        return chat(heavy);
+      }
+      return inner(url, init);
+    };
+    const result = await coachWeek({
+      month,
+      weekIndex: 1,
+      weekStart: "2099-11-02",
+      key: "sk-test",
+      fetchImpl,
+      timeoutMs: 1000,
+      nowMs: Date.parse("2099-11-02T01:00:00.000Z"),
+    });
+    expect(weeklyCalls).toBe(1);
+    expect(patchCalls).toBe(1);
+    expect(result.intensity_patch_count).toBe(1);
   });
 
   it("고정 해시와 그림자 화면, 주 2일 표", () => {
@@ -235,6 +295,12 @@ describe("phase 4 D", () => {
     const two = buildGoalTable({ month: { ...base, available_days: ["mon", "thu"] } });
     expect(two.ok).toBe(false);
     if (!two.ok) expect(two.reason).toMatch(/exactly one rest day/);
+    const twoRun = PHASE4_STRUCT_RUNS.find((run) => run.id === "two-a");
+    const sixRun = PHASE4_STRUCT_RUNS.find((run) => run.id === "six-a");
+    const rejected = openRunMonth(twoRun!);
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.reason).toMatch(/exactly one rest day/);
+    expect(openRunMonth(sixRun!).ok).toBe(true);
   });
 
   it("이번 실행 상한은 PHASE4_TOKEN_CAP이다", () => {
