@@ -154,7 +154,7 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 프롬프트 버전, `monthly-direction-v1`, 모델 `gpt-5.4-nano`, 평주 고강도 상한 3의 해시는 `63ee5f4d1e7a86c2b6ee089b869a5b3e512604dad0ee4452d2a270d08f28e383`이다. `PINNED_COACHING_CONFIG_HASH`와 다르면 회귀를 시작하지 않는다.
 
-주간 재요청은 `weeklyIntensityHold`가 고강도 요일의 `intensity_profile`만 낮추라고 적는다. 월간 표의 휴식일, `movement_pattern`, squat·deadlift 날 수는 바꾸지 말라고 적는다. 고강도 상한은 `extractWeekRules`가 정하고 평주는 3이다. 재요청이 그 수를 올리지 않는다. `askCoach`의 검증 재시도와 `routerPlan`의 주간 재요청은 고강도 요일 오류일 때만 그 문장을 쓴다.
+고강도 요일 오류의 주간 재요청은 `intensityPatchFormat`이다. 출력 칸은 요일별 `intensity_profile`뿐이고 1회다. 휴식일, `movement_pattern`, 하체 리프트 배치, 슬롯은 `lockedWeekView`로 입력에만 둔다. 실패 문장의 요일과 개수는 `intensityFailureFacts`가 함께 넘긴다. `applyIntensityPatch`는 그 칸만 복사하고, 빠진 요일의 강도를 코드가 낮추지 않는다. 그래도 `weekPlanErrors`가 남으면 fallback이다. 그 외 주간 오류는 `routerPlan`이 주간 코치를 1회 다시 부른다. 고강도 상한은 `extractWeekRules`가 정하고 평주는 3이다.
 
 Phase 4 D는 프로필 실행마다 `coachMonthly`를 한 번 부르고, 그 계획의 `reuse_key`로 4주를 잇는다. 주는 `monthId`와 `profileId`를 월간 호출에 넘긴다. 잠긴 뼈대는 `generateWeekSkeleton`과 `lockWeekSkeleton`으로 만들고, `monthlyDirection`과 `weekSkeleton`이 있으면 `evaluateWeek`가 정합과 `lockedSkeletonDrift`를 본다. 이전 주의 세션 구조, 의도, `WeekActual`은 다음 주 입력이다. 뼈대 해시를 `amendLockedSkeleton` 없이 바꾸면 그 주는 몰래 변경이다.
 

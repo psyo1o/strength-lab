@@ -2,55 +2,62 @@
   "live_model": true,
   "db": "/tmp/strength-lab-phase4-2099.db",
   "model": "gpt-5.4-nano",
-  "d": {
+  "cause": {
+    "week": "2099-11-02",
+    "monthly_intensity_gte_4": ["tue", "thu", "sat"],
+    "monthly_heavy_count": 3,
+    "locked_skeleton_heavy_slots": 3,
+    "weekly_plan_heavy_count": 5,
+    "location": "weekly plan intensity_profile",
+    "monthly_cap_added": false
+  },
+  "before": {
+    "finished_weeks": 21,
+    "adopted": 20,
+    "not_run": ["2099-02-09", "2099-02-16", "2099-02-23"],
+    "tokens": 5004132,
+    "failures": [{"run": "531-b", "week": "2099-11-02", "point": "high intensity days 5 exceed the week rule 3"}]
+  },
+  "after_d": {
     "pass": true,
-    "adopted": 23,
-    "weeks": 24,
+    "combined_adopted": 23,
+    "combined_weeks": 24,
     "fallback_adopted": 0,
     "drift": 0,
-    "lock": 0,
     "unclassified": 0,
-    "rerun_tokens": 1943504,
-    "rerun_cap": 2000000,
-    "kept": ["531-a", "volume-a", "volume-b", "intensity-a"],
-    "rerun": ["531-b", "intensity-b"],
-    "intensity_b_note": "week 1 was not stored, so all 4 weeks were rerun",
+    "tokens": 1132543,
+    "token_cap": 2000000,
+    "week_average": 238292,
+    "max_starts": 8,
+    "scheduled": 5,
+    "note": "original monthly JSON and intensity-b week 1 draft were not stored",
+    "runs": [
+      {"id": "531-b", "week": "2099-11-02", "adopted": true},
+      {"id": "intensity-b", "week": "2099-02-02", "adopted": false, "role": "chain reconstruction"},
+      {"id": "intensity-b", "week": "2099-02-09", "adopted": false},
+      {"id": "intensity-b", "week": "2099-02-16", "adopted": true},
+      {"id": "intensity-b", "week": "2099-02-23", "adopted": true}
+    ],
     "failures": [
-      {
-        "run": "531-b",
-        "week": "2099-11-16",
-        "coach": "weekly",
-        "point": "this week is not a long-conditioning week",
-        "source": "fallback",
-        "reason": "schema"
-      }
+      {"week": "2099-02-02", "point": "high intensity days 5 exceed the week rule 3", "after_patch": "lower lifts 4 exceed the week rule 2"},
+      {"week": "2099-02-09", "point": "high intensity days 4 exceed the week rule 3", "after_patch": "lower lifts 3 exceed the week rule 2"}
     ]
   },
   "config_hash": "63ee5f4d1e7a86c2b6ee089b869a5b3e512604dad0ee4452d2a270d08f28e383",
   "regression": {
     "pass": false,
     "finished_weeks": 10,
-    "required_weeks": 12,
-    "adopted": 8,
+    "adopted": 10,
+    "required": "11/12",
     "fallback_adopted": 0,
     "drift": 0,
     "unclassified": 0,
-    "tokens": 2504534,
+    "tokens": 2504762,
     "token_cap": 2500000,
-    "stopped": "token cap 2500000 reached at 2504534",
-    "runs": [
-      {"id": "reg-531", "adopted": 3, "weeks": 4},
-      {"id": "reg-volume", "adopted": 4, "weeks": 4},
-      {"id": "reg-intensity", "adopted": 1, "weeks_finished": 2}
-    ],
-    "failures": [
-      {"run": "reg-531", "week": "2099-03-16", "point": "lower lifts 3 exceed the week rule 2"},
-      {"run": "reg-intensity", "week": "2099-05-04", "point": "high intensity days 5 exceed the week rule 3"}
-    ],
-    "not_finished": ["2099-05-18", "2099-05-25"]
+    "max_starts": 10,
+    "stopped": "token cap 2500000 reached at 2504762 during 2099-05-18",
+    "odd_profiles": "not started"
   },
-  "odd_profiles": "not started; regression hit the token cap",
   "shadow": {"flag": "SHADOW_GENERATOR", "default": "off", "live": false, "mock": true},
-  "tests": {"files": 76, "passed": 483},
-  "e_cancelled": true
+  "tests": {"files": 76, "passed": 483}
 }

@@ -17,7 +17,8 @@ import {
   STAGE16_PIPELINE_VERSION,
   WEEKLY_COACH_PROMPT_VERSION,
 } from "./prompts";
-import { extractWeekRules, weekPlanErrors, weeklyRetryExtra, type WeekRules } from "./stage13/rules";
+import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
+import { applyIntensityPatch, intensityPatchFormat, intensityPatchUser } from "./intensity-patch";
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
 import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "./conditioning-board";
 import { goalWeek, movementFrequency, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
@@ -1197,7 +1198,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
       const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
       const planErrors = [...ruleErrors, ...alignErrors];
-      if (planErrors.length) return { ok: false, errors: planErrors, retryExtra: weeklyRetryExtra({ json, errors: planErrors, maxHeavy: rules.max_high_intensity_days }) };
+      if (planErrors.length) return { ok: false, errors: planErrors, retry: !planErrors.some((error) => /high intensity days/.test(error)) };
       return { ok: true };
     },
   });
@@ -1290,7 +1291,78 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     week = { ...week, month };
     rules = extractWeekRules({ month, weekIndex: input.weekIndex, actual: input.previousActual });
   }
-  if (!weeklyFromModel && firstRoute.weekly && MAX_WEEKLY_ROUTER_RETRIES > 0) {
+  const intensityFailure = weekly.validationErrors.some((error) => /high intensity days/.test(error));
+  if (!weeklyFromModel && intensityFailure && weekly.json && MAX_WEEKLY_ROUTER_RETRIES > 0) {
+    const patchUser = intensityPatchUser({ base: weekly.json, errors: weekly.validationErrors });
+    const patchStarted = Date.now();
+    const patch = await askCoach({
+      agent: "weekly",
+      maxAttempts: 1,
+      format: intensityPatchFormat(),
+      user: patchUser,
+      key,
+      fetchImpl: input.fetchImpl,
+      timeoutMs,
+      maxTokens: 2000,
+      promptVersion: WEEKLY_COACH_PROMPT_VERSION,
+      runId,
+      retryContext: { agent: "weekly", week_index: input.weekIndex, revision_number: 1, patch: "intensity_profile" },
+      validate: (json) => {
+        const merged = applyIntensityPatch(weekly.json, json);
+        const parsed = parseWeeklyIntent(merged, deterministic);
+        if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the patched payload"], retry: false };
+        const ruleErrors = weekPlanErrors(parsed, rules);
+        const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
+        const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
+        const planErrors = [...ruleErrors, ...alignErrors];
+        if (planErrors.length) return { ok: false, errors: planErrors, retry: false };
+        return { ok: true };
+      },
+    });
+    usage = addUsage(usage, patch.usage);
+    modelName = patch.model;
+    if (patch.ok && patch.json) {
+      const parsed = parseWeeklyIntent(applyIntensityPatch(weekly.json, patch.json), deterministic);
+      const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
+      const alignErrors = goal && parsed ? weekGoalAlignmentErrors(parsed, goal) : [];
+      if (parsed && weekPlanErrors(parsed, rules).length === 0 && alignErrors.length === 0) {
+        plan = {
+          ...parsed,
+          intent_source: "model",
+          original_intent_source: "model",
+          fallback_used: false,
+          realization: "intent",
+          strength_method: month.strength_method || month.scheme,
+        };
+        weeklyFromModel = true;
+      }
+    }
+    traces.push(
+      finishTrace(patchStarted, {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "weekly_coach",
+        model: patch.model,
+        prompt_version: WEEKLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash(patchUser),
+        output: weeklyFromModel ? { block_phase: plan.block_phase, patch: "intensity_profile" } : patch.json,
+        raw_output: patch.raw,
+        model_input: patchUser,
+        validation_result: weeklyFromModel ? "pass" : "fail",
+        validation_errors: patch.validationErrors,
+        ...coachAttemptRecord(patch),
+        retry_count: 1,
+        failure_reason: weeklyFromModel ? null : patch.reason,
+        deterministic: false,
+        source: weeklyFromModel ? "model" : "fallback",
+        fallback_reason: weeklyFromModel ? null : patch.reason,
+        revision_number: 1,
+        token_usage: patch.usage,
+        decision: weeklyFromModel ? "RERUN" : "KEPT",
+      }),
+    );
+  }
+  if (!weeklyFromModel && !intensityFailure && firstRoute.weekly && MAX_WEEKLY_ROUTER_RETRIES > 0) {
     traces.push(
       finishTrace(Date.now(), {
         run_id: runId,
@@ -1309,11 +1381,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         revision_number: 1,
       }),
     );
-    const hold = weeklyRetryExtra({ json: weekly.json, errors: weekly.validationErrors, maxHeavy: rules.max_high_intensity_days });
     const weeklyRetryUser = {
       ...(weeklyUser as Record<string, unknown>),
       revision_number: 1,
-      revision_instruction: hold ? `${hold.revision_instruction} ${weekly.validationErrors.join(" ")}` : weekly.validationErrors.join(" "),
+      revision_instruction: weekly.validationErrors.join(" "),
     };
     const weeklyRetry = await askCoach({
       agent: "weekly",
@@ -1335,7 +1406,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
         const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
         const planErrors = [...ruleErrors, ...alignErrors];
-        if (planErrors.length) return { ok: false, errors: planErrors, retryExtra: weeklyRetryExtra({ json, errors: planErrors, maxHeavy: rules.max_high_intensity_days }) };
+        if (planErrors.length) return { ok: false, errors: planErrors, retry: !planErrors.some((error) => /high intensity days/.test(error)) };
         return { ok: true };
       },
     });

@@ -51,36 +51,6 @@ function count(plan: WeeklyIntentPlan, pred: (day: WeeklyIntentPlan["days"][numb
  * Weekly plan checks only. Sessions are not an input.
  * A failure sends the weekly coach back, not the session coach.
  */
-/** 주간 재요청. 고강도 요일의 intensity_profile만 낮추고, 월간 표의 휴식일·movement_pattern·하체 리프트 수는 그대로 둔다. 상한 숫자는 올리지 않는다. */
-export function weeklyIntensityHold(input: { json: unknown; maxHeavy: number }): string {
-  const heavy = heavyDayNames(input.json);
-  const where = heavy.length ? heavy.join(", ") : "days whose intensity_profile is heavy";
-  return `Lower intensity_profile only on ${where}. Heavy days must stay at most ${input.maxHeavy}. Keep monthly rest days, movement_pattern, and the number of squat and deadlift days unchanged.`;
-}
-
-export function weeklyRetryExtra(input: {
-  json: unknown;
-  errors: readonly string[];
-  maxHeavy: number;
-}): { revision_instruction: string } | undefined {
-  if (!input.errors.some((error) => /high intensity days/.test(error))) return undefined;
-  return { revision_instruction: weeklyIntensityHold({ json: input.json, maxHeavy: input.maxHeavy }) };
-}
-
-function heavyDayNames(json: unknown): string[] {
-  if (!json || typeof json !== "object") return [];
-  const days = (json as { days?: unknown }).days;
-  if (!Array.isArray(days)) return [];
-  const names: string[] = [];
-  for (const row of days) {
-    if (!row || typeof row !== "object") continue;
-    const day = (row as { day?: unknown }).day;
-    const intensity = (row as { intensity_profile?: unknown }).intensity_profile;
-    if (intensity === "heavy" && typeof day === "string") names.push(day);
-  }
-  return names;
-}
-
 export function weekPlanErrors(plan: WeeklyIntentPlan, rules: WeekRules): string[] {
   const errors: string[] = [];
   const days = new Set(plan.days.map((day) => day.day));

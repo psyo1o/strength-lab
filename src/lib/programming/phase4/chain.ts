@@ -18,7 +18,7 @@ import type { WeekActual } from "../summary";
 import type { FetchLike } from "../model";
 import type { MonthDirection, MonthGoalTable, StoredStructure, WeekDraft, WeekIndex } from "../types";
 import { addDays, weekIndexFromStart } from "../types";
-import { Phase4Stop } from "./budget";
+import { phase4RunCap, Phase4Stop } from "./budget";
 
 export type DProfileId = "531" | "volume" | "intensity";
 
@@ -65,6 +65,11 @@ export type DRunReport = {
   monthlyModel: number;
   failures: string[];
 };
+
+/** 수정 전 D 21주의 사용 토큰 5004132를 21로 나눈 값. 재실행은 이 평균으로 상한 전에 멈춘다. */
+export const D_REPAIR_WEEK_AVERAGE = Math.round(5_004_132 / 21);
+export const D_REPAIR_TOKEN_CAP = 2_000_000;
+export const D_REPAIR_MAX_STARTS = Math.floor(D_REPAIR_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
 
 export function phase4DPass(input: {
   adopted: number;
@@ -303,10 +308,17 @@ export async function runStageD(input: ListedInput): Promise<{ reports: DRunRepo
       .map((item) => item.trim())
       .filter(Boolean),
   );
-  return runListed(
-    PHASE4_D_RUNS.filter((run) => only.size === 0 || only.has(run.id)),
-    input,
+  const repair = process.env.PHASE4_D_REPAIR === "1";
+  const runs = PHASE4_D_RUNS.filter((run) => only.size === 0 || only.has(run.id)).map((run) =>
+    repair && run.id === "531-b" ? { ...run, coachWeeks: ["2099-11-02"] as const } : run,
   );
+  if (repair) {
+    const scheduled = runs.reduce((sum, run) => sum + (run.coachWeeks?.length ?? run.weeks.length), 0);
+    console.log(
+      `D repair stop plan average=${D_REPAIR_WEEK_AVERAGE} cap=${D_REPAIR_TOKEN_CAP} max_starts=${D_REPAIR_MAX_STARTS} scheduled=${scheduled}`,
+    );
+  }
+  return runListed(runs, input);
 }
 
 export async function runStageFollow(input: ListedInput): Promise<{
@@ -316,6 +328,10 @@ export async function runStageFollow(input: ListedInput): Promise<{
 }> {
   const hash = coachingConfigHash();
   if (hash !== PINNED_COACHING_CONFIG_HASH) throw new Phase4Stop("coaching config hash drifted");
+  const followCap = 2_500_000;
+  console.log(
+    `F stop plan average=${D_REPAIR_WEEK_AVERAGE} cap=${followCap} max_starts=${Math.floor(followCap / D_REPAIR_WEEK_AVERAGE)} scheduled=${PHASE4_REGRESSION_RUNS.length * 4 + PHASE4_ODD_RUNS.length}`,
+  );
   const regression = await runListed(PHASE4_REGRESSION_RUNS, input);
   const odd = await runListed(PHASE4_ODD_RUNS, input);
   return { hash, regression, odd };
@@ -392,6 +408,14 @@ async function runOne(
   let recentSignatures: string[] = [];
   let previousWeekStart: string | null = null;
   for (const weekStart of spec.coachWeeks ?? spec.weeks) {
+    if (process.env.PHASE4_D_REPAIR === "1" || process.env.PHASE4_STAGE === "F") {
+      const spent = input.tokens();
+      const cap = phase4RunCap() ?? (process.env.PHASE4_STAGE === "F" ? 2_500_000 : D_REPAIR_TOKEN_CAP);
+      if (spent + D_REPAIR_WEEK_AVERAGE > cap) {
+        console.log(`${process.env.PHASE4_STAGE ?? "D"} stop before ${spec.id} ${weekStart}: spent ${spent} + average ${D_REPAIR_WEEK_AVERAGE} > ${cap}`);
+        break;
+      }
+    }
     report.weeks += 1;
     const weekIndex = weekIndexFromStart(weekStart);
     const skeleton = skeletons?.[weekIndex - 1] ?? null;

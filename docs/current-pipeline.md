@@ -145,7 +145,7 @@ flowchart TD
   - 성공하면 `intent_source:"model"`, `weeklyFromModel=true`. `orchestrate.ts:1088-1101`
 - 라우터
   - `routerPlan(errors)`가 `monthly`면 월간 코치를 한 번 더 부르고 goal_table을 갈아 끼운다. 주간 코치를 다시 부르지는 않고, 다음 조건으로 넘어간다. `orchestrate.ts:1135-1171`
-  - `weekly`면 오류를 `revision_instruction`으로 붙여 주간 코치를 1회 다시 부른다. `orchestrate.ts:1172-1260`
+  - 고강도 요일 오류면 `intensityPatchFormat`으로 `intensity_profile`만 1회 묻는다. 그 외 `weekly`면 오류를 `revision_instruction`으로 붙여 주간 코치를 1회 다시 부른다.
   - 재시도 채택 조건(`1223`)에는 `weekGoalAlignmentErrors`가 없다. `validate` 안에서는 검사한다(`1212-1213`).
 - 실패하면 **결정적 `planCoachedWeek`가 조용히 주 계획이 된다.** 주는 멈추지 않는다. `orchestrate.ts:1029`, `1102`
 - `weekly_validator`(`weekPlanErrors`)와 `week_structure_analyzer`는 트레이스만 남긴다. `planRuleErrors`가 있어도 흐름이 그대로 간다. `orchestrate.ts:1261-1319`

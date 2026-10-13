@@ -2,12 +2,16 @@ import { afterEach, describe, expect, it } from "vitest";
 import { legalMonthlyCellJson } from "../src/lib/programming/coaching/goal-candidates";
 import { askCoach } from "../src/lib/programming/coaching/llm";
 import { coachMonthly } from "../src/lib/programming/coaching/monthly";
-import { extractWeekRules, weeklyIntensityHold, weeklyRetryExtra } from "../src/lib/programming/coaching/stage13/rules";
+import { applyIntensityPatch, intensityFailureFacts, intensityPatchFormat, intensityPatchUser, lockedWeekView } from "../src/lib/programming/coaching/intensity-patch";
+import { extractWeekRules } from "../src/lib/programming/coaching/stage13/rules";
 import { coachingConfigHash } from "../src/lib/programming/coaching/config-stamp";
 import { buildGoalTable } from "../src/lib/programming/coaching/goal-table";
 import { fallbackMonth } from "../src/lib/programming/fallback";
 import { phase4RunCap } from "../src/lib/programming/phase4/budget";
 import {
+  D_REPAIR_MAX_STARTS,
+  D_REPAIR_TOKEN_CAP,
+  D_REPAIR_WEEK_AVERAGE,
   directionFromGoalTable,
   lockRunSkeletons,
   phase4DPass,
@@ -132,56 +136,82 @@ describe("phase 4 D", () => {
     expect(second.plan.reuse_key).toBe(first.plan.reuse_key);
   });
 
-  it("주간 재요청은 고강도 요일만 낮추고 상한 3은 유지한다", async () => {
+  it("고강도 재요청은 intensity_profile만 바꾸고 코드가 강도를 낮추지 않는다", async () => {
     const month = month531();
     expect(extractWeekRules({ month, weekIndex: 1 }).max_high_intensity_days).toBe(3);
     const heavy = {
-      days: ["mon", "tue", "wed", "thu", "fri"].map((day) => ({ day, intensity_profile: "heavy" })),
+      days: ["mon", "tue", "wed", "thu", "fri"].map((day) => ({
+        day,
+        intensity_profile: "heavy",
+        movement_pattern: day === "mon" ? "squat" : "press",
+        primary_training: "lower_strength",
+        secondary_training: "none",
+        recovery_role: "train",
+        strength_lift: day === "mon" || day === "thu" ? "squat" : "none",
+      })),
     };
-    const hold = weeklyIntensityHold({ json: heavy, maxHeavy: 3 });
-    expect(hold).toMatch(/mon, tue/);
-    expect(hold).toMatch(/at most 3/);
-    expect(hold).toMatch(/rest days/);
-    expect(hold).toMatch(/movement_pattern/);
-    expect(hold).toMatch(/squat and deadlift/);
-    expect(weeklyRetryExtra({ json: heavy, errors: ["lower lifts 3 exceed the week rule 2"], maxHeavy: 3 })).toBeUndefined();
-    expect(weeklyRetryExtra({ json: heavy, errors: ["high intensity days 5 exceed the week rule 3"], maxHeavy: 3 })?.revision_instruction).toMatch(/at most 3/);
+    const untouched = applyIntensityPatch(heavy, { days: [] });
+    expect((untouched as typeof heavy).days.filter((day) => day.intensity_profile === "heavy")).toHaveLength(5);
+    const sneaky = applyIntensityPatch(heavy, {
+      days: [{ day: "mon", intensity_profile: "moderate", movement_pattern: "hinge", primary_training: "rest", strength_lift: "deadlift" }],
+    });
+    const monday = (sneaky as typeof heavy).days[0]!;
+    expect(monday.intensity_profile).toBe("moderate");
+    expect(monday.movement_pattern).toBe("squat");
+    expect(monday.primary_training).toBe("lower_strength");
+    expect(monday.strength_lift).toBe("squat");
+    expect((sneaky as typeof heavy).days[1]?.intensity_profile).toBe("heavy");
+
+    const facts = intensityFailureFacts(["high intensity days 5 exceed the week rule 3"], heavy);
+    expect(facts.heavy_count).toBe(5);
+    expect(facts.max_heavy).toBe(3);
+    expect(facts.heavy_days).toEqual(["mon", "tue", "wed", "thu", "fri"]);
+    const user = intensityPatchUser({ base: heavy, errors: facts.messages });
+    expect(user.locked[0]).toMatchObject({ day: "mon", rest: false, movement_pattern: "squat", lower_lift: "squat" });
+    expect(lockedWeekView(heavy)[0]?.slots.strength_lift).toBe("squat");
+    const schema = JSON.stringify(intensityPatchFormat());
+    expect(schema).toMatch(/intensity_profile/);
+    expect(schema).not.toMatch(/movement_pattern/);
+    expect(schema).not.toMatch(/strength_lift/);
 
     const bodies: string[] = [];
     const fetchImpl = async (_url: string, init?: RequestInit) => {
       bodies.push(String(init?.body ?? ""));
-      if (bodies.length === 1) return chat(heavy);
-      return chat({ days: [{ day: "mon", intensity_profile: "moderate" }] });
+      return chat({
+        days: [
+          { day: "mon", intensity_profile: "moderate", movement_pattern: "hinge" },
+          { day: "tue", intensity_profile: "light" },
+        ],
+      });
     };
     const result = await askCoach({
       agent: "weekly",
-      user: { task: "week" },
+      user,
       key: "sk-test",
       fetchImpl,
       timeoutMs: 1000,
       maxTokens: 100,
+      maxAttempts: 1,
       promptVersion: "weekly-coach-v4",
-      runId: "weekly-hold",
-      format: { type: "json_object" },
+      runId: "intensity-patch",
+      format: intensityPatchFormat(),
       validate: (json) => {
-        const days = (json as { days?: Array<{ intensity_profile?: string }> }).days ?? [];
-        const count = days.filter((day) => day.intensity_profile === "heavy").length;
-        if (count > 3) {
-          return {
-            ok: false,
-            errors: [`high intensity days ${count} exceed the week rule 3`],
-            retryExtra: { revision_instruction: weeklyIntensityHold({ json, maxHeavy: 3 }) },
-          };
-        }
+        const merged = applyIntensityPatch(heavy, json) as typeof heavy;
+        const count = merged.days.filter((day) => day.intensity_profile === "heavy").length;
+        if (count > 3) return { ok: false, errors: [`high intensity days ${count} exceed the week rule 3`], retry: false };
         return { ok: true };
       },
     });
     expect(result.ok).toBe(true);
-    expect(bodies.length).toBe(2);
-    const retry = JSON.parse(JSON.parse(bodies[1]!).messages[1].content as string) as { instruction: string };
-    expect(retry.instruction).toMatch(/mon, tue/);
-    expect(retry.instruction).toMatch(/at most 3/);
-    expect(retry.instruction).toMatch(/movement_pattern/);
+    expect(bodies).toHaveLength(1);
+    const sent = JSON.parse(bodies[0]!) as { messages: Array<{ content: string }>; response_format: { json_schema: { schema: { properties: { days: { items: { required: string[] } } } } } } };
+    const content = JSON.parse(sent.messages[1]!.content) as { locked: unknown; failure: { heavy_count: number; heavy_days: string[] } };
+    expect(content.failure.heavy_count).toBe(5);
+    expect(content.failure.heavy_days).toContain("wed");
+    expect(content.locked).toBeTruthy();
+    expect(sent.response_format.json_schema.schema.properties.days.items.required).toEqual(["day", "intensity_profile"]);
+    expect(D_REPAIR_WEEK_AVERAGE * D_REPAIR_MAX_STARTS).toBeLessThanOrEqual(D_REPAIR_TOKEN_CAP);
+    expect(D_REPAIR_MAX_STARTS).toBe(8);
   });
 
   it("고정 해시와 그림자 화면, 주 2일 표", () => {
