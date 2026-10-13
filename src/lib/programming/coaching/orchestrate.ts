@@ -27,6 +27,19 @@ import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
 import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRevisionSpecs, waitForTransientRetry } from "./day-recovery";
 import { applyCellsToCoachJson, catalogLine, catalogMovement, catalogPromptLinesFor, isCellPayload, movementsForSlice, movementsForWeek, type CatalogSlice } from "./movement-catalog";
 import { askSpecialist, type SpecialistArea } from "./specialist-generate";
+import {
+  buildSessionFrame,
+  expandSlotPayload,
+  isSlotPayload,
+  mergeSlotPicks,
+  narrowFrame,
+  quantityOptions,
+  readPicks,
+  sessionSlotFormat,
+  slotChoiceUser,
+  slotsForFitErrors,
+  type SessionFrame,
+} from "./slot-choices";
 import { analyzeProgression, analyzeWeekStructure } from "./stage13/analyzers";
 import { heavyLowerStressDays } from "./stage13/specialists";
 import { applyHeadPolicy } from "./stage13/revision";
@@ -610,10 +623,43 @@ async function writeSession(input: {
     }
     return { ok: true as const };
   };
+  const rawSlot = hinted && !(lockedSkeletonDay(input.week, input.day.day) && !goalLocked(hinted)) ? hinted : null;
+  const frames = new Map<SpecialistArea, SessionFrame>();
+  for (const area of areas) {
+    const frame = buildSessionFrame({ area, day: input.day, slot: rawSlot });
+    if (frame) frames.set(area, frame);
+  }
+  const slotClosed = new Set<SpecialistArea>();
+  let slotRecovered = false;
+  const present = (area: SpecialistArea, json: unknown) => {
+    const frame = frames.get(area);
+    if (!frame || !isSlotPayload(json)) return { ok: true as const, json, badSlots: [] as string[], picks: {} as Record<string, string> };
+    return expandSlotPayload(frame, json);
+  };
+  const validatePresented = (area: SpecialistArea) => (json: unknown) => {
+    const ready = present(area, json);
+    if (!ready.ok) return { ok: false as const, errors: ready.errors, retry: false as const };
+    const verdict = validateArea(area)(ready.json);
+    if (!verdict.ok && isSlotPayload(json)) return { ...verdict, retry: false as const };
+    return verdict;
+  };
+  const storeArea = (area: SpecialistArea, json: unknown) => {
+    const ready = present(area, json);
+    parts[area] = ready.ok ? ready.json : json;
+  };
+  const areaFormat = (area: SpecialistArea) => {
+    const frame = frames.get(area);
+    if (frame) return sessionSlotFormat(frame);
+    return area === "conditioning" ? conditioningDayFormat(catalogKeys) : undefined;
+  };
+  const areaUser = (area: SpecialistArea, extra: Record<string, unknown> = {}) => {
+    const frame = frames.get(area);
+    return frame ? { ...user, ...extra, slot_choices: slotChoiceUser(frame) } : { ...user, ...extra };
+  };
   for (const area of areas) {
     const asked = await askSpecialist({
       area,
-      user,
+      user: areaUser(area),
       key: input.week.key ?? "",
       fetchImpl: input.week.fetchImpl,
       timeoutMs: input.timeoutMs,
@@ -621,35 +667,86 @@ async function writeSession(input: {
       weekId: input.week.weekStart,
       day: input.day.day,
       revisionNumber: input.revisionNumber,
-      validate: validateArea(area),
-      format: area === "conditioning" ? conditioningDayFormat(catalogKeys) : undefined,
+      validate: validatePresented(area),
+      format: areaFormat(area),
     });
     areaTraces.push(asked.trace);
     if (!asked.ok) {
       const errors = asked.trace.validation_errors?.length ? asked.trace.validation_errors : [asked.trace.failure_reason ?? "schema"];
+      const frame = frames.get(area);
+      if (frame && isSlotPayload(asked.json)) {
+        const ready = present(area, asked.json);
+        const picks = ready.ok ? ready.picks : readPicks(asked.json);
+        const bad = ready.ok ? slotsForFitErrors(frame, picks, errors) : ready.badSlots;
+        const narrowed = narrowFrame(frame, picks, bad);
+        if (narrowed) {
+          const repair = await askSpecialist({
+            area,
+            user: areaUser(area, {
+              revision_number: 1,
+              slot_repair: narrowed.slots.map((slot) => ({
+                slot: slot.id,
+                allowed: slot.movements.map((movement) => movement.key),
+              })),
+              validation_errors: errors,
+            }),
+            key: input.week.key ?? "",
+            fetchImpl: input.week.fetchImpl,
+            timeoutMs: input.timeoutMs,
+            runId: input.runId,
+            weekId: input.week.weekStart,
+            day: input.day.day,
+            revisionNumber: 1,
+            maxAttempts: 1,
+            format: sessionSlotFormat(narrowed),
+            schemaNote: "Return only the listed slots. Each value must be one of that slot's ids.",
+            validate: (json) => {
+              const merged = mergeSlotPicks(asked.json, json, narrowed);
+              const built = expandSlotPayload(frame, merged);
+              if (!built.ok) return { ok: false as const, errors: built.errors, retry: false as const };
+              const verdict = validateArea(area)(built.json);
+              return verdict.ok ? verdict : { ...verdict, retry: false as const };
+            },
+          });
+          areaTraces.push(repair.trace);
+          if (repair.ok) {
+            const merged = mergeSlotPicks(asked.json, repair.json, narrowed);
+            const built = expandSlotPayload(frame, merged);
+            if (built.ok) {
+              parts[area] = built.json;
+              slotRecovered = true;
+              continue;
+            }
+          }
+        }
+        slotClosed.add(area);
+      }
       failed ??= { errors, retry: asked.trace.retry_count, reason: asked.trace.failure_reason, json: asked.json };
       areaReason.set(area, asked.trace.failure_reason);
       areaErrors.set(area, errors);
       areaInvalid.set(area, asked.json);
     } else {
-      parts[area] = asked.json;
+      storeArea(area, asked.json);
     }
   }
-  let recovered = false;
+  let recovered = slotRecovered;
   const unresolvedErrors: string[] = [];
   if (input.revisionNumber === 0) {
     for (const area of areas) {
       if (parts[area] != null) continue;
+      if (slotClosed.has(area)) {
+        unresolvedErrors.push(...(areaErrors.get(area) ?? ["schema"]));
+        continue;
+      }
       const reason = areaReason.get(area) ?? failed?.reason ?? null;
       if (isTransientCoachFailure(reason)) {
         await waitForTransientRetry();
         const again = await askSpecialist({
           area,
-          user: {
-            ...user,
+          user: areaUser(area, {
             transport_failure: reason,
             validation_errors: areaErrors.get(area) ?? [reason ?? "http_error"],
-          },
+          }),
           key: input.week.key ?? "",
           fetchImpl: input.week.fetchImpl,
           timeoutMs: input.timeoutMs,
@@ -657,12 +754,12 @@ async function writeSession(input: {
           weekId: input.week.weekStart,
           day: input.day.day,
           revisionNumber: input.revisionNumber,
-          validate: validateArea(area),
-          format: area === "conditioning" ? conditioningDayFormat(catalogKeys) : undefined,
+          validate: validatePresented(area),
+          format: areaFormat(area),
         });
         areaTraces.push(again.trace);
         if (again.ok) {
-          parts[area] = again.json;
+          storeArea(area, again.json);
           recovered = true;
           continue;
         }
@@ -1360,6 +1457,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   }
 
   const daySources = Object.fromEntries(DAY_ORDER.map((day) => [day, "fallback"])) as Record<DayKey, "model" | "fallback">;
+  const dayOriginWhy = Object.fromEntries(DAY_ORDER.map((day) => [day, "initial_fallback"])) as Record<DayKey, string>;
   const normalizedDays = new Set<DayKey>();
   const recoveredDays = new Set<DayKey>();
   const unresolvedDays = new Map<DayKey, string[]>();
@@ -1400,10 +1498,12 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     if (written.source === "model") {
       draft = written.draft;
       daySources[day.day] = "model";
+      dayOriginWhy[day.day] = "model";
       if (written.normalized) normalizedDays.add(day.day);
       if (written.recovered) recoveredDays.add(day.day);
     } else {
       noteFailure(written.trace.failure_reason);
+      dayOriginWhy[day.day] = `unresolved:${written.trace.failure_reason ?? "schema"}`;
       if (written.unresolved) unresolvedDays.set(day.day, written.unresolvedErrors.length ? written.unresolvedErrors : ["schema"]);
     }
   }
@@ -1551,6 +1651,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     lockWeekdays: lockWeekdaysForPlacement(skeletonLocked),
   });
   const sourceSnap = { ...daySources };
+  const whySnap = { ...dayOriginWhy };
   const normalizedSnap = new Set(normalizedDays);
   const recoveredSnap = new Set(recoveredDays);
   const unresolvedSnap = new Map(unresolvedDays);
@@ -1570,6 +1671,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   for (const day of DAY_ORDER) {
     const origin = placed.originByDay[day];
     daySources[day] = sourceSnap[origin] ?? "fallback";
+    dayOriginWhy[day] = sourceSnap[origin] == null ? `missing_copy:${origin}` : origin === day ? (whySnap[origin] ?? "missing_copy") : `placed_from:${origin}:${whySnap[origin] ?? "missing_copy"}`;
     if (normalizedSnap.has(origin)) normalizedDays.add(day);
     if (recoveredSnap.has(origin)) recoveredDays.add(day);
     const pending = unresolvedSnap.get(origin);
@@ -1611,9 +1713,12 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     if (written.source === "model") {
       draft = written.draft;
       daySources[dayKey] = "model";
+      dayOriginWhy[dayKey] = "model_rewrite";
       unresolvedDays.delete(dayKey);
       if (written.normalized) normalizedDays.add(dayKey);
       if (written.recovered) recoveredDays.add(dayKey);
+    } else {
+      dayOriginWhy[dayKey] = `rewrite_kept:${daySources[dayKey]}:${written.trace.failure_reason ?? "schema"}`;
     }
     const still = overlapSessionsFor(written.source === "model" ? written.draft : draft, dayKey, input.recentStructures ?? []).filter(
       (row: OverlapSession) => row.scope === "recent",
@@ -1891,7 +1996,18 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       retryContext: { agent: "head", revision_number: revisionNumber },
       format: headReviewFormat(
         pieceCells(draft.sessions).map((cell) => cell.catalog_key),
-        pieceCells(draft.sessions),
+        pieceCells(draft.sessions).map((cell) => {
+          const intent = plan.days.find((day) => day.day === cell.day);
+          const frame = intent
+            ? buildSessionFrame({ area: "conditioning", day: intent, slot: plan.conditioning_slots?.[cell.day as DayKey] ?? null })
+            : null;
+          const home = frame?.slots.find((slot) => slot.movements.some((movement) => movement.key === cell.catalog_key));
+          return {
+            ...cell,
+            movement_ids: home?.movements.map((movement) => movement.key) ?? [cell.catalog_key],
+            quantity_ids: quantityOptions(cell.catalog_key).map((option) => option.id),
+          };
+        }),
       ),
       validate: (json) => {
         const errors = headReviewErrors(json);
@@ -2167,6 +2283,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     if (compared.ok) {
       draft = written.draft;
       daySources[spec.day] = "model";
+      dayOriginWhy[spec.day] = "model_edit";
       if (!rewritten.includes(spec.day)) rewritten.push(spec.day);
       unresolvedDays.delete(spec.day);
     } else if (daySources[spec.day] !== "model") {
@@ -2308,6 +2425,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           return originals.get(session.day) ?? session;
         }
         daySources[session.day] = "fallback";
+        dayOriginWhy[session.day] = "hard_replace";
         hardAdjusted.add(session.day);
         return fallbackSession;
       });
@@ -2350,7 +2468,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     });
     draft = stamp(enforced.draft, plan);
     for (const day of enforced.fittedDays) hardAdjusted.add(day);
-    for (const day of enforced.regeneratedDays) daySources[day] = "fallback";
+    for (const day of enforced.regeneratedDays) {
+      daySources[day] = "fallback";
+      dayOriginWhy[day] = "skeleton_regen";
+    }
     const blockingAfter = enforced.after;
     skeletonHeld = blockingAfter.length === 0;
     if (blockingAfter.length > 0) {
@@ -2520,7 +2641,16 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     skeletonLocked: Boolean(lockedLongitudinal),
     modelCalled: true,
     dayOrigins: trained.map((day) => (daySources[day.day] === "model" ? "model" : "fallback")),
-    head: adoptionHead(headModelStatus, headPass.stance, headUnappliedRevision),
+    head: adoptionHead(
+      headModelStatus === "REVISE" &&
+        (review.status === "APPROVE" || review.status === "APPROVE_WITH_NOTE") &&
+        modelRevisions.length > 0 &&
+        modelRevisions.every((revision) => revision.cell?.field === "movement_id" || revision.cell?.field === "quantity_option")
+        ? review.status
+        : headModelStatus,
+      headPass.stance,
+      headUnappliedRevision,
+    ),
     issues: [
       ...closing.issues,
       ...(structure.status === "STRUCTURE_GOOD"
@@ -2626,6 +2756,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       revision_number: revisions,
     }),
   );
+  const originLog = DAY_ORDER.map((day) => `${day}:${daySources[day]}:${dayOriginWhy[day]}`).join(" ");
+  if (process.env.PHASE4_STAGE) console.log(`origin ${originLog}`);
   return {
     draft,
     plan,
@@ -2640,6 +2772,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     traces,
     judge_ok: finalErrors.length === 0,
     day_sources: daySources,
+    origin_log: originLog,
     final_status: resolvedStatus,
     coach_notes: notes,
     monthly_plan: monthly.plan,

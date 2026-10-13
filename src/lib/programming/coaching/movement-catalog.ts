@@ -29,7 +29,7 @@ type CatalogFile = {
   movements: CatalogMovement[];
 };
 
-export type MovementCellField = "movement" | "amount" | "unit" | "load";
+export type MovementCellField = "movement" | "amount" | "unit" | "load" | "movement_id" | "quantity_option";
 
 export type CellEdit = {
   catalog_key: string;
@@ -310,8 +310,15 @@ export function cellEditErrors(row: unknown, index: number): string[] {
   if (item.block !== "strength" && item.block !== "conditioning" && item.block !== "warmup") {
     errors.push(`${prefix}.block: expected strength, conditioning, or warmup`);
   }
-  if (item.field !== "movement" && item.field !== "amount" && item.field !== "unit" && item.field !== "load") {
-    errors.push(`${prefix}.field: expected movement, amount, unit, or load`);
+  if (
+    item.field !== "movement" &&
+    item.field !== "amount" &&
+    item.field !== "unit" &&
+    item.field !== "load" &&
+    item.field !== "movement_id" &&
+    item.field !== "quantity_option"
+  ) {
+    errors.push(`${prefix}.field: expected movement, amount, unit, load, movement_id, or quantity_option`);
   }
   if (typeof item.catalog_key !== "string") errors.push(`${prefix}.catalog_key: expected a catalog key`);
   if (typeof item.value !== "string") errors.push(`${prefix}.value: expected the new cell value`);

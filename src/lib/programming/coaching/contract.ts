@@ -15,6 +15,7 @@ import {
 } from "../types";
 import { movementCatalog } from "./pieces";
 import { catalogMovement, catalogUnits, cellEditErrors, checkCellEdit, rxLoadErrors, standardCatalogKeys } from "./movement-catalog";
+import { quantityOptions } from "./slot-choices";
 import { unitGuide } from "./stage13/units";
 import type { CoachAgentName } from "./models";
 
@@ -146,26 +147,17 @@ export function schemaBrief(agent: CoachAgentName): string {
     ].join("\n");
   }
   if (agent === "strength") {
-    return ["JSON object for one day. Keys: day, strength_note_ko.", "Do not return sets, kilograms, percentages, warmup_ko, or conditioning.", "strength_note_ko is an English explanation. Display translation is later.", enumLine("day", DAY_ORDER)].join("\n");
+    return ["JSON object. Each slot key is s0. The value is slot, movement_id, and quantity_option.", "quantity_option is method. Do not return sets, kilograms, units, or a display sentence. The server writes strength_note_ko from the method table."].join("\n");
   }
   if (agent === "conditioning") {
     return [
-      "JSON object for one day. Keys: day, notes_ko, conditioning.",
-      "Do not return warmup_ko, strength_note_ko, sets, kilograms, or time_domain.",
-      "conditioning keys: format, duration_min, stimulus, movements, volume, intensity, interval_work_sec, interval_rest_sec.",
-      "Do not return equipment. The server fills it from the movement catalog for display.",
-      "Each movement is movement, amount, unit, and load. movement is a catalog key. amount is an integer inside that key's closed range when one is listed. unit is one of that key's allowed units. load is {male, female}. When the catalog lists an Rx weight, both sides are required and must be one of those weights. Otherwise load may be null. Do not repeat a key. The server stores those cells and builds the display amount.",
-      "The user message field movement_catalog lists the keys for this day. Choose only those keys.",
-      enumLine("format", WOD_FORMATS),
-      enumLine("stimulus", STIMULI),
-      enumLine("volume", VOLUME_BANDS),
-      enumLine("intensity", INTENSITY_BANDS),
-      "unit is only a unit that movement's catalog row allows. The response schema groups keys by those units.",
-      "notes_ko is an English explanation. Display translation is later.",
+      "JSON object. Each slot key is s0, s1, and so on. The value is slot, movement_id, and quantity_option.",
+      "movement_id and quantity_option must be one of that slot's ids. Do not write units, loads, kilograms, or a display sentence.",
+      "The server fills notes_ko, the unit, and Rx from the catalog.",
     ].join("\n");
   }
   if (agent === "warmup") {
-    return ["JSON object for one day. Keys: day, warmup_ko.", "warmup_ko prepares this day's strength and conditioning. Write it in English. Display translation is later.", "Do not return conditioning, strength_note_ko, sets, or kilograms.", enumLine("day", DAY_ORDER)].join("\n");
+    return ["JSON object. The slot key is s0. The value is slot, movement_id, and quantity_option.", "Do not write a unit or a display sentence. The server writes warmup_ko from the catalog."].join("\n");
   }
   if (agent === "load") {
     return [
@@ -207,8 +199,8 @@ export function schemaBrief(agent: CoachAgentName): string {
     "BLOCK only when a cell cannot fix the week: a safety risk, a collapsed week structure, or a training day with no session. Do not BLOCK for wording, explanations, or language. revisions and adjustments are empty.",
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
     "Each revision names one cell: day, block, catalog_key, field, value, reason. The server writes only that cell.",
-    "block is strength, conditioning, or warmup. field is movement, amount, unit, or load.",
-    "value is the new cell. movement value is a catalog key. amount value is a count inside the closed range when one is listed. unit value is an allowed unit for that key. load value is the load text.",
+    "block is strength, conditioning, or warmup. field is movement_id or quantity_option.",
+    "value is one id from that cell's enum. Do not write a unit, a load, or a free amount.",
     "reason is an English explanation. Display translation is later. A revision without these fields is a schema error.",
     enumLine("catalog_key", standardCatalogKeys()),
     "Each adjustment: target, reason, priority, current_value, proposed_value, preserve, rationale, confidence.",
@@ -356,19 +348,46 @@ export function conditioningDayFormat(keys: readonly string[]): ResponseFormat {
   );
 }
 
-export type HeadPieceRef = { day: string; block: string; catalog_key: string };
+export type HeadPieceRef = {
+  day: string;
+  block: string;
+  catalog_key: string;
+  movement_ids?: readonly string[];
+  quantity_ids?: readonly string[];
+};
 
 function headRevisionItem(cell: HeadPieceRef): Record<string, unknown> {
+  const quantities = cell.quantity_ids?.length ? [...cell.quantity_ids] : quantityOptions(cell.catalog_key).map((option) => option.id);
+  const movements = cell.movement_ids?.length ? [...cell.movement_ids] : [cell.catalog_key];
+  const base = {
+    day: stringEnum([cell.day]),
+    block: stringEnum([cell.block]),
+    catalog_key: stringEnum([cell.catalog_key]),
+    reason: TEXT,
+  };
+  const required = ["day", "block", "catalog_key", "field", "value", "reason"];
+  const branches: Record<string, unknown>[] = [];
+  if (quantities.length) {
+    branches.push(
+      strictObject(
+        { ...base, field: stringEnum(["quantity_option"]), value: stringEnum(quantities) },
+        required,
+      ),
+    );
+  }
+  if (movements.length) {
+    branches.push(
+      strictObject(
+        { ...base, field: stringEnum(["movement_id"]), value: stringEnum(movements) },
+        required,
+      ),
+    );
+  }
+  if (branches.length === 1) return branches[0]!;
+  if (branches.length > 1) return { anyOf: branches };
   return strictObject(
-    {
-      day: stringEnum([cell.day]),
-      block: stringEnum([cell.block]),
-      catalog_key: stringEnum([cell.catalog_key]),
-      field: stringEnum(["movement", "amount", "unit", "load"]),
-      value: TEXT,
-      reason: TEXT,
-    },
-    ["day", "block", "catalog_key", "field", "value", "reason"],
+    { ...base, field: stringEnum(["movement_id"]), value: stringEnum([cell.catalog_key]) },
+    required,
   );
 }
 

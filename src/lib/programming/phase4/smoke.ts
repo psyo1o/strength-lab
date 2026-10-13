@@ -1,6 +1,8 @@
 import { assembleLegalWeek } from "../coaching/session";
 import { planCoachedWeek } from "../coaching/weekly";
 import { areaShapeErrors } from "../coaching/orchestrate";
+import { slotFitErrors } from "../coaching/conditioning-board";
+import { buildSessionFrame, expandSlotPayload, isSlotPayload, sessionSlotFormat } from "../coaching/slot-choices";
 import { coachMonthly, withCoachingPlan } from "../coaching/monthly";
 import { weeklyCoachPayload } from "../coaching/weekly";
 import { askCoach } from "../coaching/llm";
@@ -9,7 +11,6 @@ import { headReviewErrors, headReviewFormat, loadDecisionErrors, weeklyIntentErr
 import { goalWeek, weekGoalAlignmentErrors } from "../coaching/goal-table";
 import { extractWeekRules, weekPlanErrors } from "../coaching/stage13/rules";
 import { pieceCells } from "../coaching/head-cells";
-import { catalogPromptLinesFor } from "../coaching/movement-catalog";
 import { parseHeadReview } from "../coaching/review";
 import {
   CONDITIONING_COACH_PROMPT_VERSION,
@@ -45,6 +46,9 @@ export type SmokeCoach = {
 };
 
 function specialist(area: "strength" | "conditioning" | "warmup", promptVersion: string, day: DayIntent, fetchImpl?: FetchLike): SmokeCoach["call"] {
+  const slot = plan.conditioning_slots?.[day.day] ?? null;
+  const frame = buildSessionFrame({ area, day, slot });
+  if (!frame) throw new Error(`${area} slot frame is empty`);
   return async (key, index) => {
     const asked = await askCoach({
       agent: area,
@@ -55,12 +59,13 @@ function specialist(area: "strength" | "conditioning" | "warmup", promptVersion:
         day_intent: day,
         week_index: 1,
         week_rules: rules,
-        movement_catalog: catalogPromptLinesFor({
-          movementPattern: day.movement_pattern,
-          strengthLift: day.strength_lift,
-          primaryTraining: day.primary_training,
-          extraKeys: [],
-        }),
+        slot_choices: frame.slots.map((row) => ({
+          slot: row.id,
+          movements: row.movements.map((movement) => ({
+            movement_id: movement.key,
+            quantity_option: movement.options.map((option) => option.id),
+          })),
+        })),
         smoke_index: index,
       },
       key,
@@ -68,9 +73,18 @@ function specialist(area: "strength" | "conditioning" | "warmup", promptVersion:
       maxTokens: 1800,
       promptVersion,
       runId: `phase4-a-${area}-${index}`,
+      format: sessionSlotFormat(frame),
       validate: (json) => {
-        const errors = areaShapeErrors(area, json, day);
-        return errors.length ? { ok: false, errors } : { ok: true };
+        if (!isSlotPayload(json)) return { ok: false, errors: ["expected slot picks"] };
+        const built = expandSlotPayload(frame, json);
+        if (!built.ok) return { ok: false, errors: built.errors };
+        const errors = areaShapeErrors(area, built.json, day);
+        if (errors.length) return { ok: false, errors };
+        if (area === "conditioning" && slot) {
+          const fit = slotFitErrors(built.json, slot, day.strength_lift);
+          if (fit.length) return { ok: false, errors: fit, retry: false };
+        }
+        return { ok: true };
       },
     });
     return { ok: asked.ok, first: asked.ok ? "" : firstError(asked.validationErrors, asked.reason) };

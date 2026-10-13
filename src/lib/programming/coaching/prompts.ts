@@ -4,11 +4,11 @@ import type { CoachAgentName } from "./models";
 export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v10";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v4";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
-export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v2";
-export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v6";
-export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v2";
+export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v3";
+export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v7";
+export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v3";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
-export const HEAD_COACH_PROMPT_VERSION = "head-coach-v9";
+export const HEAD_COACH_PROMPT_VERSION = "head-coach-v10";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
 export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
 export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
@@ -73,8 +73,8 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     inputs: "That day's intent, the monthly method, and whether a lift is required.",
     decision_principles: "Keep the lift the weekly plan locked. Do not change another day's strength.",
     constraints:
-      "Do not return sets, kilograms, percentages, warmup_ko, or conditioning. Do not invent a load. When edit_list is present, apply each item exactly and change nothing that is not listed. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
-    output_schema: "Keys: day, strength_note_ko. strength_note_ko is an English explanation. Display translation is later.",
+      "Return one slot, one movement_id, and quantity_option method. Do not write sets, kilograms, units, or a display sentence. The server keeps the method table and writes the sentence. When edit_list is present, apply each item exactly and change nothing that is not listed. When day_recovery.field_edits names a field path, change only that field.",
+    output_schema: "Each slot is movement_id and quantity_option. The server writes strength_note_ko.",
     failure_behavior: "A bad strength note is rejected. The server keeps the method table for that day.",
   },
   conditioning: {
@@ -84,8 +84,8 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose format, duration, stimulus, movements, volume, and intensity. Do not return equipment. Do not rename a movement to escape a similar structure. Use other_training_days, previous_training_stimulus, and next_training_stimulus.",
     constraints:
-      "Do not return warmup_ko, strength notes, sets, kilograms, time_domain, or equipment. The server fills equipment from the catalog. duration_min is the piece length. One day only. When conditioning_slot.from_goal is true, choose the format, the movements, and the amounts. Follow its focus, movement_pattern, body_region, energy_system, stimulus, and time_domain. duration_min must stay in that time_domain. movement_frequency counts keys over the last 4 weeks. Prefer a lower count. When conditioning_slot.primary_keys is present, keep those keys and fill amount, unit, and load only. Do not repeat a key. If the catalog lists an Rx weight, load.male and load.female are required and must be one of those weights. Do not use squat, pause_squat, or pin_squat, and do not repeat the day's strength lift. amount is the number. unit is separate. conditioning.stimulus must differ from previous_training_stimulus and next_training_stimulus. A repeated neighbor stimulus is rejected. Do not share 4 or more of format, time_domain, stimulus, movement_pattern, equipment, volume, or an overlapping movement combination with a day in other_training_days or avoid_structures. The threshold stays 4. Sharing 3 or more conditioning keys overlaps, and a 2-movement piece overlaps when both keys match. That overlap rewrites this day once. Movements come from movement_catalog in the user message. amount is an integer inside a closed range when the catalog lists one. unit is one of that key's allowed units. Do not invent a range. When edit_list is present, apply each item exactly. Do not change a movement, amount, format, duration, or day that is not in edit_list. When day_recovery names cells, return only those cells. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
-    output_schema: "Keys: day, notes_ko, conditioning. conditioning matches the conditioning object in the session schema.",
+      "Return one movement_id and one quantity_option for each slot. Do not write units, loads, kilograms, or a display sentence. The server fills those from the catalog. Do not repeat a movement. Do not pick a movement that is not in that slot. When slot_repair is present, return only those slots. When edit_list is present, apply each listed item and do not change a slot that is not in edit_list.",
+    output_schema: "Each slot is slot, movement_id, and quantity_option. The server writes notes_ko, units, and Rx.",
     failure_behavior: "A bad piece is rejected. Other days and the strength and warmup of this day stay.",
   },
   warmup: {
@@ -94,8 +94,8 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     inputs: "That day's intent and the strength and conditioning purposes. Not a generic list.",
     decision_principles: "Prepare the joints and the first movement of the day. Do not add a second workout.",
     constraints:
-      "Do not return conditioning, sets, kilograms, or another day's warm-up. When edit_list is present, apply each item exactly and change nothing that is not listed. When day_recovery.field_edits names a field path, current value, and required format, change only that field.",
-    output_schema: "Keys: day, warmup_ko. warmup_ko is an English explanation. Display translation is later.",
+      "Return one movement_id and one quantity_option. Do not write a second workout, a unit, or a display sentence. The server writes warmup_ko from the catalog.",
+    output_schema: "Each slot is movement_id and quantity_option. The server writes warmup_ko.",
     failure_behavior: "A bad warm-up is rejected. The server keeps a short preparation for that day only.",
   },
   load: {
@@ -117,7 +117,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest cell change, then APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. If a problem can be fixed by a cell, return that cell. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. You are called once. The server writes the cells and does not call you again.",
     constraints:
-      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. REVISE is only an edit list. Each item has day, block, catalog_key, field, value, and reason. field is movement, amount, unit, or load. catalog_key must be a movement already listed for that day and block in piece_cells. amount, unit, and load there are the current cell. The server rejects a cell that is not on that piece. The server writes only that cell and leaves the other cells. A sentence without those fields is invalid. Do not return a new week. Do not ask for the session to be regenerated.",
+      "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. REVISE is only an edit list. Each item has day, block, catalog_key, field, value, and reason. field is movement_id or quantity_option. value is one id from that cell's enum. Do not write a unit, a load, or a free amount. catalog_key must be a movement already listed for that day and block in piece_cells. The server rejects a value outside the enum and leaves the other cells. A sentence without those fields is invalid. Do not return a new week. Do not ask for the session to be regenerated.",
     output_schema:
       "Use the head schema in the OUTPUT SCHEMA block. note_ko comes before revisions and adjustments. note_ko is required and at least 10 characters. When revisions are empty, note_ko is the approval reason. The edit list is the whole revision. adjustments are field patches only.",
     failure_behavior: "A prose-only revision is a schema error. The server asks once for the edit list and does not invent the edit. Unreadable reviews keep the code decision.",

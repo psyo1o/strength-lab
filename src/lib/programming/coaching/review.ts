@@ -149,7 +149,16 @@ export function parseHeadReview(value: unknown): HeadCoachReview | null {
 function parseCellRevision(row: unknown): SessionRevision | null {
   if (!row || typeof row !== "object") return null;
   const item = row as Record<string, unknown>;
-  if (item.field !== "movement" && item.field !== "amount" && item.field !== "unit" && item.field !== "load") return null;
+  if (
+    item.field !== "movement" &&
+    item.field !== "amount" &&
+    item.field !== "unit" &&
+    item.field !== "load" &&
+    item.field !== "movement_id" &&
+    item.field !== "quantity_option"
+  ) {
+    return null;
+  }
   if (typeof item.action === "string") return null;
   const day = item.day;
   if (day !== "mon" && day !== "tue" && day !== "wed" && day !== "thu" && day !== "fri" && day !== "sat" && day !== "sun") return null;

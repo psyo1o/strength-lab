@@ -50,6 +50,7 @@ export async function askSpecialist(input: {
   validate: (json: unknown) => CoachValidation;
   format?: ResponseFormat;
   schemaNote?: string;
+  maxAttempts?: number;
 }): Promise<{ ok: boolean; json: unknown; trace: AgentTrace }> {
   const started = Date.now();
   const agent = AREA_AGENT[input.area];
@@ -68,6 +69,7 @@ export async function askSpecialist(input: {
     format: input.format,
     schemaNote: input.schemaNote,
     retryTransport: false,
+    maxAttempts: input.maxAttempts,
   });
   const ok = Boolean(asked.ok && asked.json);
   return {

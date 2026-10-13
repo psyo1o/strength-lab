@@ -66,9 +66,9 @@
 
 | 역할 | 에이전트 | 프롬프트 | 출력 |
 |---|---|---|---|
-| 스트렝스 | `strength_coach` | `strength-coach-v2` | `day`, `strength_note_ko` |
-| 컨디셔닝 | `conditioning_coach` | `conditioning-coach-v5` | `day`, `notes_ko`, `conditioning` |
-| 워밍업 | `warmup_coach` | `warmup-coach-v2` | `day`, `warmup_ko` |
+| 스트렝스 | `strength_coach` | `strength-coach-v3` | 칸 `movement_id`, `quantity_option` |
+| 컨디셔닝 | `conditioning_coach` | `conditioning-coach-v7` | 칸 `slot`, `movement_id`, `quantity_option` |
+| 워밍업 | `warmup_coach` | `warmup-coach-v3` | 칸 `movement_id`, `quantity_option` |
 
 세 호출이 끝난 뒤에만 하루를 합친다. 집계 트레이스 `session_coach` (`session-coach-v4`)는 `deterministic: true`라 plan-lab 호출 수에 들어가지 않는다.
 

@@ -16,7 +16,7 @@ import { getSqlite } from "../../db/client";
 import type { FetchLike } from "../model";
 import type { DayKey, MonthDirection, MonthGoalTable } from "../types";
 import { weekIndexFromStart } from "../types";
-import { assertPhase4Budget, configurePhase4Run, PHASE4_TOKEN_CAP, phase4TokensSpent, Phase4Stop } from "./budget";
+import { assertPhase4Budget, configurePhase4Run, logPhase4Call, PHASE4_TOKEN_CAP, phase4TokensSpent, Phase4Stop } from "./budget";
 import { assertIsolated2099Database } from "./isolation";
 import { smokeCoaches } from "./smoke";
 
@@ -182,6 +182,7 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
 
     process.env.PHASE4_STAGE = "C";
     for (const profile of PROFILES) {
+      if (Number(process.env.PHASE4_C_LIMIT ?? "") > 0 && weeks >= Number(process.env.PHASE4_C_LIMIT)) break;
       for (const weekStart of WEEKS[profile.id]) {
         weeks += 1;
         const month = withCoachingPlan(fallbackMonth(profile.prior));
@@ -193,6 +194,20 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
           fetchImpl,
           timeoutMs: 90_000,
         });
+        const originLog = result.origin_log ?? "";
+        const originResult = originLog.split(" ").some((part) => part.includes(":fallback:") && !part.endsWith(":initial_fallback")) ? "mixed" : "model";
+        logPhase4Call({
+          stage: "C",
+          coach: "origin",
+          promptVersion: "origin-v1",
+          tokens: null,
+          result: originResult,
+          firstFailure: originLog,
+        });
+        console.log(`origin ${profile.id} ${weekStart} ${originLog}`);
+        console.log(
+          `C detail ${profile.id} ${weekStart} review=${result.review.status} issues=${(result.adoption?.verdict.issueCodes ?? []).join(",") || "-"} source=${result.generation_source} reason=${result.fallback_reason ?? "-"}`,
+        );
         const ok = phase4WeekAdopted(result);
         if (ok) adopted += 1;
         else {
@@ -200,6 +215,8 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
           fail("C", point.coach, point.point);
         }
         console.log(`C ${profile.id} ${weekStart} ${ok ? "adopted" : "failed"} tokens=${phase4TokensSpent()}`);
+        const limit = Number(process.env.PHASE4_C_LIMIT ?? "");
+        if (Number.isFinite(limit) && limit > 0 && weeks >= limit) break;
       }
     }
     const cPass = adopted >= 7;

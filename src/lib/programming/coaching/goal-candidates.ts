@@ -60,6 +60,8 @@ export type RepairDay = {
   day: DayKey;
   rest: boolean;
   allowed: string[];
+  /** 목적에 이미 들어간 동작·형식·수량 토큰. 다시 물을 때 빼라고 넘긴다. */
+  banned_words: string[];
   forbidden: Array<{
     focus: string;
     intensity: number;
@@ -283,6 +285,15 @@ export function isPurposeLineMessage(error: string): boolean {
   return / purpose is (empty|longer than 60|names a movement)/.test(error);
 }
 
+export function bannedPurposeWords(purpose: string): string[] {
+  const found = new Set<string>();
+  for (const match of purpose.matchAll(/\b[a-z]+_[a-z0-9_]+\b/gi)) found.add(match[0]);
+  for (const token of ["amrap", "emom", "reps", "sets"]) {
+    if (new RegExp(`\\b${token}\\b`, "i").test(purpose)) found.add(token);
+  }
+  return [...found];
+}
+
 function purposeLineError(key: string, purpose: string): string | null {
   if (!purpose) return `${key} purpose is empty`;
   if (purpose.length > 60) return `${key} purpose is longer than 60`;
@@ -466,12 +477,14 @@ export function repairSpec(frame: MonthFrame, table: MonthGoalTable, month: Mont
     if (!slot) continue;
     const banned = new Set((forbidden.get(key) ?? []).map((row) => [row.focus, row.movement_pattern, row.body_region, row.energy_system, row.stimulus].join("|")));
     const allowed = slot.rest ? [] : slot.choices.filter((choice) => !banned.has(signatureOf(choice.focus, choice.target, choice.stimulus))).map((choice) => choice.id);
+    const currentPurpose = findDay(table, slot.week_index, slot.day)?.purpose ?? "";
     days.push({
       key,
       week_index: slot.week_index,
       day: slot.day,
       rest: slot.rest,
       allowed,
+      banned_words: bannedPurposeWords(currentPurpose),
       forbidden: forbidden.get(key) ?? [],
     });
   }
@@ -482,12 +495,14 @@ export function repairSpec(frame: MonthFrame, table: MonthGoalTable, month: Mont
 export function repairUser(spec: RepairSpec): unknown {
   return {
     agent_name: "monthly_coach",
-    instruction: "Rewrite only the listed days. Pick one id from allowed. Do not use a forbidden tuple. The purpose is one line of at most 60 characters. Do not name a movement key, a format, or an amount.",
+    instruction:
+      "Rewrite only the listed days. Pick one id from allowed. Do not use a forbidden tuple. The purpose is one line of at most 60 characters. Do not name a movement key, a format, or an amount. If banned_words is not empty, the purpose must not contain those words.",
     days: spec.days.map((day) => ({
       key: day.key,
       rest: day.rest,
       allowed: day.allowed,
       forbidden: day.forbidden,
+      banned_words: day.banned_words,
     })),
   };
 }

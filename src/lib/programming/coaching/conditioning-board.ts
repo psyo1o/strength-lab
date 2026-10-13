@@ -90,6 +90,11 @@ export function monthConditioningBoard(): readonly (readonly ConditioningSlot[])
   ];
 }
 
+/** 컨디셔닝 칸에서 빼는 동작. 모호한 스쿼트와 그날 스트렝스 리프트다. */
+export function bannedConditioningKeys(lift: string | null | undefined): readonly string[] {
+  return [...AMBIGUOUS_SQUAT_KEYS, ...strengthConditioningBan(lift)];
+}
+
 export function strengthConditioningBan(lift: string | null | undefined): readonly string[] {
   if (lift === "squat") return ["squat", "back_squat", "front_squat", "pause_squat", "pin_squat", "pause_back_squat", "pause_front_squat", "pin_back_squat"];
   if (lift === "bench") return ["bench_press", "floor_press", "close_grip_bench", "close_grip_bench_press", "incline_bench", "incline_bench_press"];
@@ -120,7 +125,7 @@ export function slotFitErrors(json: unknown, slot: ConditioningSlot, strengthLif
   const rows = Array.isArray(body?.movements) ? body.movements : [];
   const keys = rows.map(movementKey).filter(Boolean);
   const errors: string[] = [];
-  const banned = new Set<string>([...AMBIGUOUS_SQUAT_KEYS, ...strengthConditioningBan(strengthLift)]);
+  const banned = new Set<string>(bannedConditioningKeys(strengthLift));
   for (const key of keys) {
     if (banned.has(key)) errors.push(`conditioning movement ${key} is banned on this day`);
   }

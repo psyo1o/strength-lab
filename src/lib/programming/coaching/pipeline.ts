@@ -60,6 +60,8 @@ export type CoachWeekResult = {
   traces: AgentTrace[];
   judge_ok: boolean;
   day_sources: Record<DayKey, "model" | "fallback">;
+  /** 훈련일별 출처와 이유. 카탈로그가 채운 단위·Rx는 여기 들어가지 않는다. */
+  origin_log?: string;
   final_status: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING";
   coach_notes: string[];
   monthly_plan: MonthlyCoachPlan;

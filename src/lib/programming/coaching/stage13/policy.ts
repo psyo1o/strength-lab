@@ -26,7 +26,7 @@ export type RuleCategory =
 
 /** Heuristics that must not reject a day or a week by themselves. */
 export function isCoachingSignal(error: string): boolean {
-  return /structurally similar|matches a recent structure|stimulus .+ repeats|weekday pattern|same weekday|movement repeated|repeated structure/i.test(
+  return /structurally similar|matches a recent structure|stimulus .+ repeats|weekday pattern|same weekday|movement repeated|repeated structure|heavier than the fatigue limit/i.test(
     error,
   );
 }

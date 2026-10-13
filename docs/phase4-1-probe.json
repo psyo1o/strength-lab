@@ -1,85 +1,43 @@
 {
   "live_model": true,
   "db": "/tmp/strength-lab-phase4-2099.db",
+  "model": "gpt-5.4-nano",
   "stages": [
     {
       "stage": "A",
       "pass": true,
-      "detail": "34/35 (monthly 4/5, weekly 5/5, strength 5/5, conditioning 5/5, warmup 5/5, load 5/5, head 5/5)"
-    },
-    {
-      "stage": "B",
-      "pass": true,
-      "detail": "3/3"
+      "detail": "25/25 (monthly 5/5, strength 5/5, conditioning 5/5, warmup 5/5, head 5/5)"
     },
     {
       "stage": "C",
-      "pass": false,
-      "detail": "0/9"
+      "pass": true,
+      "detail": "7/9"
     }
   ],
-  "adopted": 0,
+  "adopted": 7,
   "weeks": 9,
   "failures": [
     {
-      "stage": "A",
-      "coach": "monthly",
-      "point": "w4_sat purpose names a movement, format, or amount",
+      "stage": "C",
+      "coach": "monthly_coach",
+      "point": "volume 2099-02-02 w3_sat purpose names a movement, format, or amount",
       "count": 1
     },
     {
       "stage": "C",
-      "coach": "week",
-      "point": "tue unresolved: conditioning movement back_squat is banned on this day",
-      "count": 2
-    },
-    {
-      "stage": "C",
-      "coach": "week",
-      "point": "tue unresolved: conditioning.movements: length 1; allowed: 2–5",
-      "count": 1
-    },
-    {
-      "stage": "C",
-      "coach": "week",
-      "point": "tue unresolved: conditioning.movements[0]: air_squat 12 is outside 15–300 reps. Choose an integer inside one allowed span.",
-      "count": 1
-    },
-    {
-      "stage": "C",
-      "coach": "week",
-      "point": "tue unresolved: conditioning.movements[0]: push_up 8 is outside 10–200 reps. Choose an integer inside one allowed span.",
-      "count": 1
-    },
-    {
-      "stage": "C",
-      "coach": "week",
-      "point": "tue unresolved: conditioning.movements[0]: deadlift load.male is required and must be 225 lb or 185 lb",
-      "count": 1
-    },
-    {
-      "stage": "C",
-      "coach": "week",
-      "point": "wed unresolved: row_erg amount needs unit cal or m",
-      "count": 1
-    },
-    {
-      "stage": "C",
-      "coach": "week",
-      "point": "intent says lower load was reduced but the prescription is heavier than the fatigue limit",
-      "count": 1
-    },
-    {
-      "stage": "C",
-      "coach": "adoption",
-      "point": "origin.not_model",
+      "coach": "monthly_coach",
+      "point": "intensity 2099-09-07 w3_wed purpose names a movement, format, or amount",
       "count": 1
     }
   ],
-  "tokens": 3608422,
-  "tokens_a_b": 1814218,
-  "tokens_c": 1794204,
+  "tokens": 3167485,
+  "token_parts": [
+    { "run": "A+C", "tokens": 1629405, "detail": "A 25/25, C 0/9 head.adjust" },
+    { "run": "C diagnostic", "tokens": 158216, "detail": "531 2099-01-05 APPROVE_WITH_NOTE head.adjust" },
+    { "run": "C", "tokens": 1379864, "detail": "7/9" }
+  ],
   "stopped": null,
   "token_cap": 4000000,
-  "c_measured_with": "adoption.weekStatus"
+  "tests": "75 files, 477 passed",
+  "tsc": "pass"
 }

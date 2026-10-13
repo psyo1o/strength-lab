@@ -470,10 +470,10 @@ describe("explicit edit list", () => {
     expect(COACHING_POLICY.max_head_revisions).toBe(2);
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
     expect(headStanceOf({ status: "BLOCK" })).toBe("ACCEPT_WITH_NOTE");
-    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v9");
-    expect(STRENGTH_COACH_PROMPT_VERSION).toBe("strength-coach-v2");
-    expect(CONDITIONING_COACH_PROMPT_VERSION).toBe("conditioning-coach-v6");
-    expect(WARMUP_COACH_PROMPT_VERSION).toBe("warmup-coach-v2");
+    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v10");
+    expect(STRENGTH_COACH_PROMPT_VERSION).toBe("strength-coach-v3");
+    expect(CONDITIONING_COACH_PROMPT_VERSION).toBe("conditioning-coach-v7");
+    expect(WARMUP_COACH_PROMPT_VERSION).toBe("warmup-coach-v3");
     expect(coachSystemPrompt("conditioning")).toContain("edit_list");
     expect(coachSystemPrompt("conditioning")).toContain("not in edit_list");
     expect(coachSystemPrompt("head")).toContain("A sentence without those fields is invalid");

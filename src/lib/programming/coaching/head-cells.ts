@@ -2,6 +2,7 @@ import type { DayKey } from "../../month-plan/types";
 import type { SessionDraft } from "../types";
 import type { HeadPieceRef } from "./contract";
 import { patchStoredMovement } from "./movement-catalog";
+import { applyCatalogOption, peerMovementIds } from "./slot-choices";
 import type { SessionRevision } from "./review";
 
 export type HeadCellRow = {
@@ -65,6 +66,31 @@ export function applyHeadCells(sessions: readonly SessionDraft[], revisions: rea
       continue;
     }
     const before = JSON.parse(JSON.stringify(movement)) as typeof movement;
+    if (cell.field === "quantity_option" || cell.field === "movement_id" || cell.field === "unit" || cell.field === "load") {
+      const allowed = peerMovementIds(movement.key, session?.strength?.lift ?? null);
+      const patched = applyCatalogOption(movement, cell.field, cell.value, allowed);
+      if (!patched.ok) {
+        Object.assign(movement, before);
+        rows.push({
+          day: cell.day,
+          catalog_key: cell.catalog_key,
+          field: cell.field,
+          value: cell.value,
+          result: "reverted",
+          reason: patched.reason,
+        });
+        continue;
+      }
+      rows.push({
+        day: cell.day,
+        catalog_key: cell.catalog_key,
+        field: cell.field,
+        value: cell.value,
+        result: "applied",
+        reason: null,
+      });
+      continue;
+    }
     const patched = patchStoredMovement(movement, cell);
     if (!patched.ok) {
       Object.assign(movement, before);
