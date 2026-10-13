@@ -11,6 +11,7 @@ import { deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { planCoachedWeek } from "./weekly";
+import type { MonthlyDirection, WeekSkeleton } from "../direction";
 import type { LongitudinalPlan } from "../planning/types";
 import type { WeekAdoption } from "../v2";
 import { enforceLockedSkeleton, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
@@ -40,6 +41,13 @@ export type CoachWeekInput = {
   inputSummary?: unknown;
   /** Locked week from planLongitudinal. Session fill uses it only when the skeleton is locked. */
   longitudinal?: LongitudinalPlan | null;
+  /** Phase 3 direction. evaluateWeek checks conformance when the week skeleton is also set. */
+  monthlyDirection?: MonthlyDirection | null;
+  /** Locked week skeleton. evaluateWeek rejects a hash drift. */
+  weekSkeleton?: WeekSkeleton | null;
+  /** Monthly reuse identity. Defaults stay 2099-07 and class. */
+  monthId?: string;
+  profileId?: string;
   key?: string | null;
   fetchImpl?: FetchLike;
   timeoutMs?: number;

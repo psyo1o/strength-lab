@@ -16,7 +16,8 @@ import { getSqlite } from "../../db/client";
 import type { FetchLike } from "../model";
 import type { DayKey, MonthDirection, MonthGoalTable } from "../types";
 import { weekIndexFromStart } from "../types";
-import { assertPhase4Budget, configurePhase4Run, logPhase4Call, PHASE4_TOKEN_CAP, phase4TokensSpent, Phase4Stop } from "./budget";
+import { assertPhase4Budget, configurePhase4Run, logPhase4Call, PHASE4_TOKEN_CAP, phase4RunCap, phase4TokensSpent, Phase4Stop } from "./budget";
+import { phase4DPass, runStageD, type DRunReport } from "./chain";
 import { assertIsolated2099Database } from "./isolation";
 import { smokeCoaches } from "./smoke";
 
@@ -79,6 +80,7 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
   weeks: number;
   tokens: number;
   stopped: string | null;
+  dRuns?: DRunReport[];
 }> {
   const dbPath = input.dbPath ?? DB_PATH;
   if (dbPath !== DB_PATH && !dbPath.startsWith("/tmp/")) throw new Phase4Stop("refusing database outside /tmp");
@@ -87,8 +89,7 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
   for (const week of Object.values(WEEKS).flat()) {
     if (!week.startsWith("2099-") || week === "2026-10-05" || week === "2026-10-12") throw new Phase4Stop(`refusing week ${week}`);
   }
-  const remaining = Number(process.env.PHASE4_REMAINING_CAP ?? "");
-  const tokenCap = Number.isFinite(remaining) && remaining > 0 ? Math.min(remaining, PHASE4_TOKEN_CAP) : PHASE4_TOKEN_CAP;
+  const tokenCap = phase4RunCap();
   configurePhase4Run({ tokenCap, logPath: input.logPath });
   const fetchImpl = guardedFetch(fetch);
   const stages: StageRow[] = [];
@@ -99,6 +100,7 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
     let fallbackWeeks = 0;
     let headUnresolved = 0;
     let headApplied = 0;
+    let dRuns: DRunReport[] | undefined;
   let stopped: string | null = null;
 
   const fail = (stage: string, coach: string, point: string) => bump(counts, `${stage}|${coach}|${point}`);
@@ -179,11 +181,7 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
     stages.push({ stage: "B", pass: bPass, detail: `${bOk}/3` });
     if (!bPass) throw new Phase4Stop("stage B failed");
     }
-    if (!wanted.has("C")) return { stages, failures: [...counts.entries()].map(([key, count]) => {
-      const [stage, coach, point] = key.split("|");
-      return { stage: stage ?? "", coach: coach ?? "", point: point ?? "", count };
-    }), adopted, weeks, tokens: phase4TokensSpent(), stopped: null };
-
+    if (wanted.has("C")) {
     process.env.PHASE4_STAGE = "C";
     for (const profile of PROFILES) {
       if (Number(process.env.PHASE4_C_LIMIT ?? "") > 0 && weeks >= Number(process.env.PHASE4_C_LIMIT)) break;
@@ -233,6 +231,35 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
     console.log(
       `C rates weeks=${weeks} adopted=${adopted} degraded=${degradedWeeks} fallback=${fallbackWeeks} head_unresolved=${headUnresolved} head_applied=${headApplied}`,
     );
+    }
+    if (wanted.has("D")) {
+      process.env.PHASE4_STAGE = "D";
+      const stage = await runStageD({
+        key: input.key,
+        fetchImpl,
+        adoptedWeek: phase4WeekAdopted,
+        firstPoint,
+        fail: (coach, point) => fail("D", coach, point),
+        tokens: phase4TokensSpent,
+      });
+      dRuns = stage.reports;
+      adopted += stage.adopted;
+      weeks += stage.weeks;
+      const fallbackAdopted = stage.reports.reduce((sum, row) => sum + row.fallbackAdopted, 0);
+      const drift = stage.reports.reduce((sum, row) => sum + row.drift, 0);
+      const lockFailed = stage.reports.reduce((sum, row) => sum + row.lockFailed, 0);
+      const unclassified = stage.reports.reduce((sum, row) => sum + row.unclassified, 0);
+      const degraded = stage.reports.reduce((sum, row) => sum + row.degraded, 0);
+      const fallback = stage.reports.reduce((sum, row) => sum + row.fallback, 0);
+      const headOpen = stage.reports.reduce((sum, row) => sum + row.headUnresolved, 0);
+      const headDone = stage.reports.reduce((sum, row) => sum + row.headApplied, 0);
+      const pass = phase4DPass({ adopted: stage.adopted, weeks: stage.weeks, fallbackAdopted, drift, lockFailed, unclassified });
+      stages.push({ stage: "D", pass, detail: `${stage.adopted}/${stage.weeks}` });
+      console.log(
+        `D rates weeks=${stage.weeks} adopted=${stage.adopted} degraded=${degraded} fallback=${fallback} fallback_adopted=${fallbackAdopted} drift=${drift} lock=${lockFailed} unclassified=${unclassified} head_unresolved=${headOpen} head_applied=${headDone}`,
+      );
+      if (!pass) throw new Phase4Stop("stage D failed");
+    }
   } catch (error) {
     if (error instanceof Phase4Stop) stopped = error.message;
     else throw error;
@@ -242,7 +269,7 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
     const [stage, coach, point] = key.split("|");
     return { stage: stage ?? "", coach: coach ?? "", point: point ?? "", count };
   });
-  return { stages, failures, adopted, weeks, tokens: phase4TokensSpent(), stopped };
+  return { stages, failures, adopted, weeks, tokens: phase4TokensSpent(), stopped, dRuns };
 }
 
 const WEEK_STARTS = ["2099-07-06", "2099-07-13", "2099-07-20", "2099-07-27"] as const;
@@ -357,7 +384,7 @@ export function writePhase4Report(input: {
     "",
     input.tsc,
     "",
-    "남은 위험: 언어 검사 본문은 기존 테스트가 영어 문장을 통과로 잠가 두어 이번 단계에서 채우지 않았다. D와 E는 돌리지 않았다. 유사도 임계값은 4다.",
+    "남은 위험: 언어 검사 본문은 기존 테스트가 영어 문장을 통과로 잠가 두어 이번 단계에서 채우지 않았다. 유사도 임계값은 4다.",
     "",
   ].join("\n");
   writeFileSync("docs/phase4-1-results.md", body);

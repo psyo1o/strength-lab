@@ -302,6 +302,8 @@ function judgeContext(input: CoachWeekInput) {
   return {
     previousActual: input.previousActual ?? null,
     recentLiftMaps: input.recentLiftMaps ?? [],
+    monthlyDirection: input.monthlyDirection ?? null,
+    weekSkeleton: input.weekSkeleton ?? null,
   };
 }
 
@@ -1103,6 +1105,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     timeoutMs,
     runId,
     weekId: input.weekStart,
+    monthId: input.monthId,
+    profileId: input.profileId,
   });
   const weekDocument = weekDocumentJson(monthly.trace.raw_output) ?? weekDocumentJson(monthly.trace.output);
   if (weekDocument) throw new WeekDocumentResponse(weekDocument);
@@ -1276,6 +1280,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       timeoutMs,
       runId,
       weekId: input.weekStart,
+      monthId: input.monthId,
+      profileId: input.profileId,
     });
     traces.push({ ...again.trace, revision_number: 1 });
     usage = addUsage(usage, again.trace.token_usage);

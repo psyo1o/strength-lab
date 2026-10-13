@@ -33,9 +33,18 @@ function fallbackDirection(reason: string | null, degraded: boolean): MonthlyDir
   return { source: "deterministic_fallback", degraded, reason };
 }
 
-/** 재사용 키. 스키마 버전과 프롬프트 버전이 바뀌면 같은 월이라도 다시 부른다. */
+/** 재사용 키. 스키마 버전과 프롬프트 버전이 바뀌면 같은 월이라도 다시 부른다. 그 주의 피로·볼륨·완료는 월 틀이 아니므로 키에서 뺀다. */
 export function monthlyReuseKey(input: { monthId: string; profileId: string; payload: unknown }): string {
-  return [input.monthId, input.profileId, inputHash(input.payload), MONTHLY_DIRECTION_SCHEMA_VERSION, MONTHLY_COACH_PROMPT_VERSION].join(":");
+  return [input.monthId, input.profileId, inputHash(monthReusePayload(input.payload)), MONTHLY_DIRECTION_SCHEMA_VERSION, MONTHLY_COACH_PROMPT_VERSION].join(":");
+}
+
+function monthReusePayload(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  const body = { ...(payload as Record<string, unknown>) };
+  delete body.reported_fatigue;
+  delete body.planned_volume;
+  delete body.completion;
+  return body;
 }
 
 function tableReusable(plan: MonthlyCoachPlan, month: MonthDirection): boolean {

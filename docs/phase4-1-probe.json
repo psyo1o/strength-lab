@@ -2,29 +2,25 @@
   "live_model": true,
   "db": "/tmp/strength-lab-phase4-2099.db",
   "model": "gpt-5.4-nano",
-  "stages": [
-    {
-      "stage": "A",
-      "pass": true,
-      "detail": "10/10 (monthly 5/5, head 5/5)"
-    },
-    {
-      "stage": "C",
-      "pass": true,
-      "detail": "9/9"
-    }
+  "stage": "D",
+  "pass": false,
+  "adopted": 20,
+  "weeks_finished": 21,
+  "weeks_required": 24,
+  "stopped": "token cap 5000000 reached at 5004132",
+  "tokens": 5004132,
+  "token_cap": 5000000,
+  "runs": [
+    {"id": "531-a", "adopted": 4, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 0, "head_unresolved": 0, "head_applied": 1, "overlap": 3, "deload": 3, "goal_fields": 21},
+    {"id": "531-b", "adopted": 3, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 1, "head_unresolved": 0, "head_applied": 1, "overlap": 5, "deload": 3, "goal_fields": 18},
+    {"id": "volume-a", "adopted": 4, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 0, "head_unresolved": 0, "head_applied": 2, "overlap": 6, "deload": 4, "goal_fields": 14},
+    {"id": "volume-b", "adopted": 4, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 0, "head_unresolved": 0, "head_applied": 1, "overlap": 6, "deload": 3, "goal_fields": 26},
+    {"id": "intensity-a", "adopted": 4, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 0, "head_unresolved": 0, "head_applied": 3, "overlap": 5, "deload": 4, "goal_fields": 18},
+    {"id": "intensity-b", "adopted": 1, "weeks_finished": 1, "stopped_during_next_week": true, "overlap": 0, "deload": 0, "goal_fields": 6}
   ],
-  "adopted": 9,
-  "weeks": 9,
-  "failures": [],
-  "rates": {
-    "degraded": 0,
-    "fallback": 0,
-    "head_unresolved": 0,
-    "head_applied": 4
-  },
-  "tokens": 1430942,
-  "stopped": null,
-  "token_cap": 4000000,
-  "not_rerun": ["B", "D", "E", "weekly", "strength", "conditioning", "warmup", "load"]
+  "failures": [
+    {"stage": "D", "run": "531-b", "week": "2099-11-02", "coach": "weekly", "point": "high intensity days 5 exceed the week rule 3", "source": "fallback", "reason": "schema"}
+  ],
+  "rates_finished_weeks": {"weeks": 21, "degraded": 0, "fallback": 1, "fallback_adopted": 0, "head_unresolved": 0, "head_applied": 9, "drift": 0, "lock": 0, "unclassified": 0},
+  "not_rerun": ["A", "B", "C", "E"]
 }

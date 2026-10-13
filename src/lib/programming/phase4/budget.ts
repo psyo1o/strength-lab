@@ -26,6 +26,15 @@ export function resetPhase4Run(): void {
   state.logPath = null;
 }
 
+/** 기본 상한은 4000000이다. PHASE4_TOKEN_CAP이 양수면 그 실행의 상한이다. PHASE4_REMAINING_CAP은 그 값보다 작을 때만 더 줄인다. */
+export function phase4RunCap(env: NodeJS.ProcessEnv = process.env): number {
+  const override = Number(env.PHASE4_TOKEN_CAP ?? "");
+  const base = Number.isFinite(override) && override > 0 ? override : PHASE4_TOKEN_CAP;
+  const remaining = Number(env.PHASE4_REMAINING_CAP ?? "");
+  if (Number.isFinite(remaining) && remaining > 0) return Math.min(remaining, base);
+  return base;
+}
+
 export function configurePhase4Run(input: { tokenCap?: number | null; logPath?: string | null }): void {
   state.cap = input.tokenCap ?? null;
   state.spent = 0;
