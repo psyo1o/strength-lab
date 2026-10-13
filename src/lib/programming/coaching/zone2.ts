@@ -41,12 +41,31 @@ export function zone2Effort(_deload: boolean): readonly string[] {
   return GOAL_TABLE_RULES.zone2.effort;
 }
 
-/** 카탈로그 전체. 직전 주 모달은 하나 이상 남을 때만 뺀다. */
-export function zone2Modalities(previousModality: string | null | undefined): string[] {
-  const listed = [...GOAL_TABLE_RULES.zone2.modalities];
-  if (!previousModality || !listed.includes(previousModality as (typeof listed)[number])) return listed;
+/**
+ * 카탈로그 전체. 직전 주 모달은 하나 이상 남을 때만 뺀다.
+ * 빼면 빈 목록이 되면 그 모달을 남겨 enum이 비지 않게 한다.
+ * heavy 하체 다음 날이라도 run은 여기서 빼지 않는다.
+ */
+export function zone2Modalities(previousModality: string | null | undefined, catalog: readonly string[] = GOAL_TABLE_RULES.zone2.modalities): string[] {
+  const listed = [...catalog];
+  if (listed.length === 0) return [...GOAL_TABLE_RULES.zone2.modalities];
+  if (!previousModality || !listed.includes(previousModality)) return listed;
   const next = listed.filter((key) => key !== previousModality);
   return next.length ? next : listed;
+}
+
+/** 컨디셔닝 A enum이 주간 경계와 같은 직전 주 모달을 보게 한다. */
+export function zone2SlotSpec(input: {
+  zone2: string | null | undefined;
+  blockPhase: string;
+  weekIndex: number;
+  recentPlans?: readonly WeeklyIntentPlan[] | null;
+}): { deload: boolean; previousModality: string | null } | null {
+  if (input.zone2 !== "day") return null;
+  return {
+    deload: input.blockPhase === "deload" || input.weekIndex === 4,
+    previousModality: previousZone2Modality(input.recentPlans),
+  };
 }
 
 function isoDate(value: string | undefined): string | null {

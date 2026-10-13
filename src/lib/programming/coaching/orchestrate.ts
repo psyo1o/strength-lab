@@ -23,7 +23,7 @@ import { dayBoundsFromSkeleton, weekBoundsNote, weeklyResponseFormat } from "./w
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
 import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "./conditioning-board";
 import { goalWeek, movementFrequency, profileTrainingDayCount, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
-import { pinZone2, previousZone2Modality, stampZone2Sessions, zone2RuleErrors } from "./zone2";
+import { pinZone2, previousZone2Modality, stampZone2Sessions, zone2RuleErrors, zone2SlotSpec } from "./zone2";
 import type { ConditioningSlot } from "../types";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
 import { COACHING_POLICY, isCoachingSignal, prescriptionSource } from "./stage13/policy";
@@ -652,9 +652,13 @@ async function writeSession(input: {
       slot: rawSlot,
       skeletonCombo: skeletonComboFor(input.week, input.rules, input.day.day),
     });
-    if (frame && area === "conditioning" && input.day.zone2 === "day") {
-      frame.zone2Slot = { deload: input.plan.block_phase === "deload" || input.week.weekIndex === 4 };
-    }
+    const zone2Spec = zone2SlotSpec({
+      zone2: input.day.zone2,
+      blockPhase: input.plan.block_phase,
+      weekIndex: input.week.weekIndex,
+      recentPlans: input.week.recentPlans,
+    });
+    if (frame && area === "conditioning" && zone2Spec) frame.zone2Slot = zone2Spec;
     if (frame) frames.set(area, frame);
   }
   const slotClosed = new Set<SpecialistArea>();

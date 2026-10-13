@@ -176,5 +176,17 @@
       {"id": "z-deload", "week": "2099-08-24", "deload": true, "zone2_day": "mon", "a": "row_erg 30 conversational", "b": "amrap 10 rpe4 i2 row_erg+ring_row", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1, "deload_conflicts": 4, "goal_breaks": 6}
     ]
   },
-  "tests_zone2_short_metcon": {"files": 80, "passed": 507, "tsc": "pass", "live": false}
+  "tests_zone2_short_metcon": {"files": 80, "passed": 507, "tsc": "pass", "live": false},
+  "zone2_modality_rotation": {
+    "live_model": false,
+    "model_calls": 0,
+    "weeks": 4,
+    "host": "tue",
+    "heavy_lower_next_keeps_run": true,
+    "previous_modality_removed": true,
+    "empty_remainder_keeps_last": true,
+    "picks": ["row_erg", "bike_erg", "row_erg", "bike_erg"],
+    "tests": {"files": 80, "passed": 508, "tsc": "pass", "build": "pass", "live": false},
+    "main_conflicts": []
+  }
 }
