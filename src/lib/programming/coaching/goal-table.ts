@@ -256,30 +256,20 @@ export const GOAL_TABLE_RULES = {
     7: HISTORICAL_WEEK_CAPS,
   },
   /**
-   * 존 2는 훈련일 수로 형태가 하나다. 생성기와 검증기가 이 표만 본다.
+   * 존 2는 주 6일 프로그램의 별도 하루다. 생성기와 검증기가 이 표만 본다.
    * 고강도(4 이상)와 별도인 저강도이고, 고강도 상한에 넣지 않는다.
    */
   zone2: {
-    formByTrainingDays: {
-      2: "none",
-      3: "addon",
-      4: "addon",
-      5: "day",
-      6: "day",
-      7: "day",
-    },
-    blocks: { none: 0, addon: 1, day: 1 },
+    form: "day",
+    blocks: { day: 1 },
     duration: {
-      day: [30, 35, 40, 45, 50, 55, 60],
-      dayDefault: [40, 45],
-      addon: [20, 25, 30],
+      day: [40, 45],
       deload: [30],
     },
-    /** normal은 RPE 2–3 대화 가능 페이스. 딜로드는 같은 칸의 강도 1. */
-    effort: { normal: ["conversational"], deload: ["1"] },
+    /** RPE 2–3 대화 가능 페이스. 딜로드도 같다. 딜로드에서 바뀌는 것은 30분뿐이다. */
+    effort: ["conversational"],
     hr: ["60-70", "unspecified"],
     modalities: ["row_erg", "bike_erg", "assault_bike", "run", "ski_erg"],
-    modalitiesLower: ["row_erg", "bike_erg", "assault_bike"],
     /** day의 주간 intensity_profile. 1–2만 허용하고 light로 둔다. */
     dayIntensity: ["light"],
     countsTowardHighIntensity: false,

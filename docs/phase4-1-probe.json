@@ -133,5 +133,26 @@
       {"id": "z-deload", "week": "2099-08-24", "days": 6, "deload": true, "zone2_day": "mon", "form": "day", "modality": "row_erg", "duration_min": 30, "effort": "1", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1}
     ]
   },
-  "tests_zone2": {"files": 79, "passed": 500}
+  "tests_zone2": {"files": 79, "passed": 500},
+  "zone2_six": {
+    "pass": true,
+    "scope": "6-day only. 2-day and 3-5 day live runs cancelled",
+    "adopted": "3/3",
+    "zone2_fail": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "tokens": 463132,
+    "token_cap": 800000,
+    "week_average": 238292,
+    "max_starts": 3,
+    "scheduled": 3,
+    "stopped": null,
+    "http_429": false,
+    "runs": [
+      {"id": "six-a", "week": "2099-07-06", "days": 6, "zone2_day": "wed", "form": "day", "modality": "bike_erg", "duration_min": 40, "effort": "conversational", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1, "goal_breaks": 6},
+      {"id": "six-normal", "week": "2099-01-05", "days": 6, "zone2_day": "wed", "form": "day", "modality": "row_erg", "duration_min": 45, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE", "goal_breaks": 10},
+      {"id": "z-deload", "week": "2099-08-24", "days": 6, "deload": true, "zone2_day": "mon", "form": "day", "modality": "row_erg", "duration_min": 30, "effort": "conversational", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1, "deload_conflicts": 2, "goal_breaks": 6}
+    ]
+  },
+  "tests_zone2_six": {"files": 79, "passed": 500, "tsc": "pass", "live": false}
 }

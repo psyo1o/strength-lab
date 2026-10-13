@@ -81,7 +81,7 @@ export const STRUCT_TOKEN_CAP = 1_500_000;
 export const STRUCT_MAX_STARTS = Math.floor(STRUCT_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
 export const PROFILE_TOKEN_CAP = 1_200_000;
 export const PROFILE_MAX_STARTS = Math.floor(PROFILE_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
-export const ZONE2_TOKEN_CAP = 1_200_000;
+export const ZONE2_TOKEN_CAP = 800_000;
 export const ZONE2_MAX_STARTS = Math.floor(ZONE2_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
 
 export function phase4DPass(input: {
@@ -302,12 +302,11 @@ export const PHASE4_ODD_RUNS: readonly DRunSpec[] = [
   { id: "six-b", profile: "531", monthId: "2099-12", weeks: ["2099-12-07", "2099-12-14", "2099-12-21", "2099-12-28"], coachWeeks: ["2099-12-07"] },
 ];
 
+/** 주 6일만. 주 2일·주 3–5일 실행은 하지 않는다. */
 export const PHASE4_ZONE2_RUNS: readonly DRunSpec[] = [
-  { id: "z3", profile: "531", monthId: "2099-z3", weeks: ["2099-03-02", "2099-03-09", "2099-03-16", "2099-03-23"], coachWeeks: ["2099-03-02"], availableDays: ["mon", "wed", "fri"] },
-  { id: "z4", profile: "531", monthId: "2099-z4", weeks: ["2099-04-06", "2099-04-13", "2099-04-20", "2099-04-27"], coachWeeks: ["2099-04-06"], availableDays: ["mon", "tue", "thu", "fri"] },
-  { id: "z5", profile: "531", monthId: "2099-z5", weeks: ["2099-05-04", "2099-05-11", "2099-05-18", "2099-05-25"], coachWeeks: ["2099-05-04"], availableDays: ["mon", "tue", "wed", "thu", "fri"] },
-  { id: "z6", profile: "531", monthId: "2099-z6", weeks: ["2099-06-01", "2099-06-08", "2099-06-15", "2099-06-22"], coachWeeks: ["2099-06-01"] },
-  { id: "z-deload", profile: "531", monthId: "2099-zd", weeks: ["2099-08-03", "2099-08-10", "2099-08-17", "2099-08-24"], coachWeeks: ["2099-08-24"] },
+  { id: "six-a", profile: "531", monthId: "2099-07", weeks: ["2099-07-06", "2099-07-13", "2099-07-20", "2099-07-27"], coachWeeks: ["2099-07-06"] },
+  { id: "six-normal", profile: "531", monthId: "2099-01", weeks: ["2099-01-05", "2099-01-12", "2099-01-19", "2099-01-26"], coachWeeks: ["2099-01-05"] },
+  { id: "z-deload", profile: "531", monthId: "2099-08", weeks: ["2099-08-03", "2099-08-10", "2099-08-17", "2099-08-24"], coachWeeks: ["2099-08-24"] },
 ];
 
 export function phase4Zone2Pass(input: {

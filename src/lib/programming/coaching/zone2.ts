@@ -23,37 +23,27 @@ export type Zone2PlanDay = {
 
 const ZONE2_ROLES = ["none", "addon", "day"] as const;
 
-/** 표에 있는 훈련일 수만 형태를 가진다. 주 2일은 none, 3·4는 addon, 5·6·7은 day. */
-export function zone2Form(trainingDays: number): Zone2Form {
-  const table = GOAL_TABLE_RULES.zone2.formByTrainingDays;
-  if (trainingDays === 2) return table[2];
-  if (trainingDays === 3) return table[3];
-  if (trainingDays === 4) return table[4];
-  if (trainingDays === 5) return table[5];
-  if (trainingDays === 6) return table[6];
-  if (trainingDays === 7) return table[7];
-  return "none";
+/** 주 6일 프로그램의 존 2는 항상 별도 하루다. 훈련일 수로 none·addon을 나누지 않는다. */
+export function zone2Form(_trainingDays: number): Zone2Form {
+  return GOAL_TABLE_RULES.zone2.form;
 }
 
 export function zone2BlockCount(form: Zone2Form): number {
-  return GOAL_TABLE_RULES.zone2.blocks[form];
+  return form === "day" ? GOAL_TABLE_RULES.zone2.blocks.day : 0;
 }
 
 export function zone2Durations(form: Zone2Form, deload: boolean): readonly number[] {
-  if (form === "none") return [];
-  if (deload) return GOAL_TABLE_RULES.zone2.duration.deload;
-  if (form === "addon") return GOAL_TABLE_RULES.zone2.duration.addon;
-  return GOAL_TABLE_RULES.zone2.duration.day;
+  if (form !== "day") return [];
+  return deload ? GOAL_TABLE_RULES.zone2.duration.deload : GOAL_TABLE_RULES.zone2.duration.day;
 }
 
-export function zone2Effort(deload: boolean): readonly string[] {
-  return deload ? GOAL_TABLE_RULES.zone2.effort.deload : GOAL_TABLE_RULES.zone2.effort.normal;
+export function zone2Effort(_deload: boolean): readonly string[] {
+  return GOAL_TABLE_RULES.zone2.effort;
 }
 
-/** 하체 인접 addon은 row_erg와 bike만. 직전 주 모달은 하나 이상 남을 때만 뺀다. */
-export function zone2Modalities(lowerAdjacent: boolean, previousModality: string | null | undefined): string[] {
-  const base = lowerAdjacent ? GOAL_TABLE_RULES.zone2.modalitiesLower : GOAL_TABLE_RULES.zone2.modalities;
-  const listed = [...base];
+/** 카탈로그 전체. 직전 주 모달은 하나 이상 남을 때만 뺀다. */
+export function zone2Modalities(previousModality: string | null | undefined): string[] {
+  const listed = [...GOAL_TABLE_RULES.zone2.modalities];
   if (!previousModality || !listed.includes(previousModality as (typeof listed)[number])) return listed;
   const next = listed.filter((key) => key !== previousModality);
   return next.length ? next : listed;
@@ -83,23 +73,6 @@ export function heavyLowerDay(day: SkeletonDay | null | undefined): boolean {
   const lower = pattern === "squat" || pattern === "hinge" || body === "lower";
   if (!lower) return false;
   return slot?.loadClass === "heavy" || (day.direction.intensity ?? 0) >= GOAL_TABLE_RULES.highIntensity;
-}
-
-function highIntensityConditioning(day: SkeletonDay): boolean {
-  if (!trainingDay(day)) return false;
-  if (day.direction.stimulus.timeDomain === "long") return true;
-  const slot = mainSlot(day);
-  const pattern = slot?.pattern ?? day.direction.targets.movementPatterns[0] ?? null;
-  const heavy = slot?.loadClass === "heavy" || (day.direction.intensity ?? 0) >= GOAL_TABLE_RULES.highIntensity;
-  return heavy && (pattern === "engine" || pattern === "gymnastic");
-}
-
-function strengthHost(day: SkeletonDay): boolean {
-  if (!trainingDay(day) || highIntensityConditioning(day)) return false;
-  const focus = day.direction.focus;
-  if (focus === "lower_strength" || focus === "upper_strength" || focus === "weightlifting_cycling") return true;
-  const pattern = mainSlot(day)?.pattern ?? day.direction.targets.movementPatterns[0] ?? null;
-  return pattern === "squat" || pattern === "hinge" || pattern === "press" || pattern === "pull" || pattern === "olympic";
 }
 
 function lowerBody(day: SkeletonDay): boolean {
@@ -136,8 +109,8 @@ function deloadWeek(skeleton: WeekSkeleton, month: { strength_method?: string; s
 }
 
 /**
- * 허용 요일. day는 heavy 하체 다음 날을 우선하고, 다음 날이 heavy 하체인 날은 뺀다.
- * addon은 고강도 컨디셔닝이 아닌 스트렝스 날이다.
+ * 허용 요일. heavy 하체 다음 날을 우선하고, 다음 날이 heavy 하체인 날은 뺀다.
+ * 주 경계의 월요일·일요일을 포함한다.
  */
 export function placeZone2(input: {
   skeleton: WeekSkeleton;
@@ -154,16 +127,9 @@ export function placeZone2(input: {
     .filter((day) => heavyLowerDay(neighbor(input.skeleton, day.day, 1, previous, next)))
     .map((day) => day.day);
   const blocked = new Set(blockedNext);
-  let allowed: SkeletonDay[] = [];
-  if (form === "day") {
-    const safe = training.filter((day) => !blocked.has(day.day));
-    const priority = safe.filter((day) => heavyLowerDay(neighbor(input.skeleton, day.day, -1, previous, next)));
-    allowed = priority.length ? priority : safe.slice(0, 1);
-  } else if (form === "addon") {
-    const hosts = training.filter((day) => strengthHost(day));
-    const open = hosts.length ? hosts : training.filter((day) => !highIntensityConditioning(day));
-    allowed = open.filter((day) => !blocked.has(day.day));
-  }
+  const safe = training.filter((day) => !blocked.has(day.day));
+  const priority = safe.filter((day) => heavyLowerDay(neighbor(input.skeleton, day.day, -1, previous, next)));
+  const allowed = priority.length ? priority : safe.slice(0, 1);
   const lowerAdjacent = allowed.filter(
     (day) => lowerBody(day) || heavyLowerDay(neighbor(input.skeleton, day.day, -1, previous, next)),
   );
@@ -217,7 +183,7 @@ export function zone2RuleErrors(input: {
   const errors: string[] = [];
   const expected = zone2Form(input.trainingDays);
   if (input.zone2.form !== expected) {
-    errors.push(`zone2 form ${input.zone2.form} does not match training days ${input.trainingDays} (${expected})`);
+    errors.push(`zone2 form ${input.zone2.form} is not the 6-day day form`);
   }
   const hosts = input.planDays.filter((day) => day.zone2 === "addon" || day.zone2 === "day");
   const wanted = zone2BlockCount(input.zone2.form);
@@ -236,7 +202,7 @@ export function zone2RuleErrors(input: {
     }
     if (!input.zone2.allowedDays.includes(day.day)) errors.push(`${day.day} is not an allowed zone2 day`);
     if (input.zone2.blockedNext.includes(day.day)) errors.push(`${day.day} zone2 is followed by a heavy lower day`);
-    const modalities = zone2Modalities(input.zone2.lowerAdjacent.includes(day.day), input.previousModality);
+    const modalities = zone2Modalities(input.previousModality);
     if (!day.zone2_modality || day.zone2_modality === "none" || !modalities.includes(day.zone2_modality)) {
       errors.push(`${day.day} zone2 modality must be one of ${modalities.join("|")}`);
     } else if (day.zone2_modality.includes(",") || day.zone2_modality.includes(" ")) {

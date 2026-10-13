@@ -91,16 +91,13 @@ function planDays(marks: Partial<Record<DayKey, { zone2: "none" | "addon" | "day
 }
 
 describe("zone2 rules", () => {
-  it("훈련일 수 2–7의 형태와 블록 수가 표와 같다", () => {
-    expect(zone2Form(2)).toBe("none");
-    expect(zone2Form(3)).toBe("addon");
-    expect(zone2Form(4)).toBe("addon");
-    expect(zone2Form(5)).toBe("day");
-    expect(zone2Form(6)).toBe("day");
-    expect(zone2Form(7)).toBe("day");
-    expect(GOAL_TABLE_RULES.zone2.blocks.none).toBe(0);
-    expect(GOAL_TABLE_RULES.zone2.blocks.addon).toBe(1);
+  it("주 6일 존 2는 항상 별도 하루이고 블록은 하나다", () => {
+    for (const days of [2, 3, 4, 5, 6, 7]) expect(zone2Form(days)).toBe("day");
+    expect(GOAL_TABLE_RULES.zone2.form).toBe("day");
     expect(GOAL_TABLE_RULES.zone2.blocks.day).toBe(1);
+    expect(GOAL_TABLE_RULES.zone2.duration.day).toEqual([40, 45]);
+    expect(GOAL_TABLE_RULES.zone2.duration.deload).toEqual([30]);
+    expect(GOAL_TABLE_RULES.zone2.effort).toEqual(["conversational"]);
     expect(GOAL_TABLE_RULES.zone2.countsTowardHighIntensity).toBe(false);
   });
 
@@ -160,9 +157,9 @@ describe("zone2 rules", () => {
     expect(placed.blockedNext).not.toContain("mon");
   });
 
-  it("addon은 고강도 컨디셔닝을 빼고 하체 인접에서 run을 뺀다", () => {
+  it("heavy 하체 다음 날도 run을 포함한 단일 모달이고 직전 주 모달만 뺀다", () => {
     const skeleton = week({
-      id: "addon",
+      id: "day-host",
       start: "2099-04-06",
       days: [
         dayOf({ date: "2099-04-06", day: "mon", intensity: 5, pattern: "hinge", load: "heavy" }),
@@ -174,20 +171,19 @@ describe("zone2 rules", () => {
         dayOf({ date: "2099-04-12", day: "sun", intensity: 1, pattern: "press", load: "light", rest: true }),
       ],
     });
-    skeleton.zone2 = placeZone2({ skeleton, trainingDays: 4, previous: null, next: null, deload: false });
-    expect(skeleton.zone2.form).toBe("addon");
-    expect(skeleton.zone2.allowedDays).not.toContain("fri");
-    expect(skeleton.zone2.lowerAdjacent).toContain("mon");
+    skeleton.zone2 = placeZone2({ skeleton, trainingDays: 6, previous: null, next: null, deload: false });
+    expect(skeleton.zone2.form).toBe("day");
+    expect(skeleton.zone2.allowedDays).toEqual(["tue"]);
     expect(skeleton.zone2.lowerAdjacent).toContain("tue");
     const bounds = dayBoundsFromSkeleton(skeleton, 2, { previousModality: "row_erg" })!;
-    const host = bounds.find((day) => day.day === skeleton.zone2?.allowedDays[0]);
-    expect(host?.zone2).toEqual(["addon"]);
-    expect(host?.zone2_modality).not.toContain("run");
-    expect(host?.zone2_modality).not.toContain("row_erg");
-    expect(host?.zone2_modality).toContain("bike_erg");
+    const host = bounds.find((day) => day.day === "tue");
+    expect(host?.zone2).toEqual(["day"]);
+    expect(host?.zone2_modality).toEqual(["bike_erg", "assault_bike", "run", "ski_erg"]);
+    expect(host?.zone2_duration).toEqual(["40", "45"]);
+    expect(host?.zone2_effort).toEqual(["conversational"]);
     expect(bounds.find((day) => day.day === "fri")?.zone2).toEqual(["none"]);
-    expect(bounds.filter((day) => day.zone2?.includes("addon"))).toHaveLength(1);
-    expect(zone2Modalities(true, "bike_erg")).toEqual(["row_erg", "assault_bike"]);
+    expect(bounds.filter((day) => day.zone2?.includes("day"))).toHaveLength(1);
+    expect(zone2Modalities("bike_erg")).toEqual(["row_erg", "assault_bike", "run", "ski_erg"]);
   });
 
   it("day 허용 요일은 light만이고 존 2는 고강도 상한에 안 들어간다", () => {
@@ -222,7 +218,7 @@ describe("zone2 rules", () => {
     expect(heavy).toBeLessThanOrEqual(rules.max_high_intensity_days);
   });
 
-  it("딜로드도 형태를 유지하고 30분 강도 1이다", () => {
+  it("딜로드도 별도 하루이고 30분 대화 가능 페이스다", () => {
     const skeleton = six("2099-03-23", 4);
     skeleton.zone2 = placeZone2({ skeleton, trainingDays: 6, deload: true });
     expect(skeleton.zone2.form).toBe("day");
@@ -230,13 +226,13 @@ describe("zone2 rules", () => {
     const host = bounds.find((day) => day.zone2?.includes("day"))!;
     expect(host.zone2).toEqual(["day"]);
     expect(host.zone2_duration).toEqual(["30"]);
-    expect(host.zone2_effort).toEqual(["1"]);
+    expect(host.zone2_effort).toEqual(["conversational"]);
     const hostDay = host.day;
     expect(
       zone2RuleErrors({
         trainingDays: 6,
         zone2: skeleton.zone2,
-        planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 30, effort: "1", hr: "unspecified", intensity: "light" } }),
+        planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 30, effort: "conversational", hr: "unspecified", intensity: "light" } }),
       }),
     ).toEqual([]);
     expect(
@@ -246,6 +242,13 @@ describe("zone2 rules", () => {
         planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 45, effort: "conversational", hr: "60-70", intensity: "light" } }),
       }).join(" "),
     ).toMatch(/duration/);
+    expect(
+      zone2RuleErrors({
+        trainingDays: 6,
+        zone2: skeleton.zone2,
+        planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 30, effort: "1", hr: "unspecified", intensity: "light" } }),
+      }).join(" "),
+    ).toMatch(/effort/);
   });
 
   it("블록 수, 단일 모달, 시간, 인접 금지를 공유 규칙으로 거절한다", () => {
@@ -258,9 +261,16 @@ describe("zone2 rules", () => {
       planDays: planDays({ [host]: { zone2: "day", modality: "row_erg", duration: 40, effort: "conversational", hr: "60-70", intensity: "light" } }),
     });
     expect(legal).toEqual([]);
-    const noneWeek = placeZone2({ skeleton, trainingDays: 2, deload: false });
-    expect(noneWeek.form).toBe("none");
-    expect(zone2RuleErrors({ trainingDays: 2, zone2: noneWeek, planDays: planDays({}) })).toEqual([]);
+    const stillDay = placeZone2({ skeleton, trainingDays: 2, deload: false });
+    expect(stillDay.form).toBe("day");
+    expect(zone2RuleErrors({ trainingDays: 6, zone2: stillDay, planDays: planDays({}) }).join(" ")).toMatch(/blocks 0/);
+    expect(
+      zone2RuleErrors({
+        trainingDays: 6,
+        zone2: skeleton.zone2,
+        planDays: planDays({ [host]: { zone2: "day", modality: "row_erg", duration: 30, effort: "conversational", hr: "60-70", intensity: "light" } }),
+      }).join(" "),
+    ).toMatch(/duration/);
     expect(
       zone2RuleErrors({
         trainingDays: 6,
@@ -304,15 +314,9 @@ describe("zone2 rules", () => {
     ).toEqual([]);
   });
 
-  it("주 3·4·5일 표가 열리고 뼈대 주석이 해시를 바꾸지 않는다", () => {
-    for (const available of [
-      ["mon", "wed", "fri"],
-      ["mon", "tue", "thu", "fri"],
-      ["mon", "tue", "wed", "thu", "fri"],
-    ] as const) {
-      const built = buildGoalTable({ month: { ...month(), available_days: [...available] } });
-      expect(built.ok, available.join(",")).toBe(true);
-    }
+  it("주 6일 뼈대 주석이 해시를 바꾸지 않고 4주는 딜로드다", () => {
+    const built = buildGoalTable({ month: month() });
+    expect(built.ok).toBe(true);
     const skeletons = [six("2099-03-02"), six("2099-03-09"), six("2099-03-16", 3), six("2099-03-23", 4)];
     for (const skeleton of skeletons) skeleton.lock.skeletonHash = skeletonContentHash(skeleton);
     const hashes = skeletons.map((skeleton) => skeleton.lock.skeletonHash);

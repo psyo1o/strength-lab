@@ -131,7 +131,7 @@ export type Zone2Form = "none" | "addon" | "day";
 export type Zone2Annotation = {
   form: Zone2Form;
   allowedDays: DayKey[];
-  /** addon에서 run을 빼는 요일. heavy 하체 다음 날과 하체 날. */
+  /** heavy 하체 다음 날과 하체 날. 모달 enum에서 run을 빼지 않는다. */
   lowerAdjacent: DayKey[];
   /** 다음 날이 heavy 하체라 존 2를 둘 수 없는 요일. 주 경계의 일요일을 포함한다. */
   blockedNext: DayKey[];

@@ -167,9 +167,8 @@ function squatWouldBeHeavy(seed: BoundSeed, method: string | undefined): boolean
 function withZone2(bound: DayBound, zone2: Zone2Annotation, previousModality: string | null | undefined): DayBound {
   const designated = zone2.form === "none" ? null : (zone2.allowedDays[0] ?? null);
   const host = designated === bound.day;
-  const lower = zone2.lowerAdjacent.includes(bound.day);
   const dayHost = zone2.form === "day" && host;
-  const modalities = host ? zone2Modalities(lower, previousModality) : [];
+  const modalities = host ? zone2Modalities(previousModality) : [];
   const durations = host ? zone2Durations(zone2.form, zone2.deload) : [];
   const effort = host ? zone2Effort(zone2.deload) : [];
   return {
@@ -244,7 +243,7 @@ export function weekBoundsNote(bounds: readonly DayBound[]): string {
   );
   return [
     "Per-day enums are closed. Do not use a value outside that day.",
-    "When zone2 is listed, the week has exactly one addon or day block, or zero when every day is none. zone2_effort conversational means RPE 2-3, a conversational pace. zone2_hr 60-70 is auxiliary and may be unspecified. A zone2 day uses intensity_profile light (band 1-2) and does not count toward the high-intensity cap. Default day duration is 40 or 45.",
+    "When zone2 is listed, the designated day is the one zone2 day and every other day is none. zone2_effort conversational means RPE 2-3, a conversational pace, including a deload week. zone2_hr 60-70 is auxiliary and may be unspecified. A zone2 day uses intensity_profile light (band 1-2) and does not count toward the high-intensity cap. Duration is 40 or 45, or 30 on a deload week.",
     ...lines,
   ].join("\n");
 }
