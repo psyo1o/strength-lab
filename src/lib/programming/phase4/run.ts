@@ -17,7 +17,7 @@ import type { FetchLike } from "../model";
 import type { DayKey, MonthDirection, MonthGoalTable } from "../types";
 import { weekIndexFromStart } from "../types";
 import { assertPhase4Budget, configurePhase4Run, logPhase4Call, PHASE4_TOKEN_CAP, phase4RunCap, phase4TokensSpent, Phase4Stop } from "./budget";
-import { phase4DPass, runStageD, type DRunReport } from "./chain";
+import { phase4DPass, phase4RegressionPass, runStageD, runStageFollow, type DRunReport } from "./chain";
 import { assertIsolated2099Database } from "./isolation";
 import { smokeCoaches } from "./smoke";
 
@@ -34,6 +34,15 @@ const WEEKS: Record<(typeof PROFILES)[number]["id"], readonly string[]> = {
   volume: ["2099-02-02", "2099-05-04", "2099-08-03"],
   intensity: ["2099-03-02", "2099-06-02", "2099-09-07"],
 };
+
+function totals(reports: readonly DRunReport[]): { fallbackAdopted: number; drift: number; lockFailed: number; unclassified: number } {
+  return {
+    fallbackAdopted: reports.reduce((sum, row) => sum + row.fallbackAdopted, 0),
+    drift: reports.reduce((sum, row) => sum + row.drift, 0),
+    lockFailed: reports.reduce((sum, row) => sum + row.lockFailed, 0),
+    unclassified: reports.reduce((sum, row) => sum + row.unclassified, 0),
+  };
+}
 
 export type StageRow = { stage: string; pass: boolean; detail: string };
 export type FailureRow = { stage: string; coach: string; point: string; count: number };
@@ -259,6 +268,39 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
         `D rates weeks=${stage.weeks} adopted=${stage.adopted} degraded=${degraded} fallback=${fallback} fallback_adopted=${fallbackAdopted} drift=${drift} lock=${lockFailed} unclassified=${unclassified} head_unresolved=${headOpen} head_applied=${headDone}`,
       );
       if (!pass) throw new Phase4Stop("stage D failed");
+    }
+    if (wanted.has("F")) {
+      process.env.PHASE4_STAGE = "F";
+      const follow = await runStageFollow({
+        key: input.key,
+        fetchImpl,
+        adoptedWeek: phase4WeekAdopted,
+        firstPoint,
+        fail: (coach, point) => fail("F", coach, point),
+        tokens: phase4TokensSpent,
+      });
+      const regression = totals(follow.regression.reports);
+      const odd = totals(follow.odd.reports);
+      const regressionPass = phase4RegressionPass({
+        adopted: follow.regression.adopted,
+        weeks: follow.regression.weeks,
+        fallbackAdopted: regression.fallbackAdopted,
+        drift: regression.drift,
+        lockFailed: regression.lockFailed,
+        unclassified: regression.unclassified,
+      });
+      stages.push({ stage: "F-regression", pass: regressionPass, detail: `${follow.regression.adopted}/${follow.regression.weeks} hash=${follow.hash}` });
+      stages.push({ stage: "F-odd", pass: odd.fallbackAdopted === 0 && odd.drift === 0, detail: `${follow.odd.adopted}/${follow.odd.weeks}` });
+      console.log(`F hash=${follow.hash}`);
+      console.log(
+        `F regression weeks=${follow.regression.weeks} adopted=${follow.regression.adopted} fallback_adopted=${regression.fallbackAdopted} drift=${regression.drift} lock=${regression.lockFailed} unclassified=${regression.unclassified}`,
+      );
+      console.log(
+        `F odd weeks=${follow.odd.weeks} adopted=${follow.odd.adopted} fallback_adopted=${odd.fallbackAdopted} drift=${odd.drift} unclassified=${odd.unclassified}`,
+      );
+      adopted += follow.regression.adopted + follow.odd.adopted;
+      weeks += follow.regression.weeks + follow.odd.weeks;
+      if (!regressionPass) throw new Phase4Stop("stage F regression failed");
     }
   } catch (error) {
     if (error instanceof Phase4Stop) stopped = error.message;

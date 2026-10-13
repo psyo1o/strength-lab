@@ -1,4 +1,6 @@
-import { DAY_ORDER } from "../../month-plan/types";
+import { DAY_ORDER, type DayKey } from "../../month-plan/types";
+import { coachingConfigHash } from "../coaching/config-stamp";
+import { PINNED_COACHING_CONFIG_HASH } from "./pin";
 import { coachMonthly, withCoachingPlan } from "../coaching/monthly";
 import { coachWeek, type CoachWeekResult } from "../coaching/pipeline";
 import {
@@ -16,6 +18,7 @@ import type { WeekActual } from "../summary";
 import type { FetchLike } from "../model";
 import type { MonthDirection, MonthGoalTable, StoredStructure, WeekDraft, WeekIndex } from "../types";
 import { addDays, weekIndexFromStart } from "../types";
+import { Phase4Stop } from "./budget";
 
 export type DProfileId = "531" | "volume" | "intensity";
 
@@ -24,6 +27,9 @@ export type DRunSpec = {
   profile: DProfileId;
   monthId: string;
   weeks: readonly [string, string, string, string];
+  /** Absent coaches every week in `weeks`. */
+  coachWeeks?: readonly string[];
+  availableDays?: readonly DayKey[];
 };
 
 const PROFILES = {
@@ -238,29 +244,81 @@ function monthlyModelCalls(result: CoachWeekResult): number {
   return (result.traces ?? []).filter((trace) => trace.agent_name === "monthly_coach" && (trace.token_usage?.total_tokens ?? 0) > 0).length;
 }
 
-export async function runStageD(input: {
+type ListedInput = {
   key: string;
   fetchImpl: FetchLike;
   adoptedWeek: (result: CoachWeekResult) => boolean;
   firstPoint: (result: CoachWeekResult) => { coach: string; point: string };
   fail: (coach: string, point: string) => void;
   tokens: () => number;
-}): Promise<{ reports: DRunReport[]; adopted: number; weeks: number }> {
-  const only = process.env.PHASE4_D_RUN?.trim();
-  const runs = PHASE4_D_RUNS.filter((run) => !only || run.id === only);
+};
+
+const TWO_DAYS = ["mon", "thu"] as const;
+
+export const PHASE4_REGRESSION_RUNS: readonly DRunSpec[] = [
+  { id: "reg-531", profile: "531", monthId: "2099-03", weeks: ["2099-03-02", "2099-03-09", "2099-03-16", "2099-03-23"] },
+  { id: "reg-volume", profile: "volume", monthId: "2099-04", weeks: ["2099-04-06", "2099-04-13", "2099-04-20", "2099-04-27"] },
+  { id: "reg-intensity", profile: "intensity", monthId: "2099-05", weeks: ["2099-05-04", "2099-05-11", "2099-05-18", "2099-05-25"] },
+];
+
+export const PHASE4_ODD_RUNS: readonly DRunSpec[] = [
+  { id: "two-a", profile: "531", monthId: "2099-08", weeks: ["2099-08-03", "2099-08-10", "2099-08-17", "2099-08-24"], coachWeeks: ["2099-08-03"], availableDays: TWO_DAYS },
+  { id: "two-b", profile: "531", monthId: "2099-09", weeks: ["2099-09-07", "2099-09-14", "2099-09-21", "2099-09-28"], coachWeeks: ["2099-09-07"], availableDays: TWO_DAYS },
+  { id: "six-a", profile: "531", monthId: "2099-07", weeks: ["2099-07-06", "2099-07-13", "2099-07-20", "2099-07-27"], coachWeeks: ["2099-07-06"] },
+  { id: "six-b", profile: "531", monthId: "2099-12", weeks: ["2099-12-07", "2099-12-14", "2099-12-21", "2099-12-28"], coachWeeks: ["2099-12-07"] },
+];
+
+export function phase4RegressionPass(input: {
+  adopted: number;
+  weeks: number;
+  fallbackAdopted: number;
+  drift: number;
+  lockFailed: number;
+  unclassified: number;
+}): boolean {
+  return input.weeks >= 12 && input.adopted >= 11 && input.fallbackAdopted === 0 && input.drift === 0 && input.lockFailed === 0 && input.unclassified === 0;
+}
+
+async function runListed(specs: readonly DRunSpec[], input: ListedInput): Promise<{ reports: DRunReport[]; adopted: number; weeks: number }> {
   const reports: DRunReport[] = [];
   let adopted = 0;
   let weeks = 0;
-  for (const spec of runs) {
+  const stage = process.env.PHASE4_STAGE ?? "D";
+  for (const spec of specs) {
     const report = await runOne(spec, input);
     reports.push(report);
     adopted += report.adopted;
     weeks += report.weeks;
     console.log(
-      `D run ${report.id} adopted=${report.adopted}/${report.weeks} monthly=${report.monthlyModel} drift=${report.drift} lock=${report.lockFailed} fallbackAdopted=${report.fallbackAdopted} unclassified=${report.unclassified} degraded=${report.degraded} fallback=${report.fallback} head_unresolved=${report.headUnresolved} head_applied=${report.headApplied} overlap=${report.overlapDays} deload=${report.deloadConflicts} goal=${report.goalBreaks} tokens=${input.tokens()}`,
+      `${stage} run ${report.id} adopted=${report.adopted}/${report.weeks} monthly=${report.monthlyModel} drift=${report.drift} lock=${report.lockFailed} fallbackAdopted=${report.fallbackAdopted} unclassified=${report.unclassified} degraded=${report.degraded} fallback=${report.fallback} head_unresolved=${report.headUnresolved} head_applied=${report.headApplied} overlap=${report.overlapDays} deload=${report.deloadConflicts} goal=${report.goalBreaks} tokens=${input.tokens()}`,
     );
   }
   return { reports, adopted, weeks };
+}
+
+export async function runStageD(input: ListedInput): Promise<{ reports: DRunReport[]; adopted: number; weeks: number }> {
+  const only = new Set(
+    (process.env.PHASE4_D_RUN ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  );
+  return runListed(
+    PHASE4_D_RUNS.filter((run) => only.size === 0 || only.has(run.id)),
+    input,
+  );
+}
+
+export async function runStageFollow(input: ListedInput): Promise<{
+  hash: string;
+  regression: { reports: DRunReport[]; adopted: number; weeks: number };
+  odd: { reports: DRunReport[]; adopted: number; weeks: number };
+}> {
+  const hash = coachingConfigHash();
+  if (hash !== PINNED_COACHING_CONFIG_HASH) throw new Phase4Stop("coaching config hash drifted");
+  const regression = await runListed(PHASE4_REGRESSION_RUNS, input);
+  const odd = await runListed(PHASE4_ODD_RUNS, input);
+  return { hash, regression, odd };
 }
 
 async function runOne(
@@ -292,7 +350,8 @@ async function runOne(
     monthlyModel: 0,
     failures: [],
   };
-  const base = withCoachingPlan(fallbackMonth(PROFILES[spec.profile]));
+  const seeded = fallbackMonth(PROFILES[spec.profile]);
+  const base = withCoachingPlan(spec.availableDays ? { ...seeded, available_days: [...spec.availableDays] } : seeded);
   const opened = await coachMonthly({
     month: base,
     key: input.key,
@@ -332,7 +391,7 @@ async function runOne(
   let recentPlans = [] as CoachWeekResult["plan"][];
   let recentSignatures: string[] = [];
   let previousWeekStart: string | null = null;
-  for (const weekStart of spec.weeks) {
+  for (const weekStart of spec.coachWeeks ?? spec.weeks) {
     report.weeks += 1;
     const weekIndex = weekIndexFromStart(weekStart);
     const skeleton = skeletons?.[weekIndex - 1] ?? null;
@@ -388,7 +447,7 @@ async function runOne(
       report.failures.push(`${weekStart} ${point.coach}: ${text || "unclassified"}`);
     }
     console.log(
-      `D ${spec.id} ${weekStart} ${ok ? "adopted" : "failed"} review=${result.review.status} source=${result.generation_source} reason=${result.fallback_reason ?? "-"} overlap=${seen.overlapDays} deload=${seen.deloadConflicts} goal=${seen.goalBreaks} tokens=${input.tokens()}`,
+      `${process.env.PHASE4_STAGE ?? "D"} ${spec.id} ${weekStart} ${ok ? "adopted" : "failed"} review=${result.review.status} source=${result.generation_source} reason=${result.fallback_reason ?? "-"} overlap=${seen.overlapDays} deload=${seen.deloadConflicts} goal=${seen.goalBreaks} tokens=${input.tokens()}`,
     );
     previousWeekStart = weekStart;
     previousActual = weekActualFromDraft(result.draft, weekStart);

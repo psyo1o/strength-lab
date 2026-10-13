@@ -2,29 +2,55 @@
   "live_model": true,
   "db": "/tmp/strength-lab-phase4-2099.db",
   "model": "gpt-5.4-nano",
-  "stage": "D",
-  "pass": false,
-  "adopted": 20,
-  "weeks_finished": 21,
-  "weeks_required": 24,
-  "stopped": "token cap 5000000 reached at 5004132",
-  "tokens": 5004132,
-  "token_cap": 5000000,
-  "runs": [
-    {"id": "531-a", "adopted": 4, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 0, "head_unresolved": 0, "head_applied": 1, "overlap": 3, "deload": 3, "goal_fields": 21},
-    {"id": "531-b", "adopted": 3, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 1, "head_unresolved": 0, "head_applied": 1, "overlap": 5, "deload": 3, "goal_fields": 18},
-    {"id": "volume-a", "adopted": 4, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 0, "head_unresolved": 0, "head_applied": 2, "overlap": 6, "deload": 4, "goal_fields": 14},
-    {"id": "volume-b", "adopted": 4, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 0, "head_unresolved": 0, "head_applied": 1, "overlap": 6, "deload": 3, "goal_fields": 26},
-    {"id": "intensity-a", "adopted": 4, "weeks": 4, "monthly_model": 1, "drift": 0, "lock": 0, "fallback_adopted": 0, "unclassified": 0, "degraded": 0, "fallback": 0, "head_unresolved": 0, "head_applied": 3, "overlap": 5, "deload": 4, "goal_fields": 18},
-    {"id": "intensity-b", "adopted": 1, "weeks_finished": 1, "stopped_during_next_week": true, "overlap": 0, "deload": 0, "goal_fields": 6}
-  ],
-  "failures": [
-    {"stage": "D", "run": "531-b", "week": "2099-11-02", "coach": "weekly", "point": "high intensity days 5 exceed the week rule 3", "source": "fallback", "reason": "schema"}
-  ],
-  "rates_finished_weeks": {"weeks": 21, "degraded": 0, "fallback": 1, "fallback_adopted": 0, "head_unresolved": 0, "head_applied": 9, "drift": 0, "lock": 0, "unclassified": 0},
-  "not_rerun": ["A", "B", "C", "E", "hash_pin", "regression_12", "odd_profiles", "shadow"],
-  "e_cancelled": true,
-  "regression_skipped": "D did not pass",
-  "fix_applied": false,
-  "proposal": "weekly retry must name the heavy days and forbid rest, movement_pattern, and lower-lift changes. Do not lower the intensity cap."
+  "d": {
+    "pass": true,
+    "adopted": 23,
+    "weeks": 24,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "lock": 0,
+    "unclassified": 0,
+    "rerun_tokens": 1943504,
+    "rerun_cap": 2000000,
+    "kept": ["531-a", "volume-a", "volume-b", "intensity-a"],
+    "rerun": ["531-b", "intensity-b"],
+    "intensity_b_note": "week 1 was not stored, so all 4 weeks were rerun",
+    "failures": [
+      {
+        "run": "531-b",
+        "week": "2099-11-16",
+        "coach": "weekly",
+        "point": "this week is not a long-conditioning week",
+        "source": "fallback",
+        "reason": "schema"
+      }
+    ]
+  },
+  "config_hash": "63ee5f4d1e7a86c2b6ee089b869a5b3e512604dad0ee4452d2a270d08f28e383",
+  "regression": {
+    "pass": false,
+    "finished_weeks": 10,
+    "required_weeks": 12,
+    "adopted": 8,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "unclassified": 0,
+    "tokens": 2504534,
+    "token_cap": 2500000,
+    "stopped": "token cap 2500000 reached at 2504534",
+    "runs": [
+      {"id": "reg-531", "adopted": 3, "weeks": 4},
+      {"id": "reg-volume", "adopted": 4, "weeks": 4},
+      {"id": "reg-intensity", "adopted": 1, "weeks_finished": 2}
+    ],
+    "failures": [
+      {"run": "reg-531", "week": "2099-03-16", "point": "lower lifts 3 exceed the week rule 2"},
+      {"run": "reg-intensity", "week": "2099-05-04", "point": "high intensity days 5 exceed the week rule 3"}
+    ],
+    "not_finished": ["2099-05-18", "2099-05-25"]
+  },
+  "odd_profiles": "not started; regression hit the token cap",
+  "shadow": {"flag": "SHADOW_GENERATOR", "default": "off", "live": false, "mock": true},
+  "tests": {"files": 76, "passed": 483},
+  "e_cancelled": true
 }

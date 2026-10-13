@@ -201,13 +201,16 @@ export async function askCoach(input: {
   const limit = input.maxAttempts ?? 2;
   for (let attempt = 1; attempt <= limit; attempt += 1) {
     const overlap = retryExtra?.overlap_sessions;
+    const hold = typeof retryExtra?.revision_instruction === "string" ? retryExtra.revision_instruction : "";
     const user =
       attempt === 1
         ? input.user
         : {
             instruction: overlap
               ? "Validation failed. Rewrite this day so it does not copy overlap_sessions. Use a different format, a different stimulus, and different movement keys. Copying the movement amounts is not a new session. The threshold stays 4. This is the same task, not a new question."
-              : "Validation failed. Correct only the invalid fields. Do not rewrite valid fields. This is the same task, not a new question.",
+              : hold
+                ? `Validation failed. ${hold} This is the same task, not a new question.`
+                : "Validation failed. Correct only the invalid fields. Do not rewrite valid fields. This is the same task, not a new question.",
             original_input: input.user,
             validation_errors: errors,
             invalid_output: lastJson,

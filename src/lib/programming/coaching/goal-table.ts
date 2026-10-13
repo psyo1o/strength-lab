@@ -145,10 +145,11 @@ export function weekTrainingLayout(input: {
 }
 
 export function layoutFromGoal(layout: WeekTrainingLayout, goal: WeekGoal): WeekTrainingLayout {
+  const restDays = new Set(goal.days.filter((day) => day.rest).map((day) => day.day));
   const rest = goal.days.find((day) => day.rest)?.day ?? layout.rest;
   const longDay = goal.days.find((day) => !day.rest && day.time_domain === "long")?.day ?? null;
-  const lowers = new Map([...layout.lowers].filter(([day]) => day !== rest));
-  const uppers = new Map([...layout.uppers].filter(([day]) => day !== rest && layout.phase !== "deload"));
+  const lowers = new Map([...layout.lowers].filter(([day]) => !restDays.has(day)));
+  const uppers = new Map([...layout.uppers].filter(([day]) => !restDays.has(day) && layout.phase !== "deload"));
   return { ...layout, rest, lowers, uppers, longDay };
 }
 
@@ -318,7 +319,8 @@ export function buildGoalTable(input: { month: MonthDirection; previousActual?: 
       weekIndex,
       previousActual: input.previousActual,
     });
-    const trainingDays = DAY_ORDER.filter((day) => day !== layout.rest);
+    const available = input.month.available_days;
+    const trainingDays = available?.length ? DAY_ORDER.filter((day) => available.includes(day)) : DAY_ORDER.filter((day) => day !== layout.rest);
     const categories = placeCategories(trainingDays, weekIndex);
     if (!categories) return { ok: false, reason: `goal table week ${weekIndex} could not satisfy GOAL_TABLE_RULES` };
     const blocked = new Set(previous);
@@ -328,7 +330,8 @@ export function buildGoalTable(input: { month: MonthDirection; previousActual?: 
     let trainingIndex = 0;
     const days: DaySessionGoal[] = [];
     for (const day of DAY_ORDER) {
-      if (day === layout.rest) {
+      const restDay = available?.length ? !available.includes(day) : day === layout.rest;
+      if (restDay) {
         days.push(restGoal(day));
         continue;
       }

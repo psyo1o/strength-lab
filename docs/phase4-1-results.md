@@ -1,40 +1,49 @@
 # Phase 4-1 결과
 
-이번 실행은 D다. A, B, C는 다시 재지 않았다. 모킹 테스트와 구분한다. 운영 DB와 운영 주 `2026-10-05`, `2026-10-12`는 쓰지 않았다. DB는 `/tmp/strength-lab-phase4-2099.db`다. 모델은 GPT 기본 키와 `gpt-5.4-nano`다.
+운영 DB와 운영 주 `2026-10-05`, `2026-10-12`는 쓰지 않았다. DB는 `/tmp/strength-lab-phase4-2099.db`다. 모델은 GPT 기본 키와 `gpt-5.4-nano`다. 유사도 임계값은 4다.
 
-D는 프로필 3개 × 2실행, 실행마다 월간 코치 1회와 잠긴 뼈대로 4주를 잇는다. 이전 주 구조와 실제는 다음 주 입력이다. 상한에 닿아 24주를 끝내지 못했다.
+## D 재측정
 
-| 실행 | 채택 | 월간 모델 | drift | lock | fallback 채택 | 분류 안 됨 | overlap | deload | 목표 칸 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 531-a | 4/4 | 1 | 0 | 0 | 0 | 0 | 3 | 3 | 21 |
-| 531-b | 3/4 | 1 | 0 | 0 | 0 | 0 | 5 | 3 | 18 |
-| volume-a | 4/4 | 1 | 0 | 0 | 0 | 0 | 6 | 4 | 14 |
-| volume-b | 4/4 | 1 | 0 | 0 | 0 | 0 | 6 | 3 | 26 |
-| intensity-a | 4/4 | 1 | 0 | 0 | 0 | 0 | 5 | 4 | 18 |
-| intensity-b | 1/1 완료 | 주 로그상 재실패 없음 | 요약 전 중단 | 요약 전 중단 | 0 | 0 | 0 | 0 | 6 |
+앞선 D에서 채택된 16주(531-a, volume-a, volume-b, intensity-a)는 다시 부르지 않았다. `531-b` 4주와 `intensity-b` 4주를 다시 돌렸다. `intensity-b` 1주 기록은 저장되지 않아 남은 3주만 이을 수 없었고, 그 실행 4주를 다시 이었다. 이 단계 상한은 200만, 사용 토큰은 1943504다. 429는 없다.
 
-완료된 주 21. 채택 20. 통과 기준 22/24에는 닿지 않았다.
+| 실행 | 채택 | drift | lock | fallback 채택 | 분류 안 됨 | fallback |
+| --- | --- | --- | --- | --- | --- | --- |
+| 531-a (유지) | 4/4 | 0 | 0 | 0 | 0 | 0 |
+| 531-b (재실행) | 3/4 | 0 | 0 | 0 | 0 | 1 |
+| volume-a (유지) | 4/4 | 0 | 0 | 0 | 0 | 0 |
+| volume-b (유지) | 4/4 | 0 | 0 | 0 | 0 | 0 |
+| intensity-a (유지) | 4/4 | 0 | 0 | 0 | 0 | 0 |
+| intensity-b (재실행) | 4/4 | 0 | 0 | 0 | 0 | 0 |
 
-실패 1. `531-b` `2099-11-02`. 주간 코치 schema. 첫 실패는 `high intensity days 5 exceed the week rule 3`. 같은 주 재시도는 `lower lifts 4 exceed the week rule 2`, `wed rest must follow the monthly table (train)`, `high intensity days 4 exceed the week rule 3`이다. 주는 `generation_source` fallback, `fallback_reason` schema다. 채택하지 않았다. 같은 원인으로 막힌 주는 이 한 주뿐이다. 고치지 않았고 그 실행을 다시 돌리지 않았다.
+합계 23/24. fallback 채택 0, 뼈대 변경 0, 잠금 실패 0, 분류 안 된 실패 0. D 합격선(22/24, fallback 채택 0, 뼈대 변경 0)을 넘었다.
 
-완료 21주: degraded 0/21, fallback 1/21, fallback 채택 0/21, head_unresolved 0/21, head_applied 9/21. drift 0, lock 실패 0, 분류 안 된 실패 0. 다섯 실행의 월간 모델은 각 1회다.
+실패 1. `531-b` `2099-11-16`. 주간 schema. 첫 실패는 `this week is not a long-conditioning week`. 이어서 `lower lifts 3 exceed the week rule 2`, `high intensity days 4 exceed the week rule 3`, `lower lifts 4 exceed the week rule 2`. fallback이고 채택하지 않았다. 직전 D의 첫 실패(고강도 5일)와 시작점이 다르다.
 
-추가로 본 것. overlap은 직전 주 같은 요일과 `structurallySimilar`인 날이다. 임계값은 4다. deload는 4주에서 고강도 날이 1을 넘거나 고볼륨이 남은 칸 수다. 그 주도 채택되었다. 목표 칸은 월간 `movement_pattern`, `time_domain`, `stimulus`가 주간·일과 어긋난 횟수다. 날 수가 아니다. 여러 실행의 2주는 0이다.
+## 해시와 회귀
 
-중단: 토큰 상한. `intensity-b` 둘째 주 호출이 5000000을 넘겼다. 사용 토큰 5004132. 그 주는 완료 전에 끊겼고 채택 수에 넣지 않는다. 429는 없다.
+고정 해시는 `63ee5f4d1e7a86c2b6ee089b869a5b3e512604dad0ee4452d2a270d08f28e383`이다. 재료는 프롬프트 버전, `monthly-direction-v1`, `gpt-5.4-nano`, 평주 고강도 상한 3이다.
 
-고친 것: 월간 재사용 키에서 그 주의 `reported_fatigue`, `planned_volume`, `completion`을 뺐다. 주는 `monthId`와 `profileId`를 넘겨 같은 계획을 4주가 쓴다. 잠긴 뼈대는 `evaluateWeek`에 넘긴다. 이전 주 구조, 의도, `WeekActual`은 다음 주 입력이다. 실패 원인을 코드로 고치지는 않았다.
+12주 회귀는 10주에서 상한에 닿아 끊겼다. 합격선은 12주 중 11주 이상, fallback 채택 0, 뼈대 변경 0, 분류 안 된 실패 0이다. 여기 못 미친다.
 
-테스트 76파일 481개 통과.
+| 실행 | 채택 | drift | fallback 채택 | 분류 안 됨 |
+| --- | --- | --- | --- | --- |
+| reg-531 | 3/4 | 0 | 0 | 0 |
+| reg-volume | 4/4 | 0 | 0 | 0 |
+| reg-intensity | 1/2 완료 | 0 | 0 | 0 |
 
-tsc --noEmit 통과.
+완료 10주 중 채택 8. `reg-intensity` `2099-05-18`, `2099-05-25`는 호출 중에 끊겨 채택 수에 없다.
 
-남은 위험: 언어 검사 본문은 비어 있다. E는 취소다. 유사도 임계값은 4다. `intensity-b`의 나머지 3주는 상한 때문에 없다.
+실패 2.
 
-## 다음 판단
+- `reg-531` `2099-03-16`. 주간 schema. 네 번 모두 `lower lifts 3 exceed the week rule 2`.
+- `reg-intensity` `2099-05-04`. 주간 schema. 첫 실패는 `high intensity days 5 exceed the week rule 3`. 재시도는 `lower lifts 4 exceed the week rule 2`, `high intensity days 4 exceed the week rule 3`, `lower lifts 3 exceed the week rule 2`.
 
-D가 통과하지 않아 해시 고정, 12주 회귀, 특이 프로필, 그림자 모드는 돌리지 않았다. 이번 턴의 모델 호출은 0이다.
+이 단계 사용 토큰 2504534. 상한 2500000. 429는 없다. 특이 프로필 4주는 회귀가 상한에 닿아 시작하지 못했다.
 
-실패는 두 갈래다. 첫째, 완료 21주 채택 20으로 22/24에 닿기 전에 토큰 5004132가 상한 5000000을 넘겼다. 둘째, 채택 실패는 1주이고 분류는 주간 schema다.
+## 코드
 
-수정안(적용하지 않음). `weekPlanErrors`의 고강도 상한 3은 유지한다. `askCoach` 재시도와 `routerPlan`의 주간 재요청이 오류 문장만 붙여, 모델이 강도를 줄이는 대신 리프트 수와 휴식일을 바꿨다. 재요청 지시에 고강도인 요일의 `intensity_profile`만 낮추고, 월간 표의 휴식일·`movement_pattern`·하체 리프트 수는 그대로 두라고 적는다. 그래도 `weekPlanErrors`나 `weekGoalAlignmentErrors`가 남으면 지금처럼 fallback이고 채택하지 않는다. 같은 첫 실패가 두 주를 막지 않아 이 안은 코드에 넣지 않았고 `531-b`도 다시 돌리지 않았다.
+고강도 상한 3은 유지한다. 고강도 요일 오류의 주간 재요청만 `intensity_profile`을 낮추고, 월간 표의 휴식일·`movement_pattern`·하체 리프트 수를 그대로 두라고 적는다. 하체 리프트 오류에는 그 문장을 붙이지 않는다. 회귀를 돌릴 때는 하체 리프트 오류에도 붙어 있었고, 상한 뒤에 그 조건만 좁혔다. 좁힌 뒤 회귀는 다시 돌리지 않았다.
+
+`SHADOW_GENERATOR` 기본값은 꺼짐이다. `1`이면 생성과 검증은 하고 class week는 기존 화면을 유지한다. 채택, fallback, 뼈대 변경, 재시도는 `programming_shadow_logs`에 남는다. 라이브로 켜지 않았고 mock만 통과했다.
+
+테스트 76파일 483개 통과. tsc --noEmit 통과.

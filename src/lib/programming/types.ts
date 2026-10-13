@@ -424,6 +424,8 @@ export type MonthDirection = {
   evaluation_targets: string[];
   /** Selected strength method. A name, not a closed list. 5/3/1 is one value. */
   strength_method: string;
+  /** Training weekdays. Absent keeps the single rest day from the week layout. */
+  available_days?: DayKey[];
   method_rationale: string;
   method_constraints: string;
   progression_notes: string;

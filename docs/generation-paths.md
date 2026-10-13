@@ -148,6 +148,14 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 ## 종단 계획
 
+`SHADOW_GENERATOR`가 `1`일 때만 새 생성기가 계획을 만들고 검증한다. 화면의 class week는 기존 결과를 그대로 둔다. 채택, fallback, 뼈대 변경, 재시도는 `programming_shadow_logs`에 남긴다. 기본값은 꺼짐이다.
+
+`available_days`가 있으면 월간 표는 그 요일만 훈련으로 둔다. 없으면 주 배치의 휴식일 하나만 쉰다. 휴식일은 정확히 하나라는 기존 검사는 그대로라서 주 2일은 표를 만들지 못한다. `GOAL_TABLE_RULES`도 그대로다.
+
+프롬프트 버전, `monthly-direction-v1`, 모델 `gpt-5.4-nano`, 평주 고강도 상한 3의 해시는 `63ee5f4d1e7a86c2b6ee089b869a5b3e512604dad0ee4452d2a270d08f28e383`이다. `PINNED_COACHING_CONFIG_HASH`와 다르면 회귀를 시작하지 않는다.
+
+주간 재요청은 `weeklyIntensityHold`가 고강도 요일의 `intensity_profile`만 낮추라고 적는다. 월간 표의 휴식일, `movement_pattern`, squat·deadlift 날 수는 바꾸지 말라고 적는다. 고강도 상한은 `extractWeekRules`가 정하고 평주는 3이다. 재요청이 그 수를 올리지 않는다. `askCoach`의 검증 재시도와 `routerPlan`의 주간 재요청은 고강도 요일 오류일 때만 그 문장을 쓴다.
+
 Phase 4 D는 프로필 실행마다 `coachMonthly`를 한 번 부르고, 그 계획의 `reuse_key`로 4주를 잇는다. 주는 `monthId`와 `profileId`를 월간 호출에 넘긴다. 잠긴 뼈대는 `generateWeekSkeleton`과 `lockWeekSkeleton`으로 만들고, `monthlyDirection`과 `weekSkeleton`이 있으면 `evaluateWeek`가 정합과 `lockedSkeletonDrift`를 본다. 이전 주의 세션 구조, 의도, `WeekActual`은 다음 주 입력이다. 뼈대 해시를 `amendLockedSkeleton` 없이 바꾸면 그 주는 몰래 변경이다.
 
 `longitudinalPlanningEnabled()`가 true이면 주 함수 전에 `planLongitudinal`이 돈다. 버전에 적힌 값은 `longitudinal-v1`이다. 키가 문자열이면 `askCoach`가 `skeleton-v1`로 스켈레톤만 묻는다. 검증을 통과하면 `skeleton_locked`는 true다. 키가 null이면 시드 `settle`만 한다. 잠긴 스켈레톤이면 `coachWeekActive`가 주간 코치 호출을 건너뛰고 `planFromLockedSkeleton`을 쓴다. 플래그가 꺼지면 이 호출은 없고 인자는 null이다.

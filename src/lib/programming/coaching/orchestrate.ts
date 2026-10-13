@@ -17,7 +17,7 @@ import {
   STAGE16_PIPELINE_VERSION,
   WEEKLY_COACH_PROMPT_VERSION,
 } from "./prompts";
-import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
+import { extractWeekRules, weekPlanErrors, weeklyRetryExtra, type WeekRules } from "./stage13/rules";
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
 import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "./conditioning-board";
 import { goalWeek, movementFrequency, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
@@ -1197,7 +1197,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
       const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
       const planErrors = [...ruleErrors, ...alignErrors];
-      if (planErrors.length) return { ok: false, errors: planErrors };
+      if (planErrors.length) return { ok: false, errors: planErrors, retryExtra: weeklyRetryExtra({ json, errors: planErrors, maxHeavy: rules.max_high_intensity_days }) };
       return { ok: true };
     },
   });
@@ -1309,10 +1309,11 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         revision_number: 1,
       }),
     );
+    const hold = weeklyRetryExtra({ json: weekly.json, errors: weekly.validationErrors, maxHeavy: rules.max_high_intensity_days });
     const weeklyRetryUser = {
       ...(weeklyUser as Record<string, unknown>),
       revision_number: 1,
-      revision_instruction: weekly.validationErrors.join(" "),
+      revision_instruction: hold ? `${hold.revision_instruction} ${weekly.validationErrors.join(" ")}` : weekly.validationErrors.join(" "),
     };
     const weeklyRetry = await askCoach({
       agent: "weekly",
@@ -1334,7 +1335,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
         const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
         const planErrors = [...ruleErrors, ...alignErrors];
-        if (planErrors.length) return { ok: false, errors: planErrors };
+        if (planErrors.length) return { ok: false, errors: planErrors, retryExtra: weeklyRetryExtra({ json, errors: planErrors, maxHeavy: rules.max_high_intensity_days }) };
         return { ok: true };
       },
     });
