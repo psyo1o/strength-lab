@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { guardMemberRequest } from "@/lib/member-gate";
 import { getCurrentUser } from "@/lib/auth";
-import { runAdminAction, type ActualCase, type SaveWeekMode } from "@/lib/programming/admin-tools";
+import { adminEngineErrorText, adminEngineWeek, runAdminAction, type ActualCase, type SaveWeekMode } from "@/lib/programming/admin-tools";
+import { redactSecretText } from "@/lib/programming/store";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+
+function logReturnedEngineError(action: string, mode: SaveWeekMode | undefined, result: unknown) {
+  if (!result || typeof result !== "object" || !("error" in result)) return;
+  const raw = (result as { error?: unknown }).error;
+  if (typeof raw !== "string" || raw.length === 0) return;
+  const weekStart = adminEngineWeek(action, Date.now(), mode);
+  const message = redactSecretText(raw);
+  console.error("[admin-engine]", JSON.stringify({ action, week_start: weekStart, message, stack: "" }));
+}
 
 function denied(user: { isAdmin: boolean } | null) {
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
@@ -24,9 +34,29 @@ export async function POST(req: Request) {
   const mode: SaveWeekMode | undefined = body.mode === "production" ? "production" : body.mode === "probe" ? "probe" : undefined;
   try {
     const result = await runAdminAction(action, { actualCase, mode });
+    logReturnedEngineError(action, mode, result);
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "실행하지 못했습니다.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const raw = error instanceof Error ? error.message : "실행하지 못했습니다.";
+    const stack = error instanceof Error ? error.stack ?? "" : "";
+    const weekStart = adminEngineWeek(action, Date.now(), mode);
+    const message = redactSecretText(raw);
+    console.error(
+      "[admin-engine]",
+      JSON.stringify({
+        action,
+        week_start: weekStart,
+        message,
+        stack: redactSecretText(stack),
+      }),
+    );
+    return NextResponse.json(
+      {
+        error: adminEngineErrorText(action, weekStart, message),
+        action,
+        week_start: weekStart,
+      },
+      { status: 400 },
+    );
   }
 }

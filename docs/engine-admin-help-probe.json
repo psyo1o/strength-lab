@@ -1,0 +1,38 @@
+{
+  "live": {
+    "mocked": false,
+    "db": "2099 isolated sqlite, not committed",
+    "now": "2099-10-13T04:00:00.000Z",
+    "week_start": "2099-10-12",
+    "model": "gpt-5.4-nano",
+    "seed": {
+      "month_id": 1,
+      "month_scheme": "531",
+      "month_prompt": "monthly-program-v1",
+      "previous_week_id": 1,
+      "previous_week_start": "2099-10-05",
+      "previous_week_prompt": "weekly-program-v1",
+      "previous_week_source": "fallback"
+    },
+    "elapsed_ms": 52643,
+    "threw": false,
+    "adopted": {
+      "id": 2,
+      "generation_source": "model",
+      "prompt_version": "coaching-pipeline-v6",
+      "generation_attempt": 1,
+      "fallback_reason": null
+    },
+    "logs_before": 0,
+    "logs_after": 113,
+    "failed_week_rows": 0,
+    "old_531_month_blocks_pipeline": false
+  },
+  "mocked": {
+    "file": "tests/pipeline-failure-log.test.ts",
+    "model_called": false,
+    "broken_previous_plan_json": "{",
+    "expected_stage": "summary",
+    "expected_prompt_version": "pipeline-failure-v1"
+  }
+}

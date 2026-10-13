@@ -10,6 +10,7 @@ import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
+import { markPipelineFailureRecorded, recordPipelineFailure } from "../store";
 import {
   HEAD_COACH_PROMPT_VERSION,
   LOAD_COACH_PROMPT_VERSION,
@@ -1154,6 +1155,8 @@ export function weekDocumentJson(value: unknown): unknown | null {
 export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekResult> {
   const runId = newRunId();
   const traces: AgentTrace[] = [];
+  let stage = "monthly_coach";
+  try {
   const timeoutMs = input.timeoutMs ?? weeklyTimeoutMs();
   const key = input.key ?? "";
   let failure: string | null = null;
@@ -1271,6 +1274,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     inputSummary: input.inputSummary,
     dayBounds,
   });
+  stage = "weekly_coach";
   const weeklyStarted = Date.now();
   const weekly = await askCoach({
     agent: "weekly",
@@ -1634,6 +1638,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         }),
   };
   const queue = trainingDays(plan);
+  stage = "session_coach";
   for (let index = 0; index < queue.length; index += 1) {
     const day = queue[index]!;
     const written = await writeSession({
@@ -1710,6 +1715,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         volume_profile: day.volume_profile,
       })),
   };
+  stage = "load_coach";
   const loadStarted = Date.now();
   const loadAsked = await askCoach({
     agent: "load",
@@ -2141,6 +2147,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       tradeoff_result: stages.tradeoff,
       action_plan: stages.action,
     };
+    stage = "head_coach";
     const asked = await askCoach({
       agent: "head",
       retryTransport: true,
@@ -2827,6 +2834,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   if (headCatalogOutcome === "unresolved" && !finalErrors.includes("head revise was not applied")) {
     finalErrors.push("head revise was not applied");
   }
+  stage = "finalize";
   const adoption = finalizeWeekAdoption({
     weeklyCoachFromModel: weeklyFromModel,
     skeletonLocked: Boolean(lockedLongitudinal),
@@ -2977,4 +2985,16 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     rejected_draft: rejectedDraft,
     day_records: dayRecords,
   };
+  } catch (error) {
+    if (error instanceof WeekDocumentResponse) throw error;
+    recordPipelineFailure({
+      weekStart: input.weekStart,
+      stage,
+      reason: error instanceof Error ? error.name : "error",
+      message: error instanceof Error ? error.message : "coaching pipeline failed",
+      traces,
+    });
+    markPipelineFailureRecorded(error);
+    throw error;
+  }
 }

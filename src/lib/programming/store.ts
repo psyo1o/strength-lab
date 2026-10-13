@@ -144,6 +144,79 @@ const PRIVATE_KEYS = new Set([
   "phone",
 ]);
 
+const SECRET_ENV = ["MONTH_PLAN_MODEL_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY"] as const;
+
+/** Strips credential values from a log line. The variable names stay out of the text. */
+export function redactSecretText(text: string): string {
+  let out = text;
+  for (const name of SECRET_ENV) {
+    const value = process.env[name];
+    if (value) out = out.split(value).join("[redacted]");
+  }
+  return out.replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redacted]").replace(/Bearer\s+\S+/gi, "Bearer [redacted]");
+}
+
+const PIPELINE_FAILURE_FLAG = "pipelineFailureRecorded";
+
+export function markPipelineFailureRecorded(error: unknown): void {
+  if (error && typeof error === "object") {
+    Object.defineProperty(error, PIPELINE_FAILURE_FLAG, { value: true, enumerable: false });
+  }
+}
+
+export function pipelineFailureRecorded(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && (error as Record<string, unknown>)[PIPELINE_FAILURE_FLAG] === true);
+}
+
+/**
+ * A coaching run that throws before the week row is stored.
+ * The row is not an adopted plan. stage and reason live in raw_json.
+ */
+export function recordPipelineFailure(input: {
+  weekStart: string;
+  stage: string;
+  reason: string;
+  message: string;
+  traces?: readonly unknown[];
+  createdAt?: number;
+}): void {
+  try {
+    const db = getSqlite();
+    const now = input.createdAt ?? Date.now();
+    const insert = db.prepare(
+      `INSERT INTO programming_generation_logs (
+         scope, scope_key, plan_id, generation_attempt, prompt_version, model_name, raw_json, created_at, latency_ms
+       ) VALUES ('week', ?, NULL, 0, 'pipeline-failure-v1', NULL, ?, ?, NULL)`,
+    );
+    insert.run(
+      input.weekStart,
+      JSON.stringify(
+        scrubGenerationPayload({
+          failed: true,
+          stage: input.stage,
+          reason: redactSecretText(input.reason).slice(0, 300),
+          message: redactSecretText(input.message).slice(0, 2000),
+        }),
+      ),
+      now,
+    );
+    if (!input.traces?.length) return;
+    const traceInsert = db.prepare(
+      `INSERT INTO programming_generation_logs (
+         scope, scope_key, plan_id, generation_attempt, prompt_version, model_name, raw_json, created_at, latency_ms
+       ) VALUES ('week', ?, NULL, 0, ?, NULL, ?, ?, NULL)`,
+    );
+    for (const trace of input.traces) {
+      const body = scrubGenerationPayload(trace) as { prompt_version?: unknown };
+      const version = typeof body?.prompt_version === "string" ? body.prompt_version : "pipeline-trace-v1";
+      traceInsert.run(input.weekStart, version, JSON.stringify(body), now);
+    }
+  } catch (logError) {
+    const message = logError instanceof Error ? logError.message : "log failed";
+    console.error("[pipeline-failure-log]", redactSecretText(message));
+  }
+}
+
 /** Model logs keep exercise text. They drop member emails and name-shaped keys. */
 export function scrubGenerationPayload(value: unknown): unknown {
   if (typeof value === "string") return value.replace(EMAIL, "[redacted]");

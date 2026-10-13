@@ -190,6 +190,8 @@ Phase 4 D는 프로필 실행마다 `coachMonthly`를 한 번 부르고, 그 계
 
 plan-lab은 코치 트레이스 중 `deterministic === false`이고 `source === "model"`인 로그만 `model_calls`로 센다. `token_usage.total_tokens`가 숫자일 때만 더한다. 숫자가 없으면 그 주는 `tokens: null`이다. 모든 주가 null이면 요약 `tokens`도 null이고 `tokens_unsupported`는 true다. 없는 사용량을 0으로 두지 않는다. `session_coach` 집계 줄은 세지 않는다.
 
+오케스트레이터가 주를 반환하기 전에 예외가 나면 `programming_generation_logs`에 `prompt_version` `pipeline-failure-v1` 행이 남는다. `plan_id`는 NULL이고 `generation_attempt`는 0이다. `raw_json`에 `stage`, `reason`, `message`가 있다. 그 행은 채택이 아니다. 주 JSON 응답(`WeekDocumentResponse`)은 실패 행을 만들지 않고 주 검증으로 넘어간다. 같은 예외를 `writeProgrammingWeek`가 다시 받으면 행을 한 번만 남긴다. 관리자 엔진 라우트 catch는 동작 이름, 대상 주, 메시지, 스택을 `console.error`로 남기고 키 값은 지운다.
+
 ## 저장 스탬프
 
 | 상황 | 행 | `prompt_version` |
@@ -206,3 +208,4 @@ plan-lab은 코치 트레이스 중 `deterministic === false`이고 `source === 
 | 헤드 코치 | 코치 로그 | `head-coach-v11` |
 | 월 코치 트레이스 | 코치 로그 | `monthly-coach-v11` |
 | 스켈레톤 | 종단 계획 객체 | `skeleton-v1` |
+| 파이프라인 중간 실패 | `programming_generation_logs` | `pipeline-failure-v1` |

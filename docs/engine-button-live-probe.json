@@ -1,0 +1,58 @@
+{
+  "mocked": false,
+  "db": "2099 isolated sqlite, not committed",
+  "now": "2099-10-13T04:00:00.000Z",
+  "model": "gpt-5.4-nano",
+  "http429": false,
+  "seeded_month": {
+    "id": 1,
+    "month_start": "2099-10-01",
+    "prompt_version": "monthly-program-v4",
+    "generation_source": "fallback",
+    "fallback_reason": "no_model",
+    "note": "key null setup so the two buttons are the model calls"
+  },
+  "generate_next_week": {
+    "elapsed_ms": 52144,
+    "threw": false,
+    "response": {
+      "wrote": true,
+      "week_start": "2099-10-12",
+      "generation_source": "model",
+      "rules_version": "programming-6"
+    },
+    "week": {
+      "id": 1,
+      "status": "active",
+      "prompt_version": "coaching-pipeline-v6",
+      "model_name": "gpt-5.4-nano",
+      "generation_attempt": 1,
+      "fallback_reason": null
+    },
+    "logs": 126,
+    "class_weeks": 1
+  },
+  "regenerate_week": {
+    "elapsed_ms": 32713,
+    "threw": false,
+    "response": {
+      "wrote": true,
+      "week_start": "2099-10-12",
+      "generation_source": "model",
+      "generation_version": 1
+    },
+    "kept_active_week_id": 1,
+    "new_attempt": {
+      "id": 2,
+      "status": "failed",
+      "generation_source": "fallback",
+      "fallback_reason": "schema",
+      "prompt_version": "coaching-pipeline-v6",
+      "model_name": "gpt-5.4-nano",
+      "generation_attempt": 1
+    },
+    "logs": 253,
+    "class_weeks": 1,
+    "note": "validation refused the new attempt and kept the active week. validation was not relaxed."
+  }
+}

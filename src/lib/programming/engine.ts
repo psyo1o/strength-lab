@@ -36,6 +36,8 @@ import {
   saveMonthCoachingPlan,
   recordFailedProgrammingWeek,
   linkProgrammingWeek,
+  pipelineFailureRecorded,
+  recordPipelineFailure,
   saveMonthlyProposal,
   listProgrammingMonths,
   listProgrammingWeekAttempts,
@@ -434,10 +436,14 @@ async function writeProgrammingWeek(
   mode: "create" | "regenerate",
 ): Promise<WeekRow> {
   const nowMs = options.nowMs ?? Date.now();
+  let stage = "ensure_month";
+  try {
   const month = await ensureProgrammingMonth(monthStartOf(weekStart), options);
   const monthGoal = month.direction.monthly_goal;
   const weekIndex = weekIndexFromStart(weekStart);
+  stage = "summary";
   const summary = summaryFor(weekStart, nowMs);
+  stage = "recent";
   const recent = listRecentStructures(weekStart);
   const recentLiftMaps = listRecentLiftMaps(weekStart);
   const intentContext: WeeklyIntentContext = {
@@ -468,6 +474,7 @@ async function writeProgrammingWeek(
   if (typeof key === "string" && key.length > 0 && process.env.STRENGTH_LAB_PROBE === "1" && weekStart === LIVE_CLASS_WEEK) {
     throw new Error("operational week 2026-10-05 is off limits for the coaching pipeline");
   }
+  stage = "orchestrator";
   const outcome = await runCoachingOrchestrator({
     month: month.direction,
     weekIndex,
@@ -816,12 +823,26 @@ async function writeProgrammingWeek(
       logContext: options.logContext,
     });
     insertCoachTraces({ scopeKey: weekStart, planId: saved.id, createdAt: nowMs, traces: coached.traces });
+    stage = "sync";
     syncClassWeek(saved, nowMs);
     const after = getProgrammingMonth(month.monthStart);
     if (after && after.direction.monthly_goal !== monthGoal) {
       throw new Error("weekly generation must not overwrite the monthly goal");
     }
     return saved;
+  }
+  } catch (error) {
+    if (!pipelineFailureRecorded(error)) {
+      const message = error instanceof Error ? error.message : "week generation failed";
+      recordPipelineFailure({
+        weekStart,
+        stage,
+        reason: error instanceof Error ? error.name : "error",
+        message,
+        createdAt: nowMs,
+      });
+    }
+    throw error;
   }
 }
 
