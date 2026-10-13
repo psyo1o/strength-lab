@@ -8,6 +8,7 @@ import { dryRunWeek } from "../src/lib/programming/admin-tools";
 import { dayRecoveryPayload, recoveryDrift, rejectedRevisionSpecs, setTransientAreaRetryMs } from "../src/lib/programming/coaching/day-recovery";
 import { catalogMovement, catalogUnits, prescribedLoad, rangeFor, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
 import { movementCatalog as pieceNames } from "../src/lib/programming/coaching/pieces";
+import { legalMonthlyCellJson } from "../src/lib/programming/coaching/goal-candidates";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
 import { HEAD_COACH_PROMPT_VERSION, STAGE16_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
@@ -337,8 +338,7 @@ function harness(mode: Mode) {
     const day = dayOf(user);
     calls.push({ agent, day, user });
     if (agent === "monthly_coach" || agent === "context:monthly") {
-      const monthly = deterministicMonthlyPlan(month);
-      return chat({ ...monthly, fatigue_tolerance: "moderate", variety_requirement: "moderate" });
+      return chat(legalMonthlyCellJson(month));
     }
     if (agent === "weekly_coach" || agent === "context:weekly") return chat(weeklyJson(plan));
     if (agent === "strength_coach") return chat({ day, strength_note_ko: `모델 ${day} 스트렝스 목적을 유지합니다.` });
@@ -406,9 +406,9 @@ async function run(mode: Mode) {
 describe("day recovery units", () => {
   it("keeps threshold 4 and rejects a coach, a day, and a range", () => {
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
-    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v8");
+    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v9");
     expect(headStanceOf({ status: "BLOCK" })).toBe("ACCEPT_WITH_NOTE");
-    expect(parseHeadReview({ status: "BLOCK", note_ko: "채택하지 않습니다.", revisions: [] })?.status).toBe("BLOCK");
+    expect(parseHeadReview({ status: "BLOCK", note_ko: "이 주는 채택하지 않습니다.", revisions: [] })?.status).toBe("BLOCK");
     const rejected = rejectedRevisionSpecs(
       {
         revisions: [

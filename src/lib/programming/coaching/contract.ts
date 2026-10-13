@@ -68,6 +68,7 @@ function stringEnum(values: readonly string[]): Record<string, unknown> {
 }
 
 const TEXT = { type: "string" };
+const NOTE_KO = { type: "string", minLength: 10 };
 
 function schemaOf(name: string, schema: Record<string, unknown>): ResponseFormat {
   return { type: "json_schema", json_schema: { name, strict: true, schema } };
@@ -94,16 +95,10 @@ export function durationRuleText(): string {
 export function schemaBrief(agent: CoachAgentName): string {
   if (agent === "monthly") {
     return [
-      "JSON object. Do not wrap it. Do not write sets or amounts.",
-      "Keys: block_goal, primary_adaptations, secondary_adaptations, strength_method, conditioning_emphasis, gymnastics_emphasis, olympic_emphasis, progression_strategy, volume_trend, intensity_trend, recovery_strategy, deload_strategy, benchmark_strategy, week_roles, fatigue_tolerance, variety_requirement, goal_table.",
-      "goal_table keys: month_goal, weeks. weeks is 4 objects: week_index, goal, days. days is 7 objects: day, rest, purpose, focus, intensity, target, stimulus, time_domain.",
-      "A training day does not name movement keys, format, or amounts. focus, stimulus, and time_domain are enums. intensity is an integer 1–5. target is movement_pattern, body_region, and energy_system. Rest uses focus none, intensity 0, stimulus none, time_domain none, and target none for each field. The same focus, target, and stimulus may not repeat on the same weekday, a neighboring training day, or the previous week.",
-      "primary_adaptations and secondary_adaptations are arrays of strings.",
-      `strength_method must repeat the month's current method. Catalog: ${IMPLEMENTED_STRENGTH_METHODS.join(" | ")}.`,
-      "week_roles is an array of exactly 4 objects: week_index (1|2|3|4), role, note_ko.",
-      enumLine("role", WEEK_ROLES),
-      "fatigue_tolerance and variety_requirement are low | moderate | high.",
-      "Write explanations in English. Display translation is later.",
+      "JSON object. Key: days. Do not wrap it. Do not write sets or amounts.",
+      "days is an object. Each key is w{week}_{day}, such as w1_mon. A training day has choice and purpose. choice is one id from that date's candidate list. purpose is one line. A rest day has purpose only.",
+      "Week roles, rest days, time_domain, and long-conditioning days are fixed in the user message. Do not invent a tuple.",
+      "Write the purpose in English. Display translation is later.",
     ].join("\n");
   }
   if (agent === "weekly") {
@@ -203,7 +198,8 @@ export function schemaBrief(agent: CoachAgentName): string {
     ].join("\n");
   }
   return [
-    "JSON object. Keys: status, note_ko, revisions, adjustments.",
+    "JSON object. Keys in order: note_ko, status, revisions, adjustments.",
+    "note_ko is required and at least 10 characters. It comes before revisions and adjustments. When revisions are empty, note_ko is the approval reason. An empty note_ko is a schema failure.",
     enumLine("status", HEAD_STATUSES),
     "APPROVE means there is no coaching issue worth acting on. revisions and adjustments are empty. APPROVE cannot override a hard validation error.",
     "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout. It does not ignore a hard validation error.",
@@ -401,8 +397,8 @@ export function headReviewFormat(keys: readonly string[], cells: readonly HeadPi
     "head_coach_review",
     strictObject(
       {
+        note_ko: NOTE_KO,
         status: stringEnum(HEAD_STATUSES),
-        note_ko: TEXT,
         revisions,
         adjustments: {
           type: "array",
@@ -421,7 +417,7 @@ export function headReviewFormat(keys: readonly string[], cells: readonly HeadPi
           ),
         },
       },
-      ["status", "note_ko", "revisions", "adjustments"],
+      ["note_ko", "status", "revisions", "adjustments"],
     ),
   );
 }
@@ -627,8 +623,8 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
     "head_coach_review",
     strictObject(
       {
+        note_ko: NOTE_KO,
         status: stringEnum(HEAD_STATUSES),
-        note_ko: TEXT,
         revisions: {
           type: "array",
           items: strictObject(
@@ -660,7 +656,7 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           ),
         },
       },
-      ["status", "note_ko", "revisions", "adjustments"],
+      ["note_ko", "status", "revisions", "adjustments"],
     ),
   );
 }
@@ -1052,8 +1048,13 @@ export function headReviewErrors(value: unknown): string[] {
   const errors: string[] = [];
   const status = enumError("status", value.status, HEAD_STATUSES);
   if (status) errors.push(status);
-  const note = textError("note_ko", value.note_ko, false);
-  if (note) errors.push(note);
+  const note = typeof value.note_ko === "string" ? value.note_ko.trim() : "";
+  if (note.length < 10) errors.push("note_ko: expected at least 10 characters");
+  const revisionsEmpty = !Array.isArray(value.revisions) || value.revisions.length === 0;
+  const adjustmentsEmpty = !Array.isArray(value.adjustments) || value.adjustments.length === 0;
+  if (revisionsEmpty && adjustmentsEmpty && note.length < 10) {
+    errors.push("note_ko: an approval reason is required when there is no revision");
+  }
   if (!Array.isArray(value.revisions)) {
     errors.push("revisions: expected an array");
     return errors;

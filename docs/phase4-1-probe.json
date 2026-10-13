@@ -1,23 +1,85 @@
 {
   "live_model": true,
-  "model": "gpt-5.4-nano",
   "db": "/tmp/strength-lab-phase4-2099.db",
   "stages": [
-    { "stage": "A", "pass": false, "detail": "29/35 monthly 0/5 weekly 5/5 strength 5/5 conditioning 5/5 warmup 5/5 load 5/5 head 4/5" },
-    { "stage": "B", "pass": false, "detail": "not run" },
-    { "stage": "C", "pass": false, "detail": "not run" }
+    {
+      "stage": "A",
+      "pass": true,
+      "detail": "34/35 (monthly 4/5, weekly 5/5, strength 5/5, conditioning 5/5, warmup 5/5, load 5/5, head 5/5)"
+    },
+    {
+      "stage": "B",
+      "pass": true,
+      "detail": "3/3"
+    },
+    {
+      "stage": "C",
+      "pass": false,
+      "detail": "0/9"
+    }
   ],
   "adopted": 0,
-  "weeks": 0,
-  "tokens": {
-    "v4_stage_a": 210070,
-    "v5_monthly_partial": 182575,
-    "v6_stage_a": 211739,
-    "v7_monthly": 70413,
-    "sum": 674797,
-    "cap": 1500000,
-    "cap_exceeded": false
-  },
-  "prompt_version_measured": ["monthly-coach-v4", "monthly-coach-v5", "monthly-coach-v6", "monthly-coach-v7"],
-  "note": "monthly-coach-v8 drops the v7 Tuesday example. v8 was not remeasured."
+  "weeks": 9,
+  "failures": [
+    {
+      "stage": "A",
+      "coach": "monthly",
+      "point": "w4_sat purpose names a movement, format, or amount",
+      "count": 1
+    },
+    {
+      "stage": "C",
+      "coach": "week",
+      "point": "tue unresolved: conditioning movement back_squat is banned on this day",
+      "count": 2
+    },
+    {
+      "stage": "C",
+      "coach": "week",
+      "point": "tue unresolved: conditioning.movements: length 1; allowed: 2–5",
+      "count": 1
+    },
+    {
+      "stage": "C",
+      "coach": "week",
+      "point": "tue unresolved: conditioning.movements[0]: air_squat 12 is outside 15–300 reps. Choose an integer inside one allowed span.",
+      "count": 1
+    },
+    {
+      "stage": "C",
+      "coach": "week",
+      "point": "tue unresolved: conditioning.movements[0]: push_up 8 is outside 10–200 reps. Choose an integer inside one allowed span.",
+      "count": 1
+    },
+    {
+      "stage": "C",
+      "coach": "week",
+      "point": "tue unresolved: conditioning.movements[0]: deadlift load.male is required and must be 225 lb or 185 lb",
+      "count": 1
+    },
+    {
+      "stage": "C",
+      "coach": "week",
+      "point": "wed unresolved: row_erg amount needs unit cal or m",
+      "count": 1
+    },
+    {
+      "stage": "C",
+      "coach": "week",
+      "point": "intent says lower load was reduced but the prescription is heavier than the fatigue limit",
+      "count": 1
+    },
+    {
+      "stage": "C",
+      "coach": "adoption",
+      "point": "origin.not_model",
+      "count": 1
+    }
+  ],
+  "tokens": 3608422,
+  "tokens_a_b": 1814218,
+  "tokens_c": 1794204,
+  "stopped": null,
+  "token_cap": 4000000,
+  "c_measured_with": "adoption.weekStatus"
 }

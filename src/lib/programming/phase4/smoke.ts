@@ -1,18 +1,13 @@
 import { assembleLegalWeek } from "../coaching/session";
 import { planCoachedWeek } from "../coaching/weekly";
 import { areaShapeErrors } from "../coaching/orchestrate";
-import { monthlyCoachPayload, withCoachingPlan } from "../coaching/monthly";
+import { coachMonthly, withCoachingPlan } from "../coaching/monthly";
 import { weeklyCoachPayload } from "../coaching/weekly";
 import { askCoach } from "../coaching/llm";
-import {
-  headReviewErrors,
-  headReviewFormat,
-  loadDecisionErrors,
-  monthlyPlanErrors,
-  weeklyIntentErrors,
-} from "../coaching/contract";
-import { goalTableErrors, goalWeek, parseGoalTable, weekGoalAlignmentErrors } from "../coaching/goal-table";
-import { extractWeekRules, monthlyStrategyErrors, weekPlanErrors } from "../coaching/stage13/rules";
+import type { FetchLike } from "../model";
+import { headReviewErrors, headReviewFormat, loadDecisionErrors, weeklyIntentErrors } from "../coaching/contract";
+import { goalWeek, weekGoalAlignmentErrors } from "../coaching/goal-table";
+import { extractWeekRules, weekPlanErrors } from "../coaching/stage13/rules";
 import { pieceCells } from "../coaching/head-cells";
 import { catalogPromptLinesFor } from "../coaching/movement-catalog";
 import { parseHeadReview } from "../coaching/review";
@@ -49,10 +44,11 @@ export type SmokeCoach = {
   call: (key: string, index: number) => Promise<{ ok: boolean; first: string }>;
 };
 
-function specialist(area: "strength" | "conditioning" | "warmup", promptVersion: string, day: DayIntent): SmokeCoach["call"] {
+function specialist(area: "strength" | "conditioning" | "warmup", promptVersion: string, day: DayIntent, fetchImpl?: FetchLike): SmokeCoach["call"] {
   return async (key, index) => {
     const asked = await askCoach({
       agent: area,
+      fetchImpl,
       retryTransport: true,
       user: {
         agent_name: `${area}_coach`,
@@ -81,29 +77,26 @@ function specialist(area: "strength" | "conditioning" | "warmup", promptVersion:
   };
 }
 
-export function smokeCoaches(): SmokeCoach[] {
+export function smokeCoaches(fetchImpl?: FetchLike): SmokeCoach[] {
   const day = training!;
   return [
     {
       coach: "monthly",
       promptVersion: MONTHLY_COACH_PROMPT_VERSION,
       call: async (key, index) => {
-        const asked = await askCoach({
-          agent: "monthly",
-          retryTransport: true,
-          user: monthlyCoachPayload(month),
+        const result = await coachMonthly({
+          month,
           key,
+          fetchImpl,
           timeoutMs: 90_000,
-          maxTokens: 8000,
-          promptVersion: MONTHLY_COACH_PROMPT_VERSION,
           runId: `phase4-a-monthly-${index}`,
-          validate: (json) => {
-            const table = json && typeof json === "object" ? parseGoalTable((json as { goal_table?: unknown }).goal_table) : null;
-            const errors = [...monthlyPlanErrors(json, month), ...monthlyStrategyErrors(json, month), ...goalTableErrors(table, month)];
-            return errors.length ? { ok: false, errors } : { ok: true };
-          },
+          weekId: "2099-07-06",
+          monthId: "2099-07",
+          profileId: `phase4-a-${index}`,
         });
-        return { ok: asked.ok, first: asked.ok ? "" : firstError(asked.validationErrors, asked.reason) };
+        const errors = result.trace.validation_errors ?? [];
+        const ok = result.direction.source === "coach" && result.direction.degraded !== true;
+        return { ok, first: ok ? "" : errors[0] || result.direction.reason || "schema" };
       },
     },
     {
@@ -112,6 +105,7 @@ export function smokeCoaches(): SmokeCoach[] {
       call: async (key, index) => {
         const asked = await askCoach({
           agent: "weekly",
+          fetchImpl,
           retryTransport: true,
           user: weeklyCoachPayload({ month, weekIndex: 1 }),
           key,
@@ -134,15 +128,16 @@ export function smokeCoaches(): SmokeCoach[] {
         return { ok: asked.ok, first: asked.ok ? "" : firstError(asked.validationErrors, asked.reason) };
       },
     },
-    { coach: "strength", promptVersion: STRENGTH_COACH_PROMPT_VERSION, call: specialist("strength", STRENGTH_COACH_PROMPT_VERSION, day) },
-    { coach: "conditioning", promptVersion: CONDITIONING_COACH_PROMPT_VERSION, call: specialist("conditioning", CONDITIONING_COACH_PROMPT_VERSION, day) },
-    { coach: "warmup", promptVersion: WARMUP_COACH_PROMPT_VERSION, call: specialist("warmup", WARMUP_COACH_PROMPT_VERSION, day) },
+    { coach: "strength", promptVersion: STRENGTH_COACH_PROMPT_VERSION, call: specialist("strength", STRENGTH_COACH_PROMPT_VERSION, day, fetchImpl) },
+    { coach: "conditioning", promptVersion: CONDITIONING_COACH_PROMPT_VERSION, call: specialist("conditioning", CONDITIONING_COACH_PROMPT_VERSION, day, fetchImpl) },
+    { coach: "warmup", promptVersion: WARMUP_COACH_PROMPT_VERSION, call: specialist("warmup", WARMUP_COACH_PROMPT_VERSION, day, fetchImpl) },
     {
       coach: "load",
       promptVersion: LOAD_COACH_PROMPT_VERSION,
       call: async (key, index) => {
         const asked = await askCoach({
           agent: "load",
+          fetchImpl,
           retryTransport: true,
           user: {
             agent_name: "load_coach",
@@ -173,6 +168,7 @@ export function smokeCoaches(): SmokeCoach[] {
         const cells = pieceCells(draft.sessions);
         const asked = await askCoach({
           agent: "head",
+          fetchImpl,
           retryTransport: true,
           user: {
             agent_name: "head_coach",

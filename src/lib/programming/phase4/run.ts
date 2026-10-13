@@ -16,7 +16,7 @@ import { getSqlite } from "../../db/client";
 import type { FetchLike } from "../model";
 import type { DayKey, MonthDirection, MonthGoalTable } from "../types";
 import { weekIndexFromStart } from "../types";
-import { assertPhase4Budget, configurePhase4Run, phase4TokensSpent, Phase4Stop } from "./budget";
+import { assertPhase4Budget, configurePhase4Run, PHASE4_TOKEN_CAP, phase4TokensSpent, Phase4Stop } from "./budget";
 import { assertIsolated2099Database } from "./isolation";
 import { smokeCoaches } from "./smoke";
 
@@ -24,7 +24,7 @@ const DB_PATH = "/tmp/strength-lab-phase4-2099.db";
 
 const PROFILES = [
   { id: "531", prior: { summary_ko: "지난 달은 5/3/1이었습니다.", next_scheme: "531" as const, strength_method: "531" } },
-  { id: "volume", prior: { summary_ko: "지난 달은 볼륨이었습니다.", next_scheme: "volume" as const, strength_method: "VOLUME_ACCUMULATION" } },
+  { id: "volume", prior: { summary_ko: "지난 달은 볼륨이었습니다.", next_scheme: "volume" as const, strength_method: "volume" } },
   { id: "intensity", prior: { summary_ko: "지난 달은 고강도였습니다.", next_scheme: "intensity" as const, strength_method: "INTENSITY_BLOCK" } },
 ] as const;
 
@@ -65,6 +65,13 @@ function bump(map: Map<string, number>, key: string) {
   map.set(key, (map.get(key) ?? 0) + 1);
 }
 
+export function phase4WeekAdopted(result: {
+  adoption?: { persistActive: boolean; weekStatus: string } | null;
+  generation_source: string;
+}): boolean {
+  return result.adoption?.persistActive === true && result.generation_source === "model" && result.adoption.weekStatus === "VALIDATED";
+}
+
 export async function runPhase4(input: { key: string; dbPath?: string; logPath: string }): Promise<{
   stages: StageRow[];
   failures: FailureRow[];
@@ -80,7 +87,9 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
   for (const week of Object.values(WEEKS).flat()) {
     if (!week.startsWith("2099-") || week === "2026-10-05" || week === "2026-10-12") throw new Phase4Stop(`refusing week ${week}`);
   }
-  configurePhase4Run({ tokenCap: 1_500_000, logPath: input.logPath });
+  const remaining = Number(process.env.PHASE4_REMAINING_CAP ?? "");
+  const tokenCap = Number.isFinite(remaining) && remaining > 0 ? Math.min(remaining, PHASE4_TOKEN_CAP) : PHASE4_TOKEN_CAP;
+  configurePhase4Run({ tokenCap, logPath: input.logPath });
   const fetchImpl = guardedFetch(fetch);
   const stages: StageRow[] = [];
   const counts = new Map<string, number>();
@@ -92,10 +101,10 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
 
   const wanted = new Set((process.env.PHASE4_STAGES ?? "A,B,C").split(",").map((item) => item.trim()).filter(Boolean));
   try {
-    if (!wanted.has("A")) throw new Phase4Stop("stage A skipped");
+    if (wanted.has("A")) {
     process.env.PHASE4_STAGE = "A";
     const only = (process.env.PHASE4_COACHES ?? "").split(",").map((item) => item.trim()).filter(Boolean);
-    const smoke = smokeCoaches().filter((coach) => only.length === 0 || only.includes(coach.coach));
+    const smoke = smokeCoaches(fetchImpl).filter((coach) => only.length === 0 || only.includes(coach.coach));
     let calls = 0;
     let passed = 0;
     const perCoach: string[] = [];
@@ -116,8 +125,8 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
     const aPass = rate >= 0.95;
     stages.push({ stage: "A", pass: aPass, detail: `${passed}/${calls} (${perCoach.join(", ")})` });
     if (!aPass) throw new Phase4Stop("stage A below 95%");
-    if (!wanted.has("B")) return { stages, failures: [], adopted, weeks, tokens: phase4TokensSpent(), stopped: null };
-
+    }
+    if (wanted.has("B")) {
     process.env.PHASE4_STAGE = "B";
     let bOk = 0;
     for (let index = 1; index <= 3; index += 1) {
@@ -165,7 +174,11 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
     const bPass = bOk === 3;
     stages.push({ stage: "B", pass: bPass, detail: `${bOk}/3` });
     if (!bPass) throw new Phase4Stop("stage B failed");
-    if (!wanted.has("C")) return { stages, failures: [], adopted, weeks, tokens: phase4TokensSpent(), stopped: null };
+    }
+    if (!wanted.has("C")) return { stages, failures: [...counts.entries()].map(([key, count]) => {
+      const [stage, coach, point] = key.split("|");
+      return { stage: stage ?? "", coach: coach ?? "", point: point ?? "", count };
+    }), adopted, weeks, tokens: phase4TokensSpent(), stopped: null };
 
     process.env.PHASE4_STAGE = "C";
     for (const profile of PROFILES) {
@@ -180,7 +193,7 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
           fetchImpl,
           timeoutMs: 90_000,
         });
-        const ok = result.adoption?.persistActive === true && result.generation_source === "model" && result.week_status === "VALIDATED";
+        const ok = phase4WeekAdopted(result);
         if (ok) adopted += 1;
         else {
           const point = firstPoint(result);
@@ -252,13 +265,26 @@ function directionFromCoach(table: MonthGoalTable, month: MonthDirection, monthI
 }
 
 function firstPoint(result: {
-  monthly_degraded?: boolean;
   fallback_reason?: string | null;
+  final_validation?: { errors?: string[]; rejected_errors?: string[] };
+  adoption?: { verdict: { issueCodes: readonly string[] } } | null;
   traces?: Array<{ agent_name?: string; validation_result?: string; failure_reason?: string | null; validation_errors?: string[] }>;
 }): { coach: string; point: string } {
-  if (result.monthly_degraded) return { coach: "monthly", point: "monthly_degraded" };
-  const traces = result.traces ?? [];
-  const hit = traces.find((trace) => trace.validation_result === "fail" || (trace.failure_reason && trace.failure_reason !== "rest"));
+  const monthly = (result.traces ?? []).find((trace) => trace.agent_name === "monthly_coach" && trace.validation_result === "fail");
+  if (monthly) {
+    const text = monthly.validation_errors?.[0] ?? monthly.failure_reason ?? "monthly_degraded";
+    return { coach: "monthly_coach", point: text.slice(0, 180) };
+  }
+  const hard = result.final_validation?.rejected_errors?.[0] ?? result.final_validation?.errors?.[0];
+  if (hard) return { coach: "week", point: hard.slice(0, 180) };
+  const code = result.adoption?.verdict.issueCodes[0];
+  if (code) return { coach: "adoption", point: code };
+  const hit = (result.traces ?? []).find(
+    (trace) =>
+      trace.failure_reason !== "STRUCTURE_CONCERN" &&
+      trace.failure_reason !== "rest" &&
+      (trace.validation_result === "fail" || Boolean(trace.failure_reason)),
+  );
   if (hit) {
     const text = hit.validation_errors?.[0] ?? hit.failure_reason ?? "fail";
     return { coach: hit.agent_name ?? "week", point: text.slice(0, 180) };
@@ -294,9 +320,9 @@ export function writePhase4Report(input: {
     "",
     input.stopped ? `중단: ${input.stopped}` : "중단 없음.",
     "",
-    "고친 것: 호출 단위로 HTTP 오류와 시간 초과를 한 번만 다시 부르고, 재시도 본문에 오류를 넣었다. HTTP 429는 다시 부르지 않는다. 헤드 뒤에는 전문 코치 재생성 루프를 두지 않는다.",
+    "고친 것: 월간은 코드가 날짜별 허용 튜플을 계산하고 스키마 enum으로 고르게 했다. 주 역할과 긴 컨디셔닝 주는 코드 틀이다. 목적 한 줄이 60자를 넘거나 동작·format·수량을 적으면 그 날만 1회 다시 묻고, 월 전체를 다시 묻지 않는다. 튜플이 반복되면 위반한 날만 금지 튜플로 1회 다시 묻는다. 다시 실패하면 degraded다. 프롬프트에 예시는 없고 버전은 monthly-coach-v10이다. 헤드 note_ko는 필수이고 minLength 10이며 수정 값보다 앞에 둔다. 빈 값은 그 호출만 1회 재시도하고, 코드가 기본 문장을 채우지 않는다. 헤드 뒤는 evaluateWeek와 finalizeWeekAdoption만 거친다. 채택 판정은 adoption.weekStatus다.",
     "",
-    `사용 토큰 ${input.tokens}. 상한 1500000.`,
+    `사용 토큰 ${input.tokens}. 상한 ${PHASE4_TOKEN_CAP}.`,
     "",
     input.tests,
     "",
@@ -318,7 +344,7 @@ export function writePhase4Report(input: {
         failures: input.failures,
         tokens: input.tokens,
         stopped: input.stopped,
-        token_cap: 1500000,
+        token_cap: PHASE4_TOKEN_CAP,
       },
       null,
       2,

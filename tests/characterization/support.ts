@@ -2,6 +2,7 @@ import { DAY_ORDER, type DayKey } from "../../src/lib/month-plan/types";
 import { movementCatalog } from "../../src/lib/programming/coaching/pieces";
 import { coachWeek, type CoachWeekInput } from "../../src/lib/programming/coaching/pipeline";
 import { catalogMovement, prescribedLoad, sampleAmount } from "../../src/lib/programming/coaching/movement-catalog";
+import { legalMonthlyCellJson } from "../../src/lib/programming/coaching/goal-candidates";
 import { deterministicMonthlyPlan } from "../../src/lib/programming/coaching/monthly";
 import { assembleLegalWeek } from "../../src/lib/programming/coaching/session";
 import { planCoachedWeek } from "../../src/lib/programming/coaching/weekly";
@@ -40,8 +41,7 @@ function chat(content: unknown, status = 200) {
 }
 
 function monthlyJson(month: MonthDirection) {
-  const plan = deterministicMonthlyPlan(month);
-  return { ...plan, fatigue_tolerance: "moderate", variety_requirement: "moderate", source: undefined, version: undefined };
+  return legalMonthlyCellJson(month);
 }
 
 function weeklyJson(plan: WeeklyIntentPlan) {

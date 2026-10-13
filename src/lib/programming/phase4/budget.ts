@@ -3,7 +3,7 @@ import path from "node:path";
 import type { TokenUsage } from "../coaching/trace";
 
 /** 이번 실행 전체 상한. 넘으면 다음 호출 전에 멈춘다. */
-export const PHASE4_TOKEN_CAP = 1_500_000;
+export const PHASE4_TOKEN_CAP = 4_000_000;
 
 export class Phase4Stop extends Error {
   constructor(message: string) {

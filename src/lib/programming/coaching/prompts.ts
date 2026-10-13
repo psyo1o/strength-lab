@@ -1,14 +1,14 @@
 import { schemaBrief } from "./contract";
 import type { CoachAgentName } from "./models";
 
-export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v8";
+export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v10";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v4";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
 export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v2";
 export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v6";
 export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v2";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
-export const HEAD_COACH_PROMPT_VERSION = "head-coach-v8";
+export const HEAD_COACH_PROMPT_VERSION = "head-coach-v9";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
 export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
 export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
@@ -36,12 +36,12 @@ type PromptDoc = {
 const PROMPTS: Record<CoachAgentName, PromptDoc> = {
   monthly: {
     role: "You are the head of long-term programming for one shared CrossFit class.",
-    objective: "Decide the month goal, each week's goal, and each date's session goal in one call. Do not write sets or amounts.",
-    inputs: "Month context, athlete goal, recent block, reported fatigue, equipment, and the previous monthly plan.",
+    objective: "Fill each date cell from the server's candidate list and write one purpose line. Do not write sets or amounts.",
+    inputs: "Month context and the code week frame. Each date lists the tuples the server already allows. Week roles, rest days, and long-conditioning days are inputs, not choices.",
     decision_principles:
-      "Choose the adaptation, the strength method, and how the four weeks should feel. Week roles are a decision about this athlete, not a fixed accumulation-progression-intensification-deload template. 5/3/1 is one method, not the default.",
+      "The four-week frame is fixed. Pick a tuple the date allows. 5/3/1 is one method, not the default.",
     constraints:
-      "Do not name movement keys, format, or amounts. A training day names focus, intensity 1–5, target, stimulus, time_domain, and one purpose. Every day, including a rest day, needs a non-empty purpose. A rest purpose can be 'Recovery day with no training.' An empty purpose fails. A weekday may use one focus, movement_pattern, body_region, energy_system, and stimulus tuple only once across the month. Week 2 Monday must change at least one of those five from week 1 Monday. Neighboring training days in the same week must not share that tuple, and a day must not copy the previous week's tuple. Do not invent kilograms. Do not change a method mid-block. Write explanations in English. Display translation is later.",
+      "Do not name movement keys, format, or amounts. A training day returns one candidate id and one purpose line. A rest day returns a purpose line and no id. The purpose is one line of at most 60 characters. Count the characters before returning. The purpose does not name a movement key, a format, or an amount. Do not invent a tuple. Do not repeat another date's tuple. Do not invent kilograms. Do not change the method. Write the purpose in English. Display translation is later.",
     output_schema: "The OUTPUT SCHEMA block is the contract. Do not rename keys.",
     failure_behavior: "If you cannot return that JSON, return nothing. The server keeps its deterministic month and records fallback_used.",
   },
@@ -118,7 +118,8 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
       "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, smallest cell change, then APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. If a problem can be fixed by a cell, return that cell. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. You are called once. The server writes the cells and does not call you again.",
     constraints:
       "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. REVISE is only an edit list. Each item has day, block, catalog_key, field, value, and reason. field is movement, amount, unit, or load. catalog_key must be a movement already listed for that day and block in piece_cells. amount, unit, and load there are the current cell. The server rejects a cell that is not on that piece. The server writes only that cell and leaves the other cells. A sentence without those fields is invalid. Do not return a new week. Do not ask for the session to be regenerated.",
-    output_schema: "Use the head schema in the OUTPUT SCHEMA block. The edit list is the whole revision. adjustments are field patches only.",
+    output_schema:
+      "Use the head schema in the OUTPUT SCHEMA block. note_ko comes before revisions and adjustments. note_ko is required and at least 10 characters. When revisions are empty, note_ko is the approval reason. The edit list is the whole revision. adjustments are field patches only.",
     failure_behavior: "A prose-only revision is a schema error. The server asks once for the edit list and does not invent the edit. Unreadable reviews keep the code decision.",
   },
   variation_judge: {

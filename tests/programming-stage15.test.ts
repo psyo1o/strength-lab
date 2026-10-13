@@ -6,6 +6,7 @@ import { resetDbConnection } from "../src/lib/db/client";
 import type { WeekIndex } from "../src/lib/month-plan/types";
 import { coachWeek } from "../src/lib/programming/coaching/pipeline";
 import { schemaBrief } from "../src/lib/programming/coaching/contract";
+import { legalMonthlyCellJson } from "../src/lib/programming/coaching/goal-candidates";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { catalogMovement, prescribedLoad, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
 import { movementCatalog } from "../src/lib/programming/coaching/pieces";
@@ -301,8 +302,7 @@ describe("stage15 router execution", () => {
       const user = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
       const agent = agentOf(user);
       if (agent === "monthly_coach" || agent === "context:monthly") {
-        const monthly = deterministicMonthlyPlan(full);
-        return chat({ ...monthly, fatigue_tolerance: "moderate", variety_requirement: "moderate" });
+        return chat(legalMonthlyCellJson(full));
       }
       if (agent === "weekly_coach" || agent === "context:weekly") {
         weeklyFetches += 1;

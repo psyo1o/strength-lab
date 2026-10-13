@@ -6,7 +6,7 @@ import { coachSystemPrompt } from "./prompts";
 import { buildCoachRequest, coachModelForCall, coachProvider, parseCoachPayload } from "./provider";
 import type { TokenUsage } from "./trace";
 
-export type CoachValidation = { ok: true } | { ok: false; errors: string[]; retryExtra?: Record<string, unknown> };
+export type CoachValidation = { ok: true } | { ok: false; errors: string[]; retryExtra?: Record<string, unknown>; retry?: boolean };
 
 export type CoachAttemptLog = {
   attempt: number;
@@ -171,6 +171,8 @@ export async function askCoach(input: {
   schemaNote?: string;
   /** HTTP 오류와 시간 초과를 오류 내용과 함께 한 번 더 부른다. 429는 제외다. */
   retryTransport?: boolean;
+  /** 검증 재시도를 포함한 최대 호출 수. 기본은 2다. 1이면 다시 부르지 않는다. */
+  maxAttempts?: number;
 }): Promise<CoachCall> {
   const model = coachModelForCall(input.agent);
   const fetchImpl = input.fetchImpl ?? fetch;
@@ -196,7 +198,8 @@ export async function askCoach(input: {
     promptVersion: input.promptVersion,
   });
 
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  const limit = input.maxAttempts ?? 2;
+  for (let attempt = 1; attempt <= limit; attempt += 1) {
     const overlap = retryExtra?.overlap_sessions;
     const user =
       attempt === 1
@@ -275,7 +278,7 @@ export async function askCoach(input: {
         input.retryTransport === true &&
         (attemptResult.reason === "timeout" || (attemptResult.reason === "http_error" && attemptResult.status !== 429));
       const shape = attemptResult.reason === "bad_json" || attemptResult.reason === "truncated";
-      if (attempt === 1 && (transport || shape)) {
+      if (attempt < limit && (transport || shape)) {
         errors = transport
           ? [`${attemptResult.reason}: ${detail.slice(0, 400) || "no body"}`]
           : [`${attemptResult.reason}: return one JSON object that matches the schema`];
@@ -345,7 +348,7 @@ export async function askCoach(input: {
       reason: "schema",
     });
     settle("schema_fail", errors[0] ?? "schema");
-    if (attempt === 2) {
+    if (attempt === limit || verdict.retry === false) {
       return finish({
         ok: false,
         json: attemptResult.json,
@@ -353,7 +356,7 @@ export async function askCoach(input: {
         model,
         latencyMs: Date.now() - started,
         reason: "schema",
-        retryCount: 1,
+        retryCount: attempt - 1,
         validationErrors: errors,
         usage,
       });

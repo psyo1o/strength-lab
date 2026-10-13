@@ -1,38 +1,35 @@
 # Phase 4-1 결과
 
-실제 모델 프로브다. 모킹 테스트와 구분한다. 모델은 `gpt-5.4-nano`이고 키는 `MONTH_PLAN_MODEL_KEY`만 썼다. 운영 DB와 운영 주 `2026-10-05`, `2026-10-12`는 쓰지 않았다. DB는 `/tmp/strength-lab-phase4-2099.db`이고, 시작 때 경로와 행이 2099가 아니면 중단한다.
+실제 모델 프로브다. 모킹 테스트와 구분한다. 운영 DB와 운영 주 `2026-10-05`, `2026-10-12`는 쓰지 않았다. DB는 `/tmp/strength-lab-phase4-2099.db`다. 키는 `MONTH_PLAN_MODEL_KEY`만 썼다.
 
 | 단계 | 결과 | 내용 |
 | --- | --- | --- |
-| A | 실패 | 월간 0/5, 주간 5/5, 스트렝스 5/5, 컨디셔닝 5/5, 웜업 5/5, 부하 5/5, 헤드 4/5. 29/35 |
-| B | 실행 안 함 | A가 95% 아래라 넘어가지 않음 |
-| C | 실행 안 함 | A가 95% 아래라 넘어가지 않음 |
+| A | 통과 | 34/35 (monthly 4/5, weekly 5/5, strength 5/5, conditioning 5/5, warmup 5/5, load 5/5, head 5/5) |
+| B | 통과 | 3/3 |
+| C | 실패 | 0/9 |
 
-채택 0. C를 돌리지 않았다.
+채택 0/9.
 
 | 단계 | 코치 | 첫 실패 | 횟수 |
 | --- | --- | --- | --- |
-| A v4 | monthly | 휴식일 purpose 가 비어 있음 | 4/5 |
-| A v4 | monthly | 같은 요일 focus·target·stimulus 반복 | 1/5 |
-| A v4 | head | `note_ko` 가 비어 있음. 재시도 후 4/5는 통과 | 1/5 최종 실패 |
-| A v5 | monthly | 같은 요일 튜플 반복. 빈 purpose 는 사라짐 | 4/5 |
-| A v5 | monthly | 1주가 긴 컨디셔닝 주가 아님 | 1/5 |
-| A v6 | monthly | 같은 요일 또는 이전 주 튜플 반복 | 4/5 |
-| A v6 | monthly | 1주가 긴 컨디셔닝 주가 아님 | 1/5 |
-| A v7 | monthly | 이전 주 튜플 반복 또는 긴 컨디셔닝 주 오류 | 5/5 |
+| A | monthly | w4_sat purpose names a movement, format, or amount | 1 |
+| C | week | tue unresolved: conditioning movement back_squat is banned on this day | 2 |
+| C | week | tue unresolved: conditioning.movements: length 1; allowed: 2–5 | 1 |
+| C | week | tue unresolved: conditioning.movements[0]: air_squat 12 is outside 15–300 reps. Choose an integer inside one allowed span. | 1 |
+| C | week | tue unresolved: conditioning.movements[0]: push_up 8 is outside 10–200 reps. Choose an integer inside one allowed span. | 1 |
+| C | week | tue unresolved: conditioning.movements[0]: deadlift load.male is required and must be 225 lb or 185 lb | 1 |
+| C | week | wed unresolved: row_erg amount needs unit cal or m | 1 |
+| C | week | intent says lower load was reduced but the prescription is heavier than the fatigue limit | 1 |
+| C | adoption | origin.not_model | 1 |
 
-고친 것: HTTP 오류와 시간 초과는 그 호출만 한 번 더 하고, 재시도 본문에 오류를 넣는다. HTTP 429는 다시 부르지 않는다. 헤드 뒤 전문 코치 재생성은 켜지 않았다. 월간 프롬프트는 `monthly-coach-v5`에서 휴식일 purpose 문장을 넣었고, 빈 purpose 는 다음 측정에서 사라졌다. `monthly-coach-v6`에서 요일 튜플 규칙을 넣었으나 반복은 남았다. `monthly-coach-v7`에서 화요일 예시를 넣었더니 모델이 그 줄을 다른 날에 붙였다. 그 예시를 뺀 문장은 `monthly-coach-v8`이고, v8은 다시 측정하지 않았다. 유사도 임계값 4는 그대로다.
+중단 없음. 429는 없었다.
 
-사용 토큰. 한 실행도 1500000을 넘기지 않았다.
+고친 것: 월간은 코드가 날짜별 허용 튜플을 계산하고 스키마 enum으로 고르게 했다. 주 역할과 긴 컨디셔닝 주는 코드 틀이다. 목적 한 줄이 60자를 넘거나 동작·format·수량을 적으면 그 날만 1회 다시 묻고, 월 전체를 다시 묻지 않는다. 튜플이 반복되면 위반한 날만 금지 튜플로 1회 다시 묻는다. 다시 실패하면 degraded다. 프롬프트에 예시는 없고 버전은 monthly-coach-v10이다. 헤드 note_ko는 필수이고 minLength 10이며 수정 값보다 앞에 둔다. 빈 값은 그 호출만 1회 재시도하고, 코드가 기본 문장을 채우지 않는다. 헤드 뒤는 evaluateWeek와 finalizeWeekAdoption만 거친다. C 첫 측정은 파이프라인이 채우지 않는 week_status를 봐서 0/9였다. 다시 잰 값은 adoption.weekStatus다. 볼륨 프로필의 strength_method는 허용 목록의 volume이다.
 
-| 실행 | 토큰 |
-| --- | --- |
-| v4 단계 A | 210070 |
-| v5 월간 도중 중단 | 182575 |
-| v6 단계 A | 211739 |
-| v7 월간 5회 | 70413 |
-| 합 | 674797 |
+사용 토큰 3608422. A와 B 1814218, C 재측정 1794204. 상한 4000000.
 
-모킹 테스트 465개 통과. `tsc --noEmit` 통과. 이 숫자는 실제 모델 프로브와 따로다.
+테스트 472개 통과.
 
-남은 위험: 월간 표의 요일·이전 주 튜플 반복이 프롬프트 수정 두 번 뒤에도 남는다. 그래서 B와 C는 열지 않았다. 헤드 `note_ko` 빈 값이 5회 중 1회 남는다. 언어 검사 본문은 기존 테스트가 영어 문장을 통과로 잠가 두어 채우지 않았다. D와 E는 하지 않았다.
+tsc --noEmit 통과.
+
+남은 위험: C는 화요일 컨디셔닝이 금지 동작·수량·단위에서 풀리지 않아 채택이 0/9이다. 언어 검사 본문은 기존 테스트가 영어 문장을 통과로 잠가 두어 이번 단계에서 채우지 않았다. D와 E는 돌리지 않았다. 유사도 임계값은 4다.

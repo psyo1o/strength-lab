@@ -7,6 +7,7 @@ import { DAY_ORDER, type DayKey } from "../src/lib/month-plan/types";
 import { movementCatalog } from "../src/lib/programming/coaching/pieces";
 import { assertProbeWeek, coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
 import { schemaBrief, sessionCoachErrors, weeklyIntentErrors } from "../src/lib/programming/coaching/contract";
+import { legalMonthlyCellJson } from "../src/lib/programming/coaching/goal-candidates";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { catalogMovement, prescribedLoad, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
 import { coachSystemPrompt } from "../src/lib/programming/coaching/prompts";
@@ -88,14 +89,7 @@ function chat(content: unknown, status = 200) {
 }
 
 function monthlyJson(month: MonthDirection, actual?: Script["actual"]) {
-  const plan = deterministicMonthlyPlan(month, actual);
-  return {
-    ...plan,
-    fatigue_tolerance: "moderate",
-    variety_requirement: "moderate",
-    source: undefined,
-    version: undefined,
-  };
+  return legalMonthlyCellJson(month, actual);
 }
 
 function weeklyJson(plan: WeeklyIntentPlan) {

@@ -6,6 +6,7 @@ import { resetDbConnection } from "../src/lib/db/client";
 import type { DayKey } from "../src/lib/month-plan/types";
 import { editItemErrors } from "../src/lib/programming/coaching/contract";
 import { MAX_DAY_SCHEMA_RECOVERIES } from "../src/lib/programming/coaching/day-recovery";
+import { legalMonthlyCellJson } from "../src/lib/programming/coaching/goal-candidates";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { catalogMovement, prescribedLoad, rangeFor, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
 import { movementCatalog } from "../src/lib/programming/coaching/pieces";
@@ -307,8 +308,7 @@ function harness(mode: Mode) {
     const revision = revisionOf(user);
     calls.push({ agent, day, revision, recovery, user });
     if (agent === "monthly_coach" || agent === "context:monthly") {
-      const monthly = deterministicMonthlyPlan(month);
-      return chat({ ...monthly, fatigue_tolerance: "moderate", variety_requirement: "moderate" });
+      return chat(legalMonthlyCellJson(month));
     }
     if (agent === "weekly_coach" || agent === "context:weekly") return chat(weeklyJson(plan));
     if (agent === "strength_coach") return chat({ day, strength_note_ko: `모델 ${day} 스트렝스 목적을 유지합니다.` });
@@ -470,7 +470,7 @@ describe("explicit edit list", () => {
     expect(COACHING_POLICY.max_head_revisions).toBe(2);
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
     expect(headStanceOf({ status: "BLOCK" })).toBe("ACCEPT_WITH_NOTE");
-    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v8");
+    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v9");
     expect(STRENGTH_COACH_PROMPT_VERSION).toBe("strength-coach-v2");
     expect(CONDITIONING_COACH_PROMPT_VERSION).toBe("conditioning-coach-v6");
     expect(WARMUP_COACH_PROMPT_VERSION).toBe("warmup-coach-v2");

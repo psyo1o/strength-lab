@@ -126,7 +126,7 @@ export function parseHeadReview(value: unknown): HeadCoachReview | null {
   if (!value || typeof value !== "object") return null;
   const body = value as Record<string, unknown>;
   if (body.status !== "APPROVE" && body.status !== "APPROVE_WITH_NOTE" && body.status !== "REVISE" && body.status !== "BLOCK") return null;
-  if (typeof body.note_ko !== "string" || !body.note_ko.trim()) return null;
+  if (typeof body.note_ko !== "string" || body.note_ko.trim().length < 10) return null;
   if (!Array.isArray(body.revisions)) return null;
   if (body.status === "APPROVE" || body.status === "APPROVE_WITH_NOTE" || body.status === "BLOCK") {
     return { status: body.status, revisions: [], note_ko: body.note_ko.trim() };

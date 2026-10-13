@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { askCoach } from "../src/lib/programming/coaching/llm";
 import { configurePhase4Run, phase4TokensSpent, Phase4Stop, resetPhase4Run } from "../src/lib/programming/phase4/budget";
 import { assertIsolated2099Database } from "../src/lib/programming/phase4/isolation";
+import { phase4WeekAdopted } from "../src/lib/programming/phase4/run";
 
 function chat(content: unknown, usage = { prompt_tokens: 2, completion_tokens: 1, total_tokens: 3 }) {
   return new Response(
@@ -17,6 +18,22 @@ function chat(content: unknown, usage = { prompt_tokens: 2, completion_tokens: 1
 }
 
 describe("phase 4 call guard", () => {
+  it("채택은 adoption.weekStatus를 보고 비어 있는 week_status는 통과로 세지 않는다", () => {
+    expect(
+      phase4WeekAdopted({
+        generation_source: "model",
+        adoption: { persistActive: true, weekStatus: "VALIDATED" },
+      }),
+    ).toBe(true);
+    expect(phase4WeekAdopted({ generation_source: "model", adoption: null })).toBe(false);
+    expect(
+      phase4WeekAdopted({
+        generation_source: "fallback",
+        adoption: { persistActive: false, weekStatus: "FAILED" },
+      }),
+    ).toBe(false);
+  });
+
   afterEach(() => {
     resetPhase4Run();
     delete process.env.PHASE4_STAGE;

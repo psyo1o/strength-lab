@@ -57,12 +57,7 @@ export function runAdjustmentPass(input: {
   });
   const applied = [...manager.traces, ...head.traces].filter((trace) => trace.decision === "targeted_adjustment");
   if (stance === "ADJUST" && applied.length === 0) stance = "ACCEPT_WITH_NOTE";
-  const note =
-    stance === "ACCEPT"
-      ? input.review.note_ko
-      : stance === "ADJUST"
-        ? input.review.note_ko
-        : input.review.note_ko || "문제는 있으나 생성기를 다시 부르지 않고 유지합니다.";
+  const note = input.review.note_ko;
   return {
     sessions: head.sessions,
     stance,

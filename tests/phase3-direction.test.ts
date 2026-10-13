@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
+import { legalMonthlyCellJson } from "../src/lib/programming/coaching/goal-candidates";
 import { coachMonthly, deterministicMonthlyPlan, monthlyReuseKey } from "../src/lib/programming/coaching/monthly";
 import { MONTHLY_COACH_PROMPT_VERSION } from "../src/lib/programming/coaching/prompts";
 import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
@@ -31,8 +32,7 @@ function chat(content: unknown) {
 }
 
 function monthlyBody(month: MonthDirection) {
-  const plan = deterministicMonthlyPlan(month);
-  return { ...plan, fatigue_tolerance: "moderate", variety_requirement: "moderate", source: undefined, version: undefined };
+  return legalMonthlyCellJson(month);
 }
 
 function profiles(): MonthDirection[] {

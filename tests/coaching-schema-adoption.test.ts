@@ -4,6 +4,7 @@ import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetDbConnection } from "../src/lib/db/client";
 import type { DayKey } from "../src/lib/month-plan/types";
+import { legalMonthlyCellJson } from "../src/lib/programming/coaching/goal-candidates";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { catalogMovement, prescribedLoad, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
 import { movementCatalog } from "../src/lib/programming/coaching/pieces";
@@ -53,8 +54,7 @@ function specialistFetch(input: { alignDay?: { day: DayKey; format: string; dura
     const weekIndex = (typeof user.week_index === "number" ? user.week_index : weekIndexFromStart(NEXT)) as WeekIndex;
     const plan = planCoachedWeek({ month, weekIndex });
     if (agent === "monthly_coach") {
-      const monthly = deterministicMonthlyPlan(month);
-      return chat({ ...monthly, fatigue_tolerance: "moderate", variety_requirement: "moderate" });
+      return chat(legalMonthlyCellJson(month));
     }
     if (agent === "weekly_coach") {
       return chat({
