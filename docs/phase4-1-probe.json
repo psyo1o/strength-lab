@@ -22,5 +22,9 @@
     {"stage": "D", "run": "531-b", "week": "2099-11-02", "coach": "weekly", "point": "high intensity days 5 exceed the week rule 3", "source": "fallback", "reason": "schema"}
   ],
   "rates_finished_weeks": {"weeks": 21, "degraded": 0, "fallback": 1, "fallback_adopted": 0, "head_unresolved": 0, "head_applied": 9, "drift": 0, "lock": 0, "unclassified": 0},
-  "not_rerun": ["A", "B", "C", "E"]
+  "not_rerun": ["A", "B", "C", "E", "hash_pin", "regression_12", "odd_profiles", "shadow"],
+  "e_cancelled": true,
+  "regression_skipped": "D did not pass",
+  "fix_applied": false,
+  "proposal": "weekly retry must name the heavy days and forbid rest, movement_pattern, and lower-lift changes. Do not lower the intensity cap."
 }
