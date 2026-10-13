@@ -397,7 +397,7 @@ function outsideArea(body: Record<string, unknown>, banned: readonly string[]): 
   return hit ? `specialist wrote ${hit}` : null;
 }
 
-function areaShapeErrors(area: SpecialistArea, json: unknown, day: DayIntent): string[] {
+export function areaShapeErrors(area: SpecialistArea, json: unknown, day: DayIntent): string[] {
   const body = asRecord(json);
   if (!body) return ["specialist JSON is not an object"];
   if (body.day !== day.day) return [`${area} day does not match ${day.day}`];
@@ -645,7 +645,11 @@ async function writeSession(input: {
         await waitForTransientRetry();
         const again = await askSpecialist({
           area,
-          user,
+          user: {
+            ...user,
+            transport_failure: reason,
+            validation_errors: areaErrors.get(area) ?? [reason ?? "http_error"],
+          },
           key: input.week.key ?? "",
           fetchImpl: input.week.fetchImpl,
           timeoutMs: input.timeoutMs,
@@ -1073,6 +1077,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const weeklyStarted = Date.now();
   const weekly = await askCoach({
     agent: "weekly",
+    retryTransport: true,
     user: weeklyUser,
     key,
     fetchImpl: input.fetchImpl,
@@ -1207,6 +1212,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     };
     const weeklyRetry = await askCoach({
       agent: "weekly",
+      retryTransport: true,
       user: weeklyRetryUser,
       key,
       fetchImpl: input.fetchImpl,
@@ -1449,6 +1455,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const loadStarted = Date.now();
   const loadAsked = await askCoach({
     agent: "load",
+    retryTransport: true,
     user: loadUser,
     key,
     fetchImpl: input.fetchImpl,
@@ -1685,6 +1692,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       const judgeStarted = Date.now();
       const askedJudge = await askCoach({
         agent: "variation_judge",
+        retryTransport: true,
         user: {
           agent_name: "variation_judge",
           revision_number: revisionNumber,
@@ -1743,6 +1751,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       const judgeStarted = Date.now();
       const askedJudge = await askCoach({
         agent: "recovery_judge",
+        retryTransport: true,
         user: {
           agent_name: "recovery_judge",
           revision_number: revisionNumber,
@@ -1871,6 +1880,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     };
     const asked = await askCoach({
       agent: "head",
+      retryTransport: true,
       user,
       key,
       fetchImpl: input.fetchImpl,

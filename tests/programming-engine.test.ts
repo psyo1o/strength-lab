@@ -142,7 +142,7 @@ describe("long-term programming engine", () => {
     const fetchImpl = vi.fn(async () => new Response("no", { status: 500 }));
     await ensureProgrammingWeek(WEEK2, { nowMs: NOW + 2, key: KEY, fetchImpl });
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
-    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(42);
+    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(56);
     const sent = weeklyUser(fetchImpl);
     const summary = sent.summary as {
       previous_week: {
@@ -223,7 +223,7 @@ describe("long-term programming engine", () => {
     const fetchImpl = vi.fn(async () => new Response("no", { status: 429 }));
     const week = await ensureProgrammingWeek(WEEK1, { nowMs: NOW, key: KEY, fetchImpl });
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
-    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(42);
+    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(56);
     expect(week.generationSource).toBe("fallback");
     expect(week.fallbackReason).toBe("http_error");
     expect(week.status).toBe("failed");
@@ -235,7 +235,7 @@ describe("long-term programming engine", () => {
     const nextFetch = vi.fn(async () => new Response("still-down", { status: 500 }));
     const second = await ensureProgrammingWeek(WEEK2, { nowMs: NOW + 5, key: KEY, fetchImpl: nextFetch });
     expect(nextFetch.mock.calls.length).toBeGreaterThan(0);
-    expect(nextFetch.mock.calls.length).toBeLessThanOrEqual(42);
+    expect(nextFetch.mock.calls.length).toBeLessThanOrEqual(56);
     expect(second.generationSource).toBe("fallback");
     expect(second.status).toBe("failed");
     const sent = weeklyUser(nextFetch);

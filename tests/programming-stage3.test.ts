@@ -225,7 +225,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
     const fetchImpl = vi.fn(async () => new Response("forced-failure", { status: 500 }));
     const week = await ensureProgrammingWeek(WEEK, { nowMs: NOW, key: KEY, fetchImpl });
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
-    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(42);
+    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(56);
     const header = (fetchImpl.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
     expect(header.Authorization).toBe(`Bearer ${KEY}`);
     expect(header.Authorization).not.toContain(LIVE_KEY);

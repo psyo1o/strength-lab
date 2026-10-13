@@ -53,7 +53,7 @@ describe("coaching orchestrator entry", () => {
     expect(week.generationSource).not.toBe("model");
     expect(week.fallbackReason).toBe("http_error");
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
-    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(42);
+    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(56);
     expect(String(fetchImpl.mock.calls[0]?.[1]?.body)).not.toContain("sk-orchestrator-test");
   });
 

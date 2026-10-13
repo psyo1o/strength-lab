@@ -1,7 +1,7 @@
 import { schemaBrief } from "./contract";
 import type { CoachAgentName } from "./models";
 
-export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v4";
+export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v8";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v4";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
 export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v2";
@@ -41,7 +41,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose the adaptation, the strength method, and how the four weeks should feel. Week roles are a decision about this athlete, not a fixed accumulation-progression-intensification-deload template. 5/3/1 is one method, not the default.",
     constraints:
-      "Do not name movement keys, format, or amounts. A training day names focus, intensity 1–5, target, stimulus, time_domain, and one purpose. The same focus, target, and stimulus may not repeat on the same weekday, a neighboring training day, or the previous week. Do not invent kilograms. Do not change a method mid-block. Write explanations in English. Display translation is later.",
+      "Do not name movement keys, format, or amounts. A training day names focus, intensity 1–5, target, stimulus, time_domain, and one purpose. Every day, including a rest day, needs a non-empty purpose. A rest purpose can be 'Recovery day with no training.' An empty purpose fails. A weekday may use one focus, movement_pattern, body_region, energy_system, and stimulus tuple only once across the month. Week 2 Monday must change at least one of those five from week 1 Monday. Neighboring training days in the same week must not share that tuple, and a day must not copy the previous week's tuple. Do not invent kilograms. Do not change a method mid-block. Write explanations in English. Display translation is later.",
     output_schema: "The OUTPUT SCHEMA block is the contract. Do not rename keys.",
     failure_behavior: "If you cannot return that JSON, return nothing. The server keeps its deterministic month and records fallback_used.",
   },

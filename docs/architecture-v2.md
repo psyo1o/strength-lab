@@ -28,7 +28,7 @@
 
 ## 2. 문서와 코드가 다른 점
 
-`docs/generation-paths.md`의 주 진입점, 키 분기, 오케스트레이터 반환 셋은 위 코드와 같다. 프롬프트 버전은 `src/lib/programming/coaching/prompts.ts`와 같다. 월간 `monthly-coach-v4`, 주간 `weekly-coach-v4`, 컨디셔닝 `conditioning-coach-v6`, 헤드 `head-coach-v8`이다.
+`docs/generation-paths.md`의 주 진입점, 키 분기, 오케스트레이터 반환 셋은 위 코드와 같다. 프롬프트 버전은 `src/lib/programming/coaching/prompts.ts`와 같다. 월간 `monthly-coach-v8`, 주간 `weekly-coach-v4`, 컨디셔닝 `conditioning-coach-v6`, 헤드 `head-coach-v8`이다.
 
 `docs/codebase.md`는 그 버전과 다르다. 월간 `monthly-coach-v2`, 주간 `weekly-coach-v2`, 컨디셔닝 `conditioning-coach-v5`로 적혀 있다. 이번 단계에서 그 문서는 고치지 않았다. 생성 경로와 플래그 분기를 바꾸지 않았기 때문이다.
 

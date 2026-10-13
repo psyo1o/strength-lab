@@ -67,6 +67,7 @@ export async function askSpecialist(input: {
     validate: input.validate,
     format: input.format,
     schemaNote: input.schemaNote,
+    retryTransport: false,
   });
   const ok = Boolean(asked.ok && asked.json);
   return {

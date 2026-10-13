@@ -141,7 +141,7 @@ export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual |
     completion: actual?.class_summary
       ? { completed_days: actual.class_summary.completed_days, missed_days: actual.class_summary.missed_days }
       : null,
-    note: "Choose the month strategy and goal_table in this one call. goal_table is the month growth goal, one goal for each of 4 weeks, and one target for each date. A training day names focus, intensity 1–5, target (movement_pattern, body_region, energy_system), stimulus, time_domain, and one purpose line. Do not name movement keys, format, or amounts. Rest days set rest true and the other enums to none, with intensity 0. The same focus, target, and stimulus may not repeat on the same weekday, a neighboring training day, or the previous week. time_domain long only on long_conditioning_weeks, one per such week. Repeat current_method exactly.",
+    note: "Choose the month strategy and goal_table in this one call. goal_table is the month growth goal, one goal for each of 4 weeks, and one target for each date. A training day names focus, intensity 1–5, target (movement_pattern, body_region, energy_system), stimulus, time_domain, and one purpose line. Do not name movement keys, format, or amounts. Rest days set rest true and the other enums to none, with intensity 0, and a non-empty purpose. The tuple focus|movement_pattern|body_region|energy_system|stimulus may be used once per weekday across the four weeks. Neighboring training days and the previous week may not share that tuple. time_domain long only on long_conditioning_weeks, one per such week. Repeat current_method exactly.",
   };
 }
 
@@ -276,6 +276,7 @@ export async function coachMonthly(input: {
     maxTokens: 8000,
     promptVersion: MONTHLY_COACH_PROMPT_VERSION,
     runId: input.runId,
+    retryTransport: true,
     retryContext: { current_method: input.month.strength_method || input.month.scheme },
     validate: (json) => {
       const table = json && typeof json === "object" ? parseGoalTable((json as { goal_table?: unknown }).goal_table) : null;

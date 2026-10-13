@@ -1,0 +1,23 @@
+{
+  "live_model": true,
+  "model": "gpt-5.4-nano",
+  "db": "/tmp/strength-lab-phase4-2099.db",
+  "stages": [
+    { "stage": "A", "pass": false, "detail": "29/35 monthly 0/5 weekly 5/5 strength 5/5 conditioning 5/5 warmup 5/5 load 5/5 head 4/5" },
+    { "stage": "B", "pass": false, "detail": "not run" },
+    { "stage": "C", "pass": false, "detail": "not run" }
+  ],
+  "adopted": 0,
+  "weeks": 0,
+  "tokens": {
+    "v4_stage_a": 210070,
+    "v5_monthly_partial": 182575,
+    "v6_stage_a": 211739,
+    "v7_monthly": 70413,
+    "sum": 674797,
+    "cap": 1500000,
+    "cap_exceeded": false
+  },
+  "prompt_version_measured": ["monthly-coach-v4", "monthly-coach-v5", "monthly-coach-v6", "monthly-coach-v7"],
+  "note": "monthly-coach-v8 drops the v7 Tuesday example. v8 was not remeasured."
+}

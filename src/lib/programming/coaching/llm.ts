@@ -1,3 +1,4 @@
+import { assertPhase4Budget, logPhase4Call, notePhase4Tokens, Phase4Stop } from "../phase4/budget";
 import type { FetchLike } from "../model";
 import { JSON_OBJECT, responseFormatFor, schemaBrief, type ResponseFormat } from "./contract";
 import { type CoachAgentName } from "./models";
@@ -50,6 +51,7 @@ type Attempt = {
   json: unknown;
   raw: unknown;
   reason: string | null;
+  status: number | null;
   latencyMs: number;
   usage: TokenUsage | null;
 };
@@ -122,6 +124,7 @@ async function postOnce(input: {
         ok: false,
         json: null,
         raw: payload,
+        status: response.status,
         reason: schemaRejected ? "schema_rejected" : temperatureRejected ? "temperature_rejected" : "http_error",
         latencyMs: Date.now() - started,
         usage: null,
@@ -129,23 +132,24 @@ async function postOnce(input: {
     }
     const parsed = parseCoachPayload(provider, payload);
     if (parsed.truncated) {
-      return { ok: false, json: null, raw: parsed.text ?? payload, reason: "truncated", latencyMs: Date.now() - started, usage: parsed.usage };
+      return { ok: false, json: null, raw: parsed.text ?? payload, status: response.status, reason: "truncated", latencyMs: Date.now() - started, usage: parsed.usage };
     }
     const json = jsonFromText(parsed.text);
     if (!json || typeof json !== "object") {
-      return { ok: false, json: null, raw: parsed.text ?? payload, reason: "bad_json", latencyMs: Date.now() - started, usage: parsed.usage };
+      return { ok: false, json: null, raw: parsed.text ?? payload, status: response.status, reason: "bad_json", latencyMs: Date.now() - started, usage: parsed.usage };
     }
-    return { ok: true, json, raw: parsed.text ?? json, reason: null, latencyMs: Date.now() - started, usage: parsed.usage };
+    return { ok: true, json, raw: parsed.text ?? json, status: response.status, reason: null, latencyMs: Date.now() - started, usage: parsed.usage };
   } catch (error) {
+    if (error instanceof Phase4Stop) throw error;
     const name = error && typeof error === "object" && "name" in error ? String(error.name) : "";
     const reason = name === "AbortError" || name === "TimeoutError" ? "timeout" : "http_error";
-    return { ok: false, json: null, raw: null, reason, latencyMs: Date.now() - started, usage: null };
+    return { ok: false, json: null, raw: null, status: null, reason, latencyMs: Date.now() - started, usage: null };
   }
 }
 
 /**
- * Shared model wrapper. Validation failure retries once, with only the errors,
- * the expected schema, and the invalid output. HTTP failures are not retried.
+ * Shared model wrapper. Schema failure retries once, with the errors and the invalid output.
+ * HTTP and timeout retry once when retryTransport is set, except HTTP 429.
  * A provider that rejects strict schema or temperature falls back inside the same attempt.
  */
 export async function askCoach(input: {
@@ -165,6 +169,8 @@ export async function askCoach(input: {
   systemPrompt?: string;
   /** Replaces the retry schema note. Absent keeps the agent schema brief. */
   schemaNote?: string;
+  /** HTTP 오류와 시간 초과를 오류 내용과 함께 한 번 더 부른다. 429는 제외다. */
+  retryTransport?: boolean;
 }): Promise<CoachCall> {
   const model = coachModelForCall(input.agent);
   const fetchImpl = input.fetchImpl ?? fetch;
@@ -206,6 +212,7 @@ export async function askCoach(input: {
             context: input.retryContext ?? { agent: input.agent, run_id: input.runId },
             ...(retryExtra ?? {}),
           };
+    assertPhase4Budget();
     let attemptResult = await postOnce({
       key: input.key,
       fetchImpl,
@@ -250,9 +257,28 @@ export async function askCoach(input: {
     latencyMs += attemptResult.latencyMs;
     usage = addUsage(usage, attemptResult.usage);
     lastRaw = attemptResult.raw;
+    const settle = (result: string, first: string) => {
+      logPhase4Call({
+        stage: process.env.PHASE4_STAGE ?? "",
+        coach: input.agent,
+        promptVersion: input.promptVersion,
+        tokens: attemptResult.usage?.total_tokens ?? null,
+        result,
+        firstFailure: first,
+      });
+      notePhase4Tokens(attemptResult.usage);
+    };
+    const loggedResult = attemptResult.status === 429 ? "rate_limit" : (attemptResult.reason ?? "http_error");
     if (!attemptResult.ok) {
-      if (attempt === 1 && (attemptResult.reason === "bad_json" || attemptResult.reason === "truncated")) {
-        errors = [`${attemptResult.reason}: return one JSON object that matches the schema`];
+      const detail = typeof attemptResult.raw === "string" ? attemptResult.raw : JSON.stringify(attemptResult.raw ?? "");
+      const transport =
+        input.retryTransport === true &&
+        (attemptResult.reason === "timeout" || (attemptResult.reason === "http_error" && attemptResult.status !== 429));
+      const shape = attemptResult.reason === "bad_json" || attemptResult.reason === "truncated";
+      if (attempt === 1 && (transport || shape)) {
+        errors = transport
+          ? [`${attemptResult.reason}: ${detail.slice(0, 400) || "no body"}`]
+          : [`${attemptResult.reason}: return one JSON object that matches the schema`];
         remember(errors);
         lastJson = attemptResult.raw;
         attempts.push({
@@ -262,6 +288,7 @@ export async function askCoach(input: {
           validation_errors: errors,
           reason: attemptResult.reason,
         });
+        settle(loggedResult, errors[0] ?? loggedResult);
         continue;
       }
       attempts.push({
@@ -271,6 +298,7 @@ export async function askCoach(input: {
         validation_errors: errors,
         reason: attemptResult.reason,
       });
+      settle(loggedResult, errors[0] || loggedResult);
       return finish({
         ok: false,
         json: null,
@@ -293,6 +321,7 @@ export async function askCoach(input: {
         validation_errors: [],
         reason: null,
       });
+      settle("ok", "");
       return finish({
         ok: true,
         json: attemptResult.json,
@@ -315,6 +344,7 @@ export async function askCoach(input: {
       validation_errors: errors,
       reason: "schema",
     });
+    settle("schema_fail", errors[0] ?? "schema");
     if (attempt === 2) {
       return finish({
         ok: false,
