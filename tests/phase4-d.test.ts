@@ -293,13 +293,15 @@ describe("phase 4 D", () => {
     expect(phase4RegressionPass({ adopted: 10, weeks: 12, fallbackAdopted: 0, drift: 0, lockFailed: 0, unclassified: 0 })).toBe(false);
     const base = fallbackMonth({ summary_ko: "지난 달은 5/3/1이었습니다.", next_scheme: "531", strength_method: "531" });
     const two = buildGoalTable({ month: { ...base, available_days: ["mon", "thu"] } });
-    expect(two.ok).toBe(false);
-    if (!two.ok) expect(two.reason).toMatch(/exactly one rest day/);
+    expect(two.ok).toBe(true);
+    if (two.ok) {
+      for (const week of two.table.weeks) {
+        expect(week.days.filter((day) => day.rest)).toHaveLength(5);
+      }
+    }
     const twoRun = PHASE4_STRUCT_RUNS.find((run) => run.id === "two-a");
     const sixRun = PHASE4_STRUCT_RUNS.find((run) => run.id === "six-a");
-    const rejected = openRunMonth(twoRun!);
-    expect(rejected.ok).toBe(false);
-    if (!rejected.ok) expect(rejected.reason).toMatch(/exactly one rest day/);
+    expect(openRunMonth(twoRun!).ok).toBe(true);
     expect(openRunMonth(sixRun!).ok).toBe(true);
   });
 

@@ -2,6 +2,7 @@ import type { DayKey } from "../../../month-plan/types";
 import { previousLowerFatigue } from "../../rules";
 import type { MonthDirection, WeekIndex, WeeklyIntentPlan } from "../../types";
 import type { WeekActual } from "../../summary";
+import { absoluteWeekCaps, expectedRestDays, profileTrainingDayCount } from "../goal-table";
 import { benchmarkCountAllowed, longConditioningCountAllowed } from "../stage15/week-policy";
 import { benchmarkOnRestErrors } from "../stage15/week-structure";
 
@@ -30,16 +31,17 @@ export function extractWeekRules(input: {
   const deload =
     method === "DELOAD_RECOVERY" || method === "deload" || input.month.scheme === "deload" || input.weekIndex === 4;
   const fatigued = previousLowerFatigue(input.actual) === "high";
+  const caps = absoluteWeekCaps({ trainingDays: profileTrainingDayCount(input.month), deload, fatigued });
   return {
     week_index: input.weekIndex,
     strength_method: method,
     benchmark_required: input.month.benchmark_week === input.weekIndex,
     long_conditioning_required: input.month.long_conditioning_weeks.includes(input.weekIndex),
     deload_mode: deload,
-    max_high_intensity_days: deload ? 1 : fatigued ? 2 : 3,
-    max_lower_lifts: fatigued ? 1 : 2,
-    max_olympic_days: 4,
-    min_rest_days: 1,
+    max_high_intensity_days: caps.maxHighIntensity,
+    max_lower_lifts: caps.maxLowerLifts,
+    max_olympic_days: caps.maxOlympicDays,
+    min_rest_days: expectedRestDays(input.month),
   };
 }
 

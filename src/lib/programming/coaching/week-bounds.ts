@@ -1,5 +1,7 @@
-import { DAY_ORDER, type DayKey } from "../../month-plan/types";
+import { DAY_ORDER, type DayKey, type WeekIndex } from "../../month-plan/types";
 import type { WeekSkeleton } from "../direction/contract";
+import { strengthIsHeavy } from "../schemes";
+import { exampleSets } from "../strength-methods";
 import { COACHING_STIMULI, PRIMARY_TRAININGS, SECONDARY_TRAININGS } from "../types";
 import {
   BLOCK_PHASES,
@@ -25,8 +27,19 @@ export type DayBound = {
   intensity_band: "4-5" | "1-3";
   intensity_profile: readonly string[];
   strength_lift: readonly string[];
+  /** 잠긴 뼈대에서 파생한 허용 조합. `lift:load`. 세션 enum은 이 목록만 따른다. */
+  combinations: readonly string[];
+  /** 컨디셔닝의 deadlift 키는 잠긴 조합이 deadlift일 때만. */
+  deadliftConditioning: boolean;
   /** 그 요일이 squat 또는 deadlift를 낼 수 있으면 1. 주 합계가 max_lower_lifts를 넘지 않는다. */
   lower_lift_cap: 0 | 1;
+};
+
+export type DayBoundOptions = {
+  /** 방법 표의 세트가 고강도인지 볼 때 쓴다. 없으면 부하 등급만 본다. */
+  method?: string;
+  /** 지난주 뼈대. 월요일은 그 일요일까지 실제 날짜로 본다. */
+  previousWeek?: WeekSkeleton | null;
 };
 
 function enumOf(values: readonly string[]): Record<string, unknown> {
@@ -64,12 +77,43 @@ function liftEnum(kind: "squat" | "deadlift" | "both" | null, cap: 0 | 1, rest: 
   return ["squat", "deadlift", ...NON_LOWER];
 }
 
-/**
- * 요일별 intensity_profile·strength_lift enum.
- * 하체 리프트는 주 합계 규칙(max_lower_lifts)이라, 뼈대 슬롯 후보를 요일 순으로 나눠 상한의 합이 그 수를 넘지 않게 한다.
- */
-export function dayBoundsFromSkeleton(skeleton: WeekSkeleton | null, maxLowerLifts: number): DayBound[] | null {
-  if (!skeleton || skeleton.days.length === 0) return null;
+function setsAreHeavy(method: string | undefined, weekIndex: WeekIndex, lift: "squat" | "deadlift"): boolean {
+  if (!method) return false;
+  const sets = exampleSets(method, weekIndex, "unknown", lift);
+  return Boolean(sets && strengthIsHeavy(sets));
+}
+
+function lockedDeadlift(pattern: string | null): boolean {
+  return pattern === "hinge" || pattern === "deadlift";
+}
+
+function calendarDate(value: string | undefined): string | null {
+  const match = value?.match(/^(\d{4}-\d{2}-\d{2})$/);
+  return match ? match[1]! : null;
+}
+
+function combinationsFor(lifts: readonly string[], heavy: boolean): string[] {
+  const loads = heavy ? (["heavy"] as const) : (["light", "moderate"] as const);
+  const out: string[] = [];
+  for (const lift of lifts) {
+    for (const load of loads) out.push(`${lift}:${load}`);
+  }
+  return out;
+}
+
+type BoundSeed = {
+  day: DayKey;
+  date: string | null;
+  rest: boolean;
+  pattern: string | null;
+  loadClass: string | null;
+  weekIndex: WeekIndex;
+  heavy: boolean;
+  strength_lift: readonly string[];
+  lower_lift_cap: 0 | 1;
+};
+
+function boundSeeds(skeleton: WeekSkeleton, maxLowerLifts: number): BoundSeed[] {
   const byDay = new Map(skeleton.days.map((day) => [day.day, day]));
   const candidates: DayKey[] = [];
   for (const day of DAY_ORDER) {
@@ -88,13 +132,74 @@ export function dayBoundsFromSkeleton(skeleton: WeekSkeleton | null, maxLowerLif
     const cap: 0 | 1 = !rest && allowed.has(day) ? 1 : 0;
     return {
       day,
+      date: calendarDate(row?.date),
+      rest,
+      pattern: slot.pattern,
+      loadClass: slot.loadClass,
+      weekIndex: row?.weekIndex ?? skeleton.weekIndex,
       heavy,
-      intensity_band: heavy ? "4-5" : "1-3",
-      intensity_profile: heavy ? HEAVY_PROFILE : LOW_PROFILE,
       strength_lift: liftEnum(kind, cap, rest),
       lower_lift_cap: cap,
     };
   });
+}
+
+function heavyDeadliftSource(seed: BoundSeed, method: string | undefined): boolean {
+  if (seed.rest) return false;
+  if (!lockedDeadlift(seed.pattern) && !seed.strength_lift.includes("deadlift")) return false;
+  if (seed.loadClass === "heavy") return true;
+  return setsAreHeavy(method, seed.weekIndex, "deadlift");
+}
+
+function squatWouldBeHeavy(seed: BoundSeed, method: string | undefined): boolean {
+  if (setsAreHeavy(method, seed.weekIndex, "squat")) return true;
+  return !method && seed.loadClass === "heavy";
+}
+
+function finishBound(seed: BoundSeed, lifts: readonly string[]): DayBound {
+  const deadliftConditioning = !seed.rest && (lockedDeadlift(seed.pattern) || lifts.includes("deadlift"));
+  return {
+    day: seed.day,
+    heavy: seed.heavy,
+    intensity_band: seed.heavy ? "4-5" : "1-3",
+    intensity_profile: seed.heavy ? HEAVY_PROFILE : LOW_PROFILE,
+    strength_lift: lifts,
+    combinations: seed.rest ? ["none:light"] : combinationsFor(lifts, seed.heavy),
+    deadliftConditioning,
+    lower_lift_cap: seed.lower_lift_cap,
+  };
+}
+
+/**
+ * 요일별 intensity_profile·strength_lift enum.
+ * 하체 리프트는 주 합계 규칙(max_lower_lifts)이라, 뼈대 슬롯 후보를 요일 순으로 나눠 상한의 합이 그 수를 넘지 않게 한다.
+ * 데드리프트 다음 날의 헤비 스쿠트는 여기서 뺀다. 월요일은 지난주 일요일을 본다.
+ */
+export function dayBoundsFromSkeleton(
+  skeleton: WeekSkeleton | null,
+  maxLowerLifts: number,
+  options?: DayBoundOptions,
+): DayBound[] | null {
+  if (!skeleton || skeleton.days.length === 0) return null;
+  const seeds = boundSeeds(skeleton, maxLowerLifts);
+  const distinct = seeds.every((seed) => seed.date) && new Set(seeds.map((seed) => seed.date)).size === seeds.length;
+  const ordered = distinct ? [...seeds].sort((left, right) => left.date!.localeCompare(right.date!)) : seeds;
+  const method = options?.method;
+  let priorHeavy = false;
+  const previous = options?.previousWeek ? boundSeeds(options.previousWeek, maxLowerLifts).find((seed) => seed.day === "sun") : null;
+  if (previous && (!distinct || !ordered[0]?.date || !previous.date || previous.date < ordered[0].date)) {
+    priorHeavy = heavyDeadliftSource(previous, method);
+  }
+  const filtered = new Map<DayKey, readonly string[]>();
+  for (const seed of ordered) {
+    let lifts = seed.strength_lift;
+    if (!seed.rest && priorHeavy && lifts.includes("squat") && squatWouldBeHeavy(seed, method)) {
+      lifts = lifts.filter((lift) => lift !== "squat");
+    }
+    filtered.set(seed.day, lifts);
+    priorHeavy = heavyDeadliftSource({ ...seed, strength_lift: lifts }, method);
+  }
+  return seeds.map((seed) => finishBound(seed, filtered.get(seed.day) ?? seed.strength_lift));
 }
 
 export function lowerLiftCapSum(bounds: readonly DayBound[]): number {
@@ -104,7 +209,7 @@ export function lowerLiftCapSum(bounds: readonly DayBound[]): number {
 export function weekBoundsNote(bounds: readonly DayBound[]): string {
   const lines = bounds.map(
     (day) =>
-      `${day.day} heavy=${day.heavy} intensity_band=${day.intensity_band} intensity_profile=${day.intensity_profile.join("|")} strength_lift=${day.strength_lift.join("|")} lower_lift_cap=${day.lower_lift_cap}`,
+      `${day.day} heavy=${day.heavy} intensity_band=${day.intensity_band} intensity_profile=${day.intensity_profile.join("|")} strength_lift=${day.strength_lift.join("|")} combinations=${day.combinations.join("|")} lower_lift_cap=${day.lower_lift_cap}`,
   );
   return ["Per-day enums are closed. Do not use a value outside that day.", ...lines].join("\n");
 }

@@ -86,5 +86,30 @@
       {"id": "six-a", "week": "2099-07-06", "adopted": false, "source": "fallback", "fallback_adopted": false, "point": "heavy squat the day after deadlift (mon)"}
     ]
   },
-  "tests": {"files": 77, "passed": 486}
+  "tests": {"files": 78, "passed": 491},
+  "profile": {
+    "pass": true,
+    "week_boundary_2099_07_06": false,
+    "boundary_note": "heavy squat the day after deadlift (mon) names Monday as the deadlift day",
+    "enum_compare_weeks": 15,
+    "enum_diffs": 0,
+    "enum_rerun": 0,
+    "evaluate_saved": "not run; programming_weeks was empty and no adopted draft was stored",
+    "adopted": "4/4",
+    "pre_model_reject": 0,
+    "head_block": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "tokens": 412123,
+    "token_cap": 1200000,
+    "week_average": 238292,
+    "max_starts": 5,
+    "scheduled": 4,
+    "runs": [
+      {"id": "two-a", "week": "2099-08-03", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "two-run", "week": "2099-09-07", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "six-a", "week": "2099-07-06", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1},
+      {"id": "six-sun", "week": "2099-01-19", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"}
+    ]
+  }
 }

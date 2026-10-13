@@ -87,6 +87,52 @@ function choosePair(days: DayKey[], shift: number): [DayKey, DayKey] | [DayKey] 
   return pairs[shift % pairs.length]!;
 }
 
+function lowerDaysOf(assigned: Map<DayKey, GoalCategory>): DayKey[] {
+  return [...assigned.entries()].filter(([, category]) => category === "lower").map(([day]) => day);
+}
+
+function categoryConflict(assigned: Map<DayKey, GoalCategory>): boolean {
+  if (!GOAL_TABLE_RULES.forbidConsecutiveSameCategory) return false;
+  for (const [day, category] of assigned) {
+    const next = DAY_ORDER[DAY_ORDER.indexOf(day) + 1];
+    if (next && assigned.get(next) === category) return true;
+  }
+  return false;
+}
+
+/**
+ * 프로필 훈련일만 쓸 때 긴 컨디셔닝 자리를 남긴다.
+ * 기본 6일 배치는 weekTrainingLayout을 그대로 쓴다.
+ */
+function placeProfileWeek(
+  training: readonly DayKey[],
+  weekIndex: WeekIndex,
+  wantsLong: boolean,
+  heavy: boolean,
+): { categories: Map<DayKey, GoalCategory>; longDay: DayKey | null } | null {
+  const assigned = placeCategories(training, weekIndex);
+  if (!assigned) return null;
+  if (!wantsLong) return { categories: assigned, longDay: null };
+  const host = longDayFor([...training], lowerDaysOf(assigned), heavy);
+  if (host) return { categories: assigned, longDay: host };
+  const lowers = lowerDaysOf(assigned);
+  const others = training.filter((day) => !lowers.includes(day));
+  for (const lower of lowers) {
+    for (const other of others) {
+      const trial = new Map(assigned);
+      const moved = trial.get(other);
+      const kept = trial.get(lower);
+      if (!moved || !kept) continue;
+      trial.set(other, kept);
+      trial.set(lower, moved);
+      if (categoryConflict(trial)) continue;
+      const opened = longDayFor([...training], lowerDaysOf(trial), heavy);
+      if (opened) return { categories: trial, longDay: opened };
+    }
+  }
+  return null;
+}
+
 function longDayFor(training: DayKey[], lowers: DayKey[], heavy: boolean): DayKey | null {
   const blocked = new Set<DayKey>(lowers);
   if (heavy) {
@@ -166,6 +212,16 @@ type FocusCell = {
   stimulus: Stimulus;
 };
 
+/** 주 4–6일의 기존 절대 수치. 고강도 3, 피로 2, 딜로드 1, 하체 2, 피로 하체 1, 올림픽 4. */
+const HISTORICAL_WEEK_CAPS = {
+  maxHighIntensity: 3,
+  maxHighIntensityFatigued: 2,
+  maxHighIntensityDeload: 1,
+  maxLowerLifts: 2,
+  maxLowerLiftsFatigued: 1,
+  maxOlympicDays: 4,
+} as const;
+
 export const GOAL_TABLE_RULES = {
   categories: ["lower", "upper", "full", "engine", "gymnastics"] as const,
   focusCategory: {
@@ -185,7 +241,56 @@ export const GOAL_TABLE_RULES = {
   forbidConsecutiveSameCategory: true,
   loadDeltaMax: 2,
   monopolyFails: true,
+  /** 강도 4 이상이 고강도다. 월간 표와 주간 규칙이 같은 기준을 본다. */
+  highIntensity: 4,
+  /**
+   * 훈련일 수별 절대 수치.
+   * 주 2일만 고강도 상한이 1이다. 주 4–6일은 HISTORICAL_WEEK_CAPS 그대로다.
+   */
+  byTrainingDays: {
+    2: { ...HISTORICAL_WEEK_CAPS, maxHighIntensity: 1, maxHighIntensityFatigued: 1 },
+    3: HISTORICAL_WEEK_CAPS,
+    4: HISTORICAL_WEEK_CAPS,
+    5: HISTORICAL_WEEK_CAPS,
+    6: HISTORICAL_WEEK_CAPS,
+    7: HISTORICAL_WEEK_CAPS,
+  },
 } as const;
+
+/** 프로필 훈련일 수. available_days가 없으면 기본 6일이다. 월간·뼈대·검증이 이 함수만 읽는다. */
+export function profileTrainingDayCount(month: { available_days?: readonly DayKey[] | null }): number {
+  const listed = month.available_days;
+  if (!listed?.length) return 6;
+  return new Set(listed.filter((day) => DAY_ORDER.includes(day))).size;
+}
+
+/** 휴식일 = 7 - 프로필 훈련일 수. 검사는 이 수와 정확히 같아야 한다. */
+export function expectedRestDays(month: { available_days?: readonly DayKey[] | null }): number {
+  return 7 - profileTrainingDayCount(month);
+}
+
+export function weekCapsFor(trainingDays: number) {
+  const table = GOAL_TABLE_RULES.byTrainingDays;
+  if (trainingDays === 2) return table[2];
+  if (trainingDays === 3) return table[3];
+  if (trainingDays === 4) return table[4];
+  if (trainingDays === 5) return table[5];
+  if (trainingDays === 7) return table[7];
+  return table[6];
+}
+
+export function absoluteWeekCaps(input: { trainingDays: number; deload: boolean; fatigued: boolean }): {
+  maxHighIntensity: number;
+  maxLowerLifts: number;
+  maxOlympicDays: number;
+} {
+  const row = weekCapsFor(input.trainingDays);
+  return {
+    maxHighIntensity: input.deload ? row.maxHighIntensityDeload : input.fatigued ? row.maxHighIntensityFatigued : row.maxHighIntensity,
+    maxLowerLifts: input.fatigued ? row.maxLowerLiftsFatigued : row.maxLowerLifts,
+    maxOlympicDays: row.maxOlympicDays,
+  };
+}
 
 export type GoalCategory = (typeof GOAL_TABLE_RULES.categories)[number];
 
@@ -319,10 +424,15 @@ export function buildGoalTable(input: { month: MonthDirection; previousActual?: 
       weekIndex,
       previousActual: input.previousActual,
     });
-    const available = input.month.available_days;
-    const trainingDays = available?.length ? DAY_ORDER.filter((day) => available.includes(day)) : DAY_ORDER.filter((day) => day !== layout.rest);
-    const categories = placeCategories(trainingDays, weekIndex);
+    const available = input.month.available_days?.filter((day) => DAY_ORDER.includes(day));
+    const profileDays = Boolean(available?.length);
+    const trainingDays = profileDays ? DAY_ORDER.filter((day) => available!.includes(day)) : DAY_ORDER.filter((day) => day !== layout.rest);
+    const wantsLong = input.month.long_conditioning_weeks.includes(weekIndex);
+    const placed = profileDays ? placeProfileWeek(trainingDays, weekIndex, wantsLong, layout.phase !== "deload") : null;
+    if (profileDays && !placed) return { ok: false, reason: `goal table week ${weekIndex} could not satisfy GOAL_TABLE_RULES` };
+    const categories = profileDays ? placed!.categories : placeCategories(trainingDays, weekIndex);
     if (!categories) return { ok: false, reason: `goal table week ${weekIndex} could not satisfy GOAL_TABLE_RULES` };
+    const longDay = profileDays ? placed!.longDay : layout.longDay;
     const blocked = new Set(previous);
     const weekSignatures = new Set<string>();
     let previousTrainingIndex = -2;
@@ -330,7 +440,7 @@ export function buildGoalTable(input: { month: MonthDirection; previousActual?: 
     let trainingIndex = 0;
     const days: DaySessionGoal[] = [];
     for (const day of DAY_ORDER) {
-      const restDay = available?.length ? !available.includes(day) : day === layout.rest;
+      const restDay = profileDays ? !available!.includes(day) : day === layout.rest;
       if (restDay) {
         days.push(restGoal(day));
         continue;
@@ -354,7 +464,7 @@ export function buildGoalTable(input: { month: MonthDirection; previousActual?: 
       byWeekday.set(day, weekday);
       previousTrainingIndex = index;
       previousStimulus = cell.stimulus;
-      const long = day === layout.longDay;
+      const long = day === longDay;
       const time_domain: TimeDomain = long ? "long" : (weekIndex + trainingIndex) % 2 === 0 ? "short" : "medium";
       const intensity = intensityFor(layout, trainingIndex, previousIntensity.get(day) ?? null);
       trainingIndex += 1;
@@ -579,7 +689,16 @@ export function goalTableErrors(table: MonthGoalTable | null, month: MonthDirect
       }
     }
     for (const day of DAY_ORDER) if (!seen.has(day)) errors.push(`goal_table week ${week.week_index} is missing ${day}`);
-    if (rests !== 1) errors.push(`goal_table week ${week.week_index} needs exactly one rest day; current=${rests}`);
+    const expectedRest = expectedRestDays(month);
+    const restLabel = expectedRest === 1 ? "exactly one rest day" : `exactly ${expectedRest} rest days`;
+    if (rests !== expectedRest) errors.push(`goal_table week ${week.week_index} needs ${restLabel}; current=${rests}`);
+    const method = month.strength_method || month.scheme;
+    const deload = week.week_index === 4 || method === "DELOAD_RECOVERY" || method === "deload" || month.scheme === "deload";
+    const caps = absoluteWeekCaps({ trainingDays: profileTrainingDayCount(month), deload, fatigued: false });
+    const high = training.filter((day) => (day.intensity ?? 0) >= GOAL_TABLE_RULES.highIntensity).length;
+    if (high > caps.maxHighIntensity) {
+      errors.push(`goal_table week ${week.week_index} high intensity days ${high} exceed ${caps.maxHighIntensity}`);
+    }
     const longRequired = month.long_conditioning_weeks.includes(week.week_index);
     if (longRequired && longs !== 1) errors.push(`goal_table week ${week.week_index} needs exactly one long day; current=${longs}`);
     if (!longRequired && longs !== 0) errors.push(`goal_table week ${week.week_index} is not a long-conditioning week`);

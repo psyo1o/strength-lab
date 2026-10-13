@@ -1,5 +1,5 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
-import { deterministicGoalTable, goalTableErrors, goalTableRuleErrors } from "../coaching/goal-table";
+import { deterministicGoalTable, expectedRestDays, goalTableErrors, goalTableRuleErrors } from "../coaching/goal-table";
 import { TIME_DOMAIN_RANGES } from "../rules";
 import type { MonthDirection, MonthGoalTable, SessionFocus, WeekIndex } from "../types";
 import {
@@ -179,7 +179,7 @@ export function validateMonthlyDirection(direction: MonthlyDirection, month: Mon
         maxHigh = Math.max(maxHigh, highRun);
       } else highRun = 0;
     }
-    if (rest < DIRECTION_RULES.minRestDaysPerWeek) errors.push(`week ${weekIndex} needs a rest day`);
+    if (rest < expectedRestDays(month)) errors.push(`week ${weekIndex} needs a rest day`);
     if (maxHigh > DIRECTION_RULES.maxConsecutiveHighIntensity) {
       errors.push(`week ${weekIndex} has more than ${DIRECTION_RULES.maxConsecutiveHighIntensity} consecutive high-intensity days`);
     }

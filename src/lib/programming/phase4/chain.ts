@@ -59,6 +59,8 @@ export type DRunReport = {
   fallback: number;
   headUnresolved: number;
   headApplied: number;
+  headBlock: number;
+  preModelReject: number;
   overlapDays: number;
   deloadConflicts: number;
   goalBreaks: number;
@@ -73,6 +75,8 @@ export const D_REPAIR_TOKEN_CAP = 2_000_000;
 export const D_REPAIR_MAX_STARTS = Math.floor(D_REPAIR_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
 export const STRUCT_TOKEN_CAP = 1_500_000;
 export const STRUCT_MAX_STARTS = Math.floor(STRUCT_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
+export const PROFILE_TOKEN_CAP = 1_200_000;
+export const PROFILE_MAX_STARTS = Math.floor(PROFILE_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
 
 export function phase4DPass(input: {
   adopted: number;
@@ -277,12 +281,37 @@ export const PHASE4_STRUCT_RUNS: readonly DRunSpec[] = [
   { id: "six-a", profile: "531", monthId: "2099-07", weeks: ["2099-07-06", "2099-07-13", "2099-07-20", "2099-07-27"], coachWeeks: ["2099-07-06"] },
 ];
 
+export const PHASE4_PROFILE_RUNS: readonly DRunSpec[] = [
+  { id: "two-a", profile: "531", monthId: "2099-08", weeks: ["2099-08-03", "2099-08-10", "2099-08-17", "2099-08-24"], coachWeeks: ["2099-08-03"], availableDays: ["mon", "thu"] },
+  { id: "two-run", profile: "531", monthId: "2099-09", weeks: ["2099-09-07", "2099-09-14", "2099-09-21", "2099-09-28"], coachWeeks: ["2099-09-07"], availableDays: ["mon", "tue"] },
+  { id: "six-a", profile: "531", monthId: "2099-07", weeks: ["2099-07-06", "2099-07-13", "2099-07-20", "2099-07-27"], coachWeeks: ["2099-07-06"] },
+  { id: "six-sun", profile: "531", monthId: "2099-01", weeks: ["2099-01-05", "2099-01-12", "2099-01-19", "2099-01-26"], coachWeeks: ["2099-01-19"] },
+];
+
 export const PHASE4_ODD_RUNS: readonly DRunSpec[] = [
   { id: "two-a", profile: "531", monthId: "2099-08", weeks: ["2099-08-03", "2099-08-10", "2099-08-17", "2099-08-24"], coachWeeks: ["2099-08-03"], availableDays: TWO_DAYS },
   { id: "two-b", profile: "531", monthId: "2099-09", weeks: ["2099-09-07", "2099-09-14", "2099-09-21", "2099-09-28"], coachWeeks: ["2099-09-07"], availableDays: TWO_DAYS },
   { id: "six-a", profile: "531", monthId: "2099-07", weeks: ["2099-07-06", "2099-07-13", "2099-07-20", "2099-07-27"], coachWeeks: ["2099-07-06"] },
   { id: "six-b", profile: "531", monthId: "2099-12", weeks: ["2099-12-07", "2099-12-14", "2099-12-21", "2099-12-28"], coachWeeks: ["2099-12-07"] },
 ];
+
+export function phase4ProfilePass(input: {
+  adopted: number;
+  weeks: number;
+  preModelReject: number;
+  headBlock: number;
+  fallbackAdopted: number;
+  drift: number;
+}): boolean {
+  return (
+    input.weeks === PHASE4_PROFILE_RUNS.length &&
+    input.adopted === PHASE4_PROFILE_RUNS.length &&
+    input.preModelReject === 0 &&
+    input.headBlock === 0 &&
+    input.fallbackAdopted === 0 &&
+    input.drift === 0
+  );
+}
 
 export function phase4RegressionPass(input: {
   adopted: number;
@@ -321,13 +350,18 @@ export async function runStageD(input: ListedInput): Promise<{ reports: DRunRepo
   );
   const repair = process.env.PHASE4_D_REPAIR === "1";
   const struct = process.env.PHASE4_STRUCT === "1";
-  const source = struct ? PHASE4_STRUCT_RUNS : PHASE4_D_RUNS;
+  const profile = process.env.PHASE4_PROFILE === "1";
+  const source = profile ? PHASE4_PROFILE_RUNS : struct ? PHASE4_STRUCT_RUNS : PHASE4_D_RUNS;
   const runs = source.filter((run) => only.size === 0 || only.has(run.id)).map((run) =>
     repair && run.id === "531-b" ? { ...run, coachWeeks: ["2099-11-02"] as const } : run,
   );
-  if (repair || struct) {
+  if (repair || struct || profile) {
     const scheduled = runs.reduce((sum, run) => sum + (run.coachWeeks?.length ?? run.weeks.length), 0);
-    const cap = struct ? Math.min(phase4RunCap(), STRUCT_TOKEN_CAP) : Math.min(phase4RunCap(), D_REPAIR_TOKEN_CAP);
+    const cap = profile
+      ? Math.min(phase4RunCap(), PROFILE_TOKEN_CAP)
+      : struct
+        ? Math.min(phase4RunCap(), STRUCT_TOKEN_CAP)
+        : Math.min(phase4RunCap(), D_REPAIR_TOKEN_CAP);
     const maxStarts = Math.floor(cap / D_REPAIR_WEEK_AVERAGE);
     console.log(`D stop plan average=${D_REPAIR_WEEK_AVERAGE} cap=${cap} max_starts=${maxStarts} scheduled=${scheduled}`);
   }
@@ -350,7 +384,7 @@ export async function runStageFollow(input: ListedInput): Promise<{
   return { hash, regression, odd };
 }
 
-/** 월 표를 만들 수 없으면 예외를 삼키지 않고 이유로 돌려준다. 휴식일 규칙은 그대로다. */
+/** 월 표를 만들 수 없으면 예외를 삼키지 않고 이유로 돌려준다. 휴식일은 7에서 훈련일 수를 뺀 수와 정확히 같아야 한다. */
 export function openRunMonth(spec: DRunSpec): { ok: true; month: MonthDirection } | { ok: false; reason: string } {
   try {
     const seeded = fallbackMonth(PROFILES[spec.profile]);
@@ -385,6 +419,8 @@ async function runOne(
     fallback: 0,
     headUnresolved: 0,
     headApplied: 0,
+    headBlock: 0,
+    preModelReject: 0,
     overlapDays: 0,
     deloadConflicts: 0,
     goalBreaks: 0,
@@ -394,6 +430,7 @@ async function runOne(
   };
   const openedMonth = openRunMonth(spec);
   if (!openedMonth.ok) {
+    report.preModelReject += 1;
     report.failures.push(openedMonth.reason);
     input.fail("goal_table", openedMonth.reason.slice(0, 180));
     console.log(`${process.env.PHASE4_STAGE ?? "D"} ${spec.id} rejected ${openedMonth.reason}`);
@@ -440,14 +477,16 @@ async function runOne(
   let recentSignatures: string[] = [];
   let previousWeekStart: string | null = null;
   for (const weekStart of spec.coachWeeks ?? spec.weeks) {
-    if (process.env.PHASE4_D_REPAIR === "1" || process.env.PHASE4_STRUCT === "1" || process.env.PHASE4_STAGE === "F") {
+    if (process.env.PHASE4_D_REPAIR === "1" || process.env.PHASE4_STRUCT === "1" || process.env.PHASE4_PROFILE === "1" || process.env.PHASE4_STAGE === "F") {
       const spent = input.tokens();
       const cap =
-        process.env.PHASE4_STRUCT === "1"
-          ? Math.min(phase4RunCap(), STRUCT_TOKEN_CAP)
-          : process.env.PHASE4_STAGE === "F"
-            ? Math.min(phase4RunCap(), 2_500_000)
-            : Math.min(phase4RunCap(), D_REPAIR_TOKEN_CAP);
+        process.env.PHASE4_PROFILE === "1"
+          ? Math.min(phase4RunCap(), PROFILE_TOKEN_CAP)
+          : process.env.PHASE4_STRUCT === "1"
+            ? Math.min(phase4RunCap(), STRUCT_TOKEN_CAP)
+            : process.env.PHASE4_STAGE === "F"
+              ? Math.min(phase4RunCap(), 2_500_000)
+              : Math.min(phase4RunCap(), D_REPAIR_TOKEN_CAP);
       if (spent + D_REPAIR_WEEK_AVERAGE > cap) {
         console.log(`${process.env.PHASE4_STAGE ?? "D"} stop before ${spec.id} ${weekStart}: spent ${spent} + average ${D_REPAIR_WEEK_AVERAGE} > ${cap}`);
         break;
@@ -456,6 +495,7 @@ async function runOne(
     report.weeks += 1;
     const weekIndex = weekIndexFromStart(weekStart);
     const skeleton = skeletons?.[weekIndex - 1] ?? null;
+    const previousWeekSkeleton = weekIndex > 1 ? skeletons?.[weekIndex - 2] ?? null : null;
     const hash = skeleton?.lock.skeletonHash ?? null;
     const result = await coachWeek({
       month,
@@ -468,6 +508,7 @@ async function runOne(
       inputSummary: previousWeekStart ? { previous_week: { week_start: previousWeekStart, generation_source: "model", actual: previousActual } } : null,
       monthlyDirection: direction,
       weekSkeleton: skeleton,
+      previousWeekSkeleton,
       monthId: spec.monthId,
       profileId: spec.profile,
       key: input.key,
@@ -496,6 +537,7 @@ async function runOne(
     }
     if (result.head_revise === "unresolved") report.headUnresolved += 1;
     if (result.head_revise === "applied") report.headApplied += 1;
+    if (result.review.status === "BLOCK") report.headBlock += 1;
     report.patches += result.intensity_patch_count ?? 0;
     const ok = input.adoptedWeek(result);
     if (ok) report.adopted += 1;
@@ -509,7 +551,7 @@ async function runOne(
       report.failures.push(`${weekStart} ${point.coach}: ${text || "unclassified"}`);
     }
     console.log(
-      `${process.env.PHASE4_STAGE ?? "D"} ${spec.id} ${weekStart} ${ok ? "adopted" : "failed"} review=${result.review.status} source=${result.generation_source} reason=${result.fallback_reason ?? "-"} overlap=${seen.overlapDays} deload=${seen.deloadConflicts} goal=${seen.goalBreaks} patch=${result.intensity_patch_count ?? 0} tokens=${input.tokens()}`,
+      `${process.env.PHASE4_STAGE ?? "D"} ${spec.id} ${weekStart} ${ok ? "adopted" : "failed"} review=${result.review.status} source=${result.generation_source} reason=${result.fallback_reason ?? "-"} overlap=${seen.overlapDays} deload=${seen.deloadConflicts} goal=${seen.goalBreaks} patch=${result.intensity_patch_count ?? 0} headBlock=${report.headBlock} tokens=${input.tokens()}`,
     );
     previousWeekStart = weekStart;
     previousActual = weekActualFromDraft(result.draft, weekStart);

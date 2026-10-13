@@ -131,11 +131,12 @@ function takeKeys(rows: readonly string[], prefer: readonly string[], pin?: stri
   return out;
 }
 
-function legalConditioning(lift: string | null | undefined): string[] {
+function legalConditioning(lift: string | null | undefined, deadliftConditioning?: boolean): string[] {
   const banned = new Set(bannedConditioningKeys(lift));
   return standardMovements()
     .filter((row) => modelSelectable(row) && !banned.has(row.key) && quantityOptions(row.key).length > 0)
-    .map((row) => row.key);
+    .map((row) => row.key)
+    .filter((key) => deadliftConditioning !== false || (key !== "deadlift" && key !== "romanian_deadlift"));
 }
 
 function pool(keys: readonly string[], kind: "mono" | "gym" | "lift", pin?: string): FrameMovement[] {
@@ -159,8 +160,8 @@ function pieceOf(day: DayIntent, slot: ConditioningSlot | null): SessionPiece {
   };
 }
 
-function conditioningSlots(day: DayIntent, slot: ConditioningSlot | null): FrameSlot[] {
-  const keys = legalConditioning(day.strength_lift);
+function conditioningSlots(day: DayIntent, slot: ConditioningSlot | null, deadliftConditioning?: boolean): FrameSlot[] {
+  const keys = legalConditioning(day.strength_lift, deadliftConditioning);
   const aerobic = day.primary_training === "aerobic" && day.secondary_training !== "long_conditioning";
   const required = slot && !slot.from_goal ? (slot.primary_keys ?? []).filter((key) => keys.includes(key)) : [];
   const pin = slot?.primary_key && keys.includes(slot.primary_key) ? slot.primary_key : undefined;
@@ -183,7 +184,10 @@ function conditioningSlots(day: DayIntent, slot: ConditioningSlot | null): Frame
   return filled.map((movements, index) => ({ id: `s${index}`, movements }));
 }
 
-function strengthSlots(day: DayIntent): FrameSlot[] {
+function strengthSlots(day: DayIntent, allowedLifts?: readonly string[] | null): FrameSlot[] {
+  if (allowedLifts && day.strength_lift && day.strength_lift !== "none" && !allowedLifts.includes(day.strength_lift)) {
+    return [{ id: "s0", movements: [{ key: "method_table", options: [METHOD_OPTION] }] }];
+  }
   const listed = (LIFT_KEYS[day.strength_lift ?? ""] ?? []).filter((key) => catalogMovement(key));
   const movements: FrameMovement[] = (listed.length ? listed : ["method_table"]).map((key) => ({
     key,
@@ -199,9 +203,19 @@ function warmupSlots(day: DayIntent): FrameSlot[] {
   return [{ id: "s0", movements }];
 }
 
-export function buildSessionFrame(input: { area: SlotArea; day: DayIntent; slot: ConditioningSlot | null }): SessionFrame | null {
+export function buildSessionFrame(input: {
+  area: SlotArea;
+  day: DayIntent;
+  slot: ConditioningSlot | null;
+  /** 잠긴 뼈대 조합. 없을 때는 지금 카탈로그를 그대로 쓴다. */
+  skeletonCombo?: { strengthLifts: readonly string[]; deadliftConditioning: boolean } | null;
+}): SessionFrame | null {
   const slots =
-    input.area === "conditioning" ? conditioningSlots(input.day, input.slot) : input.area === "strength" ? strengthSlots(input.day) : warmupSlots(input.day);
+    input.area === "conditioning"
+      ? conditioningSlots(input.day, input.slot, input.skeletonCombo?.deadliftConditioning)
+      : input.area === "strength"
+        ? strengthSlots(input.day, input.skeletonCombo?.strengthLifts)
+        : warmupSlots(input.day);
   if (!slots.length) return null;
   return {
     area: input.area,

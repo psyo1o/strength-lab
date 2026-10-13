@@ -45,6 +45,8 @@ export type CoachWeekInput = {
   monthlyDirection?: MonthlyDirection | null;
   /** Locked week skeleton. evaluateWeek rejects a hash drift. */
   weekSkeleton?: WeekSkeleton | null;
+  /** 지난주 잠긴 뼈대. 월요일 조합은 그 일요일을 본다. */
+  previousWeekSkeleton?: WeekSkeleton | null;
   /** Monthly reuse identity. Defaults stay 2099-07 and class. */
   monthId?: string;
   profileId?: string;

@@ -300,6 +300,17 @@ function lockedSessionSchemaNote(input: CoachWeekInput, day: DayIntent): string 
   ].join("\n");
 }
 
+function skeletonComboFor(week: CoachWeekInput, rules: WeekRules, day: DayKey) {
+  if (!week.weekSkeleton) return null;
+  const bounds = dayBoundsFromSkeleton(week.weekSkeleton, rules.max_lower_lifts, {
+    method: week.month.strength_method || week.month.scheme,
+    previousWeek: week.previousWeekSkeleton ?? null,
+  });
+  const bound = bounds?.find((row) => row.day === day);
+  if (!bound) return null;
+  return { strengthLifts: bound.strength_lift, deadliftConditioning: bound.deadliftConditioning };
+}
+
 function judgeContext(input: CoachWeekInput) {
   return {
     previousActual: input.previousActual ?? null,
@@ -631,7 +642,12 @@ async function writeSession(input: {
   const rawSlot = hinted && !(lockedSkeletonDay(input.week, input.day.day) && !goalLocked(hinted)) ? hinted : null;
   const frames = new Map<SpecialistArea, SessionFrame>();
   for (const area of areas) {
-    const frame = buildSessionFrame({ area, day: input.day, slot: rawSlot });
+    const frame = buildSessionFrame({
+      area,
+      day: input.day,
+      slot: rawSlot,
+      skeletonCombo: skeletonComboFor(input.week, input.rules, input.day.day),
+    });
     if (frame) frames.set(area, frame);
   }
   const slotClosed = new Set<SpecialistArea>();
@@ -1171,7 +1187,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     );
   }
   if (!lockedLongitudinal) {
-  const dayBounds = dayBoundsFromSkeleton(input.weekSkeleton ?? null, rules.max_lower_lifts);
+  const dayBounds = dayBoundsFromSkeleton(input.weekSkeleton ?? null, rules.max_lower_lifts, {
+    method: month.strength_method || month.scheme,
+    previousWeek: input.previousWeekSkeleton ?? null,
+  });
   const weeklyFormat = dayBounds ? weeklyResponseFormat(dayBounds) : undefined;
   const weeklySchemaNote = dayBounds ? weekBoundsNote(dayBounds) : undefined;
   const weeklyUser = weeklyCoachPayload({
@@ -2091,7 +2110,12 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         pieceCells(draft.sessions).map((cell) => {
           const intent = plan.days.find((day) => day.day === cell.day);
           const frame = intent
-            ? buildSessionFrame({ area: "conditioning", day: intent, slot: plan.conditioning_slots?.[cell.day as DayKey] ?? null })
+            ? buildSessionFrame({
+                area: "conditioning",
+                day: intent,
+                slot: plan.conditioning_slots?.[cell.day as DayKey] ?? null,
+                skeletonCombo: skeletonComboFor(input, rules, cell.day as DayKey),
+              })
             : null;
           const home = frame?.slots.find((slot) => slot.movements.some((movement) => movement.key === cell.catalog_key));
           return {
