@@ -77,7 +77,7 @@ describe("월간 후보 틀", () => {
     const otherEnum = format.json_schema.schema.properties.days.properties[slotKey(other.week_index, other.day)]?.properties?.choice?.enum ?? [];
     expect(mondayEnum).toEqual(monday.choices.map((choice) => choice.id));
     expect(mondayEnum.some((id) => otherEnum.includes(id))).toBe(false);
-    expect(MONTHLY_COACH_PROMPT_VERSION).toBe("monthly-coach-v10");
+    expect(MONTHLY_COACH_PROMPT_VERSION).toBe("monthly-coach-v11");
     expect(coachSystemPrompt("monthly")).not.toContain("Recovery day with no training");
     expect(coachSystemPrompt("monthly")).not.toContain("for example");
   });
@@ -107,7 +107,12 @@ describe("월간 후보 틀", () => {
     expect(spec.blocked).toBe(false);
     const merged = mergeRepair(framed.frame, table, spec, {
       days: Object.fromEntries(
-        spec.days.map((day) => [day.key, day.rest ? { purpose: "Rest day with no training session." } : { choice: day.allowed[0], purpose: "Train the selected target for this date." }]),
+        spec.days.map((day) => [
+          day.key,
+          day.rest
+            ? { purpose_kind: "rest", emphasis: "off" }
+            : { choice: day.allowed[0], purpose_kind: "quality", emphasis: "position" },
+        ]),
       ),
     });
     expect(merged.ok).toBe(true);
@@ -153,57 +158,38 @@ describe("월간 후보 틀", () => {
     expect(broken.plan.source).toBe("deterministic");
   });
 
-  it("60자를 넘긴 목적은 그 날만 다시 묻고 통째로 다시 묻지 않는다", async () => {
+  it("목적 슬롯이 아니면 고정 문장으로 바꾸지 않고 degraded다", async () => {
     const month = month531();
     const legal = legalMonthlyCellJson(month);
     const trainingKey = Object.keys(legal.days).find((key) => legal.days[key]?.choice);
     expect(trainingKey).toBeTruthy();
     if (!trainingKey) return;
-    const long = structuredClone(legal);
-    long.days[trainingKey] = { ...long.days[trainingKey]!, purpose: "x".repeat(61) };
-    const users: string[] = [];
+    const bad = structuredClone(legal);
+    bad.days[trainingKey] = { choice: legal.days[trainingKey]!.choice, purpose_kind: "air_squat", emphasis: "reps" };
     let calls = 0;
-    const fixed = await coachMonthly({
-      month,
-      key: "sk-test",
-      fetchImpl: async (_url, init) => {
-        calls += 1;
-        const body = JSON.parse(String(init?.body ?? "{}")) as { messages?: Array<{ content?: string }> };
-        users.push(body.messages?.[1]?.content ?? "");
-        if (calls === 1) return chat(long);
-        return chat({ days: { [trainingKey]: { choice: legal.days[trainingKey]!.choice, purpose: "Train this date at the listed target." } } });
-      },
-      timeoutMs: 1000,
-      runId: "frame-purpose",
-      weekId: "2099-07-06",
-    });
-    expect(calls).toBe(2);
-    expect(users[1]).toContain("Rewrite only the listed days");
-    expect(users[0]).not.toContain("Rewrite only the listed days");
-    expect(fixed.direction).toEqual({ source: "coach", degraded: false, reason: null });
-    expect(goalTableErrors(fixed.plan.goal_table ?? null, month)).toEqual([]);
-
-    calls = 0;
     const still = await coachMonthly({
       month,
       key: "sk-test",
       fetchImpl: async () => {
         calls += 1;
-        return chat(calls === 1 ? long : { days: { [trainingKey]: { choice: legal.days[trainingKey]!.choice, purpose: "y".repeat(61) } } });
+        return chat(bad);
       },
       timeoutMs: 1000,
-      runId: "frame-purpose-again",
+      runId: "frame-purpose-slot",
       weekId: "2099-07-06",
     });
     expect(calls).toBe(2);
     expect(still.direction.degraded).toBe(true);
     expect(still.plan.source).toBe("deterministic");
+    const purposes = (still.plan.goal_table?.weeks ?? []).flatMap((week) => week.days.map((day) => day.purpose));
+    expect(purposes.join(" ")).not.toContain("air_squat");
+    expect(purposes.join(" ")).not.toContain("reps");
   });
 });
 
 describe("헤드 note_ko", () => {
   it("스키마에서 수정 값보다 앞이고 10자 미만은 실패다", () => {
-    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v10");
+    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v11");
     const schema = headReviewFormat(["air_squat"]) as { json_schema: { schema: { properties: Record<string, { minLength?: number }>; required: string[] } } };
     const keys = Object.keys(schema.json_schema.schema.properties);
     expect(keys[0]).toBe("note_ko");

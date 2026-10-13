@@ -189,7 +189,7 @@ export function smokeCoaches(fetchImpl?: FetchLike): SmokeCoach[] {
             smoke_index: index,
             piece_cells: cells,
             constitution:
-              "You are called once. If a problem can be fixed by a cell, return that cell. Do not ask for regeneration. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session.",
+              "You are called once. REVISE only with a different movement_id or quantity_option from that cell's enum. If there is no different id, return APPROVE_WITH_NOTE and leave revisions and adjustments empty. Do not ask for regeneration. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session.",
           },
           key,
           timeoutMs: 90_000,

@@ -93,8 +93,12 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
   const fetchImpl = guardedFetch(fetch);
   const stages: StageRow[] = [];
   const counts = new Map<string, number>();
-  let adopted = 0;
-  let weeks = 0;
+    let adopted = 0;
+    let weeks = 0;
+    let degradedWeeks = 0;
+    let fallbackWeeks = 0;
+    let headUnresolved = 0;
+    let headApplied = 0;
   let stopped: string | null = null;
 
   const fail = (stage: string, coach: string, point: string) => bump(counts, `${stage}|${coach}|${point}`);
@@ -208,6 +212,11 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
         console.log(
           `C detail ${profile.id} ${weekStart} review=${result.review.status} issues=${(result.adoption?.verdict.issueCodes ?? []).join(",") || "-"} source=${result.generation_source} reason=${result.fallback_reason ?? "-"}`,
         );
+        const monthlyFailed = (result.traces ?? []).some((trace) => trace.agent_name === "monthly_coach" && trace.validation_result === "fail");
+        if (monthlyFailed) degradedWeeks += 1;
+        if (result.generation_source === "fallback") fallbackWeeks += 1;
+        if (result.head_revise === "unresolved") headUnresolved += 1;
+        if (result.head_revise === "applied") headApplied += 1;
         const ok = phase4WeekAdopted(result);
         if (ok) adopted += 1;
         else {
@@ -221,6 +230,9 @@ export async function runPhase4(input: { key: string; dbPath?: string; logPath: 
     }
     const cPass = adopted >= 7;
     stages.push({ stage: "C", pass: cPass, detail: `${adopted}/${weeks}` });
+    console.log(
+      `C rates weeks=${weeks} adopted=${adopted} degraded=${degradedWeeks} fallback=${fallbackWeeks} head_unresolved=${headUnresolved} head_applied=${headApplied}`,
+    );
   } catch (error) {
     if (error instanceof Phase4Stop) stopped = error.message;
     else throw error;
@@ -337,7 +349,7 @@ export function writePhase4Report(input: {
     "",
     input.stopped ? `중단: ${input.stopped}` : "중단 없음.",
     "",
-    "고친 것: 월간은 코드가 날짜별 허용 튜플을 계산하고 스키마 enum으로 고르게 했다. 주 역할과 긴 컨디셔닝 주는 코드 틀이다. 목적 한 줄이 60자를 넘거나 동작·format·수량을 적으면 그 날만 1회 다시 묻고, 월 전체를 다시 묻지 않는다. 튜플이 반복되면 위반한 날만 금지 튜플로 1회 다시 묻는다. 다시 실패하면 degraded다. 프롬프트에 예시는 없고 버전은 monthly-coach-v10이다. 헤드 note_ko는 필수이고 minLength 10이며 수정 값보다 앞에 둔다. 빈 값은 그 호출만 1회 재시도하고, 코드가 기본 문장을 채우지 않는다. 헤드 뒤는 evaluateWeek와 finalizeWeekAdoption만 거친다. 채택 판정은 adoption.weekStatus다.",
+    "고친 것: 월간 목적은 purpose_kind와 emphasis enum이다. 문장은 purposeSentence 한글 템플릿이고, 슬롯이 틀리면 고정 문구로 바꾸지 않는다. 버전은 monthly-coach-v11이다. Head REVISE는 같은 enum의 다른 id가 반영되고 evaluateWeek 하드 오류가 없을 때만 채택된다. 수정이 없거나 실패하면 unresolved이고 채택하지 않는다. Head 뒤 재검토 루프는 없다. 버전은 head-coach-v11이다.",
     "",
     `사용 토큰 ${input.tokens}. 상한 ${PHASE4_TOKEN_CAP}.`,
     "",

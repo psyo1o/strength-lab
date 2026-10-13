@@ -249,7 +249,45 @@ export function monthCellUser(month: MonthDirection, frame: MonthFrame): unknown
         stimulus: choice.stimulus,
       })),
     })),
-    note: "Pick one candidate id for each training day and write one purpose line of at most 60 characters. Do not name a movement key, a format, or an amount. Rest days need a purpose line and no id. Week roles, rest days, time_domain, and long-conditioning days are fixed. Do not invent a tuple.",
+    note: "Pick one candidate id for each training day. purpose_kind and emphasis are ids. Do not write a sentence, a movement key, a format, or an amount. Rest days return purpose_kind rest and emphasis off, and no choice id. Week roles, rest days, time_domain, and long-conditioning days are fixed. Do not invent a tuple.",
+  };
+}
+
+export const TRAINING_PURPOSE_KINDS = ["quality", "capacity", "skill", "recover"] as const;
+export const TRAINING_EMPHASIS = ["position", "brace", "pace", "range"] as const;
+export const REST_PURPOSE_KIND = "rest";
+export const REST_EMPHASIS = "off";
+
+const KIND_KO: Record<string, string> = {
+  quality: "품질",
+  capacity: "용량",
+  skill: "기술",
+  recover: "회복",
+  rest: "휴식",
+};
+const EMPHASIS_KO: Record<string, string> = {
+  position: "위치",
+  brace: "고정",
+  pace: "속도",
+  range: "범위",
+  off: "없음",
+};
+
+/** 모델이 고른 슬롯으로만 문장을 만든다. 모르는 슬롯은 null이고 다른 문장으로 바꾸지 않는다. */
+export function purposeSentence(kind: string, emphasis: string): string | null {
+  if (kind === REST_PURPOSE_KIND && emphasis === REST_EMPHASIS) return "이 날은 휴식입니다. 훈련을 쓰지 않습니다.";
+  if (!TRAINING_PURPOSE_KINDS.includes(kind as (typeof TRAINING_PURPOSE_KINDS)[number])) return null;
+  if (!TRAINING_EMPHASIS.includes(emphasis as (typeof TRAINING_EMPHASIS)[number])) return null;
+  const kindKo = KIND_KO[kind];
+  const emphasisKo = EMPHASIS_KO[emphasis];
+  if (!kindKo || !emphasisKo) return null;
+  return `이 날은 ${kindKo}을 우선합니다. 강조는 ${emphasisKo}입니다.`;
+}
+
+function purposeSlots(rest: boolean): { purpose_kind: Record<string, unknown>; emphasis: Record<string, unknown> } {
+  return {
+    purpose_kind: { type: "string", enum: rest ? [REST_PURPOSE_KIND] : [...TRAINING_PURPOSE_KINDS] },
+    emphasis: { type: "string", enum: rest ? [REST_EMPHASIS] : [...TRAINING_EMPHASIS] },
   };
 }
 
@@ -259,23 +297,19 @@ export function monthCellFormat(frame: MonthFrame): ResponseFormat {
   for (const day of frameDays(frame)) {
     const key = slotKey(day.week_index, day.day);
     required.push(key);
+    const slots = purposeSlots(day.rest);
     properties[key] = day.rest
-      ? objectSchema({ purpose: PURPOSE_FIELD }, ["purpose"])
+      ? objectSchema(slots, ["purpose_kind", "emphasis"])
       : objectSchema(
           {
             choice: { type: "string", enum: day.choices.map((choice) => choice.id) },
-            purpose: PURPOSE_FIELD,
+            ...slots,
           },
-          ["choice", "purpose"],
+          ["choice", "purpose_kind", "emphasis"],
         );
   }
   return asSchema("monthly_coach_cells", objectSchema({ days: objectSchema(properties, required) }, ["days"]));
 }
-
-const PURPOSE_FIELD = {
-  type: "string",
-  description: "One line of at most 60 characters. No movement key, format, or amount.",
-};
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -301,6 +335,16 @@ function purposeLineError(key: string, purpose: string): string | null {
     return `${key} purpose names a movement, format, or amount`;
   }
   return null;
+}
+
+function readPurpose(key: string, cell: Record<string, unknown> | null, rest: boolean): { purpose: string; error: string | null } {
+  const kind = cell && typeof cell.purpose_kind === "string" ? cell.purpose_kind : "";
+  const emphasis = cell && typeof cell.emphasis === "string" ? cell.emphasis : "";
+  const purpose = purposeSentence(kind, emphasis);
+  if (!purpose || (rest && (kind !== REST_PURPOSE_KIND || emphasis !== REST_EMPHASIS))) {
+    return { purpose: "", error: `${key} purpose slot is not allowed` };
+  }
+  return { purpose, error: purposeLineError(key, purpose) };
 }
 
 function dayFromChoice(day: FrameDay, purpose: string, choice: GoalChoice | null): DaySessionGoal {
@@ -343,9 +387,9 @@ export function tableFromCells(
     for (const day of week.days) {
       const key = slotKey(day.week_index, day.day);
       const cell = asRecord(days[key]);
-      const purpose = cell && typeof cell.purpose === "string" ? cell.purpose.trim() : "";
-      const purposeError = purposeLineError(key, purpose);
-      if (purposeError) errors.push(purposeError);
+      const read = readPurpose(key, cell, day.rest);
+      const purpose = read.purpose;
+      if (read.error) errors.push(read.error);
       if (day.rest) {
         built.push(dayFromChoice(day, purpose, null));
         continue;
@@ -364,16 +408,18 @@ export function tableFromCells(
 }
 
 /** 테스트와 모킹이 후보 0번을 고른 합법 응답. */
-export function legalMonthlyCellJson(month: MonthDirection, actual?: WeekActual | null): { days: Record<string, { choice?: string; purpose: string }> } {
+export function legalMonthlyCellJson(
+  month: MonthDirection,
+  actual?: WeekActual | null,
+): { days: Record<string, { choice?: string; purpose_kind: string; emphasis: string }> } {
   const framed = buildMonthFrame(month, actual);
   if (!framed.ok) throw new Error(framed.reason);
-  const days: Record<string, { choice?: string; purpose: string }> = {};
+  const days: Record<string, { choice?: string; purpose_kind: string; emphasis: string }> = {};
   for (const week of framed.frame.weeks) {
     for (const day of week.days) {
       const key = slotKey(day.week_index, day.day);
-      const purpose = day.rest ? "Rest. No training is written." : "Train this date at the listed target.";
-      if (day.rest) days[key] = { purpose };
-      else days[key] = { choice: day.choices[0]!.id, purpose };
+      if (day.rest) days[key] = { purpose_kind: REST_PURPOSE_KIND, emphasis: REST_EMPHASIS };
+      else days[key] = { choice: day.choices[0]!.id, purpose_kind: "quality", emphasis: "position" };
     }
   }
   return { days };
@@ -384,9 +430,9 @@ export function tableByChoiceIndex(frame: MonthFrame, index: number): MonthGoalT
     week_index: week.week_index,
     goal: week.goal,
     days: week.days.map((day) => {
-      if (day.rest) return dayFromChoice(day, "Rest day with no training session.", null);
+      if (day.rest) return dayFromChoice(day, purposeSentence(REST_PURPOSE_KIND, REST_EMPHASIS) ?? "", null);
       const choice = day.choices[Math.min(index, day.choices.length - 1)]!;
-      return dayFromChoice(day, "Train the selected target for this date.", choice);
+      return dayFromChoice(day, purposeSentence("quality", "position") ?? "", choice);
     }),
   }));
   return { month_goal: frame.month_goal, weeks };
@@ -496,7 +542,7 @@ export function repairUser(spec: RepairSpec): unknown {
   return {
     agent_name: "monthly_coach",
     instruction:
-      "Rewrite only the listed days. Pick one id from allowed. Do not use a forbidden tuple. The purpose is one line of at most 60 characters. Do not name a movement key, a format, or an amount. If banned_words is not empty, the purpose must not contain those words.",
+      "Rewrite only the listed days. Pick one id from allowed. Do not use a forbidden tuple. purpose_kind and emphasis are ids from the schema. Do not write a sentence. The server writes the purpose line. A line that names a movement, a format, or an amount is still rejected.",
     days: spec.days.map((day) => ({
       key: day.key,
       rest: day.rest,
@@ -512,14 +558,15 @@ export function repairFormat(spec: RepairSpec): ResponseFormat {
   const required: string[] = [];
   for (const day of spec.days) {
     required.push(day.key);
+    const slots = purposeSlots(day.rest);
     properties[day.key] = day.rest
-      ? objectSchema({ purpose: PURPOSE_FIELD }, ["purpose"])
+      ? objectSchema(slots, ["purpose_kind", "emphasis"])
       : objectSchema(
           {
-            choice: { type: "string", enum: day.allowed },
-            purpose: PURPOSE_FIELD,
+            choice: { type: "string", enum: day.allowed.length ? day.allowed : ["__none__"] },
+            ...slots,
           },
-          ["choice", "purpose"],
+          ["choice", "purpose_kind", "emphasis"],
         );
   }
   return asSchema("monthly_day_repair", objectSchema({ days: objectSchema(properties, required) }, ["days"]));
@@ -539,9 +586,9 @@ export function mergeRepair(frame: MonthFrame, table: MonthGoalTable, spec: Repa
   };
   for (const slot of spec.days) {
     const cell = asRecord(days[slot.key]);
-    const purpose = cell && typeof cell.purpose === "string" ? cell.purpose.trim() : "";
-    const purposeError = purposeLineError(slot.key, purpose);
-    if (purposeError) errors.push(purposeError);
+    const read = readPurpose(slot.key, cell, slot.rest);
+    const purpose = read.purpose;
+    if (read.error) errors.push(read.error);
     const frameDay = frameDays(frame).find((day) => slotKey(day.week_index, day.day) === slot.key);
     const current = findDay(next, slot.week_index, slot.day);
     if (!frameDay || !current) {

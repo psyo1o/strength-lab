@@ -23,7 +23,7 @@ import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "
 import { goalWeek, movementFrequency, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
 import type { ConditioningSlot } from "../types";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
-import { COACHING_POLICY, prescriptionSource } from "./stage13/policy";
+import { COACHING_POLICY, isCoachingSignal, prescriptionSource } from "./stage13/policy";
 import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRevisionSpecs, waitForTransientRetry } from "./day-recovery";
 import { applyCellsToCoachJson, catalogLine, catalogMovement, catalogPromptLinesFor, isCellPayload, movementsForSlice, movementsForWeek, type CatalogSlice } from "./movement-catalog";
 import { askSpecialist, type SpecialistArea } from "./specialist-generate";
@@ -77,6 +77,7 @@ import { finalizeWeekAdoption, makeIssue, type HeadDecision as AdoptionHead, typ
 
 function adoptionHead(status: string | null, stance: string, unappliedRevision: boolean): AdoptionHead | null {
   if (status === "BLOCK") return "block";
+  if (status === "revised") return "revised";
   if (unappliedRevision || status === "REVISE" || stance === "ADJUST") return "adjust";
   if (status === "APPROVE" || stance === "ACCEPT") return "approve";
   if (status === "APPROVE_WITH_NOTE" || stance === "ACCEPT_WITH_NOTE") return "approve_with_note";
@@ -1462,6 +1463,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const recoveredDays = new Set<DayKey>();
   const unresolvedDays = new Map<DayKey, string[]>();
   let headModelStatus: HeadCoachReview["status"] | null = null;
+  let headCatalogOutcome: "none" | "applied" | "unresolved" = "none";
   let headUnappliedRevision = false;
   let draft = stamp(built.draft, plan);
   plan = {
@@ -1960,7 +1962,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       recent_overlap_after_rewrite: recentRewrites,
       piece_cells: pieceCells(draft.sessions),
       constitution:
-        "You are called once. If a problem can be fixed by a cell, return that cell. The server writes it and does not call you again. A cell must be one of piece_cells for that day and block. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4.",
+        "You are called once. REVISE only when value is a different movement_id or quantity_option in that cell's enum. If the enum has no different id, return APPROVE_WITH_NOTE with empty revisions and empty adjustments. Do not use adjustments as a cell edit. The server writes a legal cell and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4.",
       unresolved_days: [...unresolvedDays.entries()].map(([day, errors]) => ({ day, errors })),
       monthly_goal: month.coaching_plan?.block_goal ?? null,
       monthly_method: month.coaching_plan?.strength_method ?? month.strength_method,
@@ -2055,7 +2057,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           const rejectedIndexes = new Set(rejected.map((row) => row.index));
           modelRevisions = parsed.revisions.filter((_, index) => !rejectedIndexes.has(index));
         }
-      } else if ((asked.validationErrors ?? []).some((error) => String(error).includes("prose-only"))) {
+      } else if (
+        (asked.json && typeof asked.json === "object" && (asked.json as { status?: unknown }).status === "REVISE") ||
+        (asked.validationErrors ?? []).some((error) => String(error).includes("prose-only"))
+      ) {
         headUnappliedRevision = true;
       }
     }
@@ -2148,14 +2153,36 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   review =
     headModelStatus === "BLOCK"
       ? { status: "BLOCK", revisions: [], note_ko: headPass.note }
-      : headPass.stance === "ADJUST"
+      : headModelStatus === "REVISE"
         ? { status: "REVISE", revisions: [], note_ko: headPass.note }
-        : {
-            status: headPass.stance === "ACCEPT" ? "APPROVE" : "APPROVE_WITH_NOTE",
-            revisions: [],
-            note_ko: headPass.note,
-          };
+        : headPass.stance === "ADJUST"
+          ? { status: "REVISE", revisions: [], note_ko: headPass.note }
+          : {
+              status: headPass.stance === "ACCEPT" ? "APPROVE" : "APPROVE_WITH_NOTE",
+              revisions: [],
+              note_ko: headPass.note,
+            };
+  const beforeMoves = JSON.stringify(draft.sessions.map((session) => session.conditioning?.movements ?? null));
   const headCells = applyHeadCells(draft.sessions, modelRevisions);
+  const afterMoves = JSON.stringify(draft.sessions.map((session) => session.conditioning?.movements ?? null));
+  if (headModelStatus === "REVISE") {
+    const catalog = modelRevisions.filter((row) => row.cell?.field === "movement_id" || row.cell?.field === "quantity_option");
+    const otherCells = modelRevisions.some((row) => row.cell && row.cell.field !== "movement_id" && row.cell.field !== "quantity_option");
+    if (catalog.length === 0 && !otherCells) {
+      headCatalogOutcome = "unresolved";
+      headUnappliedRevision = true;
+    } else if (catalog.length > 0) {
+      const rows = headCells.rows.filter((row) => row.field === "movement_id" || row.field === "quantity_option");
+      const applied = rows.length === catalog.length && rows.every((row) => row.result === "applied");
+      const judged = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+      const hard = judged.ok ? [] : judged.errors.filter((error) => !isCoachingSignal(error));
+      if (applied && beforeMoves !== afterMoves && hard.length === 0) headCatalogOutcome = "applied";
+      else {
+        headCatalogOutcome = "unresolved";
+        headUnappliedRevision = true;
+      }
+    }
+  }
   for (const row of headCells.rows) {
     const applied = row.result === "applied";
     traces.push(
@@ -2636,21 +2663,15 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       revalidation: closing.hard.length === 0 ? "passed" : "failed",
     });
   }
+  if (headCatalogOutcome === "unresolved" && !finalErrors.includes("head revise was not applied")) {
+    finalErrors.push("head revise was not applied");
+  }
   const adoption = finalizeWeekAdoption({
     weeklyCoachFromModel: weeklyFromModel,
     skeletonLocked: Boolean(lockedLongitudinal),
     modelCalled: true,
     dayOrigins: trained.map((day) => (daySources[day.day] === "model" ? "model" : "fallback")),
-    head: adoptionHead(
-      headModelStatus === "REVISE" &&
-        (review.status === "APPROVE" || review.status === "APPROVE_WITH_NOTE") &&
-        modelRevisions.length > 0 &&
-        modelRevisions.every((revision) => revision.cell?.field === "movement_id" || revision.cell?.field === "quantity_option")
-        ? review.status
-        : headModelStatus,
-      headPass.stance,
-      headUnappliedRevision,
-    ),
+    head: adoptionHead(headCatalogOutcome === "applied" ? "revised" : headModelStatus, headPass.stance, headUnappliedRevision),
     issues: [
       ...closing.issues,
       ...(structure.status === "STRUCTURE_GOOD"
@@ -2773,6 +2794,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     judge_ok: finalErrors.length === 0,
     day_sources: daySources,
     origin_log: originLog,
+    head_revise: headCatalogOutcome,
     final_status: resolvedStatus,
     coach_notes: notes,
     monthly_plan: monthly.plan,

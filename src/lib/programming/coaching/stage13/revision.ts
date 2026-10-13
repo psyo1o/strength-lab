@@ -57,7 +57,7 @@ export function routesFor(revisions: readonly SessionRevision[], specialists: re
 
 /**
  * Critical specialist failures must be revised.
- * Minor-only notes do not overturn an otherwise acceptable week unless the head marks them high.
+ * A REVISE without a high-priority cell is not turned into an approval.
  */
 export function applyHeadPolicy(model: HeadCoachReview, integrator: { must_revise: boolean; only_minor: boolean; note_ko: string; priorities: Array<{ severity: string; issue: string; days: DayKey[] }> }): HeadCoachReview {
   if (integrator.must_revise && model.status === "APPROVE") {
@@ -74,9 +74,6 @@ export function applyHeadPolicy(model: HeadCoachReview, integrator: { must_revis
         constraints: "다른 날은 유지합니다.",
       })),
     };
-  }
-  if (integrator.only_minor && model.status === "REVISE" && model.revisions.every((row) => row.priority !== "high")) {
-    return { status: "APPROVE_WITH_NOTE", revisions: [], note_ko: "사소한 지적은 있지만 수정 비용이 더 커서 기록만 남깁니다." };
   }
   return model;
 }

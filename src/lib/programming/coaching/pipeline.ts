@@ -62,6 +62,8 @@ export type CoachWeekResult = {
   day_sources: Record<DayKey, "model" | "fallback">;
   /** 훈련일별 출처와 이유. 카탈로그가 채운 단위·Rx는 여기 들어가지 않는다. */
   origin_log?: string;
+  /** 헤드 REVISE의 칸 수정. none은 카탈로그 칸 REVISE가 아니다. */
+  head_revise?: "none" | "applied" | "unresolved";
   final_status: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING";
   coach_notes: string[];
   monthly_plan: MonthlyCoachPlan;

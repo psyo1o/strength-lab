@@ -56,7 +56,7 @@ export function finalizeWeekAdoption(input: FinalizeWeekInput): WeekAdoption {
   const repairs = assessRepairs(repairRequests, repairResults);
   const structureOk =
     hard.length === 0 && input.requiredDaysValid && input.weekStructureValid && input.lockedSkeletonHeld && repairs.ok;
-  const headApproves = input.head === "approve" || input.head === "approve_with_note";
+  const headApproves = input.head === "approve" || input.head === "approve_with_note" || input.head === "revised";
 
   let origin: GenerationOrigin;
   if (!input.modelCalled) origin = "no_model";
@@ -110,6 +110,6 @@ function finalStatusFor(head: HeadDecision | null, modelSuccess: boolean): WeekF
     return "FINALIZE_WITH_WARNING";
   }
   if (head === "approve") return "APPROVE";
-  if (head === "approve_with_note") return "APPROVE_WITH_NOTE";
+  if (head === "approve_with_note" || head === "revised") return "APPROVE_WITH_NOTE";
   return "FINALIZE_WITH_WARNING";
 }

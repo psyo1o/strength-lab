@@ -97,9 +97,9 @@ export function schemaBrief(agent: CoachAgentName): string {
   if (agent === "monthly") {
     return [
       "JSON object. Key: days. Do not wrap it. Do not write sets or amounts.",
-      "days is an object. Each key is w{week}_{day}, such as w1_mon. A training day has choice and purpose. choice is one id from that date's candidate list. purpose is one line. A rest day has purpose only.",
+      "days is an object. Each key is w{week}_{day}, such as w1_mon. A training day has choice, purpose_kind, and emphasis. choice is one id from that date's candidate list. purpose_kind and emphasis are ids. A rest day has purpose_kind rest and emphasis off.",
       "Week roles, rest days, time_domain, and long-conditioning days are fixed in the user message. Do not invent a tuple.",
-      "Write the purpose in English. Display translation is later.",
+      "Do not write a purpose sentence. The server writes it from the ids.",
     ].join("\n");
   }
   if (agent === "weekly") {
@@ -195,7 +195,7 @@ export function schemaBrief(agent: CoachAgentName): string {
     enumLine("status", HEAD_STATUSES),
     "APPROVE means there is no coaching issue worth acting on. revisions and adjustments are empty. APPROVE cannot override a hard validation error.",
     "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout. It does not ignore a hard validation error.",
-    "REVISE is an edit list. It does not regenerate the week. A field change goes in adjustments and does not name a target_coach. A prose sentence is not a revision.",
+    "REVISE is a catalog cell list. It does not regenerate the week. value must be a different id in that cell's enum. An adjustment is not a cell edit. A prose sentence is not a revision. If no different id exists, status is APPROVE_WITH_NOTE and revisions are empty.",
     "BLOCK only when a cell cannot fix the week: a safety risk, a collapsed week structure, or a training day with no session. Do not BLOCK for wording, explanations, or language. revisions and adjustments are empty.",
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
     "Each revision names one cell: day, block, catalog_key, field, value, reason. The server writes only that cell.",
@@ -354,11 +354,28 @@ export type HeadPieceRef = {
   catalog_key: string;
   movement_ids?: readonly string[];
   quantity_ids?: readonly string[];
+  amount?: string;
+  unit?: string | null;
 };
 
-function headRevisionItem(cell: HeadPieceRef): Record<string, unknown> {
-  const quantities = cell.quantity_ids?.length ? [...cell.quantity_ids] : quantityOptions(cell.catalog_key).map((option) => option.id);
-  const movements = cell.movement_ids?.length ? [...cell.movement_ids] : [cell.catalog_key];
+function currentQuantityId(cell: HeadPieceRef): string | null {
+  if (!cell.unit || !cell.amount) return null;
+  const digits = cell.amount.match(/\d+/);
+  if (!digits) return null;
+  return `${cell.unit}:${digits[0]}`;
+}
+
+function exceptCurrent(ids: readonly string[], current: string | null): string[] {
+  return ids.filter((id) => id !== current);
+}
+
+/** 현재 값만 남은 칸은 수정 후보가 아니다. 빈 enum으로 REVISE를 만들지 않는다. */
+function headRevisionItem(cell: HeadPieceRef): Record<string, unknown> | null {
+  const quantities = exceptCurrent(
+    cell.quantity_ids?.length ? [...cell.quantity_ids] : quantityOptions(cell.catalog_key).map((option) => option.id),
+    currentQuantityId(cell),
+  );
+  const movements = exceptCurrent(cell.movement_ids?.length ? [...cell.movement_ids] : [cell.catalog_key], cell.catalog_key);
   const base = {
     day: stringEnum([cell.day]),
     block: stringEnum([cell.block]),
@@ -385,10 +402,7 @@ function headRevisionItem(cell: HeadPieceRef): Record<string, unknown> {
   }
   if (branches.length === 1) return branches[0]!;
   if (branches.length > 1) return { anyOf: branches };
-  return strictObject(
-    { ...base, field: stringEnum(["movement_id"]), value: stringEnum([cell.catalog_key]) },
-    required,
-  );
+  return null;
 }
 
 export function headReviewFormat(keys: readonly string[], cells: readonly HeadPieceRef[] = []): ResponseFormat {
@@ -396,9 +410,16 @@ export function headReviewFormat(keys: readonly string[], cells: readonly HeadPi
   const unique = new Map<string, HeadPieceRef>();
   for (const cell of cells) unique.set(`${cell.day}:${cell.block}:${cell.catalog_key}`, cell);
   const listed = [...unique.values()];
-  const revisions = listed.length
-    ? { type: "array", items: { anyOf: listed.map(headRevisionItem) } }
-    : {
+  const revisable = listed.flatMap((cell) => {
+    const item = headRevisionItem(cell);
+    return item ? [item] : [];
+  });
+  const statusEnum = listed.length > 0 && revisable.length === 0 ? HEAD_STATUSES.filter((status) => status !== "REVISE") : HEAD_STATUSES;
+  const revisions = revisable.length
+    ? { type: "array", items: { anyOf: revisable } }
+    : listed.length
+      ? { type: "array", items: strictObject({ day: stringEnum(DAY_ORDER) }, ["day"]) }
+      : {
         type: "array",
         items: strictObject(
           {
@@ -417,7 +438,7 @@ export function headReviewFormat(keys: readonly string[], cells: readonly HeadPi
     strictObject(
       {
         note_ko: NOTE_KO,
-        status: stringEnum(HEAD_STATUSES),
+        status: stringEnum(statusEnum),
         revisions,
         adjustments: {
           type: "array",
@@ -1082,7 +1103,7 @@ export function headReviewErrors(value: unknown): string[] {
     errors.push("revisions: APPROVE, APPROVE_WITH_NOTE, and BLOCK require an empty array");
   }
   if (value.status === "REVISE" && value.revisions.length === 0 && !(Array.isArray(value.adjustments) && value.adjustments.length > 0)) {
-    errors.push("revisions: REVISE requires an edit list. A field change belongs in adjustments.");
+    errors.push("revisions: REVISE requires a catalog cell. An adjustment is not a cell edit.");
   }
   if (Array.isArray(value.adjustments)) {
     if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE" || value.status === "BLOCK") && value.adjustments.length > 0) {

@@ -275,7 +275,7 @@ export async function coachMonthly(input: {
     retryTransport: true,
     retryContext: { current_method: input.month.strength_method || input.month.scheme },
     format: monthCellFormat(frame),
-    schemaNote: "days is an object of w{week}_{day}. A training day returns choice and purpose. choice is one id from that date. A rest day returns purpose only.",
+    schemaNote: "days is an object of w{week}_{day}. A training day returns choice, purpose_kind, and emphasis. A rest day returns purpose_kind rest and emphasis off. Do not write a sentence.",
     validate: (json) => {
       const parsed = tableFromCells(frame, json);
       if (parsed.ok) return { ok: true };
@@ -338,7 +338,7 @@ export async function coachMonthly(input: {
       retryTransport: false,
       maxAttempts: 1,
       format: repairFormat(spec),
-      schemaNote: "Return days for the listed keys only. choice must be one of allowed. purpose is one line of at most 60 characters and does not name a movement key, a format, or an amount.",
+      schemaNote: "Return days for the listed keys only. choice must be one of allowed. purpose_kind and emphasis are ids. Do not write a sentence.",
       validate: (json) => {
         const merged = mergeRepair(frame, table, spec, json);
         return merged.ok ? { ok: true } : { ok: false, errors: merged.errors };

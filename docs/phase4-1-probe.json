@@ -6,38 +6,25 @@
     {
       "stage": "A",
       "pass": true,
-      "detail": "25/25 (monthly 5/5, strength 5/5, conditioning 5/5, warmup 5/5, head 5/5)"
+      "detail": "10/10 (monthly 5/5, head 5/5)"
     },
     {
       "stage": "C",
       "pass": true,
-      "detail": "7/9"
+      "detail": "9/9"
     }
   ],
-  "adopted": 7,
+  "adopted": 9,
   "weeks": 9,
-  "failures": [
-    {
-      "stage": "C",
-      "coach": "monthly_coach",
-      "point": "volume 2099-02-02 w3_sat purpose names a movement, format, or amount",
-      "count": 1
-    },
-    {
-      "stage": "C",
-      "coach": "monthly_coach",
-      "point": "intensity 2099-09-07 w3_wed purpose names a movement, format, or amount",
-      "count": 1
-    }
-  ],
-  "tokens": 3167485,
-  "token_parts": [
-    { "run": "A+C", "tokens": 1629405, "detail": "A 25/25, C 0/9 head.adjust" },
-    { "run": "C diagnostic", "tokens": 158216, "detail": "531 2099-01-05 APPROVE_WITH_NOTE head.adjust" },
-    { "run": "C", "tokens": 1379864, "detail": "7/9" }
-  ],
+  "failures": [],
+  "rates": {
+    "degraded": 0,
+    "fallback": 0,
+    "head_unresolved": 0,
+    "head_applied": 4
+  },
+  "tokens": 1430942,
   "stopped": null,
   "token_cap": 4000000,
-  "tests": "75 files, 477 passed",
-  "tsc": "pass"
+  "not_rerun": ["B", "D", "E", "weekly", "strength", "conditioning", "warmup", "load"]
 }

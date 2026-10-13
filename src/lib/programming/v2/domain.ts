@@ -87,8 +87,8 @@ export type RepairResult = {
   revalidation: "passed" | "failed" | "not_run";
 };
 
-/** 수정 요청만으로 채택되지 않는다. approve와 approve_with_note만 승인 후보다. */
-export type HeadDecision = "approve" | "approve_with_note" | "adjust" | "block";
+/** 수정 요청만으로 채택되지 않는다. approve, approve_with_note, 그리고 반영된 revised만 승인 후보다. */
+export type HeadDecision = "approve" | "approve_with_note" | "revised" | "adjust" | "block";
 
 export type AdoptionVerdict = {
   adopted: boolean;

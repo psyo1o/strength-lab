@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { headReviewFormat } from "../src/lib/programming/coaching/contract";
+import { headReviewErrors, headReviewFormat } from "../src/lib/programming/coaching/contract";
 import { applyHeadCells } from "../src/lib/programming/coaching/head-cells";
 import { areaShapeErrors } from "../src/lib/programming/coaching/orchestrate";
-import { bannedPurposeWords, buildMonthFrame, legalMonthlyCellJson, repairSpec, repairUser, tableFromCells } from "../src/lib/programming/coaching/goal-candidates";
+import { applyHeadPolicy } from "../src/lib/programming/coaching/stage13/revision";
+import {
+  bannedPurposeWords,
+  buildMonthFrame,
+  legalMonthlyCellJson,
+  monthCellFormat,
+  purposeSentence,
+  REST_EMPHASIS,
+  REST_PURPOSE_KIND,
+  tableFromCells,
+  TRAINING_EMPHASIS,
+  TRAINING_PURPOSE_KINDS,
+} from "../src/lib/programming/coaching/goal-candidates";
 import { prescribedLoad } from "../src/lib/programming/coaching/movement-catalog";
 import { isCoachingSignal } from "../src/lib/programming/coaching/stage13/policy";
 import {
@@ -134,20 +146,77 @@ describe("세션 칸 선택", () => {
     expect(isCoachingSignal("sets do not match the method table")).toBe(false);
   });
 
-  it("목적 재요청에 금지어를 실어 보낸다", () => {
+  it("목적 문장은 슬롯으로만 만들고 금지어 검사를 통과한다", () => {
     const month = fallbackMonth({ summary_ko: "5/3/1 블록을 네 주 유지합니다.", next_scheme: "531", strength_method: "531" });
     const framed = buildMonthFrame(month);
     expect(framed.ok).toBe(true);
     if (!framed.ok) return;
+    const schema = JSON.stringify(monthCellFormat(framed.frame));
+    expect(schema).toContain("purpose_kind");
+    expect(schema).toContain("quality");
+    expect(schema).not.toContain("\"purpose\"");
+    for (const kind of TRAINING_PURPOSE_KINDS) {
+      for (const emphasis of TRAINING_EMPHASIS) {
+        const line = purposeSentence(kind, emphasis);
+        expect(line).toBeTruthy();
+        expect(line!.length).toBeLessThanOrEqual(60);
+        expect(bannedPurposeWords(line!)).toEqual([]);
+        expect(line).not.toMatch(/\d/);
+      }
+    }
+    const rest = purposeSentence(REST_PURPOSE_KIND, REST_EMPHASIS);
+    expect(bannedPurposeWords(rest!)).toEqual([]);
+    expect(purposeSentence("air_squat", "reps")).toBeNull();
     const json = legalMonthlyCellJson(month);
-    const key = Object.keys(json.days).find((slot) => json.days[slot]?.choice);
-    expect(key).toBeTruthy();
-    json.days[key!]!.purpose = "Practice air_squat for 10 reps";
-    expect(bannedPurposeWords(json.days[key!]!.purpose)).toEqual(expect.arrayContaining(["air_squat", "reps"]));
     const parsed = tableFromCells(framed.frame, json);
-    expect(parsed.ok).toBe(false);
-    if (parsed.ok || !parsed.table) return;
-    const user = repairUser(repairSpec(framed.frame, parsed.table, month)) as { days: Array<{ key: string; banned_words: string[] }> };
-    expect(user.days.find((day) => day.key === key)?.banned_words).toEqual(expect.arrayContaining(["air_squat", "reps"]));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const bad = structuredClone(json);
+    const key = Object.keys(bad.days).find((slot) => bad.days[slot]?.choice)!;
+    bad.days[key] = { choice: bad.days[key]!.choice, purpose_kind: "air_squat", emphasis: "reps" };
+    const rejected = tableFromCells(framed.frame, bad);
+    expect(rejected.ok).toBe(false);
+    if (rejected.ok || !rejected.table) return;
+    const stored = rejected.table.weeks.flatMap((week) => week.days).find((day) => day.purpose.includes("air_squat") || day.purpose.includes("reps"));
+    expect(stored).toBeUndefined();
+  });
+
+  it("수정 없는 REVISE는 승인으로 내리지 않고 조정만으로는 칸 수정이 아니다", () => {
+    const kept = applyHeadPolicy(
+      {
+        status: "REVISE",
+        note_ko: "사소한 형식 차이입니다.",
+        revisions: [{ day: "mon", reason: "형식", correction_instruction: "형식", priority: "low", constraints: "유지" }],
+      },
+      { must_revise: false, only_minor: true, note_ko: "사소한 지적만 있습니다.", priorities: [] },
+    );
+    expect(kept.status).toBe("REVISE");
+    expect(
+      headReviewErrors({
+        status: "REVISE",
+        note_ko: "칸도 조정도 없습니다.",
+        revisions: [],
+        adjustments: [],
+      }).join(" "),
+    ).toMatch(/catalog cell/);
+    const schema = JSON.stringify(
+      headReviewFormat(
+        ["row_erg"],
+        [
+          {
+            day: "mon",
+            block: "conditioning",
+            catalog_key: "row_erg",
+            amount: "250m",
+            unit: "m",
+            movement_ids: ["row_erg", "bike_erg"],
+            quantity_ids: ["m:250", "m:625", "cal:12"],
+          },
+        ],
+      ),
+    );
+    expect(schema).toContain("m:625");
+    expect(schema).toContain("bike_erg");
+    expect(schema).not.toContain("m:250");
   });
 });
