@@ -17,7 +17,7 @@ import {
 } from "../src/lib/programming/engine";
 import { draftForScheme, fallbackIntent, fallbackMonth } from "../src/lib/programming/fallback";
 import { getProgrammingMonth, getProgrammingWeek } from "../src/lib/programming/store";
-import { INPUT_SUMMARY_VERSION, INTENT_PROMPT_VERSION, MONTHLY_PROMPT_VERSION, WEEKLY_PROMPT_VERSION, WOD_FROM_INTENT_PROMPT_VERSION } from "../src/lib/programming/types";
+import { INPUT_SUMMARY_VERSION, MONTHLY_PROMPT_VERSION } from "../src/lib/programming/types";
 import type { DayKey } from "../src/lib/month-plan/types";
 
 const KEY = "sk-test-not-a-real-key";
@@ -42,6 +42,16 @@ function promptOf(fetchImpl: ReturnType<typeof vi.fn>, call = 0): Record<string,
   const init = fetchImpl.mock.calls[call]?.[1] as RequestInit | undefined;
   const body = JSON.parse(String(init?.body));
   return JSON.parse(body.messages[1].content) as Record<string, unknown>;
+}
+
+function weeklyUser(fetchImpl: ReturnType<typeof vi.fn>): Record<string, unknown> {
+  for (const call of fetchImpl.mock.calls) {
+    const init = call[1] as RequestInit | undefined;
+    const body = JSON.parse(String(init?.body)) as { messages?: Array<{ role: string; content: string }> };
+    const user = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
+    if (user.agent_name === "weekly_coach") return user;
+  }
+  throw new Error("weekly coach payload missing");
 }
 
 function previousActual(sent: Record<string, unknown>) {
@@ -168,9 +178,9 @@ describe("stage 2 actuals and screen sync", () => {
     });
     const fetchImpl = vi.fn(async () => new Response("no", { status: 500 }));
     const second = await ensureProgrammingWeek(WEEK2, { nowMs: NOW + 86_400_000, key: KEY, fetchImpl });
-    expect(second.promptVersion).toBe(WOD_FROM_INTENT_PROMPT_VERSION);
+    expect(second.promptVersion).toBe("coaching-pipeline-v6");
     expect(second.inputSummaryVersion).toBe(INPUT_SUMMARY_VERSION);
-    const sent = promptOf(fetchImpl);
+    const sent = weeklyUser(fetchImpl);
     const previous = previousActual(sent);
     expect(previous.generation_source).toBe("fallback");
     expect(previous.programming_intent?.why_ko).toBe(first.intent.why_ko);
@@ -190,14 +200,15 @@ describe("stage 2 actuals and screen sync", () => {
     const packed = JSON.stringify(sent);
     expect(packed).not.toContain(SECRET_EMAIL);
     expect(packed).not.toContain(SECRET_NOTE);
-    expect(sent.prompt_version).toBe(INTENT_PROMPT_VERSION);
+    expect(sent.agent_name).toBe("weekly_coach");
+    expect(String(sent.note)).toContain("Do not name extra movements");
   });
 
   it("test 10 sends previous_generation_source fallback from a fallback week", async () => {
     await ensureProgrammingWeek(WEEK1, { nowMs: NOW, key: null });
     const fetchImpl = vi.fn(async () => new Response("no", { status: 500 }));
     await ensureProgrammingWeek(WEEK2, { nowMs: NOW + 86_400_000, key: KEY, fetchImpl });
-    const sent = promptOf(fetchImpl);
+    const sent = weeklyUser(fetchImpl);
     expect(sent.previous_generation_source).toBe("fallback");
     expect((sent.summary as { previous_week: { generation_source: string } }).previous_week.generation_source).toBe(
       "fallback",
@@ -224,7 +235,7 @@ describe("stage 2 actuals and screen sync", () => {
       });
       const fetchImpl = vi.fn(async () => new Response("no", { status: 500 }));
       await ensureProgrammingWeek(WEEK2, { nowMs: NOW + 86_400_000, key: KEY, fetchImpl });
-      return previousActual(promptOf(fetchImpl)).actual.class_summary;
+      return previousActual(weeklyUser(fetchImpl)).actual.class_summary;
     }
 
     const high = await payload(3, "mon");

@@ -43,7 +43,7 @@ export function mergeHeadWithCode(code: HeadDecision, llm: HeadCoachReview | nul
     if (hard.length) return code;
     return cleared(code, "APPROVE", llm.note_ko, Math.max(code.confidence, 0.7));
   }
-  if (llm.status === "APPROVE_WITH_NOTE") {
+  if (llm.status === "APPROVE_WITH_NOTE" || llm.status === "BLOCK") {
     if (hard.length) return code;
     return cleared(code, "APPROVE_WITH_NOTE", llm.note_ko, code.confidence);
   }

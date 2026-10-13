@@ -2,9 +2,9 @@ import { buildWeek } from "../month-plan/build-week";
 import { listPieceMaterial } from "../month-plan/pieces";
 import type { DayKey, MainLift, MetconPiece, MetconStimulus, PlannedWeek, WeekIndex } from "../month-plan/types";
 import { DAY_ORDER } from "../month-plan/types";
+import { evaluateWeek } from "./evaluate-week";
 import { completeMonthDirection } from "./month-direction";
 import {
-  judgeWeek,
   monthAllowsSameLiftDays,
   previousLowerFatigue,
   structurallySimilar,
@@ -667,7 +667,38 @@ const SYNTHETIC_RECIPES: SyntheticRecipe[] = [
   { stimulus: "heavy", movements: [{ key: "hang_power_clean", amount: "3", nameKo: "행 파워 클린" }, { key: "ring_row", amount: "6", nameKo: "링 로우" }] },
   { stimulus: "heavy", movements: [{ key: "power_snatch", amount: "3", nameKo: "파워 스내치" }, { key: "push_up", amount: "6", nameKo: "푸시업" }] },
   { stimulus: "heavy", movements: [{ key: "power_clean", amount: "3", nameKo: "파워 클린" }, { key: "box_jump", amount: "6", nameKo: "박스 점프" }] },
+  ...extraSyntheticRecipes(),
 ];
+
+/** More 2-key pairs so a later week can avoid a movement combination already used in the last four weeks. */
+function extraSyntheticRecipes(): SyntheticRecipe[] {
+  const monos = [
+    { key: "row", amount: "12cal", nameKo: "로잉" },
+    { key: "ski", amount: "200m", nameKo: "스키" },
+    { key: "fan_bike", amount: "10cal", nameKo: "팬바이크" },
+    { key: "run", amount: "200m", nameKo: "런" },
+  ];
+  const gyms = [
+    { key: "push_up", amount: "8", nameKo: "푸시업" },
+    { key: "burpee", amount: "8", nameKo: "버피" },
+    { key: "air_squat", amount: "15", nameKo: "에어 스쿼트" },
+    { key: "box_jump", amount: "8", nameKo: "박스 점프" },
+    { key: "ring_row", amount: "8", nameKo: "링 로우" },
+    { key: "wall_ball", amount: "10", nameKo: "월볼" },
+    { key: "sit_up", amount: "12", nameKo: "싯업" },
+    { key: "double_under", amount: "30", nameKo: "더블언더" },
+  ];
+  const stimuli: Stimulus[] = ["high_rep", "technical", "heavy"];
+  const recipes: SyntheticRecipe[] = [];
+  let index = 0;
+  for (const mono of monos) {
+    for (const gym of gyms) {
+      recipes.push({ stimulus: stimuli[index % stimuli.length]!, movements: [mono, gym] });
+      index += 1;
+    }
+  }
+  return recipes;
+}
 
 function recipeFormatAllowed(recipe: SyntheticRecipe, format: WodFormat): boolean {
   if (format !== "emom") return true;
@@ -727,7 +758,7 @@ function stimulusOrder(recovery: boolean): Stimulus[] {
 
 /**
  * Last path when the catalog cannot fill every training day.
- * Still has to pass judgeWeek: legal stimulus, duration, no same-week conflict, not too similar.
+ * Still has to pass evaluateWeek: legal stimulus, duration, no same-week conflict, not too similar.
  */
 function assignGuaranteedConditioning(
   slots: DaySlot[],
@@ -756,30 +787,38 @@ function assignGuaranteedConditioning(
     const nextDay = slots[slots.findIndex((row) => row.day === slot.day) + 1];
     const nextLocked = nextDay && (nextDay.role === "long" || nextDay.role === "benchmark") ? "high_rep" : null;
     const formats: WodFormat[] = ["amrap", "for_time", "intervals", "emom"];
+    const volumes: VolumeBand[] = ["low", "moderate", "high"];
     const out: ConditioningDraft[] = [];
+    const seenCombos = new Set<string>();
     for (const stimulus of stimulusOrder(recovery)) {
       if (stimulus === previousStimulus || stimulus === nextLocked) continue;
-      let added = 0;
-      for (const volume of ["low", "moderate", "high"] as VolumeBand[]) {
+      for (const recipe of SYNTHETIC_RECIPES) {
+        if (recipe.stimulus !== stimulus || recipeBlocked(recipe, slot)) continue;
+        const combo = comboKey(recipe.movements.map((movement) => movement.key));
+        if (seenCombos.has(combo)) continue;
+        let placed = false;
         for (const format of formats) {
-          for (const minutes of minutesForRole(slot)) {
-            const longPiece = slot.role === "long" && minutes >= 30;
-            if (slot.role === "long" && !longPiece) continue;
-            if (slot.role === "short" && minutes > 12 && added > 0) continue;
-            for (const recipe of SYNTHETIC_RECIPES) {
-              if (recipe.stimulus !== stimulus || recipeBlocked(recipe, slot) || !recipeFormatAllowed(recipe, format)) continue;
+          if (placed || !recipeFormatAllowed(recipe, format)) continue;
+          for (const volume of volumes) {
+            if (placed) break;
+            for (const minutes of minutesForRole(slot)) {
+              const longPiece = slot.role === "long" && minutes >= 30;
+              if (slot.role === "long" && !longPiece) continue;
+              if (slot.role === "short" && minutes > 12) continue;
               const draft = syntheticDraft(recipe, { format, minutes, volume, longPiece });
-              if (recent.some((prior) => structurallySimilar(asStructure(draft, slot.day), prior))) continue;
+              const structure = asStructure(draft, slot.day);
+              if (recent.some((prior) => structurallySimilar(structure, prior))) continue;
+              if (out.some((row) => structurallySimilar(asStructure(row, slot.day), structure))) continue;
               out.push(draft);
-              added += 1;
-              if (added >= 8) break;
+              seenCombos.add(combo);
+              placed = true;
+              break;
             }
-            if (added >= 8) break;
           }
-          if (added >= 8) break;
         }
-        if (added >= 8) break;
+        if (out.length >= 18) break;
       }
+      if (out.length >= 18) break;
     }
     optionCache.set(cacheKey, out);
     return out;
@@ -1077,6 +1116,6 @@ export function assertFallbackLegal(
   weekIndex: WeekIndex,
   context: WeekCheckContext & { recent?: readonly StoredStructure[] } = {},
 ): void {
-  const judged = judgeWeek(draft, month, weekIndex, context.recent ?? [], context);
+  const judged = evaluateWeek(draft, month, weekIndex, context.recent ?? [], context);
   if (!judged.ok) throw new Error(`fallback broke a rule: ${judged.detail}`);
 }

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { sessionCoachErrors } from "../src/lib/programming/coaching/contract";
+import { prescribedLoad } from "../src/lib/programming/coaching/movement-catalog";
 import { COACHING_POLICY, isCoachingSignal, isHardJudgeError, prescriptionSource } from "../src/lib/programming/coaching/stage13/policy";
 import { extractWeekRules, weekPlanErrors } from "../src/lib/programming/coaching/stage13/rules";
 import { analyzeProgression, analyzeStructureSimilarity } from "../src/lib/programming/coaching/stage13/analyzers";
@@ -260,8 +261,8 @@ describe("stage13 constitution and policy", () => {
           duration_min: 14,
           stimulus: "high_rep",
           movements: [
-            { key: "wall_ball", amount: "10", name_ko: "월볼" },
-            { key: "box_jump", amount: "8", name_ko: "박스 점프" },
+            { key: "wall_ball", amount: "10", name_ko: "월볼", load: prescribedLoad("wall_ball") },
+            { key: "box_jump", amount: "8", name_ko: "박스 점프", load: prescribedLoad("box_jump") },
           ],
           equipment: ["wall_ball", "box"],
           volume: "moderate",

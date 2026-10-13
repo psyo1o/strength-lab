@@ -25,12 +25,11 @@ export function wodPurposeSentences(text: string): string[] {
   return sentences;
 }
 
-/** One or two Korean sentences. No coaching sales. Rx loads stay out of API purpose text. */
+/** One or two sentences. Explanations may be English. No coaching sales. Rx loads stay out of API purpose text. */
 export function isWodPurpose(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed || trimmed.length > 280) return false;
   if (SALES.test(trimmed)) return false;
-  if (!/[\uac00-\ud7a3]/.test(trimmed)) return false;
   const sentences = wodPurposeSentences(trimmed);
   return sentences.length >= 1 && sentences.length <= 2;
 }

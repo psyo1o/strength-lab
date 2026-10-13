@@ -1,5 +1,4 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../../month-plan/types";
-import { monthEmphasis, performanceRead } from "../weekly-intent";
 import type { WeekActual } from "../summary";
 import type {
   BlockPhase,
@@ -15,8 +14,10 @@ import type {
   WeeklyIntentPlan,
   CoachingStimulus,
 } from "../types";
+import { goalWeek, layoutFromGoal, restDayFor, weekTrainingLayout } from "./goal-table";
 import { deterministicMonthlyPlan } from "./monthly";
 import { extractWeekRules } from "./stage13/rules";
+import type { DayBound } from "./week-bounds";
 
 const DAY_KO: Record<DayKey, string> = {
   mon: "월요일",
@@ -43,47 +44,7 @@ type Slot = {
   benchmark: boolean;
 };
 
-function phaseFor(month: MonthDirection, weekIndex: WeekIndex, fatigued: boolean): BlockPhase {
-  const method = month.strength_method || month.scheme;
-  if (method === "DELOAD_RECOVERY" || method === "deload" || month.scheme === "deload" || weekIndex === 4) return "deload";
-  if (fatigued) return "emphasis";
-  if (weekIndex === 3) return "peak";
-  if (weekIndex === 2) return "progression";
-  return "accumulation";
-}
-
-export function restDayFor(weekIndex: WeekIndex, phase: BlockPhase): DayKey {
-  if (phase === "deload") return "sun";
-  const cycle: DayKey[] = ["sun", "wed", "fri"];
-  return cycle[(weekIndex - 1) % cycle.length]!;
-}
-
-function calendarGap(left: DayKey, right: DayKey): number {
-  return Math.abs(DAY_ORDER.indexOf(left) - DAY_ORDER.indexOf(right));
-}
-
-function choosePair(days: DayKey[], shift: number): [DayKey, DayKey] | [DayKey] {
-  const pairs: Array<[DayKey, DayKey]> = [];
-  for (let index = 0; index < days.length; index += 1) {
-    for (let other = index + 1; other < days.length; other += 1) {
-      if (calendarGap(days[index]!, days[other]!) > 1) pairs.push([days[index]!, days[other]!]);
-    }
-  }
-  if (pairs.length === 0) return [days[0]!];
-  return pairs[shift % pairs.length]!;
-}
-
-function longDayFor(training: DayKey[], lowers: DayKey[], heavy: boolean): DayKey | null {
-  const blocked = new Set<DayKey>(lowers);
-  if (heavy) {
-    for (const day of lowers) {
-      const next = DAY_ORDER[DAY_ORDER.indexOf(day) + 1];
-      if (next) blocked.add(next);
-    }
-  }
-  const open = training.filter((day) => !blocked.has(day));
-  return open.find((day) => day === "sat") ?? open[open.length - 1] ?? null;
-}
+export { restDayFor };
 
 function slot(input: Slot): Slot {
   return input;
@@ -96,6 +57,8 @@ export function weeklyCoachPayload(input: {
   previousActual?: WeekActual | null;
   recentPlans?: readonly WeeklyIntentPlan[];
   recentStructures?: readonly { format: string; stimulus: string | null; movement_patterns: readonly string[]; duration_min: number }[];
+  inputSummary?: unknown;
+  dayBounds?: readonly DayBound[] | null;
 }): unknown {
   const month = input.month.coaching_plan ?? deterministicMonthlyPlan(input.month, input.previousActual);
   const summary = input.previousActual?.class_summary;
@@ -123,8 +86,15 @@ export function weeklyCoachPayload(input: {
         progression_required: day.progression_required,
       })),
     })),
-    recent_structures: (input.recentStructures ?? []).slice(-12),
-    note: "Return seven day purposes under the key days. Do not name movements. week_rules are immutable. A repeated weekday layout is not required. Change the order when fatigue, benchmark, long-day, or the block phase changes. Do not copy the same Monday-to-Sunday map just because an earlier week used it.",
+    week_goal: goalWeek(month.goal_table, input.weekIndex),
+    day_bounds: input.dayBounds ?? null,
+    recent_structures: (input.recentStructures ?? []).slice(-24),
+    summary: input.inputSummary ?? null,
+    previous_generation_source:
+      input.inputSummary && typeof input.inputSummary === "object" && "previous_week" in input.inputSummary
+        ? ((input.inputSummary as { previous_week?: { generation_source?: string } | null }).previous_week?.generation_source ?? null)
+        : null,
+    note: "Return seven day purposes under the key days, in mon-to-sun order. week_goal chose the rest day, and for each training day the focus, target, stimulus, time_domain, and purpose. Copy the rest day. A day with time_domain long is the only long-conditioning day. Copy movement_pattern from target.movement_pattern. Choose the strength lift and the other day fields from that day's day_bounds. heavy true allows only intensity_profile heavy (band 4-5). heavy false allows only light or moderate (band 1-3). When a day lists zone2, the designated day is day and every other day is none. The week has one zone2 day. zone2_modality is the one catalog key on that day. Duration is 40 or 45, or 30 on a deload week. zone2_effort conversational means RPE 2-3, a conversational pace. zone2_hr 60-70 is auxiliary and may be unspecified. A zone2 day uses intensity_profile light only and does not count as high intensity. Do not name extra movements, conditioning movement keys, formats, or amounts. week_rules are immutable. The server does not fill intensity_profile, strength_lift, or zone2.",
   };
 }
 
@@ -139,31 +109,25 @@ export function planCoachedWeek(input: {
   recentSignatures?: readonly string[];
 }): WeeklyIntentPlan {
   const month = input.month.coaching_plan ? input.month : { ...input.month, coaching_plan: deterministicMonthlyPlan(input.month, input.previousActual) };
-  const read = performanceRead(input.previousActual);
-  const fatigued = read.lower_fatigue === "high";
-  const missed = read.many_missed;
-  const succeeded = read.strength_succeeded && !fatigued && !missed;
-  const phase = phaseFor(month, input.weekIndex, fatigued);
-  const rest = restDayFor(input.weekIndex, phase);
+  const lockedGoal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
+  const baseLayout = weekTrainingLayout({
+    month,
+    weekIndex: input.weekIndex,
+    previousActual: input.previousActual,
+    recentSignatures: input.recentSignatures,
+  });
+  const layout = lockedGoal ? layoutFromGoal(baseLayout, lockedGoal) : baseLayout;
+  const fatigued = layout.fatigued;
+  const missed = layout.missed;
+  const succeeded = layout.succeeded;
+  const phase = layout.phase;
+  const rest = layout.rest;
   const training = DAY_ORDER.filter((day) => day !== rest);
-  const liftHosts = training.filter((day) => day !== "sat");
-  const shift = input.weekIndex - 1 + (input.recentSignatures?.length ?? 0);
-  const pair = choosePair(liftHosts, shift);
-  const lowerLifts: MainLift[] = shift % 2 === 0 ? ["squat", "deadlift"] : ["deadlift", "squat"];
-  const lowers = new Map<DayKey, MainLift>();
-  if (fatigued) lowers.set(pair[0]!, lowerLifts[0]!);
-  else {
-    lowers.set(pair[0]!, lowerLifts[0]!);
-    if (pair[1]) lowers.set(pair[1], lowerLifts[1]!);
-  }
-  const heavy = phase !== "deload";
-  const wantsLong = month.long_conditioning_weeks.includes(input.weekIndex);
-  const longDay = wantsLong ? longDayFor(training, [...lowers.keys()], heavy) : null;
-  const upperLifts: MainLift[] = shift % 2 === 0 ? ["bench", "ohp"] : ["ohp", "bench"];
-  const uppers = new Map<DayKey, MainLift>();
-  const upperHosts = liftHosts.filter((day) => !lowers.has(day) && day !== longDay);
-  upperHosts.slice(0, phase === "deload" ? 1 : 2).forEach((day, index) => uppers.set(day, upperLifts[index]!));
-  const emphasis = monthEmphasis(month);
+  const lowers = layout.lowers;
+  const longDay = layout.longDay;
+  const uppers = layout.uppers;
+  const emphasis = layout.emphasis;
+  const wantsLong = longDay != null;
   const benchmarkDay =
     month.benchmark_week === input.weekIndex
       ? training.find((day) => day !== longDay && !lowers.has(day) && !uppers.has(day)) ?? training.find((day) => day !== longDay) ?? null
@@ -202,7 +166,13 @@ export function planCoachedWeek(input: {
       upper: uppers.get(day) ?? null,
       emphasis,
     });
-    return intentFrom(day, built);
+    const intent = intentFrom(day, built);
+    const goalDay = lockedGoal?.days.find((row) => row.day === day);
+    if (goalDay && !goalDay.rest && goalDay.target) {
+      intent.movement_pattern = goalDay.target.movement_pattern;
+      intent.training_goal = goalDay.purpose;
+    }
+    return intent;
   });
 
   const adjustment = fatigued

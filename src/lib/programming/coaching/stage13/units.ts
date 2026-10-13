@@ -1,4 +1,5 @@
 import type { Equipment } from "../../types";
+import { catalogUnits } from "../movement-catalog";
 
 /** Units a movement amount may use. The session unit validator reads this catalog and does not guess. */
 export type AmountUnit = "reps" | "cal" | "m" | "sec";
@@ -93,6 +94,8 @@ export const MOVEMENT_EQUIPMENT: Record<string, Equipment | null> = {
 };
 
 export function allowedUnits(key: string): readonly AmountUnit[] {
+  const catalog = catalogUnits(key);
+  if (catalog && catalog.length > 0) return catalog;
   return MOVEMENT_UNITS[key] ?? REPS;
 }
 
@@ -237,6 +240,12 @@ export function intervalFitIssues(piece: {
 export function amountRepairHint(key: string, amount: string): string {
   const allowed = allowedUnits(key).join(", ");
   return `${key} amount ${amount} is the wrong field for that value. Allowed amount units: ${allowed}. Put a work/rest clock in interval_work_sec and interval_rest_sec only when format is intervals. Do not only rename the unit, and do not invent a calorie or rep count.`;
+}
+
+/** A numeric amount plus a separate unit is the same work as 20cal or 400m. */
+export function amountTextForCheck(amount: string, unit: unknown): string {
+  if ((unit === "cal" || unit === "m" || unit === "sec") && /^\d+$/.test(amount)) return `${amount}${unit}`;
+  return amount;
 }
 
 export function unitError(key: string, amount: string): string | null {

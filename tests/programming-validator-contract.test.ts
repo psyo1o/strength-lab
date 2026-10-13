@@ -122,11 +122,23 @@ describe("validator contract", () => {
     if (!training) throw new Error("training day missing");
     training.movement_combination = null;
     expect(matchesSchema(schema, trainingNull)).toBe(false);
-    const rejected = judgeWeek(trainingNull, month531(), 2, [], { previousActual: presetActual("b") });
+    const copied = judgeWeek(trainingNull, month531(), 2, [], { previousActual: presetActual("b") });
+    expect(copied.ok, copied.ok ? "" : copied.errors.join(" | ")).toBe(true);
+    if (!copied.ok) return;
+    expect(copied.normalizations.join(" ")).toContain("movement_combination");
+    const bare = JSON.parse(JSON.stringify(draft)) as { sessions: Array<Record<string, unknown>> };
+    const bareDay = bare.sessions.find((session) => session.rest === false);
+    if (!bareDay) throw new Error("training day missing");
+    bareDay.conditioning = null;
+    bareDay.movement_combination = null;
+    bareDay.metcon_purpose = null;
+    bareDay.metcon_format = null;
+    bareDay.time_domain = null;
+    const rejected = judgeWeek(bare, month531(), 2, [], { previousActual: presetActual("b") });
     expect(rejected.ok).toBe(false);
     if (rejected.ok) return;
     expect(rejected.reason).toBe("schema");
-    expect(rejected.errors.join(" ")).toContain("missing session fields");
+    expect(rejected.errors.join(" ")).toContain("missing session fields because conditioning is null");
 
     const restNull = JSON.parse(JSON.stringify(draft)) as { sessions: Array<Record<string, unknown>> };
     const rest = restNull.sessions.find((session) => session.rest === true);

@@ -184,6 +184,7 @@ describe("stage 9.2 structural fingerprint planning", () => {
       "movement_pattern",
       "equipment",
       "volume",
+      "movement_combo",
     ]);
     expect(prompt.structure_planning.share_at_most).toBe(3);
     expect(prompt.structure_planning.rejected_at).toBe(4);

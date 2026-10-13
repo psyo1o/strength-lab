@@ -1,12 +1,74 @@
+import { MONTHLY_DIRECTION_SCHEMA_VERSION, type ReuseReason } from "../direction/contract";
 import type { FetchLike } from "../model";
 import type { WeekActual } from "../summary";
-import { previousLowerFatigue } from "../rules";
-import type { MonthDirection, MonthlyCoachPlan, WeekIndex } from "../types";
+import type { MonthDirection, MonthGoalTable, MonthlyCoachPlan, StoredStructure, WeekIndex } from "../types";
 import { monthlyPlanErrors } from "./contract";
+import {
+  buildMonthFrame,
+  mergeRepair,
+  monthCellFormat,
+  monthCellUser,
+  repairFormat,
+  isPurposeLineMessage,
+  repairSpec,
+  repairUser,
+  tableFromCells,
+  codeWeekRoles,
+} from "./goal-candidates";
+import { deterministicGoalTable, goalTableErrors } from "./goal-table";
 import { monthlyStrategyErrors } from "./stage13/rules";
-import { askCoach, coachAttemptRecord } from "./llm";
+import { askCoach, coachAttemptRecord, type CoachCall } from "./llm";
 import { MONTHLY_COACH_PROMPT_VERSION } from "./prompts";
-import { finishTrace, inputHash, type AgentTrace } from "./trace";
+import { finishTrace, inputHash, type AgentTrace, type TokenUsage } from "./trace";
+
+export type MonthlyDirectionResult = {
+  source: "coach" | "deterministic_fallback";
+  degraded: boolean;
+  reason: string | null;
+};
+
+const COACH_DIRECTION: MonthlyDirectionResult = { source: "coach", degraded: false, reason: null };
+
+function fallbackDirection(reason: string | null, degraded: boolean): MonthlyDirectionResult {
+  return { source: "deterministic_fallback", degraded, reason };
+}
+
+/** 재사용 키. 스키마 버전과 프롬프트 버전이 바뀌면 같은 월이라도 다시 부른다. 그 주의 피로·볼륨·완료는 월 틀이 아니므로 키에서 뺀다. */
+export function monthlyReuseKey(input: { monthId: string; profileId: string; payload: unknown }): string {
+  return [input.monthId, input.profileId, inputHash(monthReusePayload(input.payload)), MONTHLY_DIRECTION_SCHEMA_VERSION, MONTHLY_COACH_PROMPT_VERSION].join(":");
+}
+
+function monthReusePayload(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  const body = { ...(payload as Record<string, unknown>) };
+  delete body.reported_fatigue;
+  delete body.planned_volume;
+  delete body.completion;
+  return body;
+}
+
+function tableReusable(plan: MonthlyCoachPlan, month: MonthDirection): boolean {
+  return Boolean(plan.goal_table) && goalTableErrors(plan.goal_table ?? null, month).length === 0;
+}
+
+function cachedDirection(plan: MonthlyCoachPlan): MonthlyDirectionResult {
+  if (plan.direction_degraded === true) return fallbackDirection(plan.direction_reason ?? "recorded_monthly_plan", true);
+  if (plan.source === "model") return COACH_DIRECTION;
+  return fallbackDirection(plan.direction_reason ?? "recorded_monthly_plan", false);
+}
+
+function stampReuse(plan: MonthlyCoachPlan, direction: MonthlyDirectionResult, key: string, enabled: boolean): MonthlyCoachPlan {
+  if (!enabled) return plan;
+  return {
+    ...plan,
+    reuse: true,
+    reuse_key: key,
+    reuse_schema_version: MONTHLY_DIRECTION_SCHEMA_VERSION,
+    reuse_prompt_version: MONTHLY_COACH_PROMPT_VERSION,
+    direction_degraded: direction.degraded,
+    direction_reason: direction.reason,
+  };
+}
 
 function emphasisText(month: MonthDirection): { gymnastics: string; olympic: string; conditioning: string } {
   const text = `${month.focus_ko}\n${month.skill_direction}\n${month.conditioning_direction}\n${month.monthly_goal}`;
@@ -26,9 +88,8 @@ function emphasisText(month: MonthDirection): { gymnastics: string; olympic: str
  * This function does not write workouts.
  */
 export function deterministicMonthlyPlan(month: MonthDirection, actual?: WeekActual | null): MonthlyCoachPlan {
-  const reported = previousLowerFatigue(actual);
   const emphasis = emphasisText(month);
-  const roles = ([1, 2, 3, 4] as const).map((weekIndex) => weekRole(month, weekIndex, reported));
+  const roles = codeWeekRoles(month, actual);
   return {
     version: "monthly-coach-v1",
     block_goal: month.monthly_goal,
@@ -45,29 +106,9 @@ export function deterministicMonthlyPlan(month: MonthDirection, actual?: WeekAct
     deload_strategy: month.deload_strategy,
     benchmark_strategy: month.benchmark_direction,
     week_roles: roles,
+    goal_table: deterministicGoalTable(month, actual),
     source: "deterministic",
   };
-}
-
-function weekRole(
-  month: MonthDirection,
-  weekIndex: WeekIndex,
-  reported: ReturnType<typeof previousLowerFatigue>,
-): MonthlyCoachPlan["week_roles"][number] {
-  const theme = month.week_themes.find((row) => row.week_index === weekIndex)?.theme_ko ?? "";
-  const method = month.strength_method || month.scheme;
-  if (method === "DELOAD_RECOVERY" || method === "deload" || month.scheme === "deload" || weekIndex === 4) {
-    return { week_index: weekIndex, role: "deload", note_ko: theme || "방법은 유지하고 볼륨만 낮춥니다." };
-  }
-  if (reported === "high" && weekIndex === 1) {
-    return { week_index: weekIndex, role: "absorb", note_ko: "최근 보고된 피로가 높아 첫 주는 노출을 낮춥니다." };
-  }
-  if (month.long_conditioning_weeks.includes(weekIndex)) {
-    return { week_index: weekIndex, role: weekIndex === 3 ? "intensification" : "long_support", note_ko: theme || "긴 컨디셔닝을 하루만 둡니다." };
-  }
-  if (weekIndex === 2) return { week_index: weekIndex, role: "progression", note_ko: theme || "같은 리프트를 이어 가되 요일은 고정하지 않습니다." };
-  if (weekIndex === 3) return { week_index: weekIndex, role: "intensification", note_ko: theme || "강도는 방법 안에서만 올립니다." };
-  return { week_index: weekIndex, role: "accumulation", note_ko: theme || "볼륨으로 블록을 엽니다." };
 }
 
 export function withCoachingPlan(month: MonthDirection, actual?: WeekActual | null): MonthDirection {
@@ -76,79 +117,111 @@ export function withCoachingPlan(month: MonthDirection, actual?: WeekActual | nu
 }
 
 export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual | null): unknown {
+  const framed = buildMonthFrame(month, actual);
+  if (!framed.ok) return { agent_name: "monthly_coach", frame_error: framed.reason };
   return {
-    agent_name: "monthly_coach",
-    current_method: month.strength_method || month.scheme,
-    monthly_goal: month.monthly_goal,
-    primary_block: month.primary_block,
-    secondary_goal: month.secondary_goal,
-    strength_direction: month.strength_direction,
-    conditioning_direction: month.conditioning_direction,
-    skill_direction: month.skill_direction,
-    volume_direction: month.volume_direction,
-    intensity_direction: month.intensity_direction,
-    fatigue_direction: month.fatigue_direction,
-    benchmark_direction: month.benchmark_direction,
-    deload_strategy: month.deload_strategy,
-    week_themes: month.week_themes,
-    long_conditioning_weeks: month.long_conditioning_weeks,
-    benchmark_week: month.benchmark_week,
+    ...(monthCellUser(month, framed.frame) as Record<string, unknown>),
     reported_fatigue: actual?.class_summary?.fatigue_signal ?? null,
     planned_volume: actual?.class_summary?.actual_volume ?? null,
     completion: actual?.class_summary
       ? { completed_days: actual.class_summary.completed_days, missed_days: actual.class_summary.missed_days }
       : null,
-    note: "Choose the month strategy. Do not write workouts. Repeat current_method exactly.",
   };
 }
 
-function planFromModel(json: unknown, month: MonthDirection): MonthlyCoachPlan {
-  const body = json as Record<string, unknown>;
-  const base = deterministicMonthlyPlan(month);
-  const roles = Array.isArray(body.week_roles)
-    ? body.week_roles.map((row) => {
-        const item = row as { week_index: 1 | 2 | 3 | 4; role: string; note_ko: string };
-        return { week_index: item.week_index, role: item.role, note_ko: item.note_ko };
-      })
-    : base.week_roles;
+function addUsage(left: TokenUsage | null, right: TokenUsage | null): TokenUsage | null {
+  if (!left) return right;
+  if (!right) return left;
   return {
-    version: "monthly-coach-v1",
-    block_goal: String(body.block_goal),
-    primary_adaptations: (body.primary_adaptations as string[]) ?? [],
-    secondary_adaptations: (body.secondary_adaptations as string[]) ?? [],
-    strength_method: String(body.strength_method),
-    conditioning_emphasis: String(body.conditioning_emphasis),
-    gymnastics_emphasis: String(body.gymnastics_emphasis),
-    olympic_emphasis: String(body.olympic_emphasis),
-    progression_strategy: String(body.progression_strategy),
-    volume_trend: String(body.volume_trend),
-    intensity_trend: String(body.intensity_trend),
-    recovery_strategy: String(body.recovery_strategy),
-    deload_strategy: String(body.deload_strategy),
-    benchmark_strategy: String(body.benchmark_strategy),
-    week_roles: roles,
-    fatigue_tolerance: body.fatigue_tolerance as MonthlyCoachPlan["fatigue_tolerance"],
-    variety_requirement: body.variety_requirement as MonthlyCoachPlan["variety_requirement"],
+    prompt_tokens: left.prompt_tokens + right.prompt_tokens,
+    completion_tokens: left.completion_tokens + right.completion_tokens,
+    total_tokens: left.total_tokens + right.total_tokens,
+  };
+}
+
+function planFromTable(month: MonthDirection, actual: WeekActual | null | undefined, table: MonthGoalTable): MonthlyCoachPlan {
+  const base = deterministicMonthlyPlan(month, actual);
+  return {
+    ...base,
+    fatigue_tolerance: "moderate",
+    variety_requirement: "moderate",
+    week_roles: codeWeekRoles(month, actual),
+    goal_table: table,
     source: "model",
   };
+}
+
+function planErrors(plan: MonthlyCoachPlan, month: MonthDirection): string[] {
+  return [...monthlyPlanErrors(plan, month), ...monthlyStrategyErrors(plan, month), ...goalTableErrors(plan.goal_table ?? null, month)];
 }
 
 /** Monthly strategy. A missing key or a bad payload keeps the deterministic plan and says so. */
 export async function coachMonthly(input: {
   month: MonthDirection;
   actual?: WeekActual | null;
+  weekIndex?: WeekIndex;
+  recentStructures?: readonly StoredStructure[];
   key?: string | null;
   fetchImpl?: FetchLike;
   timeoutMs: number;
   runId: string;
   weekId: string;
-}): Promise<{ plan: MonthlyCoachPlan; trace: AgentTrace }> {
+  monthId?: string;
+  profileId?: string;
+  /** 이 사유면 같은 키라도 월간 코치를 다시 부른다. */
+  regen?: ReuseReason | null;
+  /** false면 반환 계획에 reuse를 찍지 않는다. 기본은 찍는다. */
+  reuse?: boolean;
+}): Promise<{ plan: MonthlyCoachPlan; trace: AgentTrace; direction: MonthlyDirectionResult }> {
   const started = Date.now();
   const deterministic = deterministicMonthlyPlan(input.month, input.actual);
   const payload = monthlyCoachPayload(input.month, input.actual);
-  if (!input.key) {
+  const key = monthlyReuseKey({
+    monthId: input.monthId ?? "2099-07",
+    profileId: input.profileId ?? "class",
+    payload,
+  });
+  const stampOn = input.reuse !== false;
+  const recorded = input.month.coaching_plan;
+  const keyed =
+    recorded?.reuse_key != null &&
+    recorded.reuse_key === key &&
+    recorded.reuse_schema_version === MONTHLY_DIRECTION_SCHEMA_VERSION &&
+    recorded.reuse_prompt_version === MONTHLY_COACH_PROMPT_VERSION;
+  const legacy = recorded?.reuse_key == null && recorded?.reuse === true;
+  if (input.regen == null && recorded && tableReusable(recorded, input.month) && (keyed || legacy)) {
+    const direction = cachedDirection(recorded);
+    const fromModel = recorded.source === "model" && direction.degraded !== true;
     return {
-      plan: deterministic,
+      plan: recorded,
+      direction,
+      trace: finishTrace(started, {
+        run_id: input.runId,
+        week_id: input.weekId,
+        agent_name: "monthly_coach",
+        model: null,
+        prompt_version: MONTHLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash(payload),
+        input_summary: { method: recorded.strength_method, goal: recorded.block_goal, reuse: true },
+        output: recorded,
+        parsed_output: recorded,
+        validation_result: direction.degraded ? "fail" : "pass",
+        validation_errors: [],
+        retry_count: 0,
+        failure_reason: direction.degraded ? direction.reason : null,
+        deterministic: true,
+        source: fromModel ? "model" : "fallback",
+        fallback_reason: fromModel ? null : (direction.reason ?? "recorded_monthly_plan"),
+        revision_number: 0,
+        token_usage: null,
+      }),
+    };
+  }
+  if (!input.key) {
+    const direction = fallbackDirection("no_model", false);
+    return {
+      plan: stampReuse(deterministic, direction, key, stampOn),
+      direction,
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.weekId,
@@ -170,51 +243,127 @@ export async function coachMonthly(input: {
       }),
     };
   }
+  const framed = buildMonthFrame(input.month, input.actual);
+  if (!framed.ok) {
+    const direction = fallbackDirection(framed.reason, true);
+    return {
+      plan: stampReuse(deterministic, direction, key, stampOn),
+      direction,
+      trace: finishTrace(started, {
+        run_id: input.runId,
+        week_id: input.weekId,
+        agent_name: "monthly_coach",
+        model: null,
+        prompt_version: MONTHLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash(payload),
+        input_summary: { method: deterministic.strength_method },
+        output: deterministic,
+        model_input: payload,
+        validation_result: "fail",
+        validation_errors: [framed.reason],
+        retry_count: 0,
+        failure_reason: framed.reason,
+        deterministic: true,
+        source: "fallback",
+        fallback_reason: framed.reason,
+        revision_number: 0,
+        token_usage: null,
+      }),
+    };
+  }
+  const frame = framed.frame;
   const asked = await askCoach({
     agent: "monthly",
     user: payload,
     key: input.key,
     fetchImpl: input.fetchImpl,
     timeoutMs: input.timeoutMs,
-    maxTokens: 2000,
+    maxTokens: 8000,
     promptVersion: MONTHLY_COACH_PROMPT_VERSION,
     runId: input.runId,
+    retryTransport: true,
     retryContext: { current_method: input.month.strength_method || input.month.scheme },
+    format: monthCellFormat(frame),
+    schemaNote: "days is an object of w{week}_{day}. A training day returns choice, purpose_kind, and emphasis. A rest day returns purpose_kind rest and emphasis off. Do not write a sentence.",
     validate: (json) => {
-      const errors = [...monthlyPlanErrors(json, input.month), ...monthlyStrategyErrors(json)];
-      return errors.length ? { ok: false, errors } : { ok: true };
+      const parsed = tableFromCells(frame, json);
+      if (parsed.ok) return { ok: true };
+      const shape = parsed.errors.filter((error) => !isPurposeLineMessage(error));
+      if (shape.length === 0 && parsed.table) return { ok: false, errors: parsed.errors, retry: false };
+      return { ok: false, errors: shape.length ? shape : parsed.errors };
     },
   });
-  if (!asked.ok) {
+  const failed = (reason: string | null, errors: string[], call: CoachCall, extra?: CoachCall | null) => {
+    const direction = fallbackDirection(reason, true);
     return {
-      plan: deterministic,
+      plan: stampReuse(deterministic, direction, key, stampOn),
+      direction,
       trace: finishTrace(started, {
         run_id: input.runId,
         week_id: input.weekId,
         agent_name: "monthly_coach",
-        model: asked.model,
-        prompt_version: asked.promptVersion,
+        model: call.model,
+        prompt_version: call.promptVersion,
         input_hash: inputHash(payload),
         input_summary: { method: deterministic.strength_method },
-        output: asked.json,
-        raw_output: asked.raw,
+        output: extra?.json ?? call.json,
+        raw_output: extra?.raw ?? call.raw,
         model_input: payload,
-        validation_result: "fail",
-        validation_errors: asked.validationErrors,
-        ...coachAttemptRecord(asked),
-        retry_count: asked.retryCount,
-        failure_reason: asked.reason,
+        validation_result: "fail" as const,
+        validation_errors: errors,
+        first_validation_errors: call.firstValidationErrors,
+        model_attempts: [...call.attempts, ...(extra?.attempts ?? [])],
+        model_settings: { model: call.model, temperature: call.temperature },
+        retry_count: call.retryCount + (extra ? 1 : 0),
+        failure_reason: reason,
         deterministic: false,
-        source: "fallback",
-        fallback_reason: asked.reason,
+        source: "fallback" as const,
+        fallback_reason: reason,
         revision_number: 0,
-        token_usage: asked.usage,
+        token_usage: addUsage(call.usage, extra?.usage ?? null),
       }),
     };
+  };
+  const parsed = asked.json ? tableFromCells(frame, asked.json) : { ok: false as const, errors: asked.validationErrors, table: null };
+  const purposeOnly = !parsed.ok && parsed.table != null && parsed.errors.length > 0 && parsed.errors.every((error) => isPurposeLineMessage(error));
+  if (!asked.ok && !purposeOnly) return failed(asked.reason, asked.validationErrors, asked, null);
+  if (!parsed.table) return failed("goal_table", parsed.ok ? [] : parsed.errors, asked, null);
+  let table = parsed.table;
+  let repair: CoachCall | null = null;
+  const purposeErrors = parsed.ok ? [] : parsed.errors;
+  let ruleErrors = [...new Set([...purposeErrors, ...planErrors(planFromTable(input.month, input.actual, table), input.month)])];
+  if (ruleErrors.length) {
+    const spec = repairSpec(frame, table, input.month);
+    if (spec.blocked || spec.days.length === 0) return failed(ruleErrors[0] ?? "goal_table", ruleErrors, asked, null);
+    repair = await askCoach({
+      agent: "monthly",
+      user: repairUser(spec),
+      key: input.key,
+      fetchImpl: input.fetchImpl,
+      timeoutMs: input.timeoutMs,
+      maxTokens: 2500,
+      promptVersion: MONTHLY_COACH_PROMPT_VERSION,
+      runId: `${input.runId}-repair`,
+      retryTransport: false,
+      maxAttempts: 1,
+      format: repairFormat(spec),
+      schemaNote: "Return days for the listed keys only. choice must be one of allowed. purpose_kind and emphasis are ids. Do not write a sentence.",
+      validate: (json) => {
+        const merged = mergeRepair(frame, table, spec, json);
+        return merged.ok ? { ok: true } : { ok: false, errors: merged.errors };
+      },
+    });
+    if (!repair.ok) return failed(repair.validationErrors[0] ?? repair.reason, repair.validationErrors.length ? repair.validationErrors : ruleErrors, asked, repair);
+    const merged = mergeRepair(frame, table, spec, repair.json);
+    if (!merged.ok) return failed(merged.errors[0] ?? "goal_table", merged.errors, asked, repair);
+    table = merged.table;
+    ruleErrors = planErrors(planFromTable(input.month, input.actual, table), input.month);
+    if (ruleErrors.length) return failed(ruleErrors[0] ?? "goal_table", ruleErrors, asked, repair);
   }
-  const plan = planFromModel(asked.json, input.month);
+  const plan = planFromTable(input.month, input.actual, table);
   return {
-    plan,
+    plan: stampReuse(plan, COACH_DIRECTION, key, stampOn),
+    direction: COACH_DIRECTION,
     trace: finishTrace(started, {
       run_id: input.runId,
       week_id: input.weekId,
@@ -224,19 +373,21 @@ export async function coachMonthly(input: {
       input_hash: inputHash(payload),
       input_summary: { method: plan.strength_method, roles: plan.week_roles.map((row) => row.role) },
       output: plan,
-      raw_output: asked.raw,
+      raw_output: repair?.raw ?? asked.raw,
       parsed_output: plan,
       model_input: payload,
       validation_result: "pass",
       validation_errors: [],
-      ...coachAttemptRecord(asked),
-      retry_count: asked.retryCount,
+      first_validation_errors: asked.firstValidationErrors,
+      model_attempts: [...asked.attempts, ...(repair?.attempts ?? [])],
+      model_settings: { model: asked.model, temperature: asked.temperature },
+      retry_count: asked.retryCount + (repair ? 1 : 0),
       failure_reason: null,
       deterministic: false,
       source: "model",
       fallback_reason: null,
       revision_number: 0,
-      token_usage: asked.usage,
+      token_usage: addUsage(asked.usage, repair?.usage ?? null),
     }),
   };
 }

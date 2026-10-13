@@ -18,10 +18,23 @@
  *   PROBE_MODE=db PROBE_LABEL=stage23 npx tsx scripts/plan-lab.ts
  * Stage 23.1 uses the same 12 weeks. Raw files under docs/stage23.1-runs are gitignored:
  *   PROBE_MODE=db PROBE_LABEL=stage23.1 npx tsx scripts/plan-lab.ts
+ * PROBE_FLAGS=off leaves COACHING_PIPELINE and LONGITUDINAL_PLANNING unset.
+ * The default probe still sets both to 1. Production defaults are not changed here.
+ *   PROBE_MODE=db PROBE_LABEL=ops-path-fix PROBE_FLAGS=off npx tsx scripts/plan-lab.ts
+ * One scenario and one pass. The default is still every scenario and both passes.
+ * PROBE_SCENARIOS must be a prefix of W1,W2,W3,W4,S1,S2. The first model HTTP 429 stops the run.
+ *   PROBE_MODE=db PROBE_LABEL=coaching-engine-d PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
- * The model stays gpt-5.4-nano. Set DATABASE_PATH yourself only if you want a
- * different temporary file. The default temporary files are under /tmp.
+ * The default model stays gpt-5.4-nano. PROBE_PROVIDER and PROBE_MODEL select another
+ * provider. They are copied onto COACH_MODEL_PROVIDER and COACH_MODEL_NAME.
+ * Prepared W1 commands, not run:
+ *   PROBE_MODE=db PROBE_LABEL=provider-openai PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=openai PROBE_MODEL=gpt-5.4-nano npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=provider-anthropic PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=anthropic PROBE_MODEL=claude-sonnet-5 npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=provider-xai PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=xai PROBE_MODEL=grok-4 npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=provider-gemini PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=gemini PROBE_MODEL=gemini-3.8-flash npx tsx scripts/plan-lab.ts
+ * Set DATABASE_PATH yourself only if you want a different temporary file.
+ * The default temporary files are under /tmp.
  */
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -41,6 +54,7 @@ import {
 import { fallbackMonth } from "../src/lib/programming/fallback";
 import { planLongitudinal } from "../src/lib/programming/planning/plan";
 import { coachModel } from "../src/lib/programming/coaching/models";
+import { coachEndpoint, coachProvider, GEMINI_GENERATE_URL, providerKey, providerKeyEnv } from "../src/lib/programming/coaching/provider";
 import type { WeekActual } from "../src/lib/programming/summary";
 import type { WeekIndex } from "../src/lib/programming/types";
 
@@ -95,15 +109,66 @@ function assertCalendar() {
   if (PROBE_SIMULATION_ORDER.at(-1) !== "do not recompute actual again") {
     throw new ProbeSafetyError("simulation order lost the seed guard");
   }
-  if (coachModel("weekly") !== "gpt-5.4-nano" || coachModel("session") !== "gpt-5.4-nano") {
+  if (!process.env.COACH_MODEL_NAME?.trim() && (coachModel("weekly") !== "gpt-5.4-nano" || coachModel("session") !== "gpt-5.4-nano")) {
     throw new ProbeSafetyError("plan lab must stay on gpt-5.4-nano");
   }
 }
 
+function probeScenarios() {
+  const raw = process.env.PROBE_SCENARIOS?.trim();
+  if (!raw) return SCENARIOS;
+  const ids = raw.split(",").map((id) => id.trim()).filter(Boolean);
+  const prefix = SCENARIOS.slice(0, ids.length);
+  if (ids.length === 0 || ids.some((id, index) => prefix[index]?.id !== id)) {
+    throw new ProbeSafetyError("PROBE_SCENARIOS must be a prefix of W1,W2,W3,W4,S1,S2");
+  }
+  return prefix;
+}
+
+function probePasses(): Array<"A1" | "A2"> {
+  const raw = process.env.PROBE_PASSES?.trim();
+  if (!raw) return ["A1", "A2"];
+  const passes = raw.split(",").map((pass) => pass.trim()).filter(Boolean);
+  if (passes.length === 0 || passes.some((pass) => pass !== "A1" && pass !== "A2")) {
+    throw new ProbeSafetyError("PROBE_PASSES must be A1, A2, or A1,A2");
+  }
+  return passes as Array<"A1" | "A2">;
+}
+
+function applyProbeSelection(): void {
+  const provider = process.env.PROBE_PROVIDER?.trim();
+  if (provider) process.env.COACH_MODEL_PROVIDER = provider;
+  const model = process.env.PROBE_MODEL?.trim();
+  if (model) process.env.COACH_MODEL_NAME = model;
+}
+
+function modelCallUrl(url: string): boolean {
+  const provider = coachProvider();
+  if (provider === "gemini") return url.startsWith(GEMINI_GENERATE_URL);
+  return url === coachEndpoint(provider);
+}
+
+function abortIfFirstModelCallIs429(): void {
+  const original = globalThis.fetch.bind(globalThis);
+  let armed = true;
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await original(input, init);
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    if (armed && modelCallUrl(url)) {
+      armed = false;
+      if (response.status === 429) throw new ProbeSafetyError("first model call returned HTTP 429; stopped");
+    }
+    return response;
+  };
+}
+
 function scrub(text: string): string {
-  const key = process.env.MONTH_PLAN_MODEL_KEY?.trim();
-  if (!key) return text;
-  return text.split(key).join("[redacted]");
+  let out = text;
+  for (const name of ["MONTH_PLAN_MODEL_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY"]) {
+    const key = process.env[name]?.trim();
+    if (key) out = out.split(key).join("[redacted]");
+  }
+  return out;
 }
 
 async function deterministicTwice() {
@@ -160,19 +225,23 @@ async function databasePass(pass: string) {
   raw.prepare(`DELETE FROM programming_actuals WHERE week_id IN (SELECT id FROM programming_weeks WHERE week_start LIKE '2099-%')`).run();
   raw.prepare(`DELETE FROM programming_generation_logs WHERE scope_key LIKE '2099-%'`).run();
   raw.prepare(`DELETE FROM programming_weeks WHERE week_start LIKE '2099-%'`).run();
-  raw.prepare(`DELETE FROM programming_months WHERE month_start LIKE '2099-%'`).run();
+  raw.prepare(
+    `DELETE FROM programming_months WHERE month_start LIKE '2099-%' AND json_extract(direction_json, '$.coaching_plan.reuse') IS NOT 1`,
+  ).run();
   raw.prepare(`DELETE FROM class_weeks WHERE week_start LIKE '2099-%'`).run();
   const predecessor: string = WEEKS[0];
   if (!probeMayWriteWeek(predecessor)) throw new ProbeSafetyError(`refusing ${predecessor}`);
-  const key = process.env.MONTH_PLAN_MODEL_KEY?.trim() || null;
-  if (!key) throw new ProbeSafetyError("MONTH_PLAN_MODEL_KEY is unset");
+  const key = providerKey();
+  if (!key) throw new ProbeSafetyError(`${providerKeyEnv(coachProvider())} is unset`);
   if (!getProgrammingWeek(predecessor)) {
     const seeded = await regenerateProgrammingWeek(predecessor, { key });
     if (seeded.weekStart !== predecessor) throw new ProbeSafetyError("predecessor write missed 2099-06-29");
   }
+  const scenarios = probeScenarios();
   const weeks: unknown[] = [];
-  for (let index = 0; index < SCENARIOS.length; index += 1) {
-    const scenario = SCENARIOS[index]!;
+  let tokenStop: { cap: number; spent: number; after: string } | null = null;
+  for (let index = 0; index < scenarios.length; index += 1) {
+    const scenario = scenarios[index]!;
     const previousWeek = index === 0 ? predecessor : SCENARIOS[index - 1]!.weekStart;
     assertProbePredecessor({ simulationWeek: scenario.weekStart, previousWeek });
     if (!probeMayWriteWeek(scenario.weekStart)) throw new ProbeSafetyError(`refusing ${scenario.weekStart}`);
@@ -191,11 +260,12 @@ async function databasePass(pass: string) {
     const logs = raw
       .prepare(`SELECT raw_json, latency_ms, model_name FROM programming_generation_logs WHERE scope_key = ?`)
       .all(scenario.weekStart) as Array<{ raw_json: string; latency_ms: number; model_name: string | null }>;
-    let tokens = 0;
+    let tokens: number | null = null;
     let modelCalls = 0;
     for (const log of logs) {
-      const parsed = JSON.parse(log.raw_json) as { token_usage?: { total_tokens?: number }; deterministic?: boolean; source?: string };
-      tokens += parsed.token_usage?.total_tokens ?? 0;
+      const parsed = JSON.parse(log.raw_json) as { token_usage?: { total_tokens?: number } | null; deterministic?: boolean; source?: string };
+      const total = parsed.token_usage?.total_tokens;
+      if (typeof total === "number") tokens = (tokens ?? 0) + total;
       if (parsed.deterministic === false && parsed.source === "model") modelCalls += 1;
     }
     const sessionFailures = classifySessionLogs(logs.map((log) => log.raw_json));
@@ -210,6 +280,10 @@ async function databasePass(pass: string) {
     const lock = saved.intent.plan?.skeleton_lock;
     const records = saved.intent.plan?.day_records ?? {};
     const sources = Object.values(records).map((row) => row?.final_source ?? "missing");
+    const spent =
+      weeks.reduce<number>((sum, row) => sum + (typeof (row as { tokens?: number | null }).tokens === "number" ? (row as { tokens: number }).tokens : 0), 0) +
+      (tokens ?? 0);
+    const cap = Number(process.env.PROBE_TOKEN_CAP ?? "");
     weeks.push({
       id: scenario.id,
       week: saved.weekStart,
@@ -250,9 +324,14 @@ async function databasePass(pass: string) {
         record: !previousActual ? "missing" : previousActual.class_summary ? "summary" : "no_record",
       },
     });
-    console.error(`pass ${pass} ${scenario.id} done before=${(lock?.before ?? []).length} after=${(lock?.after ?? []).length} calls=${modelCalls}`);
+    console.error(`pass ${pass} ${scenario.id} done before=${(lock?.before ?? []).length} after=${(lock?.after ?? []).length} calls=${modelCalls} tokens=${spent}`);
+    if (cap > 0 && spent > cap) {
+      tokenStop = { cap, spent, after: scenario.id };
+      console.error(`token cap ${cap} reached at ${spent} after ${scenario.id}`);
+      break;
+    }
   }
-  return { pass, weeks };
+  return { pass, weeks, token_stop: tokenStop };
 }
 
 function classifySessionLogs(rawLogs: string[]) {
@@ -648,13 +727,20 @@ function summarize(passes: Array<{ pass: string; weeks: unknown[] }>) {
     ),
     consistency: consistencyRows(rows),
     model_calls: rows.reduce((sum, row) => sum + Number(row.model_calls ?? 0), 0),
-    tokens: rows.reduce((sum, row) => sum + Number(row.tokens ?? 0), 0),
+    tokens: rows.some((row) => typeof row.tokens === "number")
+      ? rows.reduce((sum, row) => sum + (typeof row.tokens === "number" ? row.tokens : 0), 0)
+      : null,
+    tokens_unsupported: rows.every((row) => row.tokens == null),
     elapsed_ms: rows.reduce((sum, row) => sum + Number(row.elapsed_ms ?? 0), 0),
-    flags: { COACHING_PIPELINE: "1", LONGITUDINAL_PLANNING: "1" },
+    flags: {
+      COACHING_PIPELINE: process.env.COACHING_PIPELINE === "1" ? "1" : "0",
+      LONGITUDINAL_PLANNING: process.env.LONGITUDINAL_PLANNING === "1" ? "1" : "0",
+    },
   };
 }
 
 async function main() {
+  applyProbeSelection();
   assertCalendar();
   const stable = await deterministicTwice();
   if (!stable.stable) throw new ProbeSafetyError("deterministic skeletons changed between runs");
@@ -663,8 +749,9 @@ async function main() {
     console.log(scrub(JSON.stringify({ plan_lab: { mode: "deterministic", stable: true, structure: digest, model: "gpt-5.4-nano" } })));
     return;
   }
-  if (!process.env.MONTH_PLAN_MODEL_KEY?.trim()) {
-    console.log(scrub(JSON.stringify({ plan_lab: { mode: "db", skipped: "MONTH_PLAN_MODEL_KEY is unset", structure: digest } })));
+  if (!providerKey()) {
+    const skipped = `${providerKeyEnv(coachProvider())} is unset`;
+    console.log(scrub(JSON.stringify({ plan_lab: { mode: "db", skipped, structure: digest } })));
     return;
   }
   const probeLabel = process.env.PROBE_LABEL?.trim() || "stage19";
@@ -673,8 +760,15 @@ async function main() {
   }
   process.env.DATABASE_PATH = `/tmp/${probeLabel}-phaseb.db`;
   process.env.STRENGTH_LAB_PROBE = "1";
-  process.env.COACHING_PIPELINE = "1";
-  process.env.LONGITUDINAL_PLANNING = "1";
+  if (process.env.PROBE_FLAGS === "off") {
+    delete process.env.COACHING_PIPELINE;
+    delete process.env.LONGITUDINAL_PLANNING;
+  } else {
+    process.env.COACHING_PIPELINE = "1";
+    process.env.LONGITUDINAL_PLANNING = "1";
+  }
+  abortIfFirstModelCallIs429();
+  const passNames = probePasses();
   const passes = [];
   const runId = `${probeLabel}-${randomUUID()}`;
   const archiveRoot = `docs/${probeLabel}-runs`;
@@ -685,13 +779,16 @@ async function main() {
   ];
   const archived = [];
   const monthReports: Array<{ pass: string; months: ReturnType<typeof monthDigest> }> = [];
-  for (const pass of ["A1", "A2"]) {
+  for (const pass of passNames) {
     const result = await databasePass(pass);
     passes.push(result);
     const snapshot = await readProbeSnapshot();
     const scrubbed = JSON.parse(scrub(JSON.stringify(snapshot))) as Awaited<ReturnType<typeof readProbeSnapshot>>;
     const calls = result.weeks.reduce((sum: number, week) => sum + Number((week as { model_calls?: number }).model_calls ?? 0), 0);
-    const tokens = result.weeks.reduce((sum: number, week) => sum + Number((week as { tokens?: number }).tokens ?? 0), 0);
+    const tokenValues = result.weeks.map((week) => (week as { tokens?: number | null }).tokens);
+    const tokens = tokenValues.every((value) => typeof value !== "number")
+      ? null
+      : tokenValues.reduce((sum: number, value) => sum + (typeof value === "number" ? value : 0), 0);
     const elapsed = result.weeks.reduce((sum: number, week) => sum + Number((week as { elapsed_ms?: number }).elapsed_ms ?? 0), 0);
     archived.push(
       archiveProbePass({
@@ -710,7 +807,7 @@ async function main() {
     );
     monthReports.push({ pass, months: monthDigest(scrubbed.months) });
   }
-  const integrity = verifyProbeArchives({ root: archiveRoot, runId, passes: ["A1", "A2"] });
+  const integrity = verifyProbeArchives({ root: archiveRoot, runId, passes: passNames });
   if (!integrity.ok) {
     throw new ProbeSafetyError(`raw archive incomplete: ${integrity.missing.join(" | ")}`);
   }
@@ -719,7 +816,7 @@ async function main() {
       mode: "db",
       model: "gpt-5.4-nano",
       structure: digest,
-      scenarios: SCENARIOS.map((scenario) => scenario.id),
+      scenarios: probeScenarios().map((scenario) => scenario.id),
       passes: passes.length,
       summary: summarize(passes),
       archive: {
@@ -727,7 +824,7 @@ async function main() {
         root: archiveRoot,
         raw_saved: true,
         summary_is_not_raw: true,
-        a1_intact_after_a2: true,
+        a1_intact_after_a2: passNames.includes("A1") && passNames.includes("A2"),
         missing: integrity.missing,
         passes: archived.map((row) => ({ pass: row.manifest.pass, dir: row.dir, files: row.manifest.files.map((file) => file.relative) })),
       },
@@ -748,6 +845,23 @@ async function main() {
 
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "plan lab failed";
+  if (message.includes("HTTP 429")) {
+    const label = process.env.PROBE_LABEL?.trim() || "stage19";
+    const stopped = {
+      probe: "stopped",
+      reason: "first model call returned HTTP 429",
+      http_429: true,
+      model: "gpt-5.4-nano",
+      database: "2099-temp",
+      weeks: null,
+      adopted_model_weeks: null,
+      fallback_weeks: null,
+      model_calls: null,
+      tokens: null,
+    };
+    mkdirSync("docs", { recursive: true });
+    writeFileSync(`docs/${label}-probe.json`, `${JSON.stringify(stopped, null, 2)}\n`);
+  }
   console.error(scrub(message));
   process.exit(1);
 });

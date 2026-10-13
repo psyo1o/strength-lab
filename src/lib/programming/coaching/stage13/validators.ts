@@ -1,8 +1,10 @@
 import { sessionCoachErrors } from "../contract";
-import { judgeWeek, TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rules";
+import { evaluateWeek } from "../../evaluate-week";
+import { TIME_DOMAIN_RANGES, type WeekCheckContext } from "../../rules";
 import type { DayIntent, MonthDirection, SessionDraft, WeekDraft, WeekIndex } from "../../types";
+import { makeIssue, type IssueCode, type IssueSeverity, type ValidationIssue, type Weekday } from "../../v2";
 import { COACHING_POLICY, isCoachingSignal } from "./policy";
-import { MOVEMENT_EQUIPMENT, intervalFitIssues, prescriptionAmountIssue } from "./units";
+import { amountTextForCheck, intervalFitIssues, prescriptionAmountIssue } from "./units";
 import { longConditioningCountAllowed } from "../stage15/week-policy";
 import { deloadHeavyConditioningErrors } from "../stage15/week-structure";
 import { weekPlanErrors, type WeekRules } from "./rules";
@@ -46,16 +48,10 @@ function movementsOf(value: unknown): Array<{ key: string; amount: string }> {
   if (!conditioning || !Array.isArray(conditioning.movements)) return [];
   return conditioning.movements.flatMap((row) => {
     if (!row || typeof row !== "object") return [];
-    const item = row as { key?: unknown; amount?: unknown };
+    const item = row as { key?: unknown; amount?: unknown; unit?: unknown };
     if (typeof item.key !== "string" || typeof item.amount !== "string") return [];
-    return [{ key: item.key, amount: item.amount }];
+    return [{ key: item.key, amount: amountTextForCheck(item.amount, item.unit) }];
   });
-}
-
-function equipmentOf(value: unknown): string[] {
-  if (!value || typeof value !== "object") return [];
-  const equipment = (value as { conditioning?: { equipment?: unknown } }).conditioning?.equipment;
-  return Array.isArray(equipment) ? equipment.filter((item): item is string => typeof item === "string") : [];
 }
 
 function intensityClash(value: unknown): string[] {
@@ -66,18 +62,6 @@ function intensityClash(value: unknown): string[] {
     return ["conditioning intensity light contradicts stimulus heavy"];
   }
   return [];
-}
-
-function equipmentClash(value: unknown): string[] {
-  const have = new Set(equipmentOf(value));
-  const errors: string[] = [];
-  for (const movement of movementsOf(value)) {
-    const need = MOVEMENT_EQUIPMENT[movement.key];
-    if (need && !have.has(need)) {
-      errors.push(`${movement.key} requires equipment ${need}`);
-    }
-  }
-  return errors;
 }
 
 function pieceMinutes(value: unknown): number | null {
@@ -110,7 +94,7 @@ export function sessionSelfReport(value: unknown, intent: DayIntent): SessionSel
   return {
     ...contract,
     intensity: [...contract.intensity, ...intensityClash(value)],
-    equipment: [...contract.equipment, ...equipmentClash(value)],
+    equipment: contract.equipment,
     unit: prescriptionErrors(value).map((issue) => `${intent.day} field conditioning.movements.amount: ${issue}`),
   };
 }
@@ -138,7 +122,7 @@ export function sessionUnitErrors(session: SessionDraft): string[] {
   const minutes = session.conditioning?.duration_min ?? null;
   const movements = session.conditioning?.movements ?? [];
   return movements.flatMap((movement) => {
-    const verdict = prescriptionAmountIssue(movement.key, movement.amount, minutes);
+    const verdict = prescriptionAmountIssue(movement.key, amountTextForCheck(movement.amount, movement.unit), minutes);
     return verdict.status === "ok" ? [] : [`${session.day} prescription: ${verdict.message}`];
   });
 }
@@ -146,7 +130,34 @@ export function sessionUnitErrors(session: SessionDraft): string[] {
 export type FinalWeekReport = {
   hard: string[];
   signals: string[];
+  /** 채택 판정이 읽는 구조화 이슈. 문구 정규식으로 다시 분류하지 않는다. */
+  issues: ValidationIssue[];
 };
+
+const WEEKDAYS: readonly Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+function issueFromCheck(message: string, code: IssueCode, severity: IssueSeverity, day?: Weekday): ValidationIssue {
+  const named = day ?? WEEKDAYS.find((key) => message.startsWith(`${key} `));
+  if (named) {
+    return makeIssue({
+      code,
+      severity,
+      scope: "day",
+      day: named,
+      message,
+      expected: code,
+      actual: message,
+    });
+  }
+  return makeIssue({
+    code,
+    severity,
+    scope: "week",
+    message,
+    expected: code,
+    actual: message,
+  });
+}
 
 /**
  * Final hard gate. Similarity, movement repetition, and structure repetition stay signals.
@@ -164,44 +175,62 @@ export function finalWeekReport(input: {
     intent: { why_ko: input.draft.intent.why_ko, focus: input.draft.intent.focus, scheme_note: input.draft.intent.scheme_note },
     sessions: input.draft.sessions,
   };
-  const judged = judgeWeek(bare, input.month, input.weekIndex, input.recent, input.context ?? {});
+  const judged = evaluateWeek(bare, input.month, input.weekIndex, input.recent, input.context ?? {});
   const judgedErrors = judged.ok ? [] : judged.errors;
   const hard = judgedErrors.filter((error) => !isCoachingSignal(error));
   const signals = judgedErrors.filter((error) => isCoachingSignal(error));
-  for (const session of input.draft.sessions) hard.push(...sessionUnitErrors(session));
-  if (input.draft.intent.plan) hard.push(...weekPlanErrors(input.draft.intent.plan, input.rules));
+  const issues: ValidationIssue[] = [
+    ...hard.map((message) => issueFromCheck(message, "schema.invalid", "hard_error")),
+    ...signals.map((message) => issueFromCheck(message, "similarity.over_threshold", "warning")),
+  ];
+  for (const session of input.draft.sessions) {
+    for (const message of sessionUnitErrors(session)) {
+      hard.push(message);
+      issues.push(issueFromCheck(message, "amount.out_of_range", "hard_error", session.day));
+    }
+  }
+  if (input.draft.intent.plan) {
+    for (const message of weekPlanErrors(input.draft.intent.plan, input.rules)) {
+      hard.push(message);
+      issues.push(issueFromCheck(message, "week.structure", "hard_error"));
+    }
+  }
   for (const session of input.draft.sessions) {
     if (session.rest || !session.conditioning) continue;
     const strength = session.strength ? 15 : 0;
     const clock = 10 + strength + session.conditioning.duration_min + 5;
     if (clock > COACHING_POLICY.class_clock_max_min) {
-      hard.push(`${session.day} class clock ${clock} exceeds ${COACHING_POLICY.class_clock_max_min}`);
+      const message = `${session.day} class clock ${clock} exceeds ${COACHING_POLICY.class_clock_max_min}`;
+      hard.push(message);
+      issues.push(issueFromCheck(message, "amount.out_of_range", "hard_error", session.day));
     }
   }
   const longs = input.draft.sessions.filter((session) => session.conditioning?.long_conditioning);
   if (!longConditioningCountAllowed(input.rules.long_conditioning_required, longs.length)) {
-    hard.push(
-      input.rules.long_conditioning_required
-        ? `final week long conditioning count ${longs.length}; rule requires 1`
-        : "final week has a long conditioning piece outside a long week",
-    );
+    const message = input.rules.long_conditioning_required
+      ? `final week long conditioning count ${longs.length}; rule requires 1`
+      : "final week has a long conditioning piece outside a long week";
+    hard.push(message);
+    issues.push(issueFromCheck(message, "week.structure", "hard_error"));
   }
   for (const session of longs) {
     const minutes = session.conditioning?.duration_min ?? 0;
     if (minutes < TIME_DOMAIN_RANGES.long.min || minutes > TIME_DOMAIN_RANGES.long.max) {
-      hard.push(`${session.day} long piece is outside ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max}`);
+      const message = `${session.day} long piece is outside ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max}`;
+      hard.push(message);
+      issues.push(issueFromCheck(message, "amount.out_of_range", "hard_error", session.day));
     }
   }
-  signals.push(
-    ...deloadHeavyConditioningErrors(
-      input.draft.sessions.map((session) => ({
-        day: session.day,
-        conditioningHeavy: session.conditioning?.intensity === "heavy",
-      })),
-      input.rules.deload_mode,
-    ),
+  const deload = deloadHeavyConditioningErrors(
+    input.draft.sessions.map((session) => ({
+      day: session.day,
+      conditioningHeavy: session.conditioning?.intensity === "heavy",
+    })),
+    input.rules.deload_mode,
   );
-  return { hard: [...new Set(hard)], signals: [...new Set(signals)] };
+  signals.push(...deload);
+  for (const message of deload) issues.push(issueFromCheck(message, "week.structure", "warning"));
+  return { hard: [...new Set(hard)], signals: [...new Set(signals)], issues };
 }
 
 export function finalWeekErrors(input: Parameters<typeof finalWeekReport>[0]): string[] {

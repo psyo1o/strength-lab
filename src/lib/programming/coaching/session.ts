@@ -2,17 +2,17 @@ import { DAY_ORDER, type DayKey, type MainLift } from "../../month-plan/types";
 import { classMetconPurpose } from "../../wod/purpose";
 import { fillSessionFields } from "../session-fields";
 import { exampleSets } from "../strength-methods";
-import { judgeWeek, similarityScore, toStructure, type WeekCheckContext } from "../rules";
+import { evaluateWeek } from "../evaluate-week";
+import { similarityScore, toStructure, type WeekCheckContext } from "../rules";
 import { strengthIsHeavy } from "../schemes";
 import type { WeekActual } from "../summary";
 import {
-  EQUIPMENT,
   STIMULI,
   type ConditioningDraft,
   type DayIntent,
-  type Equipment,
   type IntensityBand,
   type MonthDirection,
+  type MovementDraft,
   type SessionDraft,
   type Stimulus,
   type StoredStructure,
@@ -24,6 +24,8 @@ import {
 } from "../types";
 import { timeDomainFromMinutes } from "./canonical";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
+import { exactStrengthKey } from "./goal-table";
+import { catalogMovement, equipmentForKeys, type CatalogLoad, type CatalogUnit } from "./movement-catalog";
 import { movementCatalog, recipePool, roleFor, type Recipe } from "./pieces";
 
 const DAY_KO: Record<DayKey, string> = {
@@ -79,7 +81,9 @@ function conditioningFrom(day: DayKey, recipe: Recipe, benchmark: boolean): Cond
           ? `${recipe.minutes}분 인터벌. 40초 일하고 20초 쉽니다. ${names}.`
           : recipe.format === "for_time"
             ? `3라운드. 캡 ${recipe.minutes}분. ${names}.`
-            : `${recipe.minutes}분 동안 반복합니다. ${names}.`;
+            : recipe.format === "chipper"
+              ? `칩퍼. 캡 ${recipe.minutes}분. ${names}.`
+              : `${recipe.minutes}분 동안 반복합니다. ${names}.`;
   return {
     benchmark,
     format: recipe.format,
@@ -153,10 +157,22 @@ function strengthFor(lift: MainLift, month: MonthDirection, weekIndex: WeekIndex
   const mode = lift === "squat" || lift === "deadlift" ? fatigueMode(actual) : "unknown";
   const sets = exampleSets(month.strength_method || month.scheme, weekIndex, mode, lift);
   if (!sets) return null;
-  return { lift, sets };
+  return { lift, sets, movement_key: exactStrengthKey(lift, weekIndex) };
 }
 
-const FORMATS = ["amrap", "for_time", "emom", "intervals"] as const;
+const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
+
+function splitStoredAmount(amount: string, unit: CatalogUnit | undefined): { amount: string; unit?: CatalogUnit; amount_value?: number } {
+  const text = amount.replace(/\s/g, "");
+  const paired = text.match(/^(\d+)(cal|sec|m)$/i);
+  if (!paired) {
+    if (/^\d+$/.test(text) && unit) return { amount: text, unit, amount_value: Number(text) };
+    return unit ? { amount, unit } : { amount };
+  }
+  const parsed = paired[2]!.toLowerCase() as CatalogUnit;
+  const chosen = unit ?? parsed;
+  return { amount: paired[1]!, unit: chosen, amount_value: Number(paired[1]) };
+}
 
 function hangul(text: string): boolean {
   return /[\uac00-\ud7a3]/.test(text) && !/kg|킬로/i.test(text);
@@ -166,12 +182,47 @@ function hangul(text: string): boolean {
  * Accepts one day's coaching JSON. time_domain in the payload is ignored.
  * Sets come from the method table. The server stamps the clock from duration_min.
  */
+function zone2FromOption(value: unknown, required: boolean): SessionDraft["zone2"] | null {
+  if (!required) return null;
+  if (!value || typeof value !== "object") return null;
+  const body = value as Record<string, unknown>;
+  const primary = body.primary;
+  const alternate = body.alternate;
+  if (!primary || typeof primary !== "object" || !alternate || typeof alternate !== "object") return null;
+  const zone = primary as Record<string, unknown>;
+  const metcon = alternate as Record<string, unknown>;
+  if (typeof zone.modality !== "string" || typeof zone.duration_min !== "number") return null;
+  if (metcon.kind !== "short_metcon" || !Array.isArray(metcon.movements)) return null;
+  if (metcon.format !== "emom" && metcon.format !== "intervals" && metcon.format !== "amrap") return null;
+  return {
+    form: "day",
+    modality: zone.modality,
+    duration_min: zone.duration_min,
+    effort: typeof zone.effort === "string" ? zone.effort : "",
+    hr: typeof zone.hr === "string" ? zone.hr : "unspecified",
+    alternate: {
+      kind: "short_metcon",
+      format: metcon.format,
+      duration_min: typeof metcon.duration_min === "number" ? metcon.duration_min : 0,
+      rpe: typeof metcon.rpe === "string" ? metcon.rpe : "",
+      intensity: typeof metcon.intensity === "number" ? metcon.intensity : 0,
+      movements: metcon.movements as MovementDraft[],
+    },
+    performed_option: null,
+    completion_status: null,
+    actual_duration_min: null,
+    actual_rpe: null,
+  };
+}
+
 export function sessionFromCoachJson(input: {
   json: unknown;
   intent: DayIntent;
   month: MonthDirection;
   weekIndex: WeekIndex;
   actual?: WeekActual | null;
+  /** Scores a short piece for a retry hint. Adoption still requires the real minimum. */
+  preview?: boolean;
 }): SessionDraft | null {
   if (!input.json || typeof input.json !== "object") return null;
   const body = input.json as Record<string, unknown>;
@@ -193,8 +244,8 @@ export function sessionFromCoachJson(input: {
   if (volume !== "low" && volume !== "moderate" && volume !== "high") return null;
   if (intensity !== "light" && intensity !== "moderate" && intensity !== "heavy") return null;
   const aerobicMono = input.intent.primary_training === "aerobic" && input.intent.secondary_training !== "long_conditioning";
-  const minMoves = aerobicMono ? 1 : 2;
-  if (!Array.isArray(piece.movements) || piece.movements.length < minMoves || piece.movements.length > 4) return null;
+  const minMoves = input.preview || aerobicMono ? 1 : 2;
+  if (!Array.isArray(piece.movements) || piece.movements.length < minMoves || piece.movements.length > 5) return null;
   const catalog = new Map(movementCatalog().map((row) => [row.key, row.name_ko]));
   const movements = [];
   for (const row of piece.movements) {
@@ -202,15 +253,24 @@ export function sessionFromCoachJson(input: {
     const movement = row as Record<string, unknown>;
     if (typeof movement.key !== "string" || typeof movement.amount !== "string" || typeof movement.name_ko !== "string") return null;
     if (!hangul(movement.name_ko) || /kg/i.test(movement.amount)) return null;
-    if (catalog.get(movement.key) !== movement.name_ko) return null;
-    movements.push({ key: movement.key, amount: movement.amount, name_ko: movement.name_ko });
+    const piecesName = catalog.get(movement.key);
+    const standardName = catalogMovement(movement.key)?.name_ko ?? null;
+    if (!piecesName && !standardName) return null;
+    if (movement.name_ko !== piecesName && movement.name_ko !== standardName) return null;
+    const declared = movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" ? (movement.unit as CatalogUnit) : undefined;
+    const stored = splitStoredAmount(movement.amount, declared);
+    const load = storedLoad(movement.load);
+    movements.push({
+      key: movement.key,
+      amount: stored.amount,
+      name_ko: movement.name_ko,
+      ...(typeof movement.movement === "string" ? { movement: movement.movement } : {}),
+      ...(stored.amount_value != null ? { amount_value: stored.amount_value } : typeof movement.amount_value === "number" ? { amount_value: movement.amount_value } : {}),
+      ...(stored.unit ? { unit: stored.unit } : {}),
+      ...(load ? { load } : {}),
+    });
   }
-  if (!Array.isArray(piece.equipment) || piece.equipment.length === 0) return null;
-  const equipment: Equipment[] = [];
-  for (const item of piece.equipment) {
-    if (typeof item !== "string" || !(EQUIPMENT as readonly string[]).includes(item)) return null;
-    equipment.push(item as Equipment);
-  }
+  const equipment = equipmentForKeys(movements.map((movement) => movement.key));
   if (longPiece && timeDomainFromMinutes(minutes) !== "long") return null;
   if (!longPiece && timeDomainFromMinutes(minutes) === "long") return null;
   const recipe: Recipe = {
@@ -228,8 +288,10 @@ export function sessionFromCoachJson(input: {
   };
   const lift = longPiece || input.intent.strength_lift === "none" ? null : input.intent.strength_lift;
   const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual) : null;
-  const warmupText = typeof body.warmup_ko === "string" && hangul(body.warmup_ko) ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
+  const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
   const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark);
+  const zone2 = zone2FromOption(body.zone2_option, input.intent.zone2 === "day");
+  if (input.intent.zone2 === "day" && !zone2) return null;
   if (
     format === "intervals" &&
     typeof piece.interval_work_sec === "number" &&
@@ -248,6 +310,7 @@ export function sessionFromCoachJson(input: {
       warmup_ko: warmupText,
       strength,
       conditioning: built,
+      ...(zone2 ? { zone2 } : {}),
     },
     strength ? (input.intent.volume_profile === "low" ? "low" : "moderate") : null,
   );
@@ -366,7 +429,7 @@ export function assembleWeek(input: {
     },
     sessions,
   };
-  const judged = judgeWeek(bare(draft), input.month, input.weekIndex, recent, context(input.actual, input.recentLiftMaps));
+  const judged = evaluateWeek(bare(draft), input.month, input.weekIndex, recent, context(input.actual, input.recentLiftMaps));
   return { draft, judgeOk: judged.ok, errors: judged.ok ? [] : judged.errors };
 }
 
@@ -421,7 +484,7 @@ export function replaceDays(input: {
     if (built) sessions[index] = built;
   }
   const draft: WeekDraft = { ...input.draft, sessions };
-  const judged = judgeWeek(bare(draft), input.month, input.weekIndex, input.recent ?? [], context(input.actual, input.recentLiftMaps));
+  const judged = evaluateWeek(bare(draft), input.month, input.weekIndex, input.recent ?? [], context(input.actual, input.recentLiftMaps));
   return { draft, judgeOk: judged.ok, errors: judged.ok ? [] : judged.errors };
 }
 
@@ -430,6 +493,15 @@ function bare(draft: WeekDraft): WeekDraft {
     ...draft,
     intent: { why_ko: draft.intent.why_ko, focus: draft.intent.focus, scheme_note: draft.intent.scheme_note },
   };
+}
+
+function storedLoad(value: unknown): CatalogLoad | null {
+  if (!value || typeof value !== "object") return null;
+  const load = value as { male?: unknown; female?: unknown };
+  const male = typeof load.male === "string" ? load.male : null;
+  const female = typeof load.female === "string" ? load.female : null;
+  if (!male && !female) return null;
+  return { male, female };
 }
 
 function context(actual: WeekActual | null | undefined, maps: readonly string[] | undefined): WeekCheckContext {

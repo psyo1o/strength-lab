@@ -3,9 +3,7 @@ import { DAY_ORDER } from "../month-plan/types";
 import { MONTH_PLAN_OPENAI_MODEL, MONTH_PLAN_OPENAI_URL } from "../month-plan/week-model";
 import {
   allowedStrengthProgramming,
-  englishKoPath,
   hardConstraints,
-  judgeWeek,
   MONTH_REQUIRED_KEYS,
   monthSchemaErrors,
   monthShapeDetail,
@@ -18,11 +16,13 @@ import {
   lowerBodyFatigueRule,
   retryRepairPlan,
   sessionFieldTrace,
+  similarityDecisionLog,
   similarityDiagnostics,
   structureValidationErrors,
   TIME_DOMAIN_RANGES,
   weeklyRequirements,
 } from "./rules";
+import { evaluateWeek } from "./evaluate-week";
 import { exampleSets, prescriptionGuide } from "./strength-methods";
 import { monthlyTimeoutMs, weeklyTimeoutMs } from "./timeouts";
 import {
@@ -69,13 +69,13 @@ const RULES = [
   "Each training day carries strength_purpose, strength_volume, strength_intensity, metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration. Those fields match the strength and conditioning objects.",
   "Rx metcon is 12–20 minutes, so time_domain is medium. Only the day after squat or deadlift is 8–12 minutes and time_domain short. duration_min 14 is medium, never short. Long conditioning is 30–40 minutes and time_domain long.",
   "Allowed lifts are squat, ohp, bench, and deadlift. The word press means ohp. Do not use lift press.",
-  "Every *_ko field, focus, and scheme_note is Korean. Do not write those fields in English.",
+  "Write explanations in English. Display translation is later. Do not reject a week for language.",
   "Machine calories are a male/female pair such as 12/10cal. Never write kilograms, male/female loads, box heights, or benchmark loads anywhere in the week. The server adds the class wall ball, kettlebell, and box loads on the screen later. A movement is its name only: 월볼, never 월볼 plus a kilogram number.",
-  "Every training day (rest=false) has a conditioning object, and the session-level copies metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration are filled from it. Null in any of those on a training day is rejected as missing session fields. A strength-only training day is not valid in this contract.",
+  "Every training day (rest=false) has a conditioning object. The server copies a null session-level field from that same day's conditioning and does not invent a value the conditioning object does not have. A training day with no conditioning object is rejected as missing session fields. A set time_domain or duration_min is not rewritten. A strength-only training day is not valid in this contract.",
   "Top-level JSON is { intent, sessions }. sessions has exactly mon, tue, wed, thu, fri, sat, and sun. Do not wrap the object in class_week, week, or days.",
   "Warmup, strength, and conditioning together stay within about 60 minutes. Do not put a 30–40 minute piece on a strength day. Saturday is optional and has no main lift.",
   "Return JSON only. Do not pick a candidate_id.",
-  "When conditioning is present, conditioning.purpose is required in that same object. It is one or two Korean sentences on why that metcon is in the day. Write it while writing the metcon. Do not add purpose in a later pass. Do not put coaching sales, payment language, or invented kilograms in purpose.",
+  "When conditioning is present, conditioning.purpose is required in that same object. It is one or two English sentences on why that metcon is in the day. Write it while writing the metcon. Do not add purpose in a later pass. Do not put coaching sales, payment language, or invented kilograms in purpose.",
 ];
 
 const MONTH_RULES = [
@@ -85,7 +85,7 @@ const MONTH_RULES = [
   "You are not required to use 5/3/1. 5/3/1 is only one strength method. Choose from the previous month, fatigue, strength, volume, intensity, benchmarks, and the long-term block. Do not change the method from week to week. Do not write daily workouts.",
   "long_conditioning_weeks has exactly two week indexes. benchmark_week is one week index.",
   "Return one JSON object. Put every required key at the top level. Do not wrap the object. Do not use a key named month_direction_only.",
-  "Every *_ko field is Korean. Allowed English tokens are only AMRAP, EMOM, Rx, Scaled, Benchmark, Deload, and 5/3/1. Do not copy method names such as ACCUMULATION, PROGRESSION, EMPHASIS, INTENSITY_BLOCK, DELOAD_RECOVERY, engine, high_rep, technical, interval, or variation into those fields.",
+  "Write explanations in English. Display translation is later. Do not copy method names such as ACCUMULATION, PROGRESSION, EMPHASIS, INTENSITY_BLOCK, DELOAD_RECOVERY, engine, high_rep, technical, interval, or variation into explanation fields.",
   "evaluation_status no_evaluation means a previous month exists and no evaluation was stored. That is missing data, not high fatigue, and not a reason to choose DELOAD_RECOVERY. no_previous_month means there is no earlier month. present means last_evaluation is stored.",
 ];
 
@@ -291,7 +291,7 @@ function generationPhases(input: { longCount: number; highFatigue: boolean; heav
         "Are any numeric equipment weights invented? no invented weights",
         "all required fields populated",
         "no null movement_combination on training days",
-        "Korean naming where expected, without sacrificing the program",
+        "Explanations are English. Movement name_ko stays the catalog name.",
       ],
     },
   };
@@ -311,11 +311,11 @@ const NAME_KO_RULE = {
   rules: [
     "Korean letters only, apart from the allowed tokens AMRAP, EMOM, Rx, Scaled, Benchmark, Deload, 5/3/1.",
     "No kilograms, no male/female loads, no English abbreviations such as T2B or HSPU in name_ko.",
-    "Descriptions, purposes, and warmup text are Korean sentences, not English.",
+    "Descriptions, purposes, and warmup text are English explanations. Display translation is later.",
     "Session names should be natural Korean where Korean naming is expected.",
     "Do not use unnecessary English-only names.",
     "Do not sacrifice programming quality merely to satisfy naming.",
-    "The server measures the Korean share of every *_ko field. Below 0.7 is rejected.",
+    "The server does not reject a week because an explanation is English.",
   ],
   examples: [
     { key: "toes_to_bar", name_ko: "토즈 투 바" },
@@ -435,7 +435,7 @@ function weekResponseFormat(): ResponseFormat {
   const conditioning = strictObject(
     {
       benchmark: { type: "boolean" },
-      format: stringEnum(["amrap", "for_time", "emom", "intervals"]),
+      format: stringEnum(["amrap", "for_time", "emom", "intervals", "chipper"]),
       time_domain: stringEnum(["short", "medium", "long"]),
       stimulus: stringEnum(STIMULI),
       movement_patterns: { type: "array", items: stringEnum(MOVEMENT_PATTERNS) },
@@ -493,7 +493,7 @@ function weekResponseFormat(): ResponseFormat {
     warmup_min: { type: "integer" },
     warmup_ko: WEEK_STRING,
     metcon_purpose: nullable(WEEK_STRING),
-    metcon_format: nullable(stringEnum(["amrap", "for_time", "emom", "intervals"])),
+    metcon_format: nullable(stringEnum(["amrap", "for_time", "emom", "intervals", "chipper"])),
     time_domain: nullable(stringEnum(["short", "medium", "long"])),
     stimulus: nullable(stringEnum(STIMULI)),
     equipment: { type: "array", items: stringEnum(EQUIPMENT) },
@@ -769,7 +769,11 @@ async function authorWithRetries<T>(input: {
       latencyMs: completed.latencyMs,
       responseFormat: completed.responseFormat,
       normalizations: attemptNormalizations,
-      diagnostics: accepted?.diagnostics ?? null,
+      diagnostics:
+        accepted?.diagnostics ??
+        (!completed.ok && completed.reason === "bad_json"
+          ? { failure_stage: "json_parse", error_type: "unreadable_json" }
+          : null),
       errors: attemptErrors,
     });
     if (!completed.ok) {
@@ -1148,7 +1152,7 @@ export function weekPrompt(input: {
     enums: {
       day: [...DAY_ORDER],
       lift: ["squat", "ohp", "bench", "deadlift"],
-      format: ["amrap", "for_time", "emom", "intervals"],
+      format: ["amrap", "for_time", "emom", "intervals", "chipper"],
       stimulus: [...STIMULI],
       time_domain: ["short", "medium", "long"],
       volume: ["low", "moderate", "high"],
@@ -1188,7 +1192,7 @@ export function weekPrompt(input: {
       ...RULES,
       "Follow month_summary.scheme for the whole month. Do not change the block in this week.",
       "Do not copy a recent weekday strength layout. Progression may keep one lift on its day. Two identical previous layouts must not be copied.",
-      "why_ko is one to three Korean sentences. Do not restate the whole month.",
+      "why_ko is one to three English sentences. Do not restate the whole month.",
       "Use allowed_programming. lower_body_sets are required on squat and deadlift. upper_body_sets are required on ohp and bench. strength_prescription is the method rule. When the two differ, allowed_programming wins. Do not copy a 5/3/1 pattern unless the method is 531.",
       "weekly_requirements is a hard structural requirement for this week. Satisfy it inside sessions. The server rejects a miss and does not change duration for you.",
       "programming_space is only a boundary. Choose the day and the lift yourself.",
@@ -1333,25 +1337,36 @@ export async function authorMonth(input: {
     maxTokens: MONTH_MAX_TOKENS,
     format: monthResponseFormat(),
     accept: (json) => {
-      if (!json || typeof json !== "object") return { ok: false, reason: "bad_json", detail: "unreadable JSON" };
+      if (!json || typeof json !== "object") {
+        return {
+          ok: false,
+          reason: "bad_json",
+          detail: "unreadable JSON",
+          diagnostics: { failure_stage: "json_parse", error_type: "unreadable_json" },
+        };
+      }
       const direction = parseMonthDirection(json);
       if (!direction) {
         const detail = monthShapeDetail(json);
-        return { ok: false, reason: "schema", detail, errors: [detail] };
-      }
-      const schemaErrors = monthSchemaErrors(direction, json);
-      if (schemaErrors.length) return { ok: false, reason: "schema", detail: schemaErrors[0]!, errors: schemaErrors };
-      const repaired = repairMonthLanguage(direction);
-      const english = englishKoPath(repaired.direction);
-      if (english) {
         return {
           ok: false,
-          reason: "language",
-          detail: english,
-          errors: [english],
-          normalizations: repaired.normalizations,
+          reason: "schema",
+          detail,
+          errors: [detail],
+          diagnostics: { failure_stage: "month_shape", error_type: "parseMonthDirection" },
         };
       }
+      const schemaErrors = monthSchemaErrors(direction, json);
+      if (schemaErrors.length) {
+        return {
+          ok: false,
+          reason: "schema",
+          detail: schemaErrors[0]!,
+          errors: schemaErrors,
+          diagnostics: { failure_stage: "month_schema", error_type: "monthSchemaErrors" },
+        };
+      }
+      const repaired = repairMonthLanguage(direction);
       return { ok: true, value: repaired.direction, normalizations: repaired.normalizations };
     },
   });
@@ -1490,8 +1505,9 @@ export function wodFromIntentPrompt(input: {
     ? {
         instruction: `Previous output violated: ${input.retryErrors[0]}`,
         previous_output_violated: input.retryErrors.slice(0, 4),
+        failure_briefs: constraintFailureBriefs(input.retryErrors),
         previous_draft: input.previousDraft ?? null,
-        repair: "Change only the day named by the violation. Keep the weekly intent. Do not rewrite the other days.",
+        repair: `Apply each failure_brief. duration_min chooses time_domain: ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long. Copy that domain onto the session, set expected_duration to duration_min, and set long_conditioning true only when the domain is long. A duration outside ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.long.max} has no legal domain; change that duration into one bucket. Copy a null session-level field only from the conditioning object on that same day. Keep every day the briefs do not name. If a failure_brief names same-week similarity, change at least one matched feature on the named day. A new movement name or an equipment-only change is not that change. Do not break fatigue, method sets, or another rule to force the difference.`,
       }
     : null;
   return {
@@ -1513,14 +1529,44 @@ export function wodFromIntentPrompt(input: {
       "No invented kilograms. Strength is percent_of_tm only.",
       "A rest day has rest true, warmup_min 0, empty warmup_ko, and null work.",
       "Training days need conditioning. duration_min chooses time_domain: 1–12 short, 13–29 medium, 30–40 long.",
+      "Do not label 20 or 25 as short. 20 and 25 are medium. Do not label 30, 35, or 40 as short or medium. Those are long. 60 is outside every domain. Change that duration. Do not call it long.",
+      "Session time_domain equals conditioning.time_domain. expected_duration equals duration_min. long_conditioning is true only when time_domain is long. Every training day has a conditioning object. The server copies a null session field from that same day's conditioning and records the copy. It does not invent a value conditioning does not have, and it does not rewrite a time_domain or duration_min that is already set. A training day with no conditioning object is rejected.",
       "Long conditioning matches weekly_requirements. Not on a heavy squat or deadlift, and not the day after one.",
       "Squat and deadlift use lower_body_sets. Bench and ohp use upper_body_sets.",
       "Do not place a heavy pull the day after a heavy squat, or a heavy squat the day after a heavy deadlift.",
       "Same intent still changes format, work/rest, or combination. Do not only rename a movement.",
+      "Before each training day, check every other training day in this same week. Do not share all four of format, stimulus, movement_pattern, and volume. A new movement name or an equipment-only change is not enough.",
       "Progression may keep strength_lift and the method sets.",
-      "Korean for every *_ko field, focus, and scheme_note.",
+      "Write explanations in English. Display translation is later.",
       "Top-level JSON is { intent, sessions } with mon through sun.",
     ],
+    time_domain_rules: {
+      order: "Pick duration_min first. Then set time_domain from that number. The server does not rewrite a wrong label.",
+      short: `${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} minutes.`,
+      medium: `${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} minutes. 14, 16, 18, 20, and 25 are medium.`,
+      long: `${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes. 30, 35, and 40 are long.`,
+    },
+    time_domain_examples: {
+      valid: [
+        { time_domain: "short", duration_min: 12 },
+        { time_domain: "medium", duration_min: 20 },
+        { time_domain: "long", duration_min: 35 },
+      ],
+      invalid: [
+        { time_domain: "short", duration_min: 20, why: "20 is medium, not short" },
+        { time_domain: "short", duration_min: 35, why: "35 is long, not short" },
+        { time_domain: "medium", duration_min: 30, why: "30 is long, not medium" },
+        { time_domain: "long", duration_min: 60, why: "60 is outside 30–40" },
+      ],
+    },
+    same_week_structure: {
+      check: "Before writing each training day, compare it with every other training day in this same week.",
+      banned: "Do not repeat a session that shares all four of format, stimulus, movement_pattern, and volume with another day in this week.",
+      not_enough: "A new movement name, or an equipment-only change, is not a difference.",
+      differentiate: "Change the stimulus, the structure, or the volume so those four are not all the same. Also share at most 3 of format, time_domain, stimulus, movement_pattern, equipment, and volume.",
+      keep: "Keep weekly_intent, the strength method sets, fatigue limits, the long-conditioning count, rest rules, and the other safety rules.",
+      do_not: "Do not insert an unrelated movement and do not break another rule in order to look different.",
+    },
     recent_structures: (input.recent ?? []).slice(-8).map((row) => ({
       format: row.format,
       time_domain: row.time_domain,
@@ -1554,14 +1600,6 @@ export async function authorWeeklyIntent(input: {
     accept: (json) => {
       const plan = parseWeeklyIntent(json, baseline);
       if (!plan) return { ok: false, reason: "schema", detail: "weekly intent schema", errors: ["weekly intent schema"] };
-      const english = englishKoPath({
-        why_ko: plan.why_ko,
-        focus: plan.focus,
-        scheme_note: plan.scheme_note,
-        adjustment_ko: plan.adjustment_ko,
-        days: plan.days.map((day) => ({ notes_ko: day.notes_ko })),
-      });
-      if (english) return { ok: false, reason: "language", detail: english, errors: [english] };
       return { ok: true, value: plan };
     },
   });
@@ -1607,7 +1645,7 @@ export async function authorWeek(input: {
         ? wodFromIntentPrompt({ ...promptInput, weeklyIntent: intent, retryErrors: errors, previousDraft: previous })
         : weekPrompt({ ...promptInput, retryErrors: errors, previousDraft: previous }),
     accept: (json, meta) => {
-      const judged = judgeWeek(json, input.month, input.weekIndex, input.recent, context);
+      const judged = evaluateWeek(json, input.month, input.weekIndex, input.recent, context);
       const draft = judged.ok ? judged.draft : parseWeekDraft(normalizeWeekPayload(json).value);
       const previousDraft = meta.previous ? parseWeekDraft(normalizeWeekPayload(meta.previous).value) : null;
       const retryRepair =
@@ -1617,6 +1655,7 @@ export async function authorWeek(input: {
       previousErrors = judged.ok ? [] : judged.errors;
       const diagnostics = {
         similarity: draft ? similarityDiagnostics(draft, input.recent) : null,
+        similarity_decision: draft ? similarityDecisionLog(draft, input.recent) : [],
         errors: judged.ok ? [] : judged.errors,
         failed_constraints: judged.ok ? [] : structureValidationErrors(judged.errors),
         failure_briefs: judged.ok ? [] : constraintFailureBriefs(judged.errors),

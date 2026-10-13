@@ -258,9 +258,7 @@ describe("stage 5A week contract and strength methods", () => {
     const english = structuredClone(weekOf(month)) as WeekDraft;
     english.intent.why_ko = "Reduce lower body fatigue and add heavier sets this week.";
     const language = judgeWeek(english, month, 1, []);
-    expect(language.ok).toBe(false);
-    if (language.ok) return;
-    expect(language.reason).toBe("language");
+    expect(language.ok).toBe(true);
 
     const korean = structuredClone(weekOf(month)) as WeekDraft;
     korean.intent.why_ko = "이번 주 AMRAP은 16분입니다. 하체는 방법 안에서 유지합니다.";
@@ -273,10 +271,9 @@ describe("stage 5A week contract and strength methods", () => {
       key: KEY,
       fetchImpl: async () => envelope(englishMonth),
     });
-    expect(monthResult.ok).toBe(false);
-    if (monthResult.ok) return;
-    expect(monthResult.reason).toBe("language");
-    expect(monthResult.trace.detail).toContain("focus_ko");
+    expect(monthResult.ok).toBe(true);
+    if (!monthResult.ok) return;
+    expect(monthResult.direction.focus_ko).toBe("Build a stronger class this month");
   });
 
   it("keeps time-domain numbers and the week task, and does not default a missing month to 5/3/1", () => {

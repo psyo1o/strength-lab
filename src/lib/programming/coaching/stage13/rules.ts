@@ -2,6 +2,7 @@ import type { DayKey } from "../../../month-plan/types";
 import { previousLowerFatigue } from "../../rules";
 import type { MonthDirection, WeekIndex, WeeklyIntentPlan } from "../../types";
 import type { WeekActual } from "../../summary";
+import { absoluteWeekCaps, expectedRestDays, profileTrainingDayCount } from "../goal-table";
 import { benchmarkCountAllowed, longConditioningCountAllowed } from "../stage15/week-policy";
 import { benchmarkOnRestErrors } from "../stage15/week-structure";
 
@@ -30,16 +31,17 @@ export function extractWeekRules(input: {
   const deload =
     method === "DELOAD_RECOVERY" || method === "deload" || input.month.scheme === "deload" || input.weekIndex === 4;
   const fatigued = previousLowerFatigue(input.actual) === "high";
+  const caps = absoluteWeekCaps({ trainingDays: profileTrainingDayCount(input.month), deload, fatigued });
   return {
     week_index: input.weekIndex,
     strength_method: method,
     benchmark_required: input.month.benchmark_week === input.weekIndex,
     long_conditioning_required: input.month.long_conditioning_weeks.includes(input.weekIndex),
     deload_mode: deload,
-    max_high_intensity_days: deload ? 1 : fatigued ? 2 : 3,
-    max_lower_lifts: fatigued ? 1 : 2,
-    max_olympic_days: 4,
-    min_rest_days: 1,
+    max_high_intensity_days: caps.maxHighIntensity,
+    max_lower_lifts: caps.maxLowerLifts,
+    max_olympic_days: caps.maxOlympicDays,
+    min_rest_days: expectedRestDays(input.month),
   };
 }
 
@@ -109,13 +111,18 @@ export function weekPlanErrors(plan: WeeklyIntentPlan, rules: WeekRules): string
 }
 
 /** Monthly strategy checks that sit beside the field contract. No workouts. */
-export function monthlyStrategyErrors(value: unknown): string[] {
+export function monthlyStrategyErrors(
+  value: unknown,
+  month?: { scheme?: string; strength_method?: string },
+): string[] {
   if (!value || typeof value !== "object") return ["monthly plan is missing"];
   const body = value as { week_roles?: unknown };
   if (!Array.isArray(body.week_roles)) return [];
   const roles = body.week_roles.filter((row) => row && typeof row === "object") as Array<{ role?: unknown }>;
   const deloads = roles.filter((row) => row.role === "deload").length;
-  if (roles.length === 4 && deloads !== 1) {
+  const method = month?.strength_method || month?.scheme || "";
+  const recoveryMonth = method === "DELOAD_RECOVERY" || method === "deload" || month?.scheme === "deload";
+  if (roles.length === 4 && deloads !== 1 && !(recoveryMonth && deloads === 4)) {
     return [`monthly plan needs exactly one deload week role; current=${deloads}`];
   }
   return [];

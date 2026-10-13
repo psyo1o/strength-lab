@@ -1,6 +1,7 @@
+import { coerceMovementRow, equipmentForKeys } from "../movement-catalog";
 import { movementCatalog } from "../pieces";
 import { TIME_DOMAIN_RANGES, rewriteMonthLanguageTokens } from "../../rules";
-import { MOVEMENT_UNITS, amountUnit, parsedAmount, prescriptionAmountIssue, unitError, type AmountUnit } from "./units";
+import { MOVEMENT_UNITS, amountTextForCheck, amountUnit, parsedAmount, prescriptionAmountIssue, unitError, type AmountUnit } from "./units";
 
 /**
  * Display and unit normalization for one session payload.
@@ -52,6 +53,11 @@ export function normalizeSessionPayload(value: unknown, options?: NormalizeOptio
   piece.movements.forEach((row, index) => {
     if (!row || typeof row !== "object") return;
     const movement = row as Record<string, unknown>;
+    if (typeof movement.movement === "string" && typeof movement.unit === "string" && typeof movement.amount === "number") {
+      const coerced = coerceMovementRow(movement);
+      for (const key of Object.keys(movement)) delete movement[key];
+      Object.assign(movement, coerced);
+    }
     const key = typeof movement.key === "string" ? movement.key : "";
     const path = `conditioning.movements[${index}]`;
     if (typeof movement.name_ko === "string" && catalog.has(key) && movement.name_ko !== catalog.get(key)) {
@@ -72,7 +78,7 @@ export function normalizeSessionPayload(value: unknown, options?: NormalizeOptio
       movement.name_ko = next;
     }
     if (typeof movement.amount !== "string" || !key) return;
-    const amount = movement.amount;
+    const amount = amountTextForCheck(movement.amount, movement.unit);
     if (!unitError(key, amount)) return;
     const parsed = parsedAmount(amount);
     const verdict = prescriptionAmountIssue(key, amount, durationMin);
@@ -95,14 +101,31 @@ export function normalizeSessionPayload(value: unknown, options?: NormalizeOptio
     });
     if (acceptInvention) movement.amount = converted.amount;
   });
+  piece.equipment = equipmentForKeys(movementKeys(piece.movements));
   return { json, normalizations };
+}
+
+function movementKeys(rows: unknown[]): string[] {
+  const keys: string[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const movement = row as { key?: unknown; movement?: unknown };
+    if (typeof movement.key === "string" && movement.key) keys.push(movement.key);
+    else if (typeof movement.movement === "string" && movement.movement) keys.push(movement.movement);
+  }
+  return keys;
+}
+
+/** A display-term swap does not make the day a model revision. Unit repairs still do. */
+export function revisionFromNormalizations(rows: readonly SessionNormalization[]): boolean {
+  return rows.some((row) => row.ok && row.rule !== "display_term");
 }
 
 function rewriteDisplayFields(body: Record<string, unknown>, prefix: string, normalizations: SessionNormalization[]) {
   for (const [key, child] of Object.entries(body)) {
     if (typeof child !== "string") continue;
     if (!DISPLAY_KEYS.has(key) && !key.endsWith("_ko")) continue;
-    if (key === "name_ko") continue;
+    if (key === "name_ko" || key === "warmup_ko") continue;
     const next = rewriteMonthLanguageTokens(child);
     if (next === child) continue;
     normalizations.push({

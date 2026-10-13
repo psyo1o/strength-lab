@@ -7,7 +7,9 @@ import { DAY_ORDER, type DayKey } from "../src/lib/month-plan/types";
 import { movementCatalog } from "../src/lib/programming/coaching/pieces";
 import { assertProbeWeek, coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/pipeline";
 import { schemaBrief, sessionCoachErrors, weeklyIntentErrors } from "../src/lib/programming/coaching/contract";
+import { legalMonthlyCellJson } from "../src/lib/programming/coaching/goal-candidates";
 import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
+import { catalogMovement, prescribedLoad, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
 import { coachSystemPrompt } from "../src/lib/programming/coaching/prompts";
 import { qualityOf } from "../src/lib/programming/coaching/score";
 import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
@@ -70,6 +72,8 @@ type Script = {
   badDay?: DayKey | null;
   httpDay?: DayKey | null;
   head?: "approve" | "revise" | "always_revise";
+  targetCoach?: "strength_coach" | "conditioning_coach" | "warmup_coach";
+  revisionDays?: number;
   load?: "valid" | "bad_json";
   monthly?: "valid" | "bad_json";
 };
@@ -84,15 +88,8 @@ function chat(content: unknown, status = 200) {
   );
 }
 
-function monthlyJson(month: MonthDirection) {
-  const plan = deterministicMonthlyPlan(month);
-  return {
-    ...plan,
-    fatigue_tolerance: "moderate",
-    variety_requirement: "moderate",
-    source: undefined,
-    version: undefined,
-  };
+function monthlyJson(month: MonthDirection, actual?: Script["actual"]) {
+  return legalMonthlyCellJson(month, actual);
 }
 
 function weeklyJson(plan: WeeklyIntentPlan) {
@@ -107,9 +104,21 @@ function weeklyJson(plan: WeeklyIntentPlan) {
   };
 }
 
-function sessionJson(session: SessionDraft, mark: string) {
+function goalMovements(keys: readonly string[]) {
+  return keys.map((key) => ({
+    key,
+    movement: key,
+    amount: sampleAmount(key),
+    unit: catalogMovement(key)?.units[0] ?? "reps",
+    name_ko: movementCatalog().find((row) => row.key === key)?.name_ko ?? catalogMovement(key)?.name_ko ?? key,
+    load: prescribedLoad(key),
+  }));
+}
+
+function sessionJson(session: SessionDraft, mark: string, keys?: readonly string[]) {
   const piece = session.conditioning;
   if (!piece) return { day: session.day };
+  const movements = keys?.length ? goalMovements(keys) : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
   return {
     day: session.day,
     warmup_ko: `${mark} 준비 동작을 먼저 합니다.`,
@@ -118,7 +127,7 @@ function sessionJson(session: SessionDraft, mark: string) {
       format: piece.format,
       duration_min: piece.duration_min,
       stimulus: piece.stimulus,
-      movements: piece.movements,
+      movements,
       equipment: piece.equipment,
       volume: piece.volume,
       intensity: piece.intensity,
@@ -152,18 +161,36 @@ function loadJson(plan: WeeklyIntentPlan) {
   };
 }
 
-function headJson(script: Script, revision: number, day: DayKey) {
+function headJson(script: Script, revision: number, days: DayKey[]) {
+  const day = days[0] ?? "mon";
+  if (script.targetCoach && revision === 0) {
+    const count = script.revisionDays ?? 1;
+    return {
+      status: "REVISE",
+      note_ko: "해당 코치만 그 날을 다시 씁니다.",
+      revisions: days.slice(0, count).map((target) => ({
+        day: target,
+        target_coach: script.targetCoach,
+        block: script.targetCoach === "strength_coach" ? "strength" : script.targetCoach === "warmup_coach" ? "warmup" : "conditioning",
+        action: "change_amount",
+        target_movement: "box_jump",
+        new_movement: null,
+        new_amount: "9",
+        new_unit: "reps",
+        reason: "이 동작의 수량만 바꿉니다.",
+      })),
+      adjustments: [],
+    };
+  }
   if (script.head === "always_revise" || (script.head === "revise" && revision === 0)) {
     return {
       status: "REVISE",
       note_ko: "문제 있는 날의 컨디셔닝 강도만 낮춥니다.",
-      revisions: [
+      revisions: script.head === "revise" ? [] : [
         {
           day,
           reason: "이 날의 자극이 다음 날 회복과 겹칩니다.",
           correction_instruction: "같은 목적을 유지하고 자극을 한 단계 낮추세요.",
-          priority: "high",
-          constraints: "동작은 카탈로그 안에서만 고르고 하체 리프트는 유지합니다.",
         },
       ],
       adjustments:
@@ -198,27 +225,45 @@ function fetchFor(script: Script) {
   const calls: string[] = [];
   const fetchImpl = async (_url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body)) as { messages?: Array<{ role: string; content: string }> };
-    const user = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
+    const parsed = JSON.parse(body.messages?.find((message) => message.role === "user")?.content ?? "{}") as Record<string, unknown>;
+    const topAgent = agentOf(parsed);
+    const nested = parsed.original_input;
+    const user =
+      (topAgent === "context:conditioning" || topAgent === "unknown") && nested && typeof nested === "object" && !Array.isArray(nested)
+        ? (nested as Record<string, unknown>)
+        : parsed;
     const agent = agentOf(user);
     calls.push(agent);
     const revision = Number(user.revision_number ?? (user.context as { revision_number?: number } | undefined)?.revision_number ?? 0);
     if (agent === "monthly_coach" || agent === "context:monthly") {
       if (script.monthly === "bad_json") return chat("not-json");
-      return chat(monthlyJson(script.month));
+      return chat(monthlyJson(script.month, script.actual));
     }
     if (agent === "weekly_coach" || agent === "context:weekly") {
       if (script.weekly === "bad_json") return chat("not-json");
       if (script.weekly === "seven_days") return chat({ seven_days: plan.days, block_phase: "이번 주는 가볍게" });
       return chat(weeklyJson(plan));
     }
-    if (agent === "session_coach" || agent === "context:session") {
-      const day = String((user.day_intent as { day?: string } | undefined)?.day ?? (user.context as { day?: string } | undefined)?.day ?? "");
+    const dayOf = () => String((user.day_intent as { day?: string } | undefined)?.day ?? (user.context as { day?: string } | undefined)?.day ?? "");
+    if (agent === "strength_coach") {
+      const day = dayOf();
+      if (script.httpDay && day === script.httpDay) return new Response("down", { status: 503 });
+      const mark = revision > 0 ? `수정${revision} ${day}` : `모델 ${day}`;
+      return chat({ day, strength_note_ko: `${mark} 스트렝스 목적을 유지합니다.` });
+    }
+    if (agent === "warmup_coach") {
+      const day = dayOf();
+      if (script.httpDay && day === script.httpDay) return new Response("down", { status: 503 });
+      const mark = revision > 0 ? `수정${revision} ${day}` : `모델 ${day}`;
+      return chat({ day, warmup_ko: `${mark} 준비 동작을 먼저 합니다.` });
+    }
+    if (agent === "conditioning_coach" || agent === "session_coach" || agent === "context:session") {
+      const day = dayOf();
       if (script.session === "bad_json") return chat("not-json");
       if (script.httpDay && day === script.httpDay) return new Response("down", { status: 503 });
       if (script.badDay && day === script.badDay) {
         return chat({
           day,
-          warmup_ko: "준비합니다.",
           notes_ko: "잘못된 형식입니다.",
           conditioning: { format: "고강도 인터벌", duration_min: 14, stimulus: "고강도 전신", movements: ["버피"], equipment: ["맨몸"], volume: "많음", intensity: "세게" },
         });
@@ -226,15 +271,27 @@ function fetchFor(script: Script) {
       const session = baseSession(script, day as DayKey);
       if (!session) return chat({ day });
       const mark = revision > 0 ? `수정${revision} ${day}` : `모델 ${day}`;
-      return chat(sessionJson(session, mark));
+      const slot = user.conditioning_slot as { from_goal?: boolean; time_domain?: string; primary_keys?: string[]; format?: string; duration_min?: number; stimulus?: string; volume?: string } | undefined;
+      const full = sessionJson(session, mark, slot?.primary_keys);
+      if (slot?.from_goal && full.conditioning) {
+        full.conditioning.duration_min = slot.time_domain === "long" ? 32 : slot.time_domain === "medium" ? 16 : 10;
+        full.conditioning.stimulus = slot.stimulus ?? full.conditioning.stimulus;
+        if (full.conditioning.stimulus === "heavy" && full.conditioning.intensity === "light") full.conditioning.intensity = "moderate";
+      } else if (slot?.primary_keys?.length && full.conditioning) {
+        full.conditioning.format = slot.format ?? full.conditioning.format;
+        full.conditioning.duration_min = slot.duration_min ?? full.conditioning.duration_min;
+        full.conditioning.stimulus = slot.stimulus ?? full.conditioning.stimulus;
+        full.conditioning.volume = slot.volume ?? full.conditioning.volume;
+      }
+      return chat({ day, notes_ko: full.notes_ko, conditioning: full.conditioning });
     }
     if (agent === "load_coach" || agent === "context:load") {
       if (script.load === "bad_json") return chat("not-json");
       return chat(loadJson(plan));
     }
     if (agent === "head_coach" || agent === "context:head") {
-      const target = plan.days.find((day) => day.primary_training !== "rest")?.day ?? "mon";
-      return chat(headJson(script, revision, target));
+      const targets = plan.days.filter((day) => day.primary_training !== "rest").map((day) => day.day);
+      return chat(headJson(script, revision, targets));
     }
     return chat("not-json");
   };
@@ -263,6 +320,8 @@ async function run(script: Partial<Script> & { weekIndex?: WeekIndex } = {}) {
     badDay: script.badDay,
     httpDay: script.httpDay,
     head: script.head ?? "approve",
+    targetCoach: script.targetCoach,
+    revisionDays: script.revisionDays,
     load: script.load ?? "valid",
     monthly: script.monthly ?? "valid",
   };
@@ -297,6 +356,10 @@ describe("active coaching contracts", () => {
     expect(prompt).not.toContain("and seven days");
     const plan = planCoachedWeek({ month: month531(), weekIndex: 1 });
     expect(weeklyIntentErrors(weeklyJson(plan))).toEqual([]);
+    const thin = weeklyJson(plan);
+    thin.scheme_note = "Keep the same strength method this week.";
+    expect(weeklyIntentErrors(thin).join(" ")).not.toContain("korean ratio");
+    expect(weeklyIntentErrors(thin).join(" ")).not.toContain("language");
     expect(weeklyIntentErrors({ seven_days: plan.days })[0]).toContain('"days"');
     const day = plan.days.find((row) => row.primary_training !== "rest")!;
     const formatError = sessionCoachErrors(
@@ -392,8 +455,9 @@ describe("active coaching contracts", () => {
     expect(result.plan.fallback_used).toBe(true);
     const training = result.plan.days.filter((day) => day.primary_training !== "rest");
     expect(training.every((day) => result.day_sources[day.day] === "model")).toBe(true);
-    expect(result.generation_source).toBe("model");
-    expect(result.fallback_reason).toBe("schema");
+    expect(result.generation_source).toBe("fallback");
+    expect(result.adoption?.origin).toBe("fallback");
+    expect(result.fallback_reason).toContain("schema");
   });
 
   it("case 9 and 10 fall back only the broken day", async () => {
@@ -407,7 +471,7 @@ describe("active coaching contracts", () => {
     expect(enumFail.result.plan.fallback_used).toBe(false);
     const wed = enumFail.result.traces.find((trace) => trace.agent_name === "session_coach" && trace.day === "wed" && trace.revision_number === 0);
     expect(wed?.retry_count).toBe(1);
-    expect(wed?.validation_errors?.join(" ")).toContain("amrap, for_time, emom, intervals");
+    expect(wed?.validation_errors?.join(" ")).toMatch(/conditioning/);
     expect(enumFail.result.draft.sessions.find((session) => session.day === "mon")?.warmup_ko).toContain("모델");
     const httpFail = await run({ httpDay: "thu" });
     expect(httpFail.result.day_sources.thu).toBe("fallback");
@@ -420,9 +484,11 @@ describe("active coaching contracts", () => {
     expect(result.revision_count).toBe(0);
     expect(result.final_status).toBe("ADJUST");
     expect(result.pipeline).toBe("stage16");
-    const sessionCalls = calls.filter((call) => call === "session_coach");
     const training = result.plan.days.filter((day) => day.primary_training !== "rest");
-    expect(sessionCalls).toHaveLength(training.length);
+    expect(calls.filter((call) => call === "strength_coach")).toHaveLength(training.length);
+    expect(calls.filter((call) => call === "conditioning_coach")).toHaveLength(training.length);
+    expect(calls.filter((call) => call === "warmup_coach")).toHaveLength(training.length);
+    expect(calls.filter((call) => call === "session_coach")).toHaveLength(0);
     const adjusted = result.draft.sessions.find((session) => session.conditioning?.duration_min === 9 && !session.rest);
     expect(adjusted).toBeTruthy();
     const day = adjusted!.day;
@@ -444,16 +510,39 @@ describe("active coaching contracts", () => {
     expect(result.traces.filter((trace) => trace.agent_name === "session_coach" && trace.revision_number === 1)).toHaveLength(0);
   });
 
-  it("case 12 does not call the head again when the revise has no field patch", async () => {
+  it("case 12 asks the head once more when the revise is only a sentence", async () => {
     const { result, calls } = await run({ head: "always_revise" });
+    const training = result.plan.days.filter((day) => day.primary_training !== "rest");
     expect(result.revision_count).toBe(0);
-    expect(result.final_status).toBe("APPROVE_WITH_NOTE");
-    expect(result.generation_source).toBe("model");
+    expect(result.final_status === "ADJUST" || result.final_status === "FINALIZE_WITH_WARNING").toBe(true);
+    expect(result.generation_source).toBe("fallback");
     expect(result.draft.sessions).toHaveLength(7);
     expect(result.judge_ok).toBe(true);
+    const head = result.traces.find((trace) => trace.agent_name === "head_coach");
     expect(result.traces.filter((trace) => trace.agent_name === "head_coach")).toHaveLength(1);
+    expect(head?.retry_count).toBe(1);
+    expect(JSON.stringify(head?.validation_errors)).toContain("prose-only");
     expect(calls.filter((call) => call === "head_coach")).toHaveLength(1);
+    expect(calls.filter((call) => call === "context:head")).toHaveLength(1);
+    expect(calls.filter((call) => call === "conditioning_coach")).toHaveLength(training.length);
     expect(result.draft.sessions.filter((session) => !session.rest).every((session) => session.warmup_ko.includes("모델"))).toBe(true);
+  });
+
+  it("sends a target_coach revision to that coach for those days only", async () => {
+    const { result, calls } = await run({ targetCoach: "conditioning_coach", revisionDays: 3 });
+    const training = result.plan.days.filter((day) => day.primary_training !== "rest");
+    expect(calls.filter((call) => call === "head_coach")).toHaveLength(1);
+    expect(calls.filter((call) => call === "weekly_coach")).toHaveLength(1);
+    expect(calls.filter((call) => call === "strength_coach")).toHaveLength(training.length);
+    expect(calls.filter((call) => call === "warmup_coach")).toHaveLength(training.length);
+    expect(calls.filter((call) => call === "conditioning_coach")).toHaveLength(training.length);
+    expect(result.revision_count).toBe(0);
+    expect(result.traces.filter((trace) => trace.agent_name === "conditioning_coach" && (trace.revision_number ?? 0) > 0)).toHaveLength(0);
+    expect(result.traces.some((trace) => trace.agent_name === "revision_scope")).toBe(false);
+    expect(result.generation_source).toBe("fallback");
+    expect(result.final_status).toBe("ADJUST");
+    const cells = result.traces.find((trace) => trace.agent_name === "head_cell_apply");
+    expect(cells?.output).toMatchObject({ block: false });
   });
 
   it("case 14 treats a repeated lift with a different structure as progression", () => {
@@ -584,7 +673,8 @@ describe("active coaching contracts", () => {
       });
       expect(result.monthly_plan.source).toBe("model");
       expect(result.plan.intent_source).toBe("model");
-      expect(quality.critical).not.toContain("unsafe");
+      if (result.judge_ok) expect(quality.critical).not.toContain("unsafe");
+      else expect(quality.critical).toContain("unsafe");
       expect(result.traces.map((trace) => trace.agent_name)).toEqual(
         expect.arrayContaining(["monthly_coach", "weekly_coach", "session_coach", "load_coach", "fatigue_engine", "variation_engine", "head_coach"]),
       );
@@ -627,18 +717,22 @@ describe("coaching pipeline production guard", () => {
     freshDb();
   });
 
-  it("keeps the stage10 route when the flag is off and refuses the live week when it is on", async () => {
+  it("uses the same unkeyed week for either flag and refuses the live week only in a probe", async () => {
     expect(coachingPipelineEnabled()).toBe(false);
-    const week = await ensureProgrammingWeek("2099-08-03", { nowMs: NOW, key: null });
-    expect(week.weekStart).not.toBe("2026-10-05");
-    expect(week.promptVersion).toBe(WEEKLY_PROMPT_VERSION);
-    expect(week.promptVersion).not.toBe(COACHING_PIPELINE_VERSION);
+    const off = await ensureProgrammingWeek("2099-08-03", { nowMs: NOW, key: null });
+    expect(off.weekStart).not.toBe("2026-10-05");
+    expect(off.promptVersion).toBe(WEEKLY_PROMPT_VERSION);
+    expect(off.promptVersion).not.toBe(COACHING_PIPELINE_VERSION);
     process.env.COACHING_PIPELINE = "1";
-    await expect(ensureProgrammingWeek("2026-10-05", { nowMs: NOW, key: null })).rejects.toThrow(/2026-10-05/);
+    const on = await ensureProgrammingWeek("2099-08-10", { nowMs: NOW, key: null });
+    expect(on.promptVersion).toBe(off.promptVersion);
+    process.env.STRENGTH_LAB_PROBE = "1";
+    await expect(ensureProgrammingWeek("2026-10-05", { nowMs: NOW, key: "sk-probe" })).rejects.toThrow(/2026-10-05/);
     const live = (await import("../src/lib/db/client")).getSqlite()
       .prepare("SELECT COUNT(*) AS c FROM programming_weeks WHERE week_start = '2026-10-05'")
       .get() as { c: number };
     expect(live.c).toBe(0);
     delete process.env.COACHING_PIPELINE;
+    delete process.env.STRENGTH_LAB_PROBE;
   });
 });

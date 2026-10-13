@@ -545,6 +545,16 @@ function parseDay(value: unknown): DayIntent | null {
   if (typeof row.training_goal !== "string" || !row.training_goal.trim()) return null;
   if (typeof row.notes_ko !== "string" || !row.notes_ko.trim()) return null;
   if (typeof row.progression_required !== "boolean" || typeof row.benchmark !== "boolean") return null;
+  const zone2 = asEnum(row.zone2, ["none", "addon", "day"] as const) ?? undefined;
+  const zone2Modality = typeof row.zone2_modality === "string" ? row.zone2_modality : undefined;
+  const zone2Duration =
+    typeof row.zone2_duration === "number" && Number.isInteger(row.zone2_duration)
+      ? row.zone2_duration
+      : typeof row.zone2_duration === "string" && /^\d+$/.test(row.zone2_duration)
+        ? Number(row.zone2_duration)
+        : undefined;
+  const zone2Effort = typeof row.zone2_effort === "string" ? row.zone2_effort : undefined;
+  const zone2Hr = typeof row.zone2_hr === "string" ? row.zone2_hr : undefined;
   return {
     day,
     primary_training: primary,
@@ -561,6 +571,7 @@ function parseDay(value: unknown): DayIntent | null {
     strength_lift: lift,
     benchmark: row.benchmark,
     notes_ko: row.notes_ko.trim(),
+    ...(zone2 ? { zone2, zone2_modality: zone2Modality, zone2_duration: zone2Duration, zone2_effort: zone2Effort, zone2_hr: zone2Hr } : {}),
   };
 }
 

@@ -81,6 +81,8 @@ export type WeekRow = {
   rulesVersion: string;
   generationTimestamp: number;
   inputSummaryVersion: string;
+  /** create가 기존 활성 주를 남기면 kept_existing이다. DB 컬럼은 아니다. */
+  writeOutcome?: "created" | "kept_existing" | "regenerated";
 };
 
 type MonthSql = {
@@ -328,6 +330,7 @@ function insertGenerationLogs(
     responses: GenerationWrite["responses"];
     createdAt: number;
     generationSource?: string | null;
+    fallbackReason?: string | null;
     logContext?: Record<string, unknown>;
   },
 ): void {
@@ -354,6 +357,7 @@ function insertGenerationLogs(
           run: {
             ...(input.logContext ?? {}),
             generation_source: input.generationSource ?? null,
+            fallback_reason: input.fallbackReason ?? null,
           },
           body: response.raw,
         }),
@@ -362,6 +366,11 @@ function insertGenerationLogs(
       response.latencyMs ?? null,
     );
   }
+}
+
+/** 월 목표는 그대로 두고 coaching_plan만 direction_json에 남긴다. */
+export function saveMonthCoachingPlan(monthId: number, direction: MonthDirection): void {
+  getSqlite().prepare("UPDATE programming_months SET direction_json = ? WHERE id = ?").run(JSON.stringify(direction), monthId);
 }
 
 export function insertProgrammingMonth(
@@ -449,6 +458,7 @@ function insertMonthRow(
     responses: input.responses,
     createdAt: input.generatedAt,
     generationSource: input.generationSource,
+    fallbackReason: input.fallbackReason,
     logContext: input.logContext,
   });
   return id;
@@ -502,6 +512,7 @@ export function insertProgrammingWeek(
   const mode = input.mode ?? "create";
   const structures = input.draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null);
   const raw = getSqlite();
+  let writeOutcome: NonNullable<WeekRow["writeOutcome"]> = "created";
   const write = raw.transaction(() => {
     const active = raw
       .prepare(
@@ -518,8 +529,10 @@ export function insertProgrammingWeek(
     const current = active ?? slot;
     if (current && mode === "create") {
       insertWeekRow(raw, input, structures, "failed", current.generation_version);
+      writeOutcome = "kept_existing";
       return;
     }
+    writeOutcome = current ? "regenerated" : "created";
     const version = current ? current.generation_version + 1 : 1;
     if (current) {
       raw.prepare("UPDATE programming_weeks SET status = 'superseded' WHERE id = ?").run(current.id);
@@ -536,7 +549,7 @@ export function insertProgrammingWeek(
   }
   const stored = getProgrammingWeek(input.weekStart);
   if (!stored) throw new Error("programming week missing");
-  return stored;
+  return { ...stored, writeOutcome };
 }
 
 function insertWeekRow(
@@ -619,6 +632,7 @@ function insertWeekRow(
     responses: input.responses,
     createdAt: input.generatedAt,
     generationSource: input.generationSource,
+    fallbackReason: input.fallbackReason,
     logContext: input.logContext,
   });
   return weekId;
@@ -654,11 +668,26 @@ export function linkProgrammingWeek(weekStart: string, classWeekId: number): voi
     .run(classWeekId, weekStart);
 }
 
+const LATEST_WEEK_STATUS = `
+  status = 'active'
+  OR (
+    status = 'failed'
+    AND NOT EXISTS (
+      SELECT 1 FROM programming_weeks active_week
+      WHERE active_week.week_start = programming_weeks.week_start AND active_week.status = 'active'
+    )
+    AND id = (
+      SELECT MAX(latest.id) FROM programming_weeks latest
+      WHERE latest.week_start = programming_weeks.week_start AND latest.status = 'failed'
+    )
+  )
+`;
+
 export function listProgrammingWeeksBefore(weekStart: string): WeekRow[] {
   const rows = getSqlite()
     .prepare(
       `SELECT ${WEEK_SELECT} FROM programming_weeks
-       WHERE week_start < ? AND status = 'active'
+       WHERE week_start < ? AND (${LATEST_WEEK_STATUS})
        ORDER BY week_start ASC`,
     )
     .all(weekStart) as WeekSql[];
@@ -672,14 +701,28 @@ export function listRecentLiftMaps(weekStart: string): string[] {
 }
 
 export function listRecentStructures(weekStart: string): StoredStructure[] {
-  const from = addDays(weekStart, -40);
+  const from = addDays(weekStart, -28);
   const rows = getSqlite()
     .prepare(
-      `SELECT s.day_key, s.format, s.time_domain, s.stimulus, s.movement_patterns, s.movements, s.equipment,
+      `SELECT w.id AS week_id, w.week_start, s.day_key, s.format, s.time_domain, s.stimulus, s.movement_patterns, s.movements, s.equipment,
               s.rep_structure, s.work_rest_structure, s.duration_min, s.volume, s.intensity, s.benchmark, s.long_conditioning
        FROM wod_structures s
        JOIN programming_weeks w ON w.id = s.week_id
-       WHERE w.status = 'active' AND w.week_start < ? AND w.week_start >= ?
+       WHERE w.week_start < ? AND w.week_start >= ?
+         AND (
+           w.status = 'active'
+           OR (
+             w.status = 'failed'
+             AND NOT EXISTS (
+               SELECT 1 FROM programming_weeks active_week
+               WHERE active_week.week_start = w.week_start AND active_week.status = 'active'
+             )
+             AND w.id = (
+               SELECT MAX(latest.id) FROM programming_weeks latest
+               WHERE latest.week_start = w.week_start AND latest.status = 'failed'
+             )
+           )
+         )
        ORDER BY w.week_start ASC, s.day_key ASC`,
     )
     .all(weekStart, from) as Array<Record<string, unknown>>;
@@ -698,6 +741,8 @@ export function listRecentStructures(weekStart: string): StoredStructure[] {
     intensity: row.intensity as StoredStructure["intensity"],
     benchmark: Number(row.benchmark) === 1,
     long_conditioning: Number(row.long_conditioning) === 1,
+    source_week_id: Number(row.week_id),
+    source_week_start: String(row.week_start),
   }));
 }
 

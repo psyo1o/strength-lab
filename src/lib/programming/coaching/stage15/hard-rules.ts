@@ -33,7 +33,10 @@ export function daysInText(error: string): DayKey[] {
   return [...found];
 }
 
-/** Hard errors reject. Coaching concerns never do. */
+/**
+ * @deprecated 채택과 생성 경로는 ValidationIssue.code를 쓴다. 문장 정규식 분류는 격리 경로에만 남아 있다.
+ * Hard errors reject. Coaching concerns never do.
+ */
 export function classifyProgramError(error: string): HardFinding | { hard: false; message: string } {
   if (
     isCoachingSignal(error) ||
@@ -45,7 +48,9 @@ export function classifyProgramError(error: string): HardFinding | { hard: false
   if (/unit|sec\b|reps|cal\b/i.test(error) && /invalid|received|amount/i.test(error)) {
     return { code: "UNIT_INVALID", category: "UNIT", message: error, days };
   }
-  if (/requires equipment|equipment/i.test(error)) return { code: "EQUIPMENT_INVALID", category: "EQUIPMENT", message: error, days };
+  if (/requires equipment|lists no equipment|conditioning\.equipment|EQUIPMENT_INVALID/i.test(error)) {
+    return { hard: false, message: error };
+  }
   if (/not implemented|sets do not match|fatigue cut|method/i.test(error)) {
     return { code: "METHOD_VIOLATION", category: "METHOD", message: error, days };
   }
@@ -68,6 +73,7 @@ export function classifyProgramError(error: string): HardFinding | { hard: false
   return { code: "SCHEMA_INVALID", category: "SCHEMA", message: error, days };
 }
 
+/** @deprecated ValidationIssue.code를 쓴다. */
 export function hardFindings(errors: readonly string[]): HardFinding[] {
   const findings: HardFinding[] = [];
   for (const error of errors) {
@@ -78,6 +84,7 @@ export function hardFindings(errors: readonly string[]): HardFinding[] {
   return findings;
 }
 
+/** @deprecated 격리 경로의 레거시 호출이다. 채택 판정은 ValidationIssue.code를 쓴다. */
 export function splitHardErrors(errors: readonly string[]): { days: DayKey[]; week: string[]; byDay: Partial<Record<DayKey, string[]>> } {
   const byDay: Partial<Record<DayKey, string[]>> = {};
   const week: string[] = [];

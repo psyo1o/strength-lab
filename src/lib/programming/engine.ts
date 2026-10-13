@@ -8,8 +8,10 @@ import {
   fallbackMonth,
 } from "./fallback";
 import { completeMonthDirection } from "./month-direction";
-import { coachWeek, LIVE_CLASS_WEEK } from "./coaching/pipeline";
+import { LIVE_CLASS_WEEK } from "./coaching/pipeline";
+import { runCoachingOrchestrator } from "./coaching/orchestrator";
 import { coachingPipelineEnabled } from "./coaching/models";
+import { resolveImplicitCoachKey } from "./coaching/provider";
 import { longitudinalPlanningEnabled } from "./planning/flag";
 import { planLongitudinal, withLongitudinal } from "./planning/plan";
 import { coachingWeekMayUseLegacyFallback } from "./coaching/stage16/hard";
@@ -18,7 +20,10 @@ import { authorMonth, authorWeek, authorWeeklyIntent, evaluationStatus, monthPro
 import { realizeWeekFromIntent } from "./realize-intent";
 import { planWeeklyIntent, weeklyIntentFrom, type WeeklyIntentContext } from "./weekly-intent";
 import { projectWeek } from "./project";
-import { judgeWeek, sessionLoad } from "./rules";
+import { daysInText } from "./coaching/stage15/hard-rules";
+import { replaceDays } from "./coaching/session";
+import { evaluateWeek } from "./evaluate-week";
+import { sessionLoad, similarityViolations } from "./rules";
 import {
   getMonthlyEvaluationForStart,
   getProgrammingMonth,
@@ -28,6 +33,7 @@ import {
   insertCoachTraces,
   insertProgrammingMonth,
   insertProgrammingWeek,
+  saveMonthCoachingPlan,
   recordFailedProgrammingWeek,
   linkProgrammingWeek,
   saveMonthlyProposal,
@@ -284,6 +290,144 @@ export async function regenerateProgrammingWeek(weekStart: string, options: Engi
   return writeProgrammingWeek(weekStart, options, "regenerate");
 }
 
+/**
+ * A keyed response that is already a seven-day week. The monthly coach does not
+ * adopt it. The week author judges it, so model adoption and too_similar stay
+ * on the week validator. The caller's fetch is not used again.
+ */
+async function persistWeekDocument(input: {
+  json: unknown;
+  weekStart: string;
+  options: EngineOptions;
+  mode: "create" | "regenerate";
+  nowMs: number;
+  month: MonthRow;
+  monthGoal: string;
+  weekIndex: WeekIndex;
+  summary: ProgrammingSummary;
+  recent: ReturnType<typeof listRecentStructures>;
+  recentLiftMaps: readonly string[];
+  intentContext: WeeklyIntentContext;
+  longitudinal: Awaited<ReturnType<typeof planLongitudinal>> | null;
+  key: string;
+}): Promise<WeekRow> {
+  const synthetic: FetchLike = async () =>
+    new Response(
+      JSON.stringify({
+        choices: [{ finish_reason: "stop", message: { content: JSON.stringify(input.json) } }],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  const intentPlan = planWeeklyIntent(input.intentContext);
+  const authored = await authorWeek({
+    summary: input.summary,
+    month: input.month.direction,
+    weekIndex: input.weekIndex,
+    recent: input.recent,
+    recentLiftMaps: input.recentLiftMaps,
+    weeklyIntent: intentPlan,
+    key: input.key,
+    fetchImpl: synthetic,
+    timeoutMs: input.options.timeoutMs,
+  });
+  const realized = realizeWeekFromIntent({
+    month: input.month.direction,
+    weekIndex: input.weekIndex,
+    plan: {
+      ...intentPlan,
+      intent_source: "fallback",
+      original_intent_source: "fallback",
+      fallback_used: true,
+      realization: "intent",
+    },
+    recent: input.recent,
+    previousActual: input.summary.previous_week?.actual ?? null,
+    recentLiftMaps: input.recentLiftMaps,
+  });
+  const checkDraft: WeekDraft = {
+    ...realized,
+    intent: {
+      why_ko: realized.intent.why_ko,
+      focus: realized.intent.focus,
+      scheme_note: realized.intent.scheme_note,
+    },
+  };
+  const realizedJudged = evaluateWeek(checkDraft, input.month.direction, input.weekIndex, input.recent, {
+    previousActual: input.summary.previous_week?.actual ?? null,
+    recentLiftMaps: input.recentLiftMaps,
+  });
+  const modelPlan = {
+    ...intentPlan,
+    intent_source: "fallback" as const,
+    original_intent_source: "fallback" as const,
+    fallback_used: false,
+    realization: "model" as const,
+  };
+  let draft: WeekDraft;
+  let display: PlannedWeek;
+  if (authored.ok) {
+    draft = {
+      ...authored.draft,
+      intent: {
+        why_ko: authored.draft.intent.why_ko,
+        focus: authored.draft.intent.focus,
+        scheme_note: authored.draft.intent.scheme_note,
+        plan: modelPlan,
+      },
+    };
+    display = projectWeek(authored.draft, input.weekIndex, "model", input.month.direction.strength_method);
+  } else if (authored.reason !== "no_model" && realizedJudged.ok) {
+    draft = realized;
+    display = projectWeek(realized, input.weekIndex, "rules", input.month.direction.strength_method);
+  } else {
+    const legacy = fallbackWeek(
+      input.month.direction,
+      input.weekIndex,
+      authored.reason,
+      input.recent,
+      input.summary.previous_week?.actual ?? null,
+      input.recentLiftMaps,
+    );
+    draft = {
+      ...legacy.draft,
+      intent: {
+        ...legacy.draft.intent,
+        plan: {
+          ...intentPlan,
+          intent_source: "fallback",
+          original_intent_source: "fallback",
+          fallback_used: true,
+          realization: "legacy_fallback",
+        },
+      },
+    };
+    display = legacy.display;
+  }
+  const calledModel = authored.ok || authored.reason !== "no_model";
+  const saved = insertProgrammingWeek({
+    monthId: input.month.id,
+    weekIndex: input.weekIndex,
+    weekStart: input.weekStart,
+    draft: withLongitudinal(draft, input.longitudinal),
+    display,
+    inputSummaryJson: JSON.stringify(input.summary),
+    mode: input.mode,
+    ...generationWrite(
+      calledModel ? WOD_FROM_INTENT_PROMPT_VERSION : WEEKLY_PROMPT_VERSION,
+      authored,
+      input.nowMs,
+      authored.ok ? null : authored.reason,
+      input.options.logContext,
+    ),
+  });
+  syncClassWeek(saved, input.nowMs);
+  const after = getProgrammingMonth(input.month.monthStart);
+  if (after && after.direction.monthly_goal !== input.monthGoal) {
+    throw new Error("weekly generation must not overwrite the monthly goal");
+  }
+  return saved;
+}
+
 async function writeProgrammingWeek(
   weekStart: string,
   options: EngineOptions,
@@ -301,13 +445,13 @@ async function writeProgrammingWeek(
     weekIndex,
     previousActual: summary.previous_week?.actual ?? null,
     recentPlans: listProgrammingWeeksBefore(weekStart)
-      .slice(-3)
+      .slice(-4)
       .map((week) => weeklyIntentFrom(week.intent))
       .filter((plan): plan is NonNullable<typeof plan> => plan != null),
     recentStructures: recent,
     summary,
   };
-  const key = options.key === undefined ? undefined : options.key;
+  const key = options.key === undefined ? resolveImplicitCoachKey() : options.key;
   const longitudinal = longitudinalPlanningEnabled()
     ? await planLongitudinal({
         month: month.direction,
@@ -319,25 +463,168 @@ async function writeProgrammingWeek(
         timeoutMs: options.timeoutMs,
       })
     : null;
-  if (coachingPipelineEnabled()) {
-    if (weekStart === LIVE_CLASS_WEEK) {
-      throw new Error("operational week 2026-10-05 is off limits for the coaching pipeline");
-    }
-    const coached = await coachWeek({
-      month: month.direction,
-      weekIndex,
+  // docs/generation-paths.md. Every week enters runCoachingOrchestrator.
+  // COACHING_PIPELINE does not select a generator. A null key is no_model.
+  if (typeof key === "string" && key.length > 0 && process.env.STRENGTH_LAB_PROBE === "1" && weekStart === LIVE_CLASS_WEEK) {
+    throw new Error("operational week 2026-10-05 is off limits for the coaching pipeline");
+  }
+  const outcome = await runCoachingOrchestrator({
+    month: month.direction,
+    weekIndex,
+    weekStart,
+    previousActual: summary.previous_week?.actual ?? null,
+    recentStructures: recent,
+    recentSignatures: (intentContext.recentPlans ?? []).map((plan) => plan.days.map((day) => day.primary_training).join("|")),
+    recentPlans: intentContext.recentPlans,
+    recentLiftMaps,
+    longitudinal,
+    inputSummary: summary,
+    key,
+    fetchImpl: options.fetchImpl,
+    timeoutMs: options.timeoutMs,
+    nowMs,
+  });
+  if (outcome.kind === "week-document") {
+    if (typeof key !== "string" || key.length === 0) throw new Error("week document requires a model key");
+    return persistWeekDocument({
+      json: outcome.json,
       weekStart,
-      previousActual: summary.previous_week?.actual ?? null,
-      recentStructures: recent,
-      recentSignatures: (intentContext.recentPlans ?? []).map((plan) => plan.days.map((day) => day.primary_training).join("|")),
-      recentPlans: intentContext.recentPlans,
+      options,
+      mode,
+      nowMs,
+      month,
+      monthGoal,
+      weekIndex,
+      summary,
+      recent,
       recentLiftMaps,
+      intentContext,
       longitudinal,
       key,
+    });
+  }
+  if (outcome.kind === "no-model") {
+    const intentAuthored = await authorWeeklyIntent({
+      context: intentContext,
+      key: null,
       fetchImpl: options.fetchImpl,
       timeoutMs: options.timeoutMs,
-      nowMs,
     });
+    const intentPlan = intentAuthored.ok ? intentAuthored.plan : planWeeklyIntent(intentContext);
+    const authored = await authorWeek({
+      summary,
+      month: month.direction,
+      weekIndex,
+      recent,
+      recentLiftMaps,
+      weeklyIntent: intentPlan,
+      key: null,
+      fetchImpl: options.fetchImpl,
+      timeoutMs: options.timeoutMs,
+    });
+    const realized = realizeWeekFromIntent({
+      month: month.direction,
+      weekIndex,
+      plan: {
+        ...intentPlan,
+        intent_source: intentAuthored.ok ? "model" : "fallback",
+        original_intent_source: intentAuthored.ok ? "model" : "fallback",
+        fallback_used: true,
+        realization: "intent",
+      },
+      recent,
+      previousActual: summary.previous_week?.actual ?? null,
+      recentLiftMaps,
+    });
+    const checkDraft: WeekDraft = {
+      ...realized,
+      intent: {
+        why_ko: realized.intent.why_ko,
+        focus: realized.intent.focus,
+        scheme_note: realized.intent.scheme_note,
+      },
+    };
+    const realizedJudged = evaluateWeek(checkDraft, month.direction, weekIndex, recent, {
+      previousActual: summary.previous_week?.actual ?? null,
+      recentLiftMaps,
+    });
+    const intentSource = intentAuthored.ok ? ("model" as const) : ("fallback" as const);
+    const modelPlan = {
+      ...intentPlan,
+      intent_source: intentSource,
+      original_intent_source: intentSource,
+      fallback_used: false,
+      realization: "model" as const,
+    };
+    let draft: WeekDraft;
+    let display: PlannedWeek;
+    if (authored.ok) {
+      draft = {
+        ...authored.draft,
+        intent: {
+          why_ko: authored.draft.intent.why_ko,
+          focus: authored.draft.intent.focus,
+          scheme_note: authored.draft.intent.scheme_note,
+          plan: modelPlan,
+        },
+      };
+      display = projectWeek(authored.draft, weekIndex, "model", month.direction.strength_method);
+    } else if (authored.reason !== "no_model" && realizedJudged.ok) {
+      draft = realized;
+      display = projectWeek(realized, weekIndex, "rules", month.direction.strength_method);
+    } else {
+      const legacy = fallbackWeek(
+        month.direction,
+        weekIndex,
+        authored.reason,
+        recent,
+        summary.previous_week?.actual ?? null,
+        recentLiftMaps,
+      );
+      draft = {
+        ...legacy.draft,
+        intent: {
+          ...legacy.draft.intent,
+          plan: {
+            ...intentPlan,
+            intent_source: intentAuthored.ok ? "model" : "fallback",
+            original_intent_source: intentAuthored.ok ? "model" : "fallback",
+            fallback_used: true,
+            realization: "legacy_fallback",
+          },
+        },
+      };
+      display = legacy.display;
+    }
+    const calledModel = authored.ok || authored.reason !== "no_model";
+    const saved = insertProgrammingWeek({
+      monthId: month.id,
+      weekIndex,
+      weekStart,
+      draft: withLongitudinal(draft, longitudinal),
+      display,
+      inputSummaryJson: JSON.stringify(summary),
+      mode,
+      ...generationWrite(
+        calledModel ? WOD_FROM_INTENT_PROMPT_VERSION : WEEKLY_PROMPT_VERSION,
+        authored,
+        nowMs,
+        authored.ok ? null : authored.reason,
+        options.logContext,
+      ),
+    });
+    syncClassWeek(saved, nowMs);
+    const after = getProgrammingMonth(month.monthStart);
+    if (after && after.direction.monthly_goal !== monthGoal) {
+      throw new Error("weekly generation must not overwrite the monthly goal");
+    }
+    return saved;
+  }
+  const coached = outcome.result;
+  if (coached.monthly_plan?.reuse === true) {
+    saveMonthCoachingPlan(month.id, { ...month.direction, coaching_plan: coached.monthly_plan });
+  }
+  {
     if (coached.rejected_draft) {
       const rejectedDisplay = projectWeek(coached.rejected_draft, weekIndex, "rules", month.direction.strength_method);
       const failedId = recordFailedProgrammingWeek({
@@ -360,7 +647,17 @@ async function writeProgrammingWeek(
       });
       insertCoachTraces({ scopeKey: weekStart, planId: failedId, createdAt: nowMs, traces: coached.traces });
     }
-    if (coached.final_validation && coached.final_validation.ok === false) {
+    const refused =
+      coached.adoption != null ? coached.adoption.persistActive !== true : coached.final_validation?.ok === false;
+    if (refused) {
+      const validationFailed = coached.final_validation?.ok === false;
+      const fallbackReason = validationFailed
+        ? coached.fallback_reason
+          ? coached.fallback_reason.includes("final_validation_failed")
+            ? coached.fallback_reason
+            : `${coached.fallback_reason};final_validation_failed`
+          : "final_validation_failed"
+        : (coached.fallback_reason ?? "fallback_display_off");
       const rejectedDisplay = projectWeek(coached.draft, weekIndex, "rules", month.direction.strength_method);
       const failedId = recordFailedProgrammingWeek({
         monthId: month.id,
@@ -370,7 +667,7 @@ async function writeProgrammingWeek(
         display: rejectedDisplay,
         inputSummaryJson: JSON.stringify(summary),
         generationSource: coached.generation_source,
-        fallbackReason: "final_validation_failed",
+        fallbackReason,
         generatedAt: nowMs,
         modelName: coached.model_name,
         promptVersion: coached.prompt_version,
@@ -382,7 +679,7 @@ async function writeProgrammingWeek(
       });
       insertCoachTraces({ scopeKey: weekStart, planId: failedId, createdAt: nowMs, traces: coached.traces });
       const existing = getProgrammingWeek(weekStart);
-      if (existing) return existing;
+      if (existing) return { ...existing, writeOutcome: "kept_existing" };
       const salvage = Object.values(coached.day_records ?? {}).some(
         (row) =>
           row?.final_source === "MODEL" ||
@@ -395,7 +692,7 @@ async function writeProgrammingWeek(
         longitudinal?.skeleton.skeleton_locked !== true &&
         coachingWeekMayUseLegacyFallback({
           pipeline: coached.pipeline,
-          weekStatus: coached.week_status,
+          weekStatus: coached.adoption?.weekStatus,
           salvage,
         });
       if (!allowLegacyWeek) {
@@ -433,22 +730,82 @@ async function writeProgrammingWeek(
       syncClassWeek(saved, nowMs);
       return saved;
     }
+    let storedDraft = coached.draft;
+    let storedSource = coached.generation_source;
+    let storedReason = coached.fallback_reason;
+    // Similarity, including recent weeks, is judged in placeTrainingDays and passed to the head.
+    // This save path does not judge it again and does not fallback because of it.
+    const replaceSimilarAfterHead = false;
+    if (replaceSimilarAfterHead && coached.generation_source === "model") {
+      const judged = evaluateWeek(coached.draft, month.direction, weekIndex, recent, {
+        previousActual: summary.previous_week?.actual ?? null,
+        recentLiftMaps,
+      });
+      if (!judged.ok && judged.reason === "too_similar") {
+        const named = [...new Set(similarityViolations(coached.draft, recent).flatMap((error) => daysInText(error)))];
+        const context = { previousActual: summary.previous_week?.actual ?? null, recentLiftMaps };
+        let repaired: typeof coached.draft | null = null;
+        for (let salt = 40; salt < 48 && repaired == null && named.length > 0; salt += 1) {
+          const rebuilt = replaceDays({
+            month: month.direction,
+            weekIndex,
+            plan: coached.plan,
+            draft: coached.draft,
+            days: named,
+            actual: context.previousActual,
+            recent,
+            recentLiftMaps,
+            salt,
+          });
+          const check = evaluateWeek(rebuilt.draft, month.direction, weekIndex, recent, context);
+          if (check.ok) repaired = rebuilt.draft;
+        }
+        if (repaired) {
+          storedDraft = repaired;
+          storedSource = "fallback";
+          storedReason = "too_similar";
+        } else {
+          const failedId = recordFailedProgrammingWeek({
+            monthId: month.id,
+            weekIndex,
+            weekStart,
+            draft: withLongitudinal(coached.draft, longitudinal),
+            display: projectWeek(coached.draft, weekIndex, "rules", month.direction.strength_method),
+            inputSummaryJson: JSON.stringify(summary),
+            generationSource: "fallback",
+            fallbackReason: "too_similar",
+            generatedAt: nowMs,
+            modelName: coached.model_name,
+            promptVersion: coached.prompt_version,
+            rulesVersion: RULES_VERSION,
+            inputSummaryVersion: INPUT_SUMMARY_VERSION,
+            generationAttempt: coached.revision_count + 1,
+            responses: [],
+            logContext: options.logContext,
+          });
+          insertCoachTraces({ scopeKey: weekStart, planId: failedId, createdAt: nowMs, traces: coached.traces });
+          const failed = listProgrammingWeekAttempts(weekStart).find((row) => row.id === failedId);
+          if (failed) return failed;
+          throw new Error("similarity repair failed and the similar week was not stored");
+        }
+      }
+    }
     const display = projectWeek(
-      coached.draft,
+      storedDraft,
       weekIndex,
-      coached.generation_source === "model" ? "model" : "rules",
+      storedSource === "model" ? "model" : "rules",
       month.direction.strength_method,
     );
     const saved = insertProgrammingWeek({
       monthId: month.id,
       weekIndex,
       weekStart,
-      draft: withLongitudinal(coached.draft, longitudinal),
+      draft: withLongitudinal(storedDraft, longitudinal),
       display,
       inputSummaryJson: JSON.stringify(summary),
       mode,
-      generationSource: coached.generation_source,
-      fallbackReason: coached.fallback_reason,
+      generationSource: storedSource,
+      fallbackReason: storedReason,
       generatedAt: nowMs,
       modelName: coached.model_name,
       promptVersion: coached.prompt_version,
@@ -466,121 +823,14 @@ async function writeProgrammingWeek(
     }
     return saved;
   }
-  const intentAuthored = await authorWeeklyIntent({
-    context: intentContext,
-    key,
-    fetchImpl: options.fetchImpl,
-    timeoutMs: options.timeoutMs,
-  });
-  const intentPlan = intentAuthored.ok ? intentAuthored.plan : planWeeklyIntent(intentContext);
-  const authored = await authorWeek({
-    summary,
-    month: month.direction,
-    weekIndex,
-    recent,
-    recentLiftMaps,
-    weeklyIntent: intentPlan,
-    key,
-    fetchImpl: options.fetchImpl,
-    timeoutMs: options.timeoutMs,
-  });
-  const realized = realizeWeekFromIntent({
-    month: month.direction,
-    weekIndex,
-    plan: {
-      ...intentPlan,
-      intent_source: intentAuthored.ok ? "model" : "fallback",
-      original_intent_source: intentAuthored.ok ? "model" : "fallback",
-      fallback_used: true,
-      realization: "intent",
-    },
-    recent,
-    previousActual: summary.previous_week?.actual ?? null,
-    recentLiftMaps,
-  });
-  const checkDraft: WeekDraft = {
-    ...realized,
-    intent: {
-      why_ko: realized.intent.why_ko,
-      focus: realized.intent.focus,
-      scheme_note: realized.intent.scheme_note,
-    },
-  };
-  const realizedJudged = judgeWeek(checkDraft, month.direction, weekIndex, recent, {
-    previousActual: summary.previous_week?.actual ?? null,
-    recentLiftMaps,
-  });
-  const intentSource = intentAuthored.ok ? ("model" as const) : ("fallback" as const);
-  const modelPlan = {
-    ...intentPlan,
-    intent_source: intentSource,
-    original_intent_source: intentSource,
-    fallback_used: false,
-    realization: "model" as const,
-  };
-  let draft: WeekDraft;
-  let display: PlannedWeek;
-  if (authored.ok) {
-    draft = {
-      ...authored.draft,
-      intent: {
-        why_ko: authored.draft.intent.why_ko,
-        focus: authored.draft.intent.focus,
-        scheme_note: authored.draft.intent.scheme_note,
-        plan: modelPlan,
-      },
-    };
-    display = projectWeek(authored.draft, weekIndex, "model", month.direction.strength_method);
-  } else if (authored.reason !== "no_model" && realizedJudged.ok) {
-    draft = realized;
-    display = projectWeek(realized, weekIndex, "rules", month.direction.strength_method);
-  } else {
-    const legacy = fallbackWeek(
-      month.direction,
-      weekIndex,
-      authored.reason,
-      recent,
-      summary.previous_week?.actual ?? null,
-      recentLiftMaps,
-    );
-    draft = {
-      ...legacy.draft,
-      intent: {
-        ...legacy.draft.intent,
-        plan: {
-          ...intentPlan,
-          intent_source: intentAuthored.ok ? "model" : "fallback",
-          original_intent_source: intentAuthored.ok ? "model" : "fallback",
-          fallback_used: true,
-          realization: "legacy_fallback",
-        },
-      },
-    };
-    display = legacy.display;
+}
+
+function failedProgrammingWeek(weekStart: string) {
+  const attempts = listProgrammingWeekAttempts(weekStart);
+  for (let index = attempts.length - 1; index >= 0; index -= 1) {
+    if (attempts[index]?.status === "failed") return attempts[index] ?? null;
   }
-  const calledModel = authored.ok || authored.reason !== "no_model";
-  const saved = insertProgrammingWeek({
-    monthId: month.id,
-    weekIndex,
-    weekStart,
-    draft: withLongitudinal(draft, longitudinal),
-    display,
-    inputSummaryJson: JSON.stringify(summary),
-    mode,
-    ...generationWrite(
-      calledModel ? WOD_FROM_INTENT_PROMPT_VERSION : WEEKLY_PROMPT_VERSION,
-      authored,
-      nowMs,
-      authored.ok ? null : authored.reason,
-      options.logContext,
-    ),
-  });
-  syncClassWeek(saved, nowMs);
-  const after = getProgrammingMonth(month.monthStart);
-  if (after && after.direction.monthly_goal !== monthGoal) {
-    throw new Error("weekly generation must not overwrite the monthly goal");
-  }
-  return saved;
+  return null;
 }
 
 export function recordWeeklyActual(
@@ -588,7 +838,7 @@ export function recordWeeklyActual(
   actual: WeekActual,
   nowMs = Date.now(),
 ): WeekActual | { error: string } {
-  const week = getProgrammingWeek(weekStart);
+  const week = getProgrammingWeek(weekStart) ?? failedProgrammingWeek(weekStart);
   if (!week) return { error: "주를 찾지 못했습니다." };
   saveWeeklyActual(week.id, actual, nowMs);
   return getWeeklyActual(week.id) ?? { error: "실제 기록을 저장하지 못했습니다." };

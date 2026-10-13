@@ -35,6 +35,7 @@ export type AgentName =
   | "variation_engine"
   | "strength_coach"
   | "conditioning_coach"
+  | "warmup_coach"
   | "recovery_coach"
   | "variation_coach"
   | "practical_coach"
@@ -50,6 +51,13 @@ export type AgentName =
   | "recovery_judge"
   | "head_coach"
   | "revision_router"
+  | "revision_scope"
+  | "revision_rejected"
+  | "revision_compliance"
+  | "approval_refused"
+  | "day_placement"
+  | "head_cell_apply"
+  | "post_head_judge"
   | "final_validator";
 
 export type TokenUsage = {

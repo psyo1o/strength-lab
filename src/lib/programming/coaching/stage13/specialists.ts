@@ -9,7 +9,6 @@ import {
   type StructureHit,
 } from "./analyzers";
 import type { WeekRules } from "./rules";
-import { MOVEMENT_EQUIPMENT } from "./units";
 
 export type SpecialistName = "strength" | "conditioning" | "recovery" | "variation" | "practical" | "fun";
 
@@ -215,14 +214,6 @@ export function practicalReview(sessions: readonly SessionDraft[]): SpecialistRe
       findings.push(`${session.day} has no movements`);
       days.push(session.day);
     }
-    const have = new Set(session.conditioning.equipment);
-    for (const movement of session.conditioning.movements) {
-      const need = MOVEMENT_EQUIPMENT[movement.key];
-      if (need && !have.has(need)) {
-        findings.push(`${session.day} ${movement.key} needs ${need}, which the class cannot use together`);
-        days.push(session.day);
-      }
-    }
   }
   return review({
     name: "practical",
@@ -284,9 +275,9 @@ export function integrateSpecialists(reviews: readonly SpecialistReview[]): Inte
   const note = must
     ? "치명 문제가 있어 해당 날만 다시 봅니다."
     : onlyMinor
-      ? "사소한 지적만 있습니다. 주가 성립하면 승인할 수 있습니다."
+      ? "사소한 지적만 있습니다. 다른 칸 id가 없으면 APPROVE_WITH_NOTE입니다. 수정 없는 REVISE는 쓰지 않습니다."
       : priorities.length
-        ? "주요 지적이 있습니다. 가능하면 해당 날만 고칩니다."
+        ? "지적이 있습니다. 그 칸 enum의 다른 id로만 고칩니다. 다른 id가 없으면 APPROVE_WITH_NOTE입니다."
         : "전문 코치가 모두 통과했습니다.";
   return { must_revise: must, only_minor: onlyMinor, priorities, note_ko: note };
 }

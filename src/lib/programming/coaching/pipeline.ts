@@ -1,7 +1,8 @@
 import type { FetchLike } from "../model";
 import { weeklyTimeoutMs } from "../timeouts";
 import { realizeWeekFromIntent } from "../realize-intent";
-import { judgeWeek, toStructure } from "../rules";
+import { evaluateWeek } from "../evaluate-week";
+import { toStructure } from "../rules";
 import type { WeekActual } from "../summary";
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import type { DayPrescriptionRecord, MonthDirection, MonthlyCoachPlan, StoredStructure, WeekDraft, WeekIndex, WeekLifecycle, WeeklyIntentPlan } from "../types";
@@ -10,7 +11,9 @@ import { deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { planCoachedWeek } from "./weekly";
+import type { MonthlyDirection, WeekSkeleton } from "../direction";
 import type { LongitudinalPlan } from "../planning/types";
+import type { WeekAdoption } from "../v2";
 import { enforceLockedSkeleton, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
 import { assembleLegalWeek } from "./session";
 import { reviewWeek, type HeadCoachReview } from "./review";
@@ -34,8 +37,19 @@ export type CoachWeekInput = {
   recentSignatures?: readonly string[];
   recentLiftMaps?: readonly string[];
   recentPlans?: readonly WeeklyIntentPlan[];
+  /** Engine summary. The weekly coach sees it. It is not a second generator. */
+  inputSummary?: unknown;
   /** Locked week from planLongitudinal. Session fill uses it only when the skeleton is locked. */
   longitudinal?: LongitudinalPlan | null;
+  /** Phase 3 direction. evaluateWeek checks conformance when the week skeleton is also set. */
+  monthlyDirection?: MonthlyDirection | null;
+  /** Locked week skeleton. evaluateWeek rejects a hash drift. */
+  weekSkeleton?: WeekSkeleton | null;
+  /** 지난주 잠긴 뼈대. 월요일 조합은 그 일요일을 본다. */
+  previousWeekSkeleton?: WeekSkeleton | null;
+  /** Monthly reuse identity. Defaults stay 2099-07 and class. */
+  monthId?: string;
+  profileId?: string;
   key?: string | null;
   fetchImpl?: FetchLike;
   timeoutMs?: number;
@@ -56,6 +70,12 @@ export type CoachWeekResult = {
   traces: AgentTrace[];
   judge_ok: boolean;
   day_sources: Record<DayKey, "model" | "fallback">;
+  /** 훈련일별 출처와 이유. 카탈로그가 채운 단위·Rx는 여기 들어가지 않는다. */
+  origin_log?: string;
+  /** 헤드 REVISE의 칸 수정. none은 카탈로그 칸 REVISE가 아니다. */
+  head_revise?: "none" | "applied" | "unresolved";
+  /** 고강도 patch 재요청을 부른 횟수. 코드가 강도를 넣으면 0이어도 이 수는 오르지 않는다. */
+  intensity_patch_count?: number;
   final_status: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING";
   coach_notes: string[];
   monthly_plan: MonthlyCoachPlan;
@@ -75,6 +95,7 @@ export type CoachWeekResult = {
   prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
   day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
   week_status?: WeekLifecycle;
+  adoption?: WeekAdoption;
 };
 
 export function assertProbeWeek(weekStart: string) {
@@ -108,7 +129,7 @@ function stamp(draft: WeekDraft, plan: WeeklyIntentPlan): WeekDraft {
  * At most two head-coach revisions, and only the named days are rebuilt.
  */
 export async function coachWeek(input: CoachWeekInput): Promise<CoachWeekResult> {
-  assertProbeWeek(input.weekStart);
+  if (process.env.STRENGTH_LAB_PROBE === "1") assertProbeWeek(input.weekStart);
   if (input.key) return coachWeekActive(input);
   return coachWeekKeyless(input);
 }
@@ -192,7 +213,7 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
       previousActual: input.previousActual,
       recentLiftMaps: input.recentLiftMaps,
     });
-    const judged = judgeWeek(bare(legacy), input.month, input.weekIndex, input.recentStructures ?? [], {
+    const judged = evaluateWeek(bare(legacy), input.month, input.weekIndex, input.recentStructures ?? [], {
       previousActual: input.previousActual ?? null,
       recentLiftMaps: input.recentLiftMaps ?? [],
     });
@@ -318,7 +339,7 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
     };
     draft = stamp(draft, plan);
   }
-  const judge = judgeWeek(bare(draft), input.month, input.weekIndex, input.recentStructures ?? [], {
+  const judge = evaluateWeek(bare(draft), input.month, input.weekIndex, input.recentStructures ?? [], {
     previousActual: input.previousActual ?? null,
     recentLiftMaps: input.recentLiftMaps ?? [],
   });

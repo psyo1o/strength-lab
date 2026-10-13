@@ -1,0 +1,262 @@
+{
+  "model": "gpt-5.4-nano",
+  "database": "2099 temporary sqlite under /tmp. Not an operational database.",
+  "weeks_in_table": "12 scenario weeks. Predecessor 2099-06-29 is in the raw archive and is excluded here.",
+  "key_printed": false,
+  "ops_flags_off": {
+    "label": "oct12-ops",
+    "probe_flags": "off",
+    "what_it_calls": "flags-off engine path. Every scenario week stamped wod-from-intent-v1. This is the operational path and the wod-from-intent path; they are the same function chain.",
+    "archive": "docs/oct12-ops-runs/oct12-ops-66e873dd-f21c-4152-8f08-2376f93e5afb",
+    "run_id": "oct12-ops-66e873dd-f21c-4152-8f08-2376f93e5afb",
+    "summary": {
+      "weeks_attempted": 12,
+      "model_weeks": 0,
+      "fallback_weeks": 12,
+      "failed_weeks": 0,
+      "skeleton_saved": 0,
+      "lock_violations_before": 0,
+      "lock_violations_after": 0,
+      "day_final_sources": {
+        "MODEL": 0,
+        "MODEL_REVISED": 0,
+        "MODEL_ADJUSTED": 0,
+        "HEAD_ADJUSTED": 0,
+        "DETERMINISTIC_ADJUSTMENT": 0,
+        "FALLBACK": 0,
+        "FAILED": 0
+      },
+      "model_calls": 0,
+      "tokens": 0,
+      "elapsed_ms": 556114,
+      "flags": {
+        "COACHING_PIPELINE": "0",
+        "LONGITUDINAL_PLANNING": "0"
+      },
+      "consistency": {
+        "mismatches": [
+          {
+            "week": "W3",
+            "type": "high_fatigue_not_limited"
+          },
+          {
+            "week": "S2",
+            "type": "high_fatigue_not_limited"
+          },
+          {
+            "week": "W3",
+            "type": "high_fatigue_not_limited"
+          },
+          {
+            "week": "S2",
+            "type": "high_fatigue_not_limited"
+          }
+        ],
+        "mismatch_count": 4
+      },
+      "note_model_calls": "model_calls and tokens count rows whose generation source is model. On the flags-off path that count stays 0 while the model was still called."
+    },
+    "prompt_version": "wod-from-intent-v1",
+    "stored_reasons": {
+      "schema": 9,
+      "rule_break": 2,
+      "feedback": 1
+    },
+    "attempts": 24,
+    "retry_adopted_weeks": 0,
+    "first_error_same": 7,
+    "first_error_changed": 5,
+    "json_parse_failures": 0,
+    "http_429_strings": 0,
+    "message_buckets": {
+      "time_domain_outside": 10,
+      "missing_session_fields": 30,
+      "session_conditioning_mismatch": 19,
+      "stimulus_repeat": 41,
+      "same_week_similarity": 10,
+      "same_week_exact_four": 0,
+      "same_week_four_or_more": 2,
+      "recent_similarity": 82,
+      "recent_exact_four": 4,
+      "heavy_sequence": 0,
+      "long_requirement": 8
+    },
+    "similarity_decision": {
+      "recent_hits_with_source_week_id": 82,
+      "same_week_hits": 10
+    },
+    "months": "6 month rows across A1 and A2, all generation_source model, prompt monthly-program-v4. No month failure_stage was exercised because none fell back.",
+    "scenarios": {
+      "A1": [
+        {
+          "id": "W1",
+          "week": "2099-07-06",
+          "source": "fallback",
+          "reason": "schema",
+          "attempt1": "mon is missing session fields",
+          "attempt2": "mon is missing session fields"
+        },
+        {
+          "id": "W2",
+          "week": "2099-07-13",
+          "source": "fallback",
+          "reason": "schema",
+          "attempt1": "mon is missing session fields",
+          "attempt2": "mon is missing session fields"
+        },
+        {
+          "id": "W3",
+          "week": "2099-07-20",
+          "source": "fallback",
+          "reason": "schema",
+          "attempt1": "mon is missing session fields",
+          "attempt2": "mon is missing session fields"
+        },
+        {
+          "id": "W4",
+          "week": "2099-07-27",
+          "source": "fallback",
+          "reason": "schema",
+          "attempt1": "mon is missing session fields",
+          "attempt2": "mon is missing session fields"
+        },
+        {
+          "id": "S1",
+          "week": "2099-08-03",
+          "source": "fallback",
+          "reason": "schema",
+          "attempt1": "mon stimulus does not match",
+          "attempt2": "Thursday: time_domain=short duration=16 is outside 1–12"
+        },
+        {
+          "id": "S2",
+          "week": "2099-08-10",
+          "source": "fallback",
+          "reason": "schema",
+          "attempt1": "Wednesday: time_domain=short duration=30 is outside 1–12",
+          "attempt2": "Wednesday: time_domain=medium duration=35 is outside 13–29"
+        }
+      ],
+      "A2": [
+        {
+          "id": "W1",
+          "week": "2099-07-06",
+          "source": "fallback",
+          "reason": "rule_break",
+          "attempt1": "stimulus technical repeats on tue",
+          "attempt2": "stimulus technical repeats on tue"
+        },
+        {
+          "id": "W2",
+          "week": "2099-07-13",
+          "source": "fallback",
+          "reason": "schema",
+          "attempt1": "mon warmup is not 8–12",
+          "attempt2": "thu is missing session fields"
+        },
+        {
+          "id": "W3",
+          "week": "2099-07-20",
+          "source": "fallback",
+          "reason": "schema",
+          "attempt1": "thu is missing session fields",
+          "attempt2": "thu is missing session fields"
+        },
+        {
+          "id": "W4",
+          "week": "2099-07-27",
+          "source": "fallback",
+          "reason": "feedback",
+          "attempt1": "mon warmup is not 8–12",
+          "attempt2": "intent says lower load was reduced but the prescription is heavier than the fatigue limit"
+        },
+        {
+          "id": "S1",
+          "week": "2099-08-03",
+          "source": "fallback",
+          "reason": "rule_break",
+          "attempt1": "stimulus technical repeats on thu",
+          "attempt2": "stimulus technical repeats on thu"
+        },
+        {
+          "id": "S2",
+          "week": "2099-08-10",
+          "source": "fallback",
+          "reason": "schema",
+          "attempt1": "mon is missing session fields",
+          "attempt2": "thu is missing session fields"
+        }
+      ]
+    },
+    "prior_probe_same_metric": {
+      "run": "ops-path-fix-1b9cb659",
+      "same_week_similarity": 32,
+      "same_week_exact_four": 1,
+      "same_week_four_or_more": 5,
+      "model_weeks": 0,
+      "note": "One earlier 2099 run, before this prompt sentence. The model is nondeterministic. These counts are not a paired re-score."
+    }
+  },
+  "plan_lab_default_flags_on": {
+    "label": "oct12-default",
+    "probe_flags": "unset, so plan-lab sets COACHING_PIPELINE=1 and LONGITUDINAL_PLANNING=1",
+    "what_it_calls": "coaching pipeline. Stored prompt coaching-pipeline-v6. This is not the flags-off operational path.",
+    "archive": "docs/oct12-default-runs/oct12-default-057a87f9-25d2-46f4-81ae-517e0ed501a8",
+    "run_id": "oct12-default-057a87f9-25d2-46f4-81ae-517e0ed501a8",
+    "summary": {
+      "weeks_attempted": 12,
+      "model_weeks": 12,
+      "fallback_weeks": 0,
+      "failed_weeks": 1,
+      "skeleton_saved": 12,
+      "lock_violations_before": 0,
+      "lock_violations_after": 0,
+      "day_final_sources": {
+        "MODEL": 64,
+        "MODEL_REVISED": 8,
+        "MODEL_ADJUSTED": 0,
+        "HEAD_ADJUSTED": 0,
+        "DETERMINISTIC_ADJUSTMENT": 0,
+        "FALLBACK": 0,
+        "FAILED": 0
+      },
+      "model_calls": 109,
+      "tokens": 414448,
+      "elapsed_ms": 561945,
+      "flags": {
+        "COACHING_PIPELINE": "1",
+        "LONGITUDINAL_PLANNING": "1"
+      },
+      "consistency": {
+        "mismatches": [
+          {
+            "week": "S2",
+            "type": "lock_or_failed"
+          }
+        ],
+        "mismatch_count": 1
+      },
+      "note_model_calls": "model_calls and tokens count rows whose generation source is model. On the flags-off path that count stays 0 while the model was still called."
+    },
+    "prompt_version": "coaching-pipeline-v6",
+    "validated_weeks": 11,
+    "a2_s2": {
+      "week": "2099-08-10",
+      "generation_source": "model",
+      "week_status": "FAILED",
+      "fallback_reason": "final_validation_failed",
+      "validation_errors": [
+        "lower lifts 2 exceed the week rule 1"
+      ],
+      "day_sources": [
+        "MODEL",
+        "MODEL",
+        "MODEL",
+        "MODEL",
+        "MODEL",
+        "MODEL"
+      ],
+      "lock_after": []
+    }
+  }
+}

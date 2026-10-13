@@ -19,7 +19,7 @@ export type VolumeBand = "low" | "moderate" | "high";
 
 export type IntensityBand = "light" | "moderate" | "heavy";
 
-export type WodFormat = "amrap" | "for_time" | "emom" | "intervals";
+export type WodFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper";
 
 export type MovementPattern = "squat" | "hinge" | "press" | "pull" | "olympic" | "engine" | "gymnastic";
 
@@ -69,12 +69,95 @@ export type StrengthSetDraft = {
 export type StrengthDraft = {
   lift: MainLift;
   sets: StrengthSetDraft[];
+  /** Shown on the screen. The method family stays `lift` so percentages still resolve. */
+  movement_key?: string;
+};
+
+/** One cell of the month conditioning board. The daily coach fills movements and loads. */
+export type ConditioningSlot = {
+  format: WodFormat;
+  time_domain: TimeDomain;
+  duration_min: number;
+  stimulus: Stimulus;
+  movement_pattern: MovementPattern;
+  primary_key: string;
+  volume: VolumeBand;
+  metcon: boolean;
+  movement_count: number;
+  companions: readonly string[];
+  /** The 20 minute cell. A long-conditioning day stretches this cell into the long bucket. */
+  stretch: boolean;
+  /** One-line purpose from the monthly goal table. Absent on older board cells. */
+  purpose?: string;
+  /** Exact strength key for this day. Null when the day has no lift. Older slots only. */
+  strength_key?: string | null;
+  /** Primary conditioning keys the daily coach fills amounts for. Older slots only. */
+  primary_keys?: readonly string[];
+  /** Monthly target cell. The daily coach chooses movements, format, and amounts. */
+  from_goal?: boolean;
+  focus?: SessionFocus | null;
+  goal_intensity?: number | null;
+  body_region?: BodyRegion | null;
+  energy_system?: EnergySystem | null;
+};
+
+export const SESSION_FOCUSES = [
+  "lower_strength",
+  "upper_strength",
+  "gymnastics_skill",
+  "engine_endurance",
+  "weightlifting_cycling",
+] as const;
+
+export type SessionFocus = (typeof SESSION_FOCUSES)[number];
+
+export const BODY_REGIONS = ["lower", "upper", "full", "midline"] as const;
+
+export type BodyRegion = (typeof BODY_REGIONS)[number];
+
+export const ENERGY_SYSTEMS = ["phosphagen", "glycolytic", "oxidative"] as const;
+
+export type EnergySystem = (typeof ENERGY_SYSTEMS)[number];
+
+export type SessionTarget = {
+  movement_pattern: MovementPattern;
+  body_region: BodyRegion;
+  energy_system: EnergySystem;
+};
+
+/** One day's session goal. The monthly table sets the target. Coaches choose the movements. */
+export type DaySessionGoal = {
+  day: DayKey;
+  rest: boolean;
+  purpose: string;
+  focus: SessionFocus | null;
+  intensity: number | null;
+  target: SessionTarget | null;
+  stimulus: Stimulus | null;
+  time_domain: TimeDomain | null;
+};
+
+export type WeekGoal = {
+  week_index: WeekIndex;
+  goal: string;
+  days: DaySessionGoal[];
+};
+
+/** Month goal, four week goals, and a session goal for every date. */
+export type MonthGoalTable = {
+  month_goal: string;
+  weeks: WeekGoal[];
 };
 
 export type MovementDraft = {
   key: string;
   amount: string;
   name_ko: string;
+  /** Catalog key. The display string stays in amount. */
+  movement?: string;
+  amount_value?: number | null;
+  unit?: "reps" | "cal" | "m" | "sec" | null;
+  load?: { male: string | null; female: string | null } | null;
 };
 
 /** Structural features of one conditioning piece. Movement names are not the identity. */
@@ -117,6 +200,27 @@ export type SessionDraft = {
   volume: VolumeBand | null;
   intensity: IntensityBand | null;
   expected_duration: number | null;
+  /** 주간 enum에서 고른 존 2. 컨디셔닝 시계와 별도다. alternate는 대체이고 추가가 아니다. */
+  zone2?: {
+    form: "addon" | "day";
+    modality: string;
+    duration_min: number;
+    effort: string;
+    hr: string;
+    alternate?: {
+      kind: "short_metcon";
+      format: "emom" | "intervals" | "amrap";
+      duration_min: number;
+      rpe: string;
+      intensity: number;
+      movements: MovementDraft[];
+    } | null;
+    /** 계획 단계에서는 비운다. 코드가 채우지 않는다. */
+    performed_option: "zone2" | "short_metcon" | "skipped" | null;
+    completion_status: string | null;
+    actual_duration_min: number | null;
+    actual_rpe: number | null;
+  } | null;
 };
 
 export type ProgrammingIntent = {
@@ -206,6 +310,12 @@ export type DayIntent = {
   strength_lift: StrengthLiftChoice;
   benchmark: boolean;
   notes_ko: string;
+  /** 존 2 블록. 없으면 이 날은 존 2가 아니다. */
+  zone2?: "none" | "addon" | "day";
+  zone2_modality?: string;
+  zone2_duration?: number;
+  zone2_effort?: string;
+  zone2_hr?: string;
 };
 
 /**
@@ -243,6 +353,8 @@ export type WeeklyIntentPlan = {
   week_status?: WeekLifecycle;
   day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
   days: DayIntent[];
+  /** Placed conditioning cells for this week. Absent on rows written before the month board. */
+  conditioning_slots?: Partial<Record<DayKey, ConditioningSlot>>;
   /**
    * Stage 17 planning core. Present only when LONGITUDINAL_PLANNING is on.
    * Phase B session generation reads the locked skeleton when the caller passes it in.
@@ -339,6 +451,8 @@ export type MonthDirection = {
   evaluation_targets: string[];
   /** Selected strength method. A name, not a closed list. 5/3/1 is one value. */
   strength_method: string;
+  /** Training weekdays. Absent keeps the single rest day from the week layout. */
+  available_days?: DayKey[];
   method_rationale: string;
   method_constraints: string;
   progression_notes: string;
@@ -371,7 +485,21 @@ export type MonthlyCoachPlan = {
   week_roles: { week_index: WeekIndex; role: string; note_ko: string }[];
   fatigue_tolerance?: "low" | "moderate" | "high";
   variety_requirement?: "low" | "moderate" | "high";
+  /** Day goals for the block. Absent on rows written before the goal table. */
+  goal_table?: MonthGoalTable;
   source: "model" | "deterministic";
+  /**
+   * A block plan recorded before week generation. Week generation reuses this
+   * table and does not call the monthly model again. The deterministic plan
+   * attached at month write does not set this.
+   */
+  reuse?: boolean;
+  /** monthId, profileId, input hash, schema version, prompt version. */
+  reuse_key?: string;
+  reuse_schema_version?: string;
+  reuse_prompt_version?: string;
+  direction_degraded?: boolean;
+  direction_reason?: string | null;
 };
 
 export type GenerationSource = "model" | "fallback";
@@ -414,7 +542,8 @@ export type PlanStatus = "active" | "superseded" | "failed";
  * Similarity lives here only.
  * SIMILARITY_THRESHOLD is `threshold` (4). A feature counts when its weight is above 0.
  * rep_structure, work_rest_structure, duration, and intensity stay at 0 until they should count.
- * Movement names are not features. Benchmarks are exempt in the checker, not in this map.
+ * movement_combo counts only when conditioning keys overlap (3 or more, or both keys of a 2-movement piece).
+ * An empty movement list does not match. Benchmarks are exempt in the checker, not in this map.
  */
 export const SIMILARITY_FEATURES = [
   "format",
@@ -423,6 +552,7 @@ export const SIMILARITY_FEATURES = [
   "movement_pattern",
   "equipment",
   "volume",
+  "movement_combo",
   "rep_structure",
   "work_rest_structure",
   "duration",
@@ -443,6 +573,7 @@ export const SIMILARITY_CONFIG: {
     movement_pattern: 1,
     equipment: 1,
     volume: 1,
+    movement_combo: 4,
     rep_structure: 0,
     work_rest_structure: 0,
     duration: 0,
@@ -465,6 +596,9 @@ export type StoredStructure = {
   intensity: IntensityBand;
   benchmark: boolean;
   long_conditioning: boolean;
+  /** Set when the row was loaded from an earlier week. Not a scored feature. */
+  source_week_id?: number;
+  source_week_start?: string;
 };
 
 export function isScheme(value: unknown): value is Scheme {

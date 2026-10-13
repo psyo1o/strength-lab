@@ -1,6 +1,7 @@
 import { similarityMatch, similarityScore, toStructure } from "../rules";
 import { SIMILARITY_CONFIG, type SessionDraft, type StoredStructure } from "../types";
 import { VARIATION_ENGINE_VERSION } from "./prompts";
+import { heavierScore, zone2OptionStructures } from "./short-metcon";
 
 export type VariationReport = {
   version: typeof VARIATION_ENGINE_VERSION;
@@ -29,6 +30,18 @@ export function variationReport(input: {
   const current = input.sessions.map(toStructure).filter((row): row is StoredStructure => row != null && !row.benchmark);
   let same = 0;
   const hot = new Set<string>();
+  for (const session of input.sessions) {
+    const options = zone2OptionStructures(session);
+    for (const other of current) {
+      if (other.day === session.day || options.length === 0) continue;
+      const score = options.reduce((max, row) => heavierScore(max, similarityScore(row, other)), 0);
+      same = Math.max(same, score);
+      if (score >= SIMILARITY_CONFIG.threshold) {
+        hot.add(session.day);
+        hot.add(other.day);
+      }
+    }
+  }
   for (let index = 0; index < current.length; index += 1) {
     for (let other = index + 1; other < current.length; other += 1) {
       const score = similarityScore(current[index]!, current[other]!);
@@ -41,6 +54,15 @@ export function variationReport(input: {
   }
   const recent = (input.recent ?? []).filter((row) => !row.benchmark);
   let recentScore = 0;
+  for (const session of input.sessions) {
+    const options = zone2OptionStructures(session);
+    for (const prior of recent) {
+      if (options.length === 0) continue;
+      const score = options.reduce((max, row) => heavierScore(max, similarityScore(row, prior)), 0);
+      recentScore = Math.max(recentScore, score);
+      if (score >= SIMILARITY_CONFIG.threshold) hot.add(session.day);
+    }
+  }
   for (const row of current) {
     for (const prior of recent) {
       const score = similarityScore(row, prior);

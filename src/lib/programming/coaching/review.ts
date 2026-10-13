@@ -1,7 +1,37 @@
 import type { DayKey } from "../../month-plan/types";
 import type { DayIntent, SessionDraft, WeekDraft } from "../types";
+import { EDIT_ACTIONS, EDIT_BLOCKS, EDIT_UNITS } from "./contract";
+import type { MovementCellField } from "./movement-catalog";
 import type { FatigueReport } from "./fatigue";
 import type { VariationReport } from "./variation";
+
+export type TargetCoach = "strength_coach" | "conditioning_coach" | "warmup_coach";
+export type EditAction = (typeof EDIT_ACTIONS)[number];
+export type EditBlock = (typeof EDIT_BLOCKS)[number];
+export type EditUnit = (typeof EDIT_UNITS)[number];
+
+/** One concrete edit. A sentence is not an edit. */
+export type MovementEdit = {
+  day: DayKey;
+  target_coach: TargetCoach;
+  block: EditBlock;
+  action: EditAction;
+  target_movement: string | null;
+  new_movement: string | null;
+  new_amount: string | null;
+  new_unit: EditUnit | null;
+  reason: string;
+};
+
+/** One catalog cell. The server writes this field and leaves the others. */
+export type CellRevision = {
+  day: DayKey;
+  block: EditBlock;
+  catalog_key: string;
+  field: MovementCellField;
+  value: string;
+  reason: string;
+};
 
 export type SessionRevision = {
   day: DayKey;
@@ -9,10 +39,18 @@ export type SessionRevision = {
   correction_instruction: string;
   priority?: "high" | "medium" | "low";
   constraints?: string;
+  /** When set, only this coach rewrites this day. Absent means a field adjustment, not a regeneration. */
+  target_coach?: TargetCoach;
+  preserve?: string[];
+  allowed_changes?: string[];
+  forbidden_changes?: string[];
+  edits?: MovementEdit[];
+  /** Present when the head named one cell. That path does not call the specialist. */
+  cell?: CellRevision;
 };
 
 export type HeadCoachReview = {
-  status: "APPROVE" | "APPROVE_WITH_NOTE" | "REVISE";
+  status: "APPROVE" | "APPROVE_WITH_NOTE" | "REVISE" | "BLOCK";
   revisions: SessionRevision[];
   note_ko: string;
 };
@@ -87,30 +125,138 @@ export function hardSessionRevisions(draft: WeekDraft): SessionRevision[] {
 export function parseHeadReview(value: unknown): HeadCoachReview | null {
   if (!value || typeof value !== "object") return null;
   const body = value as Record<string, unknown>;
-  if (body.status !== "APPROVE" && body.status !== "APPROVE_WITH_NOTE" && body.status !== "REVISE") return null;
-  if (typeof body.note_ko !== "string" || !body.note_ko.trim()) return null;
+  if (body.status !== "APPROVE" && body.status !== "APPROVE_WITH_NOTE" && body.status !== "REVISE" && body.status !== "BLOCK") return null;
+  if (typeof body.note_ko !== "string" || body.note_ko.trim().length < 10) return null;
   if (!Array.isArray(body.revisions)) return null;
-  if (body.status === "APPROVE" || body.status === "APPROVE_WITH_NOTE") {
+  if (body.status === "APPROVE" || body.status === "APPROVE_WITH_NOTE" || body.status === "BLOCK") {
     return { status: body.status, revisions: [], note_ko: body.note_ko.trim() };
   }
+  if (body.revisions.length === 0) return { status: "REVISE", revisions: [], note_ko: body.note_ko.trim() };
   const revisions: SessionRevision[] = [];
   for (const row of body.revisions) {
-    if (!row || typeof row !== "object") return null;
-    const item = row as Record<string, unknown>;
-    const day = item.day;
-    if (day !== "mon" && day !== "tue" && day !== "wed" && day !== "thu" && day !== "fri" && day !== "sat" && day !== "sun") return null;
-    if (typeof item.reason !== "string" || typeof item.correction_instruction !== "string") return null;
-    const priority = item.priority === "high" || item.priority === "medium" || item.priority === "low" ? item.priority : "medium";
-    revisions.push({
-      day,
-      reason: item.reason,
-      correction_instruction: item.correction_instruction,
-      priority,
-      constraints: typeof item.constraints === "string" ? item.constraints : "",
-    });
+    const cell = parseCellRevision(row);
+    if (cell) {
+      revisions.push(cell);
+      continue;
+    }
+    const edit = parseMovementEdit(row);
+    if (!edit) return null;
+    revisions.push(revisionFromEdit(edit));
   }
-  if (revisions.length === 0) return null;
   return { status: "REVISE", revisions: revisions.slice(0, 3), note_ko: body.note_ko.trim() };
+}
+
+function parseCellRevision(row: unknown): SessionRevision | null {
+  if (!row || typeof row !== "object") return null;
+  const item = row as Record<string, unknown>;
+  if (
+    item.field !== "movement" &&
+    item.field !== "amount" &&
+    item.field !== "unit" &&
+    item.field !== "load" &&
+    item.field !== "movement_id" &&
+    item.field !== "quantity_option"
+  ) {
+    return null;
+  }
+  if (typeof item.action === "string") return null;
+  const day = item.day;
+  if (day !== "mon" && day !== "tue" && day !== "wed" && day !== "thu" && day !== "fri" && day !== "sat" && day !== "sun") return null;
+  if (item.block !== "strength" && item.block !== "conditioning" && item.block !== "warmup") return null;
+  if (typeof item.catalog_key !== "string" || typeof item.value !== "string") return null;
+  if (typeof item.reason !== "string" || !item.reason.trim()) return null;
+  const target: TargetCoach = item.block === "strength" ? "strength_coach" : item.block === "warmup" ? "warmup_coach" : "conditioning_coach";
+  return {
+    day,
+    reason: item.reason.trim(),
+    correction_instruction: `${day} ${item.block}: set ${item.catalog_key} ${item.field} to ${item.value}`,
+    priority: "high",
+    constraints: "이 칸만 바꿉니다.",
+    target_coach: target,
+    preserve: [],
+    allowed_changes: [item.field],
+    forbidden_changes: ["other_days"],
+    edits: [],
+    cell: {
+      day,
+      block: item.block,
+      catalog_key: item.catalog_key,
+      field: item.field,
+      value: item.value,
+      reason: item.reason.trim(),
+    },
+  };
+}
+
+function parseMovementEdit(row: unknown): MovementEdit | null {
+  if (!row || typeof row !== "object") return null;
+  const item = row as Record<string, unknown>;
+  const day = item.day;
+  if (day !== "mon" && day !== "tue" && day !== "wed" && day !== "thu" && day !== "fri" && day !== "sat" && day !== "sun") return null;
+  const target = item.target_coach;
+  if (target !== "strength_coach" && target !== "conditioning_coach" && target !== "warmup_coach") return null;
+  if (item.block !== "strength" && item.block !== "conditioning" && item.block !== "warmup") return null;
+  if (item.action !== "replace" && item.action !== "change_amount" && item.action !== "delete" && item.action !== "add") return null;
+  if (typeof item.reason !== "string" || !item.reason.trim()) return null;
+  const textOrNull = (value: unknown) => (value == null ? null : typeof value === "string" ? value : null);
+  const unit = item.new_unit;
+  if (unit != null && unit !== "reps" && unit !== "cal" && unit !== "m" && unit !== "sec") return null;
+  return {
+    day,
+    target_coach: target,
+    block: item.block,
+    action: item.action,
+    target_movement: textOrNull(item.target_movement),
+    new_movement: textOrNull(item.new_movement),
+    new_amount: textOrNull(item.new_amount),
+    new_unit: unit ?? null,
+    reason: item.reason.trim(),
+  };
+}
+
+function revisionFromEdit(edit: MovementEdit): SessionRevision {
+  const instruction =
+    edit.action === "replace"
+      ? `${edit.day} ${edit.block}: replace ${edit.target_movement} with ${edit.new_movement} ${edit.new_amount} ${edit.new_unit}`
+      : edit.action === "change_amount"
+        ? `${edit.day} ${edit.block}: change ${edit.target_movement} to ${edit.new_amount} ${edit.new_unit}`
+        : edit.action === "delete"
+          ? `${edit.day} ${edit.block}: delete ${edit.target_movement}`
+          : `${edit.day} ${edit.block}: add ${edit.new_movement} ${edit.new_amount} ${edit.new_unit}`;
+  const amountValue = edit.new_amount && edit.new_unit ? (edit.new_unit === "reps" ? edit.new_amount : `${edit.new_amount}${edit.new_unit}`) : null;
+  const cell =
+    edit.action === "change_amount" && edit.target_movement && amountValue
+      ? {
+          day: edit.day,
+          block: edit.block,
+          catalog_key: edit.target_movement,
+          field: "amount" as const,
+          value: amountValue,
+          reason: edit.reason,
+        }
+      : edit.action === "replace" && edit.target_movement && edit.new_movement
+        ? {
+            day: edit.day,
+            block: edit.block,
+            catalog_key: edit.target_movement,
+            field: "movement" as const,
+            value: edit.new_movement,
+            reason: edit.reason,
+          }
+        : undefined;
+  return {
+    day: edit.day,
+    reason: edit.reason,
+    correction_instruction: instruction,
+    priority: "high",
+    constraints: "목록에 없는 항목은 바꾸지 않습니다.",
+    target_coach: edit.target_coach,
+    preserve: [],
+    allowed_changes: [],
+    forbidden_changes: ["other_days"],
+    edits: [edit],
+    ...(cell ? { cell } : {}),
+  };
 }
 
 /**

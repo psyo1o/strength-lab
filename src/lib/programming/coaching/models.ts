@@ -1,12 +1,25 @@
 import { MONTH_PLAN_OPENAI_MODEL } from "../../month-plan/week-model";
 
 /** One model id per coach. Unset variables fall back to the current class model, never to a hardcoded upgrade. */
-export type CoachAgentName = "monthly" | "weekly" | "session" | "load" | "head" | "variation_judge" | "recovery_judge";
+export type CoachAgentName =
+  | "monthly"
+  | "weekly"
+  | "session"
+  | "strength"
+  | "conditioning"
+  | "warmup"
+  | "load"
+  | "head"
+  | "variation_judge"
+  | "recovery_judge";
 
 const ENV_BY_AGENT: Record<CoachAgentName, readonly string[]> = {
   monthly: ["MONTHLY_MODEL", "MONTHLY_COACH_MODEL"],
   weekly: ["WEEKLY_MODEL", "WEEKLY_COACH_MODEL"],
   session: ["SESSION_MODEL", "SESSION_COACH_MODEL"],
+  strength: ["STRENGTH_COACH_MODEL", "SESSION_MODEL"],
+  conditioning: ["CONDITIONING_COACH_MODEL", "SESSION_MODEL"],
+  warmup: ["WARMUP_COACH_MODEL", "SESSION_MODEL"],
   load: ["LOAD_MODEL", "LOAD_COACH_MODEL"],
   head: ["HEAD_FINAL_MODEL", "HEAD_COACH_MODEL"],
   variation_judge: ["VARIATION_JUDGE_MODEL"],
@@ -38,9 +51,12 @@ export function coachModel(agent: CoachAgentName, env: NodeJS.ProcessEnv = proce
   if (specific) return specific;
   const shared = env.COACHING_MODEL?.trim();
   if (shared) return shared;
+  const named = env.COACH_MODEL_NAME?.trim();
+  if (named) return named;
   return MONTH_PLAN_OPENAI_MODEL;
 }
 
+/** Off unless the value is exactly "1". Paths are listed in docs/generation-paths.md; update that file in the same commit. */
 export function coachingPipelineEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.COACHING_PIPELINE === "1";
 }

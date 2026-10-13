@@ -11,13 +11,13 @@ import {
   regenerateProgrammingWeek,
 } from "./engine";
 import { authorMonth, authorWeek, type FetchLike } from "./model";
+import { evaluateWeek } from "./evaluate-week";
 import { planWeeklyIntent } from "./weekly-intent";
 import {
   describeWeekParse,
   fatigueConstraintInput,
   hardConstraints,
   feedbackViolations,
-  judgeWeek,
   retryRepairPlan,
   similarityDiagnostics,
   similarityMatch,
@@ -204,7 +204,7 @@ export async function dryRunWeek(input: {
   const parsed = describeWeekParse(rawOutput);
   const judged = authored.ok
     ? { ok: true as const, draft: authored.draft, errors: [] as string[] }
-    : judgeWeek(rawOutput, direction, weekIndex, recent, {
+    : evaluateWeek(rawOutput, direction, weekIndex, recent, {
         previousActual: previous?.actual ?? null,
         recentLiftMaps,
       });
@@ -322,7 +322,7 @@ export async function runValidation(nowMs = Date.now()): Promise<Record<string, 
   const month = getProgrammingMonth(monthStartOf(week.weekStart));
   if (!month) return { ok: false, error: "월 계획이 없습니다." };
   const recent = listRecentStructures(weekStart);
-  const judged = judgeWeek(week.draft, month.direction, week.weekIndex, recent);
+  const judged = evaluateWeek(week.draft, month.direction, week.weekIndex, recent);
   return redact({
     wrote: false,
     week_start: weekStart,

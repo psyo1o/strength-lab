@@ -2,7 +2,8 @@ import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { classMetconPurpose } from "../wod/purpose";
 import { fillSessionFields } from "./session-fields";
 import { exampleSets } from "./strength-methods";
-import { judgeWeek, previousLowerFatigue, similarityScore, type WeekCheckContext } from "./rules";
+import { evaluateWeek } from "./evaluate-week";
+import { previousLowerFatigue, similarityScore, type WeekCheckContext } from "./rules";
 import { strengthIsHeavy } from "./schemes";
 import { stampWeeklyIntent } from "./weekly-intent";
 import type { WeekActual } from "./summary";
@@ -505,7 +506,7 @@ export function realizeWeekFromIntent(input: {
       ...draft,
       intent: { why_ko: draft.intent.why_ko, focus: draft.intent.focus, scheme_note: draft.intent.scheme_note },
     };
-    const judged = judgeWeek(bare, input.month, input.weekIndex, recent, context);
+    const judged = evaluateWeek(bare, input.month, input.weekIndex, recent, context);
     if (judged.ok) return stampWeeklyIntent(judged.draft, input.plan) as WeekDraft;
   }
   return last;

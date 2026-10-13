@@ -2,16 +2,20 @@ import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { IMPLEMENTED_STRENGTH_METHODS } from "../strength-methods";
 import { TIME_DOMAIN_RANGES } from "../rules";
 import {
+  BODY_REGIONS,
   COACHING_STIMULI,
-  EQUIPMENT,
+  ENERGY_SYSTEMS,
   PRIMARY_TRAININGS,
   SECONDARY_TRAININGS,
+  SESSION_FOCUSES,
   STIMULI,
   type DayIntent,
   type MonthDirection,
   type WeeklyIntentPlan,
 } from "../types";
 import { movementCatalog } from "./pieces";
+import { catalogMovement, catalogUnits, cellEditErrors, checkCellEdit, rxLoadErrors, standardCatalogKeys } from "./movement-catalog";
+import { quantityOptions } from "./slot-choices";
 import { unitGuide } from "./stage13/units";
 import type { CoachAgentName } from "./models";
 
@@ -31,12 +35,15 @@ export const INTENSITY_PROFILES = ["light", "moderate", "heavy", "mixed"] as con
 export const INTENSITY_BANDS = ["light", "moderate", "heavy"] as const;
 export const FATIGUE_TARGETS = ["low", "moderate", "high"] as const;
 export const MOVEMENT_PATTERNS = ["squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic", "mixed", "none"] as const;
-export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals"] as const;
+export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
 export const LOAD_ACTIONS = ["progress", "hold", "cut"] as const;
 export const TARGET_EFFORTS = ["easy", "moderate", "hard"] as const;
 export const RELATIVE_INTENSITIES = ["up", "same", "down"] as const;
-export const HEAD_STATUSES = ["APPROVE", "APPROVE_WITH_NOTE", "REVISE"] as const;
+export const HEAD_STATUSES = ["APPROVE", "APPROVE_WITH_NOTE", "REVISE", "BLOCK"] as const;
 export const REVISION_PRIORITIES = ["high", "medium", "low"] as const;
+export const EDIT_ACTIONS = ["replace", "change_amount", "delete", "add"] as const;
+export const EDIT_BLOCKS = ["strength", "conditioning", "warmup"] as const;
+export const EDIT_UNITS = ["reps", "cal", "m", "sec"] as const;
 export const WEEK_ROLES = ["accumulation", "progression", "intensification", "deload", "absorb", "long_support", "peak", "emphasis"] as const;
 
 /** Class window and conditioning piece are different clocks. Non-long pieces stay at or under 20 minutes. */
@@ -62,6 +69,7 @@ function stringEnum(values: readonly string[]): Record<string, unknown> {
 }
 
 const TEXT = { type: "string" };
+const NOTE_KO = { type: "string", minLength: 10 };
 
 function schemaOf(name: string, schema: Record<string, unknown>): ResponseFormat {
   return { type: "json_schema", json_schema: { name, strict: true, schema } };
@@ -88,14 +96,10 @@ export function durationRuleText(): string {
 export function schemaBrief(agent: CoachAgentName): string {
   if (agent === "monthly") {
     return [
-      "JSON object. Do not wrap it. Do not write workouts.",
-      "Keys: block_goal, primary_adaptations, secondary_adaptations, strength_method, conditioning_emphasis, gymnastics_emphasis, olympic_emphasis, progression_strategy, volume_trend, intensity_trend, recovery_strategy, deload_strategy, benchmark_strategy, week_roles, fatigue_tolerance, variety_requirement.",
-      "primary_adaptations and secondary_adaptations are arrays of strings.",
-      `strength_method must repeat the month's current method. Catalog: ${IMPLEMENTED_STRENGTH_METHODS.join(" | ")}.`,
-      "week_roles is an array of exactly 4 objects: week_index (1|2|3|4), role, note_ko.",
-      enumLine("role", WEEK_ROLES),
-      "fatigue_tolerance and variety_requirement are low | moderate | high.",
-      "Korean for every *_ko field and for the strategy sentences.",
+      "JSON object. Key: days. Do not wrap it. Do not write sets or amounts.",
+      "days is an object. Each key is w{week}_{day}, such as w1_mon. A training day has choice, purpose_kind, and emphasis. choice is one id from that date's candidate list. purpose_kind and emphasis are ids. A rest day has purpose_kind rest and emphasis off.",
+      "Week roles, rest days, time_domain, and long-conditioning days are fixed in the user message. Do not invent a tuple.",
+      "Do not write a purpose sentence. The server writes it from the ids.",
     ].join("\n");
   }
   if (agent === "weekly") {
@@ -118,30 +122,42 @@ export function schemaBrief(agent: CoachAgentName): string {
       "progression_required is a boolean, not a sentence. benchmark is a boolean.",
       enumLine("recovery_role", RECOVERY_ROLES),
       enumLine("strength_lift", STRENGTH_LIFTS),
-      "duration_profile is the class window, not the conditioning clock. Do not name movements or sets.",
-      "why_ko, focus, scheme_note, adjustment_ko, training_goal, and notes_ko are short Korean.",
+      "duration_profile is the class window, not the conditioning clock. Do not name movements or sets. Rest days, strength_lift, and long_conditioning follow week_goal.",
+      "why_ko, focus, scheme_note, adjustment_ko, training_goal, and notes_ko are English explanations. Display translation is later.",
     ].join("\n");
   }
   if (agent === "session") {
     const catalog = movementCatalog().map((row) => `${row.key}=${row.name_ko}`).join(", ");
     return [
       "JSON object for one day. Keys: day, warmup_ko, notes_ko, conditioning.",
-      "conditioning keys: format, duration_min, stimulus, movements, equipment, volume, intensity.",
-      "Do not return time_domain, kilograms, percentages, or sets.",
+      "conditioning keys: format, duration_min, stimulus, movements, volume, intensity.",
+      "Do not return time_domain, kilograms, percentages, sets, or equipment. The server fills equipment from the movement catalog.",
       enumLine("format", WOD_FORMATS),
       enumLine("stimulus", STIMULI),
       enumLine("volume", VOLUME_BANDS),
       enumLine("intensity", INTENSITY_BANDS),
-      enumLine("equipment", EQUIPMENT),
-      "movements is an array of {key, amount, name_ko}. 2 to 4 items, or 1 only when primary_training is aerobic and the day is not long.",
+      "movements is an array of {key, amount, name_ko}. 2 to 5 items, or 1 only when primary_training is aerobic and the day is not long. A metcon slot uses 3 to 5.",
       "interval_work_sec and interval_rest_sec are integers only when format is intervals. Otherwise both are null.",
       "amount is the work. duration_min is the piece cap. double_under 30sec and row 30sec are clear work durations. row 12reps is not a natural row amount.",
       `movement.key must be one of: ${catalog}.`,
       "name_ko must be the catalog Korean name for that key.",
       unitGuide(),
       durationRuleText(),
-      "warmup_ko and notes_ko are Korean.",
+      "warmup_ko and notes_ko are English explanations. Display translation is later.",
     ].join("\n");
+  }
+  if (agent === "strength") {
+    return ["JSON object. Each slot key is s0. The value is slot, movement_id, and quantity_option.", "quantity_option is method. Do not return sets, kilograms, units, or a display sentence. The server writes strength_note_ko from the method table."].join("\n");
+  }
+  if (agent === "conditioning") {
+    return [
+      "JSON object. Each slot key is s0, s1, and so on. The value is slot, movement_id, and quantity_option.",
+      "movement_id and quantity_option must be one of that slot's ids. Do not write units, loads, kilograms, or a display sentence.",
+      "The server fills notes_ko, the unit, and Rx from the catalog.",
+    ].join("\n");
+  }
+  if (agent === "warmup") {
+    return ["JSON object. The slot key is s0. The value is slot, movement_id, and quantity_option.", "Do not write a unit or a display sentence. The server writes warmup_ko from the catalog."].join("\n");
   }
   if (agent === "load") {
     return [
@@ -152,7 +168,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       enumLine("target_effort", TARGET_EFFORTS),
       enumLine("relative_intensity", RELATIVE_INTENSITIES),
       "Do not return kilograms, percentages, sets, or reps. The server applies the method table.",
-      "reason_ko is Korean.",
+      "reason_ko is an English explanation. Display translation is later.",
     ].join("\n");
   }
   if (agent === "variation_judge") {
@@ -174,20 +190,24 @@ export function schemaBrief(agent: CoachAgentName): string {
     ].join("\n");
   }
   return [
-    "JSON object. Keys: status, note_ko, revisions, adjustments.",
+    "JSON object. Keys in order: note_ko, status, revisions, adjustments.",
+    "note_ko is required and at least 10 characters. It comes before revisions and adjustments. When revisions are empty, note_ko is the approval reason. An empty note_ko is a schema failure.",
     enumLine("status", HEAD_STATUSES),
-    "APPROVE means there is no coaching issue worth acting on. revisions and adjustments are empty.",
-    "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout.",
-    "REVISE names a field change. It does not regenerate the week or the session. Put that change in adjustments.",
+    "APPROVE means there is no coaching issue worth acting on. revisions and adjustments are empty. APPROVE cannot override a hard validation error.",
+    "APPROVE_WITH_NOTE means a concern exists and fixing it is not worth the cost. revisions and adjustments are empty. Do not write a new workout. It does not ignore a hard validation error.",
+    "REVISE is a catalog cell list. It does not regenerate the week. value must be a different id in that cell's enum. An adjustment is not a cell edit. A prose sentence is not a revision. If no different id exists, status is APPROVE_WITH_NOTE and revisions are empty.",
+    "BLOCK only when a cell cannot fix the week: a safety risk, a collapsed week structure, or a training day with no session. Do not BLOCK for wording, explanations, or language. revisions and adjustments are empty.",
     "Similarity, a repeated movement, or a minor variation note is not by itself a REVISE. Do not promote a minor signal to high.",
-    "Each revision: day, reason, correction_instruction, priority, constraints.",
+    "Each revision names one cell: day, block, catalog_key, field, value, reason. The server writes only that cell.",
+    "block is strength, conditioning, or warmup. field is movement_id or quantity_option.",
+    "value is one id from that cell's enum. Do not write a unit, a load, or a free amount.",
+    "reason is an English explanation. Display translation is later. A revision without these fields is a schema error.",
+    enumLine("catalog_key", standardCatalogKeys()),
     "Each adjustment: target, reason, priority, current_value, proposed_value, preserve, rationale, confidence.",
     "target is day.conditioning.intensity, day.conditioning.volume, day.conditioning.duration_min, or day.conditioning.format.",
     "priority is P0, P1, P2, or P3. preserve is an array of strings and includes weekly_strength_progression when the lift must stay.",
     enumLine("day", DAY_ORDER),
-    enumLine("priority", REVISION_PRIORITIES),
-    "correction_instruction is the required change for that day. constraints is a short limit the session coach must keep.",
-    "reason, correction_instruction, constraints, and note_ko are Korean.",
+    "reason and note_ko are English explanations. Display translation is later.",
   ].join("\n");
 }
 
@@ -228,6 +248,220 @@ const weeklyDaySchema = strictObject(
   ],
 );
 
+function movementUnitGroups(keys: readonly string[]): Array<{ keys: string[]; units: string[] }> {
+  const groups = new Map<string, { keys: string[]; units: string[] }>();
+  for (const key of keys) {
+    const listed = catalogUnits(key);
+    const units = listed && listed.length > 0 ? [...listed] : [...EDIT_UNITS];
+    const id = units.join(",");
+    const group = groups.get(id) ?? { keys: [], units };
+    group.keys.push(key);
+    groups.set(id, group);
+  }
+  return [...groups.values()].sort((left, right) => left.units.join(",").localeCompare(right.units.join(",")));
+}
+
+function conditioningMovementSchema(keys: readonly string[] = standardCatalogKeys()): Record<string, unknown> {
+  const load = {
+    anyOf: [
+      strictObject(
+        { male: { anyOf: [TEXT, { type: "null" }] }, female: { anyOf: [TEXT, { type: "null" }] } },
+        ["male", "female"],
+      ),
+      { type: "null" },
+    ],
+  };
+  const branch = (group: { keys: string[]; units: string[] }) =>
+    strictObject(
+      {
+        movement: stringEnum(group.keys),
+        amount: { type: "integer" },
+        unit: stringEnum(group.units),
+        load,
+      },
+      ["movement", "amount", "unit", "load"],
+    );
+  const groups = movementUnitGroups(keys);
+  if (groups.length === 1) return branch(groups[0]!);
+  return { anyOf: groups.map(branch) };
+}
+
+/** One Korean field. The server copies only this string onto the failed day. */
+export function textFieldRecoveryFormat(field: "notes_ko" | "warmup_ko" | "strength_note_ko"): ResponseFormat {
+  return schemaOf("text_field_recovery", strictObject({ [field]: TEXT }, [field]));
+}
+
+/** Live recovery replies name cells. A full session is still accepted by the validator for older fixtures. */
+export function recoveryCellFormat(keys: readonly string[] = standardCatalogKeys()): ResponseFormat {
+  const allowed = keys.length > 0 ? keys : standardCatalogKeys();
+  return schemaOf(
+    "conditioning_recovery_cells",
+    strictObject(
+      {
+        cells: {
+          type: "array",
+          items: strictObject(
+            {
+              catalog_key: stringEnum(allowed),
+              field: stringEnum(["movement", "amount", "unit", "load"]),
+              value: TEXT,
+            },
+            ["catalog_key", "field", "value"],
+          ),
+        },
+      },
+      ["cells"],
+    ),
+  );
+}
+
+function conditioningFields(keys: readonly string[]) {
+  const movement = conditioningMovementSchema(keys);
+  return strictObject(
+    {
+      format: stringEnum(WOD_FORMATS),
+      duration_min: { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max },
+      stimulus: stringEnum(STIMULI),
+      movements: { type: "array", items: movement },
+      volume: stringEnum(VOLUME_BANDS),
+      intensity: stringEnum(INTENSITY_BANDS),
+      interval_work_sec: { type: ["integer", "null"] },
+      interval_rest_sec: { type: ["integer", "null"] },
+    },
+    ["format", "duration_min", "stimulus", "movements", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
+  );
+}
+
+/** Conditioning response for one day. Equipment is not a model field. */
+export function conditioningDayFormat(keys: readonly string[]): ResponseFormat {
+  const allowed = keys.length > 0 ? keys : standardCatalogKeys();
+  return schemaOf(
+    "conditioning_coach_day",
+    strictObject(
+      {
+        day: stringEnum(DAY_ORDER),
+        notes_ko: TEXT,
+        conditioning: conditioningFields(allowed),
+      },
+      ["day", "notes_ko", "conditioning"],
+    ),
+  );
+}
+
+export type HeadPieceRef = {
+  day: string;
+  block: string;
+  catalog_key: string;
+  movement_ids?: readonly string[];
+  quantity_ids?: readonly string[];
+  amount?: string;
+  unit?: string | null;
+};
+
+function currentQuantityId(cell: HeadPieceRef): string | null {
+  if (!cell.unit || !cell.amount) return null;
+  const digits = cell.amount.match(/\d+/);
+  if (!digits) return null;
+  return `${cell.unit}:${digits[0]}`;
+}
+
+function exceptCurrent(ids: readonly string[], current: string | null): string[] {
+  return ids.filter((id) => id !== current);
+}
+
+/** 현재 값만 남은 칸은 수정 후보가 아니다. 빈 enum으로 REVISE를 만들지 않는다. */
+function headRevisionItem(cell: HeadPieceRef): Record<string, unknown> | null {
+  const quantities = exceptCurrent(
+    cell.quantity_ids?.length ? [...cell.quantity_ids] : quantityOptions(cell.catalog_key).map((option) => option.id),
+    currentQuantityId(cell),
+  );
+  const movements = exceptCurrent(cell.movement_ids?.length ? [...cell.movement_ids] : [cell.catalog_key], cell.catalog_key);
+  const base = {
+    day: stringEnum([cell.day]),
+    block: stringEnum([cell.block]),
+    catalog_key: stringEnum([cell.catalog_key]),
+    reason: TEXT,
+  };
+  const required = ["day", "block", "catalog_key", "field", "value", "reason"];
+  const branches: Record<string, unknown>[] = [];
+  if (quantities.length) {
+    branches.push(
+      strictObject(
+        { ...base, field: stringEnum(["quantity_option"]), value: stringEnum(quantities) },
+        required,
+      ),
+    );
+  }
+  if (movements.length) {
+    branches.push(
+      strictObject(
+        { ...base, field: stringEnum(["movement_id"]), value: stringEnum(movements) },
+        required,
+      ),
+    );
+  }
+  if (branches.length === 1) return branches[0]!;
+  if (branches.length > 1) return { anyOf: branches };
+  return null;
+}
+
+export function headReviewFormat(keys: readonly string[], cells: readonly HeadPieceRef[] = []): ResponseFormat {
+  const allowed = keys.length > 0 ? keys : standardCatalogKeys();
+  const unique = new Map<string, HeadPieceRef>();
+  for (const cell of cells) unique.set(`${cell.day}:${cell.block}:${cell.catalog_key}`, cell);
+  const listed = [...unique.values()];
+  const revisable = listed.flatMap((cell) => {
+    const item = headRevisionItem(cell);
+    return item ? [item] : [];
+  });
+  const statusEnum = listed.length > 0 && revisable.length === 0 ? HEAD_STATUSES.filter((status) => status !== "REVISE") : HEAD_STATUSES;
+  const revisions = revisable.length
+    ? { type: "array", items: { anyOf: revisable } }
+    : listed.length
+      ? { type: "array", items: strictObject({ day: stringEnum(DAY_ORDER) }, ["day"]) }
+      : {
+        type: "array",
+        items: strictObject(
+          {
+            day: stringEnum(DAY_ORDER),
+            block: stringEnum(EDIT_BLOCKS),
+            catalog_key: stringEnum(allowed),
+            field: stringEnum(["movement", "amount", "unit", "load"]),
+            value: TEXT,
+            reason: TEXT,
+          },
+          ["day", "block", "catalog_key", "field", "value", "reason"],
+        ),
+      };
+  return schemaOf(
+    "head_coach_review",
+    strictObject(
+      {
+        note_ko: NOTE_KO,
+        status: stringEnum(statusEnum),
+        revisions,
+        adjustments: {
+          type: "array",
+          items: strictObject(
+            {
+              target: TEXT,
+              reason: TEXT,
+              priority: { type: "string", enum: ["P0", "P1", "P2", "P3"] },
+              current_value: TEXT,
+              proposed_value: TEXT,
+              preserve: { type: "array", items: TEXT },
+              rationale: TEXT,
+              confidence: { type: "number" },
+            },
+            ["target", "reason", "priority", "current_value", "proposed_value", "preserve", "rationale", "confidence"],
+          ),
+        },
+      },
+      ["note_ko", "status", "revisions", "adjustments"],
+    ),
+  );
+}
+
 export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
   if (agent === "monthly") {
     return schemaOf(
@@ -249,6 +483,45 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           benchmark_strategy: TEXT,
           fatigue_tolerance: stringEnum(FATIGUE_TARGETS),
           variety_requirement: stringEnum(FATIGUE_TARGETS),
+          goal_table: strictObject(
+            {
+              month_goal: TEXT,
+              weeks: {
+                type: "array",
+                items: strictObject(
+                  {
+                    week_index: { type: "integer", enum: [1, 2, 3, 4] },
+                    goal: TEXT,
+                    days: {
+                      type: "array",
+                      items: strictObject(
+                        {
+                          day: stringEnum(DAY_ORDER),
+                          rest: { type: "boolean" },
+                          purpose: TEXT,
+                          focus: stringEnum(["none", ...SESSION_FOCUSES]),
+                          intensity: { type: "integer" },
+                          target: strictObject(
+                            {
+                              movement_pattern: stringEnum(["none", "squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic"]),
+                              body_region: stringEnum(["none", ...BODY_REGIONS]),
+                              energy_system: stringEnum(["none", ...ENERGY_SYSTEMS]),
+                            },
+                            ["movement_pattern", "body_region", "energy_system"],
+                          ),
+                          stimulus: stringEnum(["none", ...STIMULI]),
+                          time_domain: stringEnum(["none", "short", "medium", "long"]),
+                        },
+                        ["day", "rest", "purpose", "focus", "intensity", "target", "stimulus", "time_domain"],
+                      ),
+                    },
+                  },
+                  ["week_index", "goal", "days"],
+                ),
+              },
+            },
+            ["month_goal", "weeks"],
+          ),
           week_roles: {
             type: "array",
             items: strictObject(
@@ -277,6 +550,7 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           "benchmark_strategy",
           "fatigue_tolerance",
           "variety_requirement",
+          "goal_table",
           "week_roles",
         ],
       ),
@@ -317,19 +591,25 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
               duration_min: { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max },
               stimulus: stringEnum(STIMULI),
               movements: { type: "array", items: movement },
-              equipment: { type: "array", items: stringEnum(EQUIPMENT) },
               volume: stringEnum(VOLUME_BANDS),
               intensity: stringEnum(INTENSITY_BANDS),
               interval_work_sec: { type: ["integer", "null"] },
               interval_rest_sec: { type: ["integer", "null"] },
             },
-            ["format", "duration_min", "stimulus", "movements", "equipment", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
+            ["format", "duration_min", "stimulus", "movements", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
           ),
         },
         ["day", "warmup_ko", "notes_ko", "conditioning"],
       ),
     );
   }
+  if (agent === "strength") {
+    return schemaOf("strength_coach_day", strictObject({ day: stringEnum(DAY_ORDER), strength_note_ko: TEXT }, ["day", "strength_note_ko"]));
+  }
+  if (agent === "warmup") {
+    return schemaOf("warmup_coach_day", strictObject({ day: stringEnum(DAY_ORDER), warmup_ko: TEXT }, ["day", "warmup_ko"]));
+  }
+  if (agent === "conditioning") return conditioningDayFormat(standardCatalogKeys());
   if (agent === "variation_judge") {
     return schemaOf(
       "variation_judge",
@@ -383,19 +663,20 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
     "head_coach_review",
     strictObject(
       {
+        note_ko: NOTE_KO,
         status: stringEnum(HEAD_STATUSES),
-        note_ko: TEXT,
         revisions: {
           type: "array",
           items: strictObject(
             {
               day: stringEnum(DAY_ORDER),
+              block: stringEnum(EDIT_BLOCKS),
+              catalog_key: stringEnum(standardCatalogKeys()),
+              field: stringEnum(["movement", "amount", "unit", "load"]),
+              value: TEXT,
               reason: TEXT,
-              correction_instruction: TEXT,
-              priority: stringEnum(REVISION_PRIORITIES),
-              constraints: TEXT,
             },
-            ["day", "reason", "correction_instruction", "priority", "constraints"],
+            ["day", "block", "catalog_key", "field", "value", "reason"],
           ),
         },
         adjustments: {
@@ -415,7 +696,7 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           ),
         },
       },
-      ["status", "note_ko", "revisions", "adjustments"],
+      ["note_ko", "status", "revisions", "adjustments"],
     ),
   );
 }
@@ -449,7 +730,22 @@ function textError(path: string, value: unknown, korean: boolean): string | null
   return null;
 }
 
-export function weeklyIntentErrors(value: unknown): string[] {
+
+export function weeklyIntentErrors(
+  value: unknown,
+  bounds?:
+    | readonly {
+        day: string;
+        intensity_profile: readonly string[];
+        strength_lift: readonly string[];
+        zone2?: readonly string[];
+        zone2_modality?: readonly string[];
+        zone2_duration?: readonly string[];
+        zone2_effort?: readonly string[];
+        zone2_hr?: readonly string[];
+      }[]
+    | null,
+): string[] {
   if (!isRecord(value)) return ["expected a JSON object with key days"];
   const errors: string[] = [];
   if (!Array.isArray(value.days)) {
@@ -463,7 +759,7 @@ export function weeklyIntentErrors(value: unknown): string[] {
   if (phase) errors.push(phase);
   if (emphasis) errors.push(emphasis);
   for (const path of ["why_ko", "focus", "scheme_note", "adjustment_ko"] as const) {
-    const issue = textError(path, value[path], true);
+    const issue = textError(path, value[path], false);
     if (issue) errors.push(issue);
   }
   const seen = new Set<string>();
@@ -473,29 +769,32 @@ export function weeklyIntentErrors(value: unknown): string[] {
       errors.push(`${prefix}: expected an object`);
       return;
     }
+    const bound = bounds?.find((item) => item.day === row.day);
     const checks: Array<[string, unknown, readonly string[]]> = [
       ["day", row.day, DAY_ORDER],
       ["primary_training", row.primary_training, PRIMARY_TRAININGS],
       ["secondary_training", row.secondary_training, SECONDARY_TRAININGS],
       ["stimulus", row.stimulus, COACHING_STIMULI],
-      ["intensity_profile", row.intensity_profile, INTENSITY_PROFILES],
+      ["intensity_profile", row.intensity_profile, bound?.intensity_profile ?? INTENSITY_PROFILES],
       ["volume_profile", row.volume_profile, VOLUME_BANDS],
       ["duration_profile", row.duration_profile, DURATION_PROFILES],
       ["fatigue_target", row.fatigue_target, FATIGUE_TARGETS],
       ["movement_pattern", row.movement_pattern, MOVEMENT_PATTERNS],
       ["recovery_role", row.recovery_role, RECOVERY_ROLES],
-      ["strength_lift", row.strength_lift, STRENGTH_LIFTS],
+      ["strength_lift", row.strength_lift, bound?.strength_lift ?? STRENGTH_LIFTS],
     ];
     for (const [field, fieldValue, allowed] of checks) {
       const issue = enumError(`${prefix}.${field}`, fieldValue, allowed);
-      if (issue) errors.push(issue);
+      if (!issue) continue;
+      const named = bound && (field === "intensity_profile" || field === "strength_lift");
+      errors.push(named ? `${issue} day=${String(row.day)}` : issue);
     }
     if (typeof row.day === "string") {
       if (seen.has(row.day)) errors.push(`${prefix}.day: duplicate ${row.day}`);
       seen.add(row.day);
     }
-    const goal = textError(`${prefix}.training_goal`, row.training_goal, true);
-    const notes = textError(`${prefix}.notes_ko`, row.notes_ko, true);
+    const goal = textError(`${prefix}.training_goal`, row.training_goal, false);
+    const notes = textError(`${prefix}.notes_ko`, row.notes_ko, false);
     if (goal) errors.push(goal);
     if (notes) errors.push(notes);
     if (typeof row.progression_required !== "boolean") {
@@ -503,6 +802,19 @@ export function weeklyIntentErrors(value: unknown): string[] {
     }
     if (typeof row.benchmark !== "boolean") {
       errors.push(`${prefix}.benchmark: received ${received(row.benchmark)}; allowed: boolean true or false`);
+    }
+    if (bound?.zone2) {
+      const zoneChecks: Array<[string, unknown, readonly string[]]> = [
+        ["zone2", row.zone2, bound.zone2],
+        ["zone2_modality", row.zone2_modality, bound.zone2_modality ?? ["none"]],
+        ["zone2_duration", row.zone2_duration, bound.zone2_duration ?? ["0"]],
+        ["zone2_effort", row.zone2_effort, bound.zone2_effort ?? ["none"]],
+        ["zone2_hr", row.zone2_hr, bound.zone2_hr ?? ["none"]],
+      ];
+      for (const [field, fieldValue, allowed] of zoneChecks) {
+        const issue = enumError(`${prefix}.${field}`, fieldValue, allowed);
+        if (issue) errors.push(`${issue} day=${String(row.day)}`);
+      }
     }
   });
   for (const day of DAY_ORDER) {
@@ -557,7 +869,7 @@ export function monthlyPlanErrors(value: unknown, month: MonthDirection): string
       } else weeks.add(row.week_index);
       const role = enumError(`week_roles[${index}].role`, row.role, WEEK_ROLES);
       if (role) errors.push(role);
-      const note = textError(`week_roles[${index}].note_ko`, row.note_ko, true);
+      const note = textError(`week_roles[${index}].note_ko`, row.note_ko, false);
       if (note) errors.push(note);
     });
     for (const week of [1, 2, 3, 4]) {
@@ -606,8 +918,8 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
   const day = enumError("day", value.day, DAY_ORDER);
   if (day) errors.push(day);
   else if (value.day !== intent.day) errors.push(`day: received ${received(value.day)}; this call is only for ${intent.day}`);
-  const warmup = textError("warmup_ko", value.warmup_ko, true);
-  const notes = textError("notes_ko", value.notes_ko, true);
+  const warmup = textError("warmup_ko", value.warmup_ko, false);
+  const notes = textError("notes_ko", value.notes_ko, false);
   if (warmup) errors.push(warmup);
   if (notes) errors.push(notes);
   if (!isRecord(value.conditioning)) {
@@ -628,8 +940,8 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
   const minMoves = aerobicMono ? 1 : 2;
   if (!Array.isArray(piece.movements)) {
     errors.push("conditioning.movements: expected an array of {key, amount, name_ko}");
-  } else if (piece.movements.length < minMoves || piece.movements.length > 4) {
-    errors.push(`conditioning.movements: length ${piece.movements.length}; allowed: ${minMoves}–4`);
+  } else if (piece.movements.length < minMoves || piece.movements.length > 5) {
+    errors.push(`conditioning.movements: length ${piece.movements.length}; allowed: ${minMoves}–5`);
   } else {
     const catalog = new Map(movementCatalog().map((row) => [row.key, row.name_ko]));
     piece.movements.forEach((row, index) => {
@@ -638,25 +950,47 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
         errors.push(`${prefix}: expected {key, amount, name_ko}`);
         return;
       }
-      const keyError = enumError(`${prefix}.key`, row.key, movementKeys());
-      if (keyError) errors.push(keyError);
-      else if (row.name_ko !== catalog.get(String(row.key))) {
-        errors.push(`${prefix}.name_ko: received ${received(row.name_ko)}; catalog name for ${String(row.key)} is ${catalog.get(String(row.key))}`);
+      if (typeof row.amount === "number" && typeof row.unit === "string") {
+        const cellKey = typeof row.movement === "string" ? row.movement : typeof row.key === "string" ? row.key : "";
+        if (cellKey === "squat" || cellKey === "pause_squat" || cellKey === "pin_squat") {
+          errors.push(`${prefix}.key: received ${cellKey}; use back_squat or front_squat`);
+        }
+        errors.push(...cellMovementErrors(prefix, row, catalog));
+        return;
+      }
+      const keyText = typeof row.key === "string" ? row.key : typeof row.movement === "string" ? row.movement : "";
+      if (keyText === "squat" || keyText === "pause_squat" || keyText === "pin_squat") {
+        errors.push(`${prefix}.key: received ${keyText}; use back_squat or front_squat`);
+      }
+      const piecesName = catalog.get(keyText);
+      const standardName = catalogMovement(keyText)?.name_ko ?? null;
+      if (!piecesName && !standardName) {
+        errors.push(`${prefix}.key: received ${received(row.key)}; allowed catalog key`);
+      } else if (typeof row.name_ko === "string" && row.name_ko !== piecesName && row.name_ko !== standardName) {
+        errors.push(`${prefix}.name_ko: received ${received(row.name_ko)}; catalog name for ${keyText} is ${piecesName ?? standardName}`);
       }
       if (typeof row.amount !== "string" || !row.amount.trim() || /kg/i.test(row.amount)) {
         errors.push(`${prefix}.amount: received ${received(row.amount)}; reps are 12 or 12 reps, calories are 12cal or 12/10cal, distance is 500m. Never kilograms.`);
+      } else if (typeof row.amount_value === "number" && typeof row.unit === "string") {
+        const suffix = row.unit === "reps" ? "" : String(row.unit);
+        const verdict = checkCellEdit({ catalog_key: keyText, field: "amount", value: `${row.amount_value}${suffix}` });
+        if (!verdict.ok) errors.push(`${prefix}: ${verdict.reason}`);
+        const unitVerdict = checkCellEdit({ catalog_key: keyText, field: "unit", value: String(row.unit) });
+        if (!unitVerdict.ok) errors.push(`${prefix}: ${unitVerdict.reason}`);
       }
+    });
+    const seenKeys = new Set<string>();
+    piece.movements.forEach((row, index) => {
+      if (!isRecord(row)) return;
+      const keyText = typeof row.key === "string" ? row.key : typeof row.movement === "string" ? row.movement : "";
+      if (!keyText) return;
+      if (seenKeys.has(keyText)) errors.push(`conditioning.movements[${index}].key: duplicate ${keyText}`);
+      seenKeys.add(keyText);
+      const load = isRecord(row.load) ? { male: typeof row.load.male === "string" ? row.load.male : null, female: typeof row.load.female === "string" ? row.load.female : null } : null;
+      errors.push(...rxLoadErrors(keyText, load).map((error) => `conditioning.movements[${index}]: ${error}`));
     });
   }
   errors.push(...intervalFieldErrors(piece));
-  if (!Array.isArray(piece.equipment) || piece.equipment.length === 0) {
-    errors.push(`conditioning.equipment: expected a non-empty array; allowed: [${EQUIPMENT.join(", ")}]`);
-  } else {
-    piece.equipment.forEach((item, index) => {
-      const issue = enumError(`conditioning.equipment[${index}]`, item, EQUIPMENT);
-      if (issue) errors.push(issue);
-    });
-  }
   return errors;
 }
 
@@ -686,7 +1020,7 @@ export function loadDecisionErrors(value: unknown, days: readonly DayKey[]): str
     if (action) errors.push(action);
     if (effort) errors.push(effort);
     if (intensity) errors.push(intensity);
-    const reason = textError(`${prefix}.reason_ko`, row.reason_ko, true);
+    const reason = textError(`${prefix}.reason_ko`, row.reason_ko, false);
     if (reason) errors.push(reason);
     if (typeof row.day === "string") seen.add(row.day);
   });
@@ -696,26 +1030,114 @@ export function loadDecisionErrors(value: unknown, days: readonly DayKey[]): str
   return errors;
 }
 
+function coachForBlock(block: string): string | null {
+  if (block === "strength") return "strength_coach";
+  if (block === "conditioning") return "conditioning_coach";
+  if (block === "warmup") return "warmup_coach";
+  return null;
+}
+
+function amountShape(unit: string, amount: string): boolean {
+  if (!/^\d+(\/\d+)?$/.test(amount)) return false;
+  if (amount.includes("/") && unit !== "cal") return false;
+  return true;
+}
+
+function cellMovementErrors(prefix: string, row: Record<string, unknown>, pieces: Map<string, string>): string[] {
+  const errors: string[] = [];
+  const named = typeof row.movement === "string" ? row.movement : typeof row.key === "string" ? row.key : "";
+  const stored = catalogMovement(named);
+  if (!stored) {
+    errors.push(`${prefix}: unknown movement ${named}`);
+    return errors;
+  }
+  const unitVerdict = checkCellEdit({ catalog_key: stored.key, field: "unit", value: String(row.unit) });
+  if (!unitVerdict.ok) errors.push(`${prefix}: ${unitVerdict.reason}`);
+  const suffix = row.unit === "reps" ? "" : String(row.unit);
+  const amountVerdict = checkCellEdit({ catalog_key: stored.key, field: "amount", value: `${row.amount}${suffix}` });
+  if (!amountVerdict.ok) errors.push(`${prefix}: ${amountVerdict.reason}`);
+  const piecesName = pieces.get(stored.key);
+  if (typeof row.name_ko === "string" && row.name_ko !== stored.name_ko && row.name_ko !== piecesName) {
+    errors.push(`${prefix}.name_ko: received ${received(row.name_ko)}; catalog name for ${stored.key} is ${stored.name_ko}`);
+  }
+  return errors;
+}
+
+/** A revision that is only a sentence. The head must return the edit fields instead. */
+export function editItemErrors(row: unknown, index: number): string[] {
+  const prefix = `revisions[${index}]`;
+  if (!isRecord(row)) return [`${prefix}: expected an object`];
+  const errors: string[] = [];
+  if (typeof row.action !== "string" && (typeof row.field === "string" || typeof row.catalog_key === "string")) {
+    return cellEditErrors(row, index);
+  }
+  if (typeof row.action !== "string") {
+    errors.push(`${prefix}: prose-only revision; return day, target_coach, block, action, target_movement, new_movement, new_amount, new_unit, and reason`);
+    return errors;
+  }
+  const day = enumError(`${prefix}.day`, row.day, DAY_ORDER);
+  const coach = enumError(`${prefix}.target_coach`, row.target_coach, ["strength_coach", "conditioning_coach", "warmup_coach"]);
+  const block = enumError(`${prefix}.block`, row.block, EDIT_BLOCKS);
+  const action = enumError(`${prefix}.action`, row.action, EDIT_ACTIONS);
+  if (day) errors.push(day);
+  if (coach) errors.push(coach);
+  if (block) errors.push(block);
+  if (action) errors.push(action);
+  const reason = textError(`${prefix}.reason`, row.reason, false);
+  if (reason) errors.push(reason);
+  if (!block && !coach && coachForBlock(String(row.block)) !== row.target_coach) {
+    errors.push(`${prefix}.target_coach: received ${received(row.target_coach)}; block ${String(row.block)} belongs to ${coachForBlock(String(row.block))}`);
+  }
+  const catalog = movementKeys();
+  const target = row.target_movement;
+  const next = row.new_movement;
+  const amount = row.new_amount;
+  const unit = row.new_unit;
+  const needsTarget = row.action === "replace" || row.action === "change_amount" || row.action === "delete";
+  const needsNext = row.action === "replace" || row.action === "add";
+  const needsAmount = row.action === "replace" || row.action === "change_amount" || row.action === "add";
+  if (needsTarget) {
+    const key = enumError(`${prefix}.target_movement`, target, catalog);
+    if (key) errors.push(key);
+  } else if (target != null) errors.push(`${prefix}.target_movement: add uses null`);
+  if (needsNext) {
+    const key = enumError(`${prefix}.new_movement`, next, catalog);
+    if (key) errors.push(key);
+  } else if (next != null) errors.push(`${prefix}.new_movement: ${String(row.action)} uses null`);
+  if (needsAmount) {
+    if (typeof amount !== "string" || typeof unit !== "string" || !EDIT_UNITS.includes(unit as (typeof EDIT_UNITS)[number]) || !amountShape(String(unit), amount)) {
+      errors.push(`${prefix}.new_amount: received ${received(amount)} ${received(unit)}; expected a count and reps, cal, m, or sec`);
+    }
+  } else if (amount != null || unit != null) errors.push(`${prefix}: delete sets new_amount and new_unit to null`);
+  if (row.action === "replace" && target === next) errors.push(`${prefix}: replace needs a different catalog key`);
+  return errors;
+}
+
 export function headReviewErrors(value: unknown): string[] {
   if (!isRecord(value)) return ["expected a head review object"];
   const errors: string[] = [];
   const status = enumError("status", value.status, HEAD_STATUSES);
   if (status) errors.push(status);
-  const note = textError("note_ko", value.note_ko, true);
-  if (note) errors.push(note);
+  const note = typeof value.note_ko === "string" ? value.note_ko.trim() : "";
+  if (note.length < 10) errors.push("note_ko: expected at least 10 characters");
+  const revisionsEmpty = !Array.isArray(value.revisions) || value.revisions.length === 0;
+  const adjustmentsEmpty = !Array.isArray(value.adjustments) || value.adjustments.length === 0;
+  if (revisionsEmpty && adjustmentsEmpty && note.length < 10) {
+    errors.push("note_ko: an approval reason is required when there is no revision");
+  }
   if (!Array.isArray(value.revisions)) {
     errors.push("revisions: expected an array");
     return errors;
   }
-  if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE") && value.revisions.length > 0) {
-    errors.push("revisions: APPROVE and APPROVE_WITH_NOTE require an empty array");
+  if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE" || value.status === "BLOCK") && value.revisions.length > 0) {
+    errors.push("revisions: APPROVE, APPROVE_WITH_NOTE, and BLOCK require an empty array");
   }
-  if (value.status === "REVISE" && value.revisions.length === 0) {
-    errors.push("revisions: REVISE requires at least one day");
+  if (value.status === "REVISE" && value.revisions.length === 0 && !(Array.isArray(value.adjustments) && value.adjustments.length > 0)) {
+    errors.push("revisions: REVISE requires a catalog cell. An adjustment is not a cell edit.");
   }
   if (Array.isArray(value.adjustments)) {
-    if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE") && value.adjustments.length > 0) {
-      errors.push("adjustments: APPROVE and APPROVE_WITH_NOTE require an empty array");
+    if ((value.status === "APPROVE" || value.status === "APPROVE_WITH_NOTE" || value.status === "BLOCK") && value.adjustments.length > 0) {
+      errors.push("adjustments: APPROVE, APPROVE_WITH_NOTE, and BLOCK require an empty array");
     }
     value.adjustments.forEach((row, index) => {
       if (!isRecord(row)) {
@@ -728,19 +1150,7 @@ export function headReviewErrors(value: unknown): string[] {
     });
   }
   value.revisions.forEach((row, index) => {
-    const prefix = `revisions[${index}]`;
-    if (!isRecord(row)) {
-      errors.push(`${prefix}: expected an object`);
-      return;
-    }
-    const day = enumError(`${prefix}.day`, row.day, DAY_ORDER);
-    const priority = enumError(`${prefix}.priority`, row.priority, REVISION_PRIORITIES);
-    if (day) errors.push(day);
-    if (priority) errors.push(priority);
-    for (const field of ["reason", "correction_instruction", "constraints"] as const) {
-      const issue = textError(`${prefix}.${field}`, row[field], true);
-      if (issue) errors.push(issue);
-    }
+    errors.push(...editItemErrors(row, index));
   });
   return errors;
 }

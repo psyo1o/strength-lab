@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDbConnection } from "../src/lib/db/client";
 import { DAY_ORDER } from "../src/lib/month-plan/types";
 import { MONTH_PLAN_OPENAI_MODEL } from "../src/lib/month-plan/week-model";
+import { coachMonthly, deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthly";
 import { assertProbeWeek, coachWeek, unchangedDays } from "../src/lib/programming/coaching/pipeline";
 import { coachModel } from "../src/lib/programming/coaching/models";
 import { coachSystemPrompt } from "../src/lib/programming/coaching/prompts";
@@ -60,6 +61,30 @@ function reported(fatigue: "low" | "moderate" | "high", volume: "low" | "moderat
     },
   };
 }
+
+describe("recorded monthly plan", () => {
+  it("reuses a recorded goal table and does not call the model", async () => {
+    const month = month531();
+    const plan = { ...deterministicMonthlyPlan(month), reuse: true };
+    let called = false;
+    const result = await coachMonthly({
+      month: { ...month, coaching_plan: plan },
+      key: "test-key",
+      fetchImpl: async () => {
+        called = true;
+        throw new Error("monthly model must not be called");
+      },
+      timeoutMs: 1000,
+      runId: "recorded-month",
+      weekId: "2099-07-06",
+    });
+    expect(called).toBe(false);
+    expect(result.plan.goal_table).toEqual(plan.goal_table);
+    expect(result.trace.deterministic).toBe(true);
+    expect(result.trace.token_usage).toBeNull();
+    expect(result.trace.source).toBe("fallback");
+  });
+});
 
 describe("coaching pipeline", () => {
   beforeEach(() => {
@@ -234,21 +259,20 @@ describe("coaching pipeline", () => {
     }
   });
 
-  it("stores a keyless 2099 week as fallback and keeps the coach trace", async () => {
+  it("stores a keyless 2099 week as no_model even when the coaching flag is on", async () => {
     process.env.COACHING_PIPELINE = "1";
     const week = await ensureProgrammingWeek("2099-07-06", { nowMs: NOW, key: null });
     expect(week.weekStart).not.toBe("2026-10-05");
     expect(week.generationSource).toBe("fallback");
     expect(week.fallbackReason).toBe("no_model");
+    expect(week.promptVersion).toBe("weekly-program-v10");
     expect(week.intent.plan?.intent_source).toBe("fallback");
     expect(week.intent.plan?.original_intent_source).toBe("fallback");
     expect(week.intent.plan?.fallback_used).toBe(true);
     const logs = (await import("../src/lib/db/client")).getSqlite()
       .prepare("SELECT agent FROM (SELECT json_extract(raw_json, '$.agent_name') AS agent FROM programming_generation_logs WHERE scope = 'week' AND scope_key = ?)")
-      .all("2099-07-06") as Array<{ agent: string }>;
-    expect(logs.map((row) => row.agent)).toEqual(
-      expect.arrayContaining(["weekly_coach", "session_coach", "load_coach", "fatigue_engine", "variation_engine", "head_coach"]),
-    );
+      .all("2099-07-06") as Array<{ agent: string | null }>;
+    expect(logs.map((row) => row.agent)).not.toContain("weekly_coach");
     delete process.env.COACHING_PIPELINE;
   });
 

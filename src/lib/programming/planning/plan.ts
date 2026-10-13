@@ -118,6 +118,7 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
   if (key) {
     const asked = await askCoach({
       agent: "weekly",
+      retryTransport: true,
       user: {
         task: "Write the weekly skeleton. Do not write a session.",
         week_index: input.weekIndex,

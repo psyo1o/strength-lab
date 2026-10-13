@@ -1,11 +1,12 @@
-import { MONTH_PLAN_OPENAI_URL } from "../../month-plan/week-model";
-import { parseModelJson, type FetchLike } from "../model";
+import { assertPhase4Budget, logPhase4Call, notePhase4Tokens, Phase4Stop } from "../phase4/budget";
+import type { FetchLike } from "../model";
 import { JSON_OBJECT, responseFormatFor, schemaBrief, type ResponseFormat } from "./contract";
-import { coachModel, type CoachAgentName } from "./models";
+import { type CoachAgentName } from "./models";
 import { coachSystemPrompt } from "./prompts";
+import { buildCoachRequest, coachModelForCall, coachProvider, parseCoachPayload } from "./provider";
 import type { TokenUsage } from "./trace";
 
-export type CoachValidation = { ok: true } | { ok: false; errors: string[] };
+export type CoachValidation = { ok: true } | { ok: false; errors: string[]; retryExtra?: Record<string, unknown>; retry?: boolean };
 
 export type CoachAttemptLog = {
   attempt: number;
@@ -50,36 +51,19 @@ type Attempt = {
   json: unknown;
   raw: unknown;
   reason: string | null;
+  status: number | null;
   latencyMs: number;
   usage: TokenUsage | null;
 };
 
-function messageText(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || !("choices" in payload)) return null;
-  const choices = (payload as { choices?: unknown }).choices;
-  if (!Array.isArray(choices) || choices.length === 0) return null;
-  const first = choices[0];
-  if (!first || typeof first !== "object" || !("message" in first)) return null;
-  const message = (first as { message?: { content?: unknown } }).message;
-  const content = message?.content;
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return null;
-  const text = content
-    .map((part) => (part && typeof part === "object" && "text" in part && typeof part.text === "string" ? part.text : ""))
-    .join("");
-  return text.trim() ? text : null;
-}
-
-function usageOf(payload: unknown): TokenUsage | null {
-  if (!payload || typeof payload !== "object" || !("usage" in payload)) return null;
-  const usage = (payload as { usage?: unknown }).usage;
-  if (!usage || typeof usage !== "object") return null;
-  const row = usage as { prompt_tokens?: unknown; completion_tokens?: unknown; total_tokens?: unknown };
-  const prompt = typeof row.prompt_tokens === "number" ? row.prompt_tokens : 0;
-  const completion = typeof row.completion_tokens === "number" ? row.completion_tokens : 0;
-  const total = typeof row.total_tokens === "number" ? row.total_tokens : prompt + completion;
-  if (prompt === 0 && completion === 0 && total === 0) return null;
-  return { prompt_tokens: prompt, completion_tokens: completion, total_tokens: total };
+function jsonFromText(text: string | null): unknown {
+  if (!text) return null;
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
 }
 
 function addUsage(left: TokenUsage | null, right: TokenUsage | null): TokenUsage | null {
@@ -90,14 +74,6 @@ function addUsage(left: TokenUsage | null, right: TokenUsage | null): TokenUsage
     completion_tokens: left.completion_tokens + right.completion_tokens,
     total_tokens: left.total_tokens + right.total_tokens,
   };
-}
-
-function finishReason(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object" || !("choices" in payload)) return null;
-  const choices = (payload as { choices?: unknown }).choices;
-  if (!Array.isArray(choices) || !choices[0] || typeof choices[0] !== "object") return null;
-  const reason = (choices[0] as { finish_reason?: unknown }).finish_reason;
-  return typeof reason === "string" ? reason : null;
 }
 
 async function postOnce(input: {
@@ -113,28 +89,25 @@ async function postOnce(input: {
   systemPrompt?: string;
 }): Promise<Attempt> {
   const started = Date.now();
-  const body: Record<string, unknown> = {
+  const provider = coachProvider();
+  const request = buildCoachRequest({
+    provider,
+    key: input.key,
     model: input.model,
-    messages: [
-      { role: "developer", content: input.systemPrompt ?? coachSystemPrompt(input.agent) },
-      { role: "user", content: JSON.stringify(input.user) },
-    ],
-    response_format: input.format,
-    reasoning_effort: "none",
-    max_completion_tokens: input.maxTokens,
-  };
-  if (input.temperature != null) body.temperature = input.temperature;
+    system: input.systemPrompt ?? coachSystemPrompt(input.agent),
+    user: JSON.stringify(input.user),
+    maxTokens: input.maxTokens,
+    temperature: input.temperature,
+    format: input.format,
+  });
   try {
-    const response = await input.fetchImpl(MONTH_PLAN_OPENAI_URL, {
+    const response = await input.fetchImpl(request.url, {
       method: "POST",
       redirect: "error",
       cache: "no-store",
       signal: AbortSignal.timeout(input.timeoutMs),
-      headers: {
-        Authorization: `Bearer ${input.key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+      headers: request.headers,
+      body: JSON.stringify(request.body),
     });
     const text = await response.text();
     let payload: unknown = text;
@@ -145,35 +118,38 @@ async function postOnce(input: {
     }
     if (!response.ok) {
       const detail = typeof payload === "string" ? payload : JSON.stringify(payload).slice(0, 400);
-      const schemaRejected = response.status === 400 && /response_format|json_schema/i.test(detail);
+      const schemaRejected = response.status === 400 && /response_format|json_schema|output_config|responseJsonSchema|responseSchema/i.test(detail);
       const temperatureRejected = response.status === 400 && /temperature/i.test(detail);
       return {
         ok: false,
         json: null,
         raw: payload,
+        status: response.status,
         reason: schemaRejected ? "schema_rejected" : temperatureRejected ? "temperature_rejected" : "http_error",
         latencyMs: Date.now() - started,
         usage: null,
       };
     }
-    if (finishReason(payload) === "length") {
-      return { ok: false, json: null, raw: messageText(payload) ?? payload, reason: "truncated", latencyMs: Date.now() - started, usage: usageOf(payload) };
+    const parsed = parseCoachPayload(provider, payload);
+    if (parsed.truncated) {
+      return { ok: false, json: null, raw: parsed.text ?? payload, status: response.status, reason: "truncated", latencyMs: Date.now() - started, usage: parsed.usage };
     }
-    const json = parseModelJson(payload);
+    const json = jsonFromText(parsed.text);
     if (!json || typeof json !== "object") {
-      return { ok: false, json: null, raw: messageText(payload) ?? payload, reason: "bad_json", latencyMs: Date.now() - started, usage: usageOf(payload) };
+      return { ok: false, json: null, raw: parsed.text ?? payload, status: response.status, reason: "bad_json", latencyMs: Date.now() - started, usage: parsed.usage };
     }
-    return { ok: true, json, raw: messageText(payload) ?? json, reason: null, latencyMs: Date.now() - started, usage: usageOf(payload) };
+    return { ok: true, json, raw: parsed.text ?? json, status: response.status, reason: null, latencyMs: Date.now() - started, usage: parsed.usage };
   } catch (error) {
+    if (error instanceof Phase4Stop) throw error;
     const name = error && typeof error === "object" && "name" in error ? String(error.name) : "";
     const reason = name === "AbortError" || name === "TimeoutError" ? "timeout" : "http_error";
-    return { ok: false, json: null, raw: null, reason, latencyMs: Date.now() - started, usage: null };
+    return { ok: false, json: null, raw: null, status: null, reason, latencyMs: Date.now() - started, usage: null };
   }
 }
 
 /**
- * Shared model wrapper. Validation failure retries once, with only the errors,
- * the expected schema, and the invalid output. HTTP failures are not retried.
+ * Shared model wrapper. Schema failure retries once, with the errors and the invalid output.
+ * HTTP and timeout retry once when retryTransport is set, except HTTP 429.
  * A provider that rejects strict schema or temperature falls back inside the same attempt.
  */
 export async function askCoach(input: {
@@ -193,8 +169,12 @@ export async function askCoach(input: {
   systemPrompt?: string;
   /** Replaces the retry schema note. Absent keeps the agent schema brief. */
   schemaNote?: string;
+  /** HTTP 오류와 시간 초과를 오류 내용과 함께 한 번 더 부른다. 429는 제외다. */
+  retryTransport?: boolean;
+  /** 검증 재시도를 포함한 최대 호출 수. 기본은 2다. 1이면 다시 부르지 않는다. */
+  maxAttempts?: number;
 }): Promise<CoachCall> {
-  const model = coachModel(input.agent);
+  const model = coachModelForCall(input.agent);
   const fetchImpl = input.fetchImpl ?? fetch;
   const temperature = input.temperature === undefined ? 0.2 : input.temperature;
   let format = input.format ?? responseFormatFor(input.agent);
@@ -203,6 +183,7 @@ export async function askCoach(input: {
   let lastRaw: unknown = null;
   let lastJson: unknown = null;
   let errors: string[] = [];
+  let retryExtra: Record<string, unknown> | null = null;
   let firstValidationErrors: string[] = [];
   const attempts: CoachAttemptLog[] = [];
   const started = Date.now();
@@ -217,18 +198,24 @@ export async function askCoach(input: {
     promptVersion: input.promptVersion,
   });
 
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  const limit = input.maxAttempts ?? 2;
+  for (let attempt = 1; attempt <= limit; attempt += 1) {
+    const overlap = retryExtra?.overlap_sessions;
     const user =
       attempt === 1
         ? input.user
         : {
-            instruction: "Validation failed. Correct only the invalid fields. Do not rewrite valid fields. This is the same task, not a new question.",
+            instruction: overlap
+              ? "Validation failed. Rewrite this day so it does not copy overlap_sessions. Use a different format, a different stimulus, and different movement keys. Copying the movement amounts is not a new session. The threshold stays 4. This is the same task, not a new question."
+              : "Validation failed. Correct only the invalid fields. Do not rewrite valid fields. This is the same task, not a new question.",
             original_input: input.user,
             validation_errors: errors,
             invalid_output: lastJson,
             expected_schema: input.schemaNote ?? schemaBrief(input.agent),
             context: input.retryContext ?? { agent: input.agent, run_id: input.runId },
+            ...(retryExtra ?? {}),
           };
+    assertPhase4Budget();
     let attemptResult = await postOnce({
       key: input.key,
       fetchImpl,
@@ -273,9 +260,28 @@ export async function askCoach(input: {
     latencyMs += attemptResult.latencyMs;
     usage = addUsage(usage, attemptResult.usage);
     lastRaw = attemptResult.raw;
+    const settle = (result: string, first: string) => {
+      logPhase4Call({
+        stage: process.env.PHASE4_STAGE ?? "",
+        coach: input.agent,
+        promptVersion: input.promptVersion,
+        tokens: attemptResult.usage?.total_tokens ?? null,
+        result,
+        firstFailure: first,
+      });
+      notePhase4Tokens(attemptResult.usage);
+    };
+    const loggedResult = attemptResult.status === 429 ? "rate_limit" : (attemptResult.reason ?? "http_error");
     if (!attemptResult.ok) {
-      if (attempt === 1 && (attemptResult.reason === "bad_json" || attemptResult.reason === "truncated")) {
-        errors = [`${attemptResult.reason}: return one JSON object that matches the schema`];
+      const detail = typeof attemptResult.raw === "string" ? attemptResult.raw : JSON.stringify(attemptResult.raw ?? "");
+      const transport =
+        input.retryTransport === true &&
+        (attemptResult.reason === "timeout" || (attemptResult.reason === "http_error" && attemptResult.status !== 429));
+      const shape = attemptResult.reason === "bad_json" || attemptResult.reason === "truncated";
+      if (attempt < limit && (transport || shape)) {
+        errors = transport
+          ? [`${attemptResult.reason}: ${detail.slice(0, 400) || "no body"}`]
+          : [`${attemptResult.reason}: return one JSON object that matches the schema`];
         remember(errors);
         lastJson = attemptResult.raw;
         attempts.push({
@@ -285,6 +291,7 @@ export async function askCoach(input: {
           validation_errors: errors,
           reason: attemptResult.reason,
         });
+        settle(loggedResult, errors[0] ?? loggedResult);
         continue;
       }
       attempts.push({
@@ -294,6 +301,7 @@ export async function askCoach(input: {
         validation_errors: errors,
         reason: attemptResult.reason,
       });
+      settle(loggedResult, errors[0] || loggedResult);
       return finish({
         ok: false,
         json: null,
@@ -316,6 +324,7 @@ export async function askCoach(input: {
         validation_errors: [],
         reason: null,
       });
+      settle("ok", "");
       return finish({
         ok: true,
         json: attemptResult.json,
@@ -329,6 +338,7 @@ export async function askCoach(input: {
       });
     }
     errors = verdict.errors;
+    retryExtra = verdict.retryExtra ?? null;
     remember(errors);
     attempts.push({
       attempt,
@@ -337,7 +347,8 @@ export async function askCoach(input: {
       validation_errors: errors,
       reason: "schema",
     });
-    if (attempt === 2) {
+    settle("schema_fail", errors[0] ?? "schema");
+    if (attempt === limit || verdict.retry === false) {
       return finish({
         ok: false,
         json: attemptResult.json,
@@ -345,7 +356,7 @@ export async function askCoach(input: {
         model,
         latencyMs: Date.now() - started,
         reason: "schema",
-        retryCount: 1,
+        retryCount: attempt - 1,
         validationErrors: errors,
         usage,
       });

@@ -15,8 +15,9 @@ import {
   type StrengthPrescription,
   type WeekIndex,
 } from "../month-plan/types";
+import { catalogMovement, displayAmount, linkedCatalogKey } from "./coaching/movement-catalog";
 import { loadBasisForMethod } from "./strength-methods";
-import type { ConditioningDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
+import type { ConditioningDraft, MovementDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
 
 const STIMULUS_KO: Record<Stimulus, MetconStimulus> = {
   heavy: "고중량",
@@ -48,14 +49,33 @@ function pieceNote(conditioning: ConditioningDraft): string | undefined {
   return undefined;
 }
 
+function screenAmount(movement: MovementDraft): string {
+  if (movement.unit && movement.unit !== "reps" && /^\d+$/.test(movement.amount)) {
+    return displayAmount(Number(movement.amount), movement.unit);
+  }
+  return movement.amount;
+}
+
+/** Alias keys become the specific movement on screen. abs and kettlebell stay as stored. */
+function shownMovement(movement: MovementDraft): MovementDraft {
+  if (movement.key === "abs" || movement.key === "kettlebell") return movement;
+  const linked = linkedCatalogKey(movement.key);
+  if (!linked.from) return movement;
+  const row = catalogMovement(linked.key);
+  return { ...movement, key: linked.key, name_ko: row?.name_ko ?? movement.name_ko };
+}
+
 function pieceFrom(session: SessionDraft): MetconPiece | null {
   const conditioning = session.conditioning;
   if (!conditioning) return null;
-  const movements = conditioning.movements.map((movement) => ({
-    key: movement.key,
-    amount: movement.amount,
-    nameKo: movement.name_ko,
-  }));
+  const movements = conditioning.movements.map((movement) => {
+    const shown = shownMovement(movement);
+    return {
+      key: shown.key,
+      amount: screenAmount(shown),
+      nameKo: shown.name_ko,
+    };
+  });
   const pattern = asPattern(conditioning.movement_patterns[0] ?? "engine");
   return {
     id: conditioning.benchmark ? "sl-month-benchmark" : `class-${session.day}`,
@@ -79,9 +99,10 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
 
 function strengthFrom(session: SessionDraft, strengthMethod: string): StrengthPrescription | null {
   if (!session.strength) return null;
+  const specific = session.strength.movement_key;
   return {
     exerciseKey: session.strength.lift,
-    nameKo: liftName(session.strength.lift),
+    nameKo: (specific ? catalogMovement(specific)?.name_ko : null) ?? liftName(session.strength.lift),
     oneRmKg: null,
     trainingMaxKg: null,
     loadBasis: loadBasisForMethod(strengthMethod),
@@ -106,6 +127,34 @@ function warmupBlock(session: SessionDraft): SessionBlock {
     cuttable: false,
     kept: true,
   };
+}
+
+function zone2Blocks(session: SessionDraft): SessionBlock[] {
+  const zone = session.zone2;
+  if (!zone || zone.form !== "day") return [];
+  const name = catalogMovement(zone.modality)?.name_ko ?? zone.modality;
+  const blocks: SessionBlock[] = [
+    {
+      role: "extra_conditioning",
+      titleKo: "존 2 · 기본",
+      bodyKo: `${name} ${zone.duration_min}분. 대화 가능 페이스.`,
+      minutes: zone.duration_min,
+      cuttable: false,
+      kept: true,
+    },
+  ];
+  const alternate = zone.alternate;
+  if (!alternate) return blocks;
+  const moves = alternate.movements.map((movement) => `${movement.name_ko} ${movement.amount}`).join(", ");
+  blocks.push({
+    role: "extra_conditioning",
+    titleKo: "짧은 메트콘 · 대체",
+    bodyKo: `${alternate.format} ${alternate.duration_min}분. RPE ${alternate.rpe}. ${moves}`,
+    minutes: alternate.duration_min,
+    cuttable: false,
+    kept: true,
+  });
+  return blocks;
 }
 
 function dayFrom(session: SessionDraft, strengthMethod: string): PlannedDay {
@@ -165,7 +214,7 @@ function dayFrom(session: SessionDraft, strengthMethod: string): PlannedDay {
     scheduled: true,
     piece,
     lift,
-    blocks: applyTimeCut(blocks, BODY_BUDGET_MIN),
+    blocks: [...applyTimeCut(blocks, BODY_BUDGET_MIN), ...zone2Blocks(session)],
   };
 }
 

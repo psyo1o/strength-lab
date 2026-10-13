@@ -50,7 +50,7 @@ export function archiveProbePass(input: {
   months: unknown;
   evaluations: unknown;
   calls: number;
-  tokens: number;
+  tokens: number | null;
   elapsed_ms: number;
   notes?: string[];
 }): { dir: string; manifest: PassManifest } {

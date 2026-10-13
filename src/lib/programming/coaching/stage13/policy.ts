@@ -3,7 +3,7 @@ import { SIMILARITY_CONFIG } from "../../types";
 /**
  * Stage 13 policy. The similarity threshold stays 4.
  * In this pipeline a score at or above the threshold is a signal, not a hard reject.
- * Stage 10 judgeWeek still uses SIMILARITY_CONFIG directly and is not changed here.
+ * Stage 10 evaluateWeek still uses SIMILARITY_CONFIG directly and is not changed here.
  */
 export const COACHING_POLICY = {
   similarity_threshold: SIMILARITY_CONFIG.threshold,
@@ -26,7 +26,7 @@ export type RuleCategory =
 
 /** Heuristics that must not reject a day or a week by themselves. */
 export function isCoachingSignal(error: string): boolean {
-  return /structurally similar|matches a recent structure|stimulus .+ repeats|weekday pattern|same weekday|movement repeated|repeated structure/i.test(
+  return /structurally similar|matches a recent structure|stimulus .+ repeats|weekday pattern|same weekday|movement repeated|repeated structure|heavier than the fatigue limit/i.test(
     error,
   );
 }

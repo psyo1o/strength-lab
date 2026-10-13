@@ -1,4 +1,5 @@
 import { getSqlite } from "../db/client";
+import { chooseShadowDisplay, shadowGeneratorEnabled, shadowObservation, type ShadowObservation } from "./shadow";
 import { kstParts } from "../month-plan/calendar";
 import { ADMIN_CONDITIONING_ID } from "../month-plan/metcon-edit";
 import { DAY_ORDER, type DayKey, type PlannedDay, type PlannedWeek } from "../month-plan/types";
@@ -25,8 +26,28 @@ export type ClassWeekSync = {
  * - a day an admin already edited (piece id admin-conditioning)
  * Those days stay as they are. The sync row records which days moved.
  */
-export function syncClassWeek(week: WeekRow, nowMs: number): ClassWeekSync {
+export function syncClassWeek(week: WeekRow, nowMs: number, shadow?: { skeletonDrift?: boolean } | null): ClassWeekSync {
+  if (week.status === "failed") {
+    throw new Error("refusing to sync a failed programming week");
+  }
   const existing = readClassWeek(week.weekStart);
+  if (shadowGeneratorEnabled()) {
+    const observation = shadowObservation({
+      adopted: week.generationSource === "model",
+      fallback: week.generationSource === "fallback",
+      skeletonDrift: shadow?.skeletonDrift === true,
+      retries: week.generationAttempt,
+    });
+    const display = chooseShadowDisplay({ enabled: true, existing: existing?.days ?? null, generated: week.display.days });
+    recordShadow(week.weekStart, observation, nowMs);
+    return {
+      programmingWeekId: week.id,
+      classWeekId: existing?.id ?? 0,
+      syncedAt: nowMs,
+      replacedDays: display.length && !existing ? [] : [],
+      kept: [],
+    };
+  }
   const today = kstParts(nowMs).date;
   const scored = scoredDays(existing?.id ?? null, week.weekStart);
   const replacedDays: DayKey[] = [];
@@ -105,6 +126,34 @@ function scoredDays(classWeekId: number | null, weekStart: string): Set<DayKey> 
     if (dates.has(addDays(weekStart, DAY_OFFSET[day]))) found.add(day);
   }
   return found;
+}
+
+function recordShadow(weekStart: string, observation: ShadowObservation, nowMs: number): void {
+  const db = getSqlite();
+  db.exec(
+    `CREATE TABLE IF NOT EXISTS programming_shadow_logs (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       week_start TEXT NOT NULL,
+       adopted INTEGER NOT NULL,
+       fallback INTEGER NOT NULL,
+       skeleton_drift INTEGER NOT NULL,
+       retries INTEGER NOT NULL,
+       published INTEGER NOT NULL,
+       created_at INTEGER NOT NULL
+     )`,
+  );
+  db.prepare(
+    `INSERT INTO programming_shadow_logs (
+       week_start, adopted, fallback, skeleton_drift, retries, published, created_at
+     ) VALUES (?, ?, ?, ?, ?, 0, ?)`,
+  ).run(
+    weekStart,
+    observation.adopted ? 1 : 0,
+    observation.fallback ? 1 : 0,
+    observation.skeleton_drift ? 1 : 0,
+    observation.retries,
+    nowMs,
+  );
 }
 
 function writeClassWeek(

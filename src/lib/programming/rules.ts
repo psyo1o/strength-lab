@@ -3,6 +3,7 @@ import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { isWodPurpose } from "../wod/purpose";
 import { completeMonthDirection } from "./month-direction";
 import { strengthIsHeavy } from "./schemes";
+import { equipmentForKeys } from "./coaching/movement-catalog";
 import { safetyViolations } from "./coaching/stage15/safety-policy";
 import { benchmarkCountAllowed, longConditioningCountAllowed } from "./coaching/stage15/week-policy";
 import { exampleSets, legacySchemeForMethod, prescriptionGuide, validateStrengthPrescription } from "./strength-methods";
@@ -244,7 +245,6 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
   const timeDomain = value.time_domain;
   const stimulus = value.stimulus;
   const patterns = parseStringList(value.movement_patterns, MOVEMENT_PATTERNS);
-  const equipment = parseStringList(value.equipment, EQUIPMENT);
   const rep = asString(value.rep_structure);
   const rest = asString(value.work_rest_structure);
   const duration = asInt(value.duration_min);
@@ -252,11 +252,11 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
   const intensity = value.intensity;
   const longPiece = asBool(value.long_conditioning);
   const purpose = asString(value.purpose);
-  if (benchmark == null || patterns == null || equipment == null || !rep || !rest || duration == null || longPiece == null) {
+  if (benchmark == null || patterns == null || !rep || !rest || duration == null || longPiece == null) {
     return null;
   }
   if (!purpose || !isWodPurpose(purpose)) return null;
-  if (format !== "amrap" && format !== "for_time" && format !== "emom" && format !== "intervals") return null;
+  if (format !== "amrap" && format !== "for_time" && format !== "emom" && format !== "intervals" && format !== "chipper") return null;
   if (timeDomain !== "short" && timeDomain !== "medium" && timeDomain !== "long") return null;
   if (stimulus !== null && (typeof stimulus !== "string" || !(STIMULI as readonly string[]).includes(stimulus))) return null;
   if (volume !== "low" && volume !== "moderate" && volume !== "high") return null;
@@ -271,6 +271,8 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     if (!key || !amount || !name) return null;
     movements.push({ key, amount, name_ko: name });
   }
+  const listed = parseStringList(value.equipment, EQUIPMENT);
+  const equipment = listed ?? equipmentForKeys(movements.map((movement) => movement.key));
   return {
     benchmark,
     format,
@@ -330,7 +332,14 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
       strength_volume: row.strength_volume === "low" || row.strength_volume === "moderate" || row.strength_volume === "high" ? row.strength_volume : null,
       strength_intensity: row.strength_intensity === "light" || row.strength_intensity === "moderate" || row.strength_intensity === "heavy" ? row.strength_intensity : null,
       metcon_purpose: metconPurpose,
-      metcon_format: row.metcon_format === "amrap" || row.metcon_format === "for_time" || row.metcon_format === "emom" || row.metcon_format === "intervals" ? row.metcon_format : null,
+      metcon_format:
+        row.metcon_format === "amrap" ||
+        row.metcon_format === "for_time" ||
+        row.metcon_format === "emom" ||
+        row.metcon_format === "intervals" ||
+        row.metcon_format === "chipper"
+          ? row.metcon_format
+          : null,
       time_domain: row.time_domain === "short" || row.time_domain === "medium" || row.time_domain === "long" ? row.time_domain : null,
       stimulus: row.stimulus === null ? null : typeof row.stimulus === "string" && (STIMULI as readonly string[]).includes(row.stimulus) ? (row.stimulus as Stimulus) : null,
       movement_combination: asString(row.movement_combination),
@@ -395,12 +404,9 @@ function explainWeekShape(raw: Record<string, unknown>): string[] {
     if (isRecord(row.strength) && typeof row.strength.lift === "string" && !(LIFT_VALUES as readonly string[]).includes(row.strength.lift)) {
       errors.push(`${day} lift ${row.strength.lift} is not allowed`);
     }
-    if (isRecord(row.conditioning) && !Array.isArray(row.conditioning.equipment)) {
-      errors.push(`${day} conditioning.equipment is missing`);
-    }
     if (isRecord(row.conditioning)) {
       const purpose = typeof row.conditioning.purpose === "string" ? row.conditioning.purpose : "";
-      if (!isWodPurpose(purpose)) errors.push(`${day} conditioning.purpose must be 1–2 Korean sentences`);
+      if (!isWodPurpose(purpose)) errors.push(`${day} conditioning.purpose must be 1–2 sentences`);
     }
   }
   if (raw.sessions.length !== 7) errors.push("week needs seven days");
@@ -566,6 +572,17 @@ export const TIME_DOMAIN_RANGES = {
   long: { min: 30, max: 40 },
 } as const;
 
+/**
+ * The one domain that contains this duration, or null when it is outside every bucket.
+ * Unlike the coaching stamp, a duration such as 60 is not called long.
+ */
+export function timeDomainForDuration(minutes: number): "short" | "medium" | "long" | null {
+  if (minutes >= TIME_DOMAIN_RANGES.short.min && minutes <= TIME_DOMAIN_RANGES.short.max) return "short";
+  if (minutes >= TIME_DOMAIN_RANGES.medium.min && minutes <= TIME_DOMAIN_RANGES.medium.max) return "medium";
+  if (minutes >= TIME_DOMAIN_RANGES.long.min && minutes <= TIME_DOMAIN_RANGES.long.max) return "long";
+  return null;
+}
+
 const DAY_LABEL: Record<DayKey, string> = {
   mon: "Monday",
   tue: "Tuesday",
@@ -580,9 +597,67 @@ export function dayLabel(day: string): string {
   return DAY_LABEL[day as DayKey] ?? day;
 }
 
+const SESSION_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
+const SESSION_DOMAINS = ["short", "medium", "long"] as const;
+const SESSION_VOLUMES = ["low", "moderate", "high"] as const;
+const SESSION_INTENSITIES = ["light", "moderate", "heavy"] as const;
+
+function blankSessionValue(value: unknown): boolean {
+  return value == null || value === "" || (Array.isArray(value) && value.length === 0);
+}
+
+/**
+ * Copy one session mirror only when the model left it empty and the same day's conditioning
+ * already has that value. A filled time_domain or duration is never replaced.
+ */
+function copyNullSessionMirrors(row: Record<string, unknown>, normalizations: string[]): void {
+  if (row.rest === true || !isRecord(row.conditioning)) return;
+  const conditioning = row.conditioning;
+  const copied: string[] = [];
+  const take = (field: string, value: unknown) => {
+    if (!blankSessionValue(row[field]) || blankSessionValue(value)) return;
+    row[field] = value;
+    copied.push(field);
+  };
+  if (typeof conditioning.format === "string" && (SESSION_FORMATS as readonly string[]).includes(conditioning.format)) {
+    take("metcon_format", conditioning.format);
+  }
+  if (typeof conditioning.time_domain === "string" && (SESSION_DOMAINS as readonly string[]).includes(conditioning.time_domain)) {
+    take("time_domain", conditioning.time_domain);
+  }
+  if (typeof conditioning.stimulus === "string" && (STIMULI as readonly string[]).includes(conditioning.stimulus)) {
+    take("stimulus", conditioning.stimulus);
+  }
+  if (typeof conditioning.volume === "string" && (SESSION_VOLUMES as readonly string[]).includes(conditioning.volume)) {
+    take("volume", conditioning.volume);
+  }
+  if (typeof conditioning.intensity === "string" && (SESSION_INTENSITIES as readonly string[]).includes(conditioning.intensity)) {
+    take("intensity", conditioning.intensity);
+  }
+  if (typeof conditioning.duration_min === "number" && Number.isInteger(conditioning.duration_min)) {
+    take("expected_duration", conditioning.duration_min);
+  }
+  if (typeof conditioning.purpose === "string" && conditioning.purpose.trim()) {
+    take("metcon_purpose", conditioning.purpose.trim());
+  }
+  if (Array.isArray(conditioning.equipment) && conditioning.equipment.every((item) => typeof item === "string")) {
+    take("equipment", [...conditioning.equipment]);
+  }
+  if (Array.isArray(conditioning.movements)) {
+    const keys = conditioning.movements
+      .filter((movement): movement is Record<string, unknown> => isRecord(movement) && typeof movement.key === "string" && movement.key.length > 0)
+      .map((movement) => movement.key as string);
+    if (keys.length) take("movement_combination", [...keys].sort().join("+"));
+  }
+  if (!copied.length) return;
+  const day = typeof row.day === "string" ? row.day : "session";
+  normalizations.push(`${dayLabel(day)}: copied ${copied.join(", ")} from conditioning`);
+}
+
 /**
  * Structural cleanup only. A null strength object cannot carry purpose, volume, or intensity.
- * Duration and time_domain are never rewritten here.
+ * A null session mirror is copied from the same day's conditioning. A value that is already
+ * set, including a wrong time_domain or duration_min, is never rewritten.
  */
 export function normalizeWeekPayload(raw: unknown): { value: unknown; normalizations: string[] } {
   if (!isRecord(raw) || !Array.isArray(raw.sessions)) return { value: raw, normalizations: [] };
@@ -591,18 +666,21 @@ export function normalizeWeekPayload(raw: unknown): { value: unknown; normalizat
   if (!Array.isArray(sessions)) return { value: raw, normalizations: [] };
   const normalizations: string[] = [];
   for (const row of sessions) {
-    if (!isRecord(row) || row.strength != null) continue;
-    const cleared: string[] = [];
-    for (const key of ["strength_purpose", "strength_volume", "strength_intensity"] as const) {
-      if (row[key] != null) {
-        cleared.push(key);
-        row[key] = null;
+    if (!isRecord(row)) continue;
+    if (row.strength == null) {
+      const cleared: string[] = [];
+      for (const key of ["strength_purpose", "strength_volume", "strength_intensity"] as const) {
+        if (row[key] != null) {
+          cleared.push(key);
+          row[key] = null;
+        }
+      }
+      if (cleared.length) {
+        const day = typeof row.day === "string" ? row.day : "session";
+        normalizations.push(`${dayLabel(day)}: cleared ${cleared.join(", ")} because strength is null`);
       }
     }
-    if (cleared.length) {
-      const day = typeof row.day === "string" ? row.day : "session";
-      normalizations.push(`${dayLabel(day)}: cleared ${cleared.join(", ")} because strength is null`);
-    }
+    copyNullSessionMirrors(row, normalizations);
   }
   return { value: clone, normalizations };
 }
@@ -751,12 +829,15 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
       continue;
     }
     if (!session.metcon_purpose || !session.metcon_format || !session.time_domain || !session.movement_combination) {
-      errors.push(`${session.day} is missing session fields`);
+      errors.push(
+        session.conditioning
+          ? `${session.day} is missing session fields`
+          : `${session.day} is missing session fields because conditioning is null`,
+      );
     }
     if (session.expected_duration == null || session.volume == null || session.intensity == null) {
       errors.push(`${session.day} is missing duration or load bands`);
     }
-    if (session.equipment.length === 0) errors.push(`${session.day} lists no equipment`);
     if (session.strength) {
       if (!session.strength_purpose || !session.strength_volume || !session.strength_intensity) {
         errors.push(`${dayLabel(session.day)}: strength is present but strength_purpose, strength_volume, or strength_intensity is null`);
@@ -774,7 +855,7 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if (!session.strength && !session.conditioning) errors.push(`${session.day} has no work`);
     if (!session.conditioning) continue;
     if (!isWodPurpose(session.conditioning.purpose)) {
-      errors.push(`${session.day} conditioning.purpose must be 1–2 Korean sentences`);
+      errors.push(`${session.day} conditioning.purpose must be 1–2 sentences`);
     }
     if (session.metcon_format && session.metcon_format !== session.conditioning.format) {
       errors.push(`${session.day} metcon format does not match`);
@@ -926,7 +1007,26 @@ function listKey(values: readonly string[]): string {
   return [...values].sort().join("|");
 }
 
-/** One comparable token per configured feature. Movement names are not a feature. */
+function structureKeys(structure: StoredStructure): string[] {
+  return structure.movements.map((movement) => movement.key).filter(Boolean);
+}
+
+/**
+ * Conditioning keys overlap when they share 3 or more,
+ * or when both pieces have exactly two keys and those two match.
+ * A single shared name is not this axis. Empty lists do not match.
+ */
+export function movementKeysOverlap(left: readonly string[], right: readonly string[]): boolean {
+  const a = new Set(left.filter(Boolean));
+  const b = new Set(right.filter(Boolean));
+  if (a.size === 0 || b.size === 0) return false;
+  let shared = 0;
+  for (const key of a) if (b.has(key)) shared += 1;
+  if (a.size === 2 && b.size === 2 && shared === 2) return true;
+  return shared >= 3;
+}
+
+/** One comparable token per configured feature. movement_combo is matched by overlap, not by an empty list. */
 function featureValue(structure: StoredStructure, feature: SimilarityFeature): string {
   switch (feature) {
     case "format":
@@ -941,6 +1041,8 @@ function featureValue(structure: StoredStructure, feature: SimilarityFeature): s
       return listKey(structure.equipment);
     case "volume":
       return structure.volume;
+    case "movement_combo":
+      return listKey(structureKeys(structure));
     case "rep_structure":
       return structure.rep_structure;
     case "work_rest_structure":
@@ -959,7 +1061,11 @@ export function similarityMatch(left: StoredStructure, right: StoredStructure): 
   for (const feature of Object.keys(SIMILARITY_CONFIG.features) as SimilarityFeature[]) {
     const weight = SIMILARITY_CONFIG.features[feature] ?? 0;
     if (weight <= 0) continue;
-    if (featureValue(left, feature) === featureValue(right, feature)) {
+    const same =
+      feature === "movement_combo"
+        ? movementKeysOverlap(structureKeys(left), structureKeys(right))
+        : featureValue(left, feature) === featureValue(right, feature);
+    if (same) {
       score += weight;
       matched.push(feature);
     }
@@ -1059,6 +1165,293 @@ export function similarityViolations(draft: WeekDraft, recent: readonly StoredSt
     }
     return `${hit.candidate_day} matches a recent structure score=${hit.score} matched=${matched}`;
   });
+}
+
+function featureChangeHint(feature: SimilarityFeature): string {
+  if (feature === "format") return "Set conditioning.format to a different format.";
+  if (feature === "time_domain") {
+    return `time_domain follows duration_min (${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long). Change duration_min into a different bucket.`;
+  }
+  if (feature === "movement_pattern") return "movement_pattern is derived from the movements. Change the movements so the pattern list differs.";
+  if (feature === "equipment") return "equipment is filled by the server from the movements. Change to movements whose catalog equipment differs. Do not return equipment.";
+  if (feature === "volume") return "Set conditioning.volume to a different volume.";
+  if (feature === "movement_combo") {
+    return "Change the conditioning movement keys. Sharing 3 or more keys overlaps, and a 2-movement piece overlaps when both keys match.";
+  }
+  return "";
+}
+
+function trainingSessions(draft: WeekDraft, ignoreDays: readonly DayKey[], day: DayKey): SessionDraft[] {
+  const ignored = new Set(ignoreDays.filter((key) => key !== day));
+  return DAY_ORDER.map((key) => draft.sessions.find((session) => session.day === key)).filter(
+    (session): session is SessionDraft => Boolean(session && !session.rest && session.conditioning && !ignored.has(session.day)),
+  );
+}
+
+function neighborStimuli(draft: WeekDraft, day: DayKey, ignoreDays: readonly DayKey[]): Stimulus[] {
+  const ordered = trainingSessions(draft, ignoreDays, day);
+  const index = ordered.findIndex((session) => session.day === day);
+  if (index < 0) return [];
+  return [ordered[index - 1], ordered[index + 1]]
+    .map((session) => session?.conditioning?.stimulus)
+    .filter((stimulus): stimulus is Stimulus => Boolean(stimulus));
+}
+
+function stimulusConstraint(current: string, neighbors: readonly string[]): string {
+  const blocked = new Set(neighbors);
+  const allowed = STIMULI.filter((stimulus) => !blocked.has(stimulus));
+  const alternatives = allowed.filter((stimulus) => stimulus !== current);
+  const forbid = neighbors.length ? `Do not set conditioning.stimulus to ${[...new Set(neighbors)].join(" or ")}.` : "";
+  const must = allowed.length ? `conditioning.stimulus must be ${allowed.join(" or ")}.` : "";
+  const choice = alternatives.length
+    ? `If you change conditioning.stimulus, set it to ${alternatives.join(" or ")}.`
+    : current
+      ? `Keep conditioning.stimulus as ${current}. Change a different matched feature.`
+      : "";
+  return [forbid, must, choice, "A new movement name is not a stimulus change."].filter(Boolean).join(" ");
+}
+
+/** Retry text. The canonical score line stays at the front so later parsers still match it. */
+export function similarityRetryText(
+  draft: WeekDraft,
+  recent: readonly StoredStructure[],
+  error: string,
+  focusDay?: DayKey,
+  ignoreDays: readonly DayKey[] = [],
+): string {
+  const score = Number(error.match(/score=(\d+)/)?.[1] ?? String(SIMILARITY_CONFIG.threshold));
+  const need = Math.max(1, score - (SIMILARITY_CONFIG.threshold - 1));
+  const matched = (error.match(/matched=([a-z_,]*)/)?.[1] ?? "")
+    .split(",")
+    .filter((feature): feature is SimilarityFeature => feature in SIMILARITY_CONFIG.features && (SIMILARITY_CONFIG.features[feature as SimilarityFeature] ?? 0) > 0);
+  const same = error.match(/^(mon|tue|wed|thu|fri|sat|sun) and (mon|tue|wed|thu|fri|sat|sun) are structurally similar/);
+  const recentHit = error.match(/^(mon|tue|wed|thu|fri|sat|sun) matches a recent structure/);
+  const leftDay = (same?.[1] ?? recentHit?.[1]) as DayKey | undefined;
+  const rightDay = same?.[2] as DayKey | undefined;
+  const fresh = draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null);
+  const left = leftDay ? fresh.find((row) => row.day === leftDay) : undefined;
+  const right = rightDay
+    ? fresh.find((row) => row.day === rightDay)
+    : left
+      ? recent.find((prior) => {
+          if (prior.benchmark) return false;
+          const hit = similarityMatch(left, prior);
+          return hit.score === score && hit.matched.join(",") === matched.join(",");
+        })
+      : undefined;
+  const focus =
+    focusDay ??
+    (leftDay && rightDay ? (DAY_ORDER.indexOf(rightDay) > DAY_ORDER.indexOf(leftDay) ? rightDay : leftDay) : leftDay);
+  const mine = focus ? fresh.find((row) => row.day === focus) ?? left : left;
+  const other = focus === leftDay ? right : focus === rightDay ? left : right;
+  const values = matched.map((feature) => {
+    const yours = mine ? featureValue(mine, feature) : "?";
+    const theirs = other ? featureValue(other, feature) : "?";
+    return `your ${feature}=${yours || "empty"} matches ${other?.day ?? "recent"} ${feature}=${theirs || "empty"}`;
+  });
+  const levers = matched.filter((feature) => feature !== "stimulus").map((feature) => featureChangeHint(feature)).filter(Boolean);
+  const stimulusLine = stimulusConstraint(mine?.stimulus ?? "", focus ? neighborStimuli(draft, focus, ignoreDays) : []);
+  const only = focus ? `Change only ${focus}.` : "";
+  return `${error}. ${values.join("; ")}. Change at least ${need} of those matched features so the score is below ${SIMILARITY_CONFIG.threshold}. ${only} ${levers.join(" ")} ${stimulusLine} Renaming a movement does not change a feature. The threshold stays ${SIMILARITY_CONFIG.threshold}.`;
+}
+
+export type OverlapSession = {
+  day: string;
+  scope: "neighbor" | "same_week" | "recent";
+  week_start: string | null;
+  format: string;
+  duration_min: number;
+  time_domain: string;
+  stimulus: string | null;
+  movement_pattern: string;
+  movements: { key: string; amount: string }[];
+  volume: string;
+  equipment: string[];
+  matched: string[];
+  score: number | null;
+};
+
+function overlapView(structure: StoredStructure, scope: OverlapSession["scope"], matched: readonly string[], score: number | null): OverlapSession {
+  return {
+    day: structure.day,
+    scope,
+    week_start: structure.source_week_start ?? null,
+    format: structure.format,
+    duration_min: structure.duration_min,
+    time_domain: structure.time_domain,
+    stimulus: structure.stimulus,
+    movement_pattern: [...structure.movement_patterns].sort().join("+"),
+    movements: structure.movements.map((row) => ({ key: row.key, amount: row.amount })),
+    volume: structure.volume,
+    equipment: [...structure.equipment],
+    matched: [...matched],
+    score,
+  };
+}
+
+/** The other day's real session when stimulus or structure overlaps. Threshold stays 4. */
+export function overlapSessionsFor(
+  draft: WeekDraft,
+  day: DayKey,
+  recent: readonly StoredStructure[] = [],
+  ignoreDays: readonly DayKey[] = [],
+): OverlapSession[] {
+  const ignored = new Set(ignoreDays.filter((key) => key !== day));
+  const fresh = draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null && !ignored.has(row.day));
+  const mine = fresh.find((row) => row.day === day);
+  if (!mine) return [];
+  const rows: OverlapSession[] = [];
+  const ordered = trainingSessions(draft, ignoreDays, day);
+  const index = ordered.findIndex((session) => session.day === day);
+  for (const neighbor of [ordered[index - 1], ordered[index + 1]]) {
+    const stimulus = neighbor?.conditioning?.stimulus;
+    if (!neighbor?.conditioning || !stimulus || stimulus !== mine.stimulus) continue;
+    const structure = toStructure(neighbor);
+    if (structure) rows.push(overlapView(structure, "neighbor", ["stimulus"], null));
+  }
+  for (const other of fresh) {
+    if (other.day === day) continue;
+    const hit = comparison(mine, other, "same_week");
+    if (!hit.similar) continue;
+    rows.push(overlapView(other, "same_week", hit.matched, hit.score));
+  }
+  for (const prior of recent) {
+    if (prior.benchmark) continue;
+    const hit = comparison(mine, prior, "recent");
+    if (!hit.similar) continue;
+    rows.push(overlapView(prior, "recent", hit.matched, hit.score));
+  }
+  return rows;
+}
+
+/** Training days that still score at or above the threshold against a recent week. */
+export function recentOverlapDays(draft: WeekDraft, recent: readonly StoredStructure[]): DayKey[] {
+  const days = new Set<DayKey>();
+  for (const hit of similarityDiagnostics(draft, recent).hits) {
+    if (hit.compared_scope !== "recent") continue;
+    if ((DAY_ORDER as readonly string[]).includes(hit.candidate_day)) days.add(hit.candidate_day as DayKey);
+  }
+  return DAY_ORDER.filter((day) => days.has(day));
+}
+
+/** One recent-week overlap brief for a single day rewrite. Threshold stays 4. */
+export function recentOverlapPayload(draft: WeekDraft, day: DayKey, recent: readonly StoredStructure[]) {
+  const sessions = overlapSessionsFor(draft, day, recent).filter((row) => row.scope === "recent");
+  return {
+    instruction:
+      "This day still scores 4 or more against a recent week after the weekday swap. Change at least one matched axis. matched lists those axes. Each session has format, duration_min, time_domain, stimulus, movement_pattern, and movements with key and amount. Do not copy that session. This day is rewritten once. A remaining overlap is a head signal, not a reason to reject the day. The threshold stays 4.",
+    sessions,
+  };
+}
+
+export function overlapRetryErrors(rows: readonly OverlapSession[]): string[] {
+  return rows.map((row) => {
+    const moves = row.movements.map((movement) => `${movement.key} ${movement.amount}`).join(", ") || "none";
+    const score = row.score == null ? "neighbor stimulus" : `score=${row.score}`;
+    return `${row.scope} ${row.day} overlaps ${score} matched=${row.matched.join(",")}. format=${row.format} duration_min=${row.duration_min} time_domain=${row.time_domain} stimulus=${row.stimulus ?? "none"} movement_pattern=${row.movement_pattern} movements=${moves} volume=${row.volume} equipment=${row.equipment.join("+") || "none"}. Write a different format, a different stimulus, and different movement keys from this session. Do not copy it. The threshold stays 4.`;
+  });
+}
+
+/**
+ * Errors this day would add against the other training days and recent weeks.
+ * Threshold stays SIMILARITY_CONFIG.threshold.
+ */
+export function adoptionCollisionErrors(
+  draft: WeekDraft,
+  day: DayKey,
+  recent: readonly StoredStructure[] = [],
+  ignoreDays: readonly DayKey[] = [],
+): string[] {
+  const ignored = new Set(ignoreDays.filter((key) => key !== day));
+  const ordered = DAY_ORDER.map((key) => draft.sessions.find((session) => session.day === key)).filter(
+    (session): session is SessionDraft => Boolean(session && !session.rest && session.conditioning && !ignored.has(session.day)),
+  );
+  const index = ordered.findIndex((session) => session.day === day);
+  if (index < 0) return [];
+  const stimulus = ordered[index]?.conditioning?.stimulus;
+  const errors: string[] = [];
+  for (const neighbor of [ordered[index - 1], ordered[index + 1]]) {
+    const other = neighbor?.conditioning?.stimulus;
+    if (stimulus && other && stimulus === other) errors.push(`stimulus ${stimulus} repeats on ${day}`);
+  }
+  for (const line of similarityViolations(draft, recent)) {
+    const same = line.match(/^(mon|tue|wed|thu|fri|sat|sun) and (mon|tue|wed|thu|fri|sat|sun) are structurally similar/);
+    if (same && (ignored.has(same[1] as DayKey) || ignored.has(same[2] as DayKey))) continue;
+    if (line.startsWith(`${day} `) || line.includes(` and ${day} `)) errors.push(line);
+  }
+  return [...new Set(errors)];
+}
+
+function scoredStructureView(structure: StoredStructure) {
+  return {
+    format: structure.format,
+    stimulus: structure.stimulus,
+    movement_pattern: [...structure.movement_patterns].sort().join("+"),
+    volume: structure.volume,
+  };
+}
+
+export type SimilarityDecision = {
+  score: number;
+  threshold: number;
+  compared_scope: "same_week" | "recent";
+  candidate_day: string;
+  compared_day: string;
+  compared_week_id: number | null;
+  compared_week_start: string | null;
+  matched: SimilarityFeature[];
+  judgment: "too_similar";
+  candidate: ReturnType<typeof scoredStructureView>;
+  compared: ReturnType<typeof scoredStructureView>;
+};
+
+/**
+ * Hits only. The score, the matched features, and both sessions' four fields.
+ * The threshold and the comparison itself stay in similarityDiagnostics.
+ */
+export function similarityDecisionLog(draft: WeekDraft, recent: readonly StoredStructure[]): SimilarityDecision[] {
+  const fresh = draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null && !row.benchmark);
+  const decisions: SimilarityDecision[] = [];
+  for (let index = 0; index < fresh.length; index += 1) {
+    const candidate = fresh[index]!;
+    for (let other = index + 1; other < fresh.length; other += 1) {
+      const compared = fresh[other]!;
+      const hit = comparison(candidate, compared, "same_week");
+      if (!hit.similar) continue;
+      decisions.push({
+        score: hit.score,
+        threshold: hit.threshold,
+        compared_scope: hit.compared_scope,
+        candidate_day: hit.candidate_day,
+        compared_day: hit.compared_day,
+        compared_week_id: null,
+        compared_week_start: null,
+        matched: hit.matched,
+        judgment: "too_similar",
+        candidate: scoredStructureView(candidate),
+        compared: scoredStructureView(compared),
+      });
+    }
+    for (const prior of recent) {
+      if (prior.benchmark) continue;
+      const hit = comparison(candidate, prior, "recent");
+      if (!hit.similar) continue;
+      decisions.push({
+        score: hit.score,
+        threshold: hit.threshold,
+        compared_scope: hit.compared_scope,
+        candidate_day: hit.candidate_day,
+        compared_day: hit.compared_day,
+        compared_week_id: prior.source_week_id ?? null,
+        compared_week_start: prior.source_week_start ?? null,
+        matched: hit.matched,
+        judgment: "too_similar",
+        candidate: scoredStructureView(candidate),
+        compared: scoredStructureView(prior),
+      });
+    }
+  }
+  return decisions;
 }
 
 export type WeekBurden = {
@@ -1534,6 +1927,29 @@ export function structureValidationErrors(errors: readonly string[]): Structured
         repair_scope: "intent_only",
       });
     }
+    const domainRange = message.match(/time_domain=(\w+) duration=(\d+) is outside/);
+    if (domainRange) {
+      const days = keysFromLabels(message.split(":")[0] ?? "");
+      return structured(message, {
+        rule: "time_domain_range",
+        constraint: "time_domain",
+        priority: REPAIR_PRIORITY.schema,
+        severity: "hard",
+        current: Number(domainRange[2]),
+        affected_session: days,
+        affected_features: ["conditioning.duration_min", "conditioning.time_domain", "time_domain", "expected_duration", "conditioning.long_conditioning"],
+      });
+    }
+    if (message.includes("long flag does not match")) {
+      return structured(message, {
+        rule: "long_conditioning_flag",
+        constraint: "time_domain",
+        priority: REPAIR_PRIORITY.schema,
+        severity: "hard",
+        affected_session: keysFromLabels(message.split(":")[0] ?? ""),
+        affected_features: ["conditioning.long_conditioning", "conditioning.time_domain"],
+      });
+    }
     const keyed = message.match(/^(mon|tue|wed|thu|fri|sat|sun) /);
     const named = message.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/);
     const days = keysFromLabels(keyed?.[1] ?? message.split(":")[0] ?? "");
@@ -1585,6 +2001,45 @@ function failureBrief(error: StructuredValidationError): string {
     }
     if (error.rule === "korean_naming") {
       return `Previous attempt wrote ${error.affected_features[0] ?? "a Korean field"} with too little Korean. name_ko and every *_ko field are natural Korean names and sentences without kilograms or English abbreviations. Keep the English identity in key.`;
+    }
+    if (error.rule === "time_domain_range") {
+      const day = error.affected_session[0] ?? "that day";
+      const labeled = error.message.match(/time_domain=(\w+)/)?.[1] ?? "the previous label";
+      const minutes = error.current;
+      const required = minutes == null ? null : timeDomainForDuration(minutes);
+      const ranges = `${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.short.max} short, ${TIME_DOMAIN_RANGES.medium.min}–${TIME_DOMAIN_RANGES.medium.max} medium, ${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} long`;
+      if (required && minutes != null) {
+        return `Previous attempt set time_domain=${labeled} on ${day} while duration_min=${minutes}. duration_min chooses time_domain: ${ranges}. ${minutes} is ${required}, not ${labeled}. Set conditioning.time_domain and the session time_domain to ${required}, set expected_duration to ${minutes}, and set long_conditioning ${required === "long" ? "true" : "false"}. Do not rewrite other days.`;
+      }
+      return `Previous attempt set time_domain=${labeled} on ${day} while duration_min=${minutes ?? "unknown"} is outside ${TIME_DOMAIN_RANGES.short.min}–${TIME_DOMAIN_RANGES.long.max}. No legal time_domain contains that duration. Change duration_min into one bucket (${ranges}), then set time_domain from the new duration. Do not label an out-of-range duration as long. Do not rewrite other days.`;
+    }
+    if (error.rule === "long_conditioning_flag") {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt set long_conditioning incorrectly on ${day}. long_conditioning is true only when time_domain is long (${TIME_DOMAIN_RANGES.long.min}–${TIME_DOMAIN_RANGES.long.max} minutes). Set the flag from the domain after duration_min. Do not rewrite other days.`;
+    }
+    if (error.rule === "stimulus_repeat") {
+      const stimulus = error.message.match(/^stimulus (\w+) repeats/)?.[1] ?? "that stimulus";
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt repeated stimulus ${stimulus} on ${day}, the same as the previous training day. Change conditioning.stimulus and the session stimulus on ${day} to a different allowed stimulus. A new movement name is not a stimulus change. Do not rewrite other days.`;
+    }
+    if (error.rule === "intent_prescription_mismatch") {
+      return "Previous attempt wrote that lower-body load was reduced, but a squat or deadlift set is still heavier than the high-fatigue prescription. Remove that claim from why_ko, focus, and scheme_note, or the sets stay rejected. Do not leave the sentence in place while the sets stay heavy.";
+    }
+    if (error.rule === "schema" && error.message.includes("missing session fields") && error.message.includes("conditioning is null")) {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt left ${day} without a conditioning object: ${error.message}. Add conditioning on ${day} and fill metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration from it. Do not invent those fields without conditioning. Do not rewrite other days.`;
+    }
+    if (error.rule === "schema" && (error.message.includes("missing session fields") || error.message.includes("missing duration or load bands"))) {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt left ${day} incomplete: ${error.message}. Copy metcon_purpose, metcon_format, time_domain, stimulus, movement_combination, equipment, volume, intensity, and expected_duration from that day's conditioning object. Leave a field null only when conditioning does not have it. Do not rewrite a time_domain or duration_min that is already set. Do not rewrite other days.`;
+    }
+    if (error.rule === "schema" && error.message.includes("does not match")) {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt disagreed with itself on ${day}: ${error.message}. Session-level copies must equal that day's conditioning object. expected_duration equals duration_min, and both time_domain fields are the domain duration_min chooses. Do not overwrite a duration that is already inside its labeled domain. Do not rewrite other days.`;
+    }
+    if (error.rule === "schema" && error.message.includes("warmup is not")) {
+      const day = error.affected_session[0] ?? "that day";
+      return `Previous attempt set warmup_min outside 8–12 on ${day}. Set warmup_min to a minute from 8 through 12. A rest day stays at 0. Do not rewrite other days.`;
     }
     if (error.rule === "schema" && error.affected_session.length) {
       return `Previous attempt left ${error.affected_session.join(", ")} incomplete: ${error.message}. Fill every session-level field on that day from its own strength and conditioning objects. Do not rewrite other days.`;
@@ -1788,16 +2243,53 @@ export function weekdayPatternViolations(draft: WeekDraft, recentMaps: readonly 
   return strengthLayoutRepeats(liftMapKey(draft), recentMaps, allowRepeat);
 }
 
-/** Korean checks per session so the retry knows which day to fix. The intent is checked on its own. */
-function koreanErrors(draft: WeekDraft): string[] {
+/**
+ * Explanations are English. Display translation is later.
+ * This stage does not reject a week. englishKoPath stays for that later pass.
+ */
+function koreanErrors(_draft: WeekDraft): string[] {
+  return [];
+}
+
+/** Order problems a weekday swap can fix. The similarity threshold stays 4, and only neighboring training days count. */
+export function orderViolations(draft: WeekDraft): string[] {
   const errors: string[] = [];
-  const intent = englishKoPath(draft.intent, "intent");
-  if (intent) errors.push(intent);
-  draft.sessions.forEach((session, index) => {
-    const found = englishKoPath(session, `sessions[${index}]`);
-    if (found) errors.push(`${dayLabel(session.day)}: ${found}`);
-  });
-  return errors;
+  const training = draft.sessions.filter((session) => !session.rest && session.conditioning);
+  for (let index = 1; index < training.length; index += 1) {
+    const previous = training[index - 1]!;
+    const current = training[index]!;
+    const previousStimulus = previous.conditioning?.stimulus;
+    const currentStimulus = current.conditioning?.stimulus;
+    if (previousStimulus && currentStimulus && previousStimulus === currentStimulus) {
+      errors.push(`stimulus ${currentStimulus} repeats on ${current.day}`);
+    }
+    const left = toStructure(previous);
+    const right = toStructure(current);
+    if (left && right && structurallySimilar(left, right)) {
+      const hit = comparison(left, right, "same_week");
+      errors.push(`${previous.day} and ${current.day} are structurally similar score=${hit.score} matched=${hit.matched.join(",")}`);
+    }
+  }
+  const sessions = byDay(draft);
+  errors.push(
+    ...safetyViolations(
+      DAY_ORDER.map((day) => {
+        const session = sessions.get(day);
+        if (!session || session.rest) return null;
+        const load = exposure(session);
+        return {
+          day,
+          heavySquat: load.heavySquat,
+          heavyDeadlift: load.heavyDeadlift,
+          heavyPress: load.heavyPress,
+          heavySnatch: load.heavySnatch,
+          heavyClean: load.heavyClean,
+          longConditioning: Boolean(session.conditioning?.long_conditioning),
+        };
+      }),
+    ),
+  );
+  return [...new Set(errors)];
 }
 
 function dedupe(errors: string[]): string[] {
