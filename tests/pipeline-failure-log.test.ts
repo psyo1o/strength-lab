@@ -125,6 +125,11 @@ describe("pipeline failure log", () => {
       lastSession: null,
       sex: null,
       isAdmin: true,
+      name: null,
+      birthDate: null,
+      status: "active",
+      role: "admin",
+      rejectionReason: null,
     });
     const failure = new Error(`pipeline stopped ${FAKE_KEY}`);
     failure.stack = `Error: pipeline stopped ${FAKE_KEY}\n    at writeProgrammingWeek`;
