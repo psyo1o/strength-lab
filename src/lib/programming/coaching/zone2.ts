@@ -41,30 +41,50 @@ export function zone2Effort(_deload: boolean): readonly string[] {
   return GOAL_TABLE_RULES.zone2.effort;
 }
 
+export type Zone2ModalityOptions = {
+  /** heavy 하체 다음 날과 하체 날. run을 순환보다 먼저 뺀다. */
+  dropRun?: boolean;
+  catalog?: readonly string[];
+};
+
 /**
- * 카탈로그 전체. 직전 주 모달은 하나 이상 남을 때만 뺀다.
- * 빼면 빈 목록이 되면 그 모달을 남겨 enum이 비지 않게 한다.
- * heavy 하체 다음 날이라도 run은 여기서 빼지 않는다.
+ * 카탈로그에서 고른다. dropRun이면 bannedOnLowerAdjacent를 먼저 뺀다.
+ * 직전 주 모달 순환은 그 다음이다. 그때 빈 목록이면 직전 주 모달을 다시 허용한다.
+ * 그 모달이 run이거나 표에 없으면 빈 목록으로 둔다. run은 되돌리지 않는다.
  */
-export function zone2Modalities(previousModality: string | null | undefined, catalog: readonly string[] = GOAL_TABLE_RULES.zone2.modalities): string[] {
-  const listed = [...catalog];
-  if (listed.length === 0) return [...GOAL_TABLE_RULES.zone2.modalities];
-  if (!previousModality || !listed.includes(previousModality)) return listed;
-  const next = listed.filter((key) => key !== previousModality);
-  return next.length ? next : listed;
+export function zone2Modalities(previousModality: string | null | undefined, options?: Zone2ModalityOptions): string[] {
+  const banned = GOAL_TABLE_RULES.zone2.bannedOnLowerAdjacent;
+  const catalog = options?.catalog ?? GOAL_TABLE_RULES.zone2.modalities;
+  let listed = [...catalog];
+  if (options?.dropRun) listed = listed.filter((key) => key !== banned);
+  if (previousModality && listed.includes(previousModality)) {
+    listed = listed.filter((key) => key !== previousModality);
+  }
+  if (listed.length > 0) return listed;
+  const known = (GOAL_TABLE_RULES.zone2.modalities as readonly string[]).includes(previousModality ?? "");
+  if (previousModality && previousModality !== banned && known) return [previousModality];
+  return [];
 }
 
-/** 컨디셔닝 A enum이 주간 경계와 같은 직전 주 모달을 보게 한다. */
+export type Zone2SlotSpec = {
+  deload: boolean;
+  previousModality: string | null;
+  dropRun: boolean;
+};
+
+/** 컨디셔닝 A·B enum이 주간 경계와 같은 직전 주 모달, 그리고 하체 인접 run 금지를 보게 한다. */
 export function zone2SlotSpec(input: {
   zone2: string | null | undefined;
   blockPhase: string;
   weekIndex: number;
   recentPlans?: readonly WeeklyIntentPlan[] | null;
-}): { deload: boolean; previousModality: string | null } | null {
+  dropRun?: boolean;
+}): Zone2SlotSpec | null {
   if (input.zone2 !== "day") return null;
   return {
     deload: input.blockPhase === "deload" || input.weekIndex === 4,
     previousModality: previousZone2Modality(input.recentPlans),
+    dropRun: input.dropRun === true,
   };
 }
 
@@ -221,7 +241,7 @@ export function zone2RuleErrors(input: {
     }
     if (!input.zone2.allowedDays.includes(day.day)) errors.push(`${day.day} is not an allowed zone2 day`);
     if (input.zone2.blockedNext.includes(day.day)) errors.push(`${day.day} zone2 is followed by a heavy lower day`);
-    const modalities = zone2Modalities(input.previousModality);
+    const modalities = zone2Modalities(input.previousModality, { dropRun: input.zone2.lowerAdjacent.includes(day.day) });
     if (!day.zone2_modality || day.zone2_modality === "none" || !modalities.includes(day.zone2_modality)) {
       errors.push(`${day.day} zone2 modality must be one of ${modalities.join("|")}`);
     } else if (day.zone2_modality.includes(",") || day.zone2_modality.includes(" ")) {
@@ -274,6 +294,42 @@ export function pinZone2(plan: WeeklyIntentPlan, zone2: Zone2Annotation | null |
       return { ...day, zone2: "none", zone2_modality: "none", zone2_duration: 0, zone2_effort: "none", zone2_hr: "none" };
     }),
   };
+}
+
+/**
+ * 하체 인접 날의 A 모달과 B 동작 키. GOAL_TABLE_RULES.zone2.bannedOnLowerAdjacent만 본다.
+ * 세션이 그 키면 evaluateWeek가 BLOCK한다.
+ */
+export function lowerAdjacentRunErrors(raw: unknown, lowerAdjacent: readonly string[] | null | undefined): string[] {
+  const banned = GOAL_TABLE_RULES.zone2.bannedOnLowerAdjacent;
+  if (!banned || !lowerAdjacent?.length) return [];
+  const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  const sessions = Array.isArray(body?.sessions) ? body.sessions : [];
+  const days = new Set(lowerAdjacent);
+  const errors: string[] = [];
+  for (const row of sessions) {
+    if (!row || typeof row !== "object") continue;
+    const session = row as Record<string, unknown>;
+    const day = typeof session.day === "string" ? session.day : null;
+    if (!day || !days.has(day)) continue;
+    const zone = session.zone2 && typeof session.zone2 === "object" ? (session.zone2 as Record<string, unknown>) : null;
+    if (!zone) continue;
+    if (zone.modality === banned) {
+      errors.push(`${day} zone2 modality ${banned} is banned on a lower-adjacent day`);
+    }
+    const alternate = zone.alternate && typeof zone.alternate === "object" ? (zone.alternate as Record<string, unknown>) : null;
+    const movements = Array.isArray(alternate?.movements) ? alternate.movements : [];
+    for (const movement of movements) {
+      const key =
+        typeof movement === "string"
+          ? movement
+          : movement && typeof movement === "object"
+            ? ((movement as Record<string, unknown>).key ?? (movement as Record<string, unknown>).movement)
+            : null;
+      if (key === banned) errors.push(`${day} short metcon ${banned} is banned on a lower-adjacent day`);
+    }
+  }
+  return errors;
 }
 
 export function previousZone2Modality(plans: readonly WeeklyIntentPlan[] | null | undefined): string | null {

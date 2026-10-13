@@ -270,6 +270,11 @@ export const GOAL_TABLE_RULES = {
     effort: ["conversational"],
     hr: ["60-70", "unspecified"],
     modalities: ["row_erg", "bike_erg", "assault_bike", "run", "ski_erg"],
+    /**
+     * heavy 하체 다음 날과 하체 날의 존 2 A·B에서 뺀다.
+     * 순환으로 목록이 비어도 이 키는 다시 넣지 않는다.
+     */
+    bannedOnLowerAdjacent: "run",
     /** day의 주간 intensity_profile. 1–2만 허용하고 light로 둔다. */
     dayIntensity: ["light"],
     countsTowardHighIntensity: false,

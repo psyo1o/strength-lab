@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | `programming_shadow_logs` 생성 | `SHADOW_GENERATOR`가 `1`이고 `syncClassWeek`가 돌 때 | `CREATE TABLE IF NOT EXISTS`. 컬럼은 `week_start`, `adopted`, `fallback`, `skeleton_drift`, `retries`, `published`, `created_at` |
 
-기존 테이블의 `ALTER`는 없다. 존 2 A·B와 `performed_option`, `completion_status`, `actual_duration_min`, `actual_rpe`는 `programming_weeks`의 기존 JSON(`intent_json`, `plan_json`, `display_json`) 안에 있다. 컬럼을 더하지 않는다.
+기존 테이블의 `ALTER`는 없다. 존 2 A·B와 `performed_option`, `completion_status`, `actual_duration_min`, `actual_rpe`는 `programming_weeks`의 기존 JSON(`intent_json`, `plan_json`, `display_json`) 안에 있다. 컬럼을 더하지 않는다. heavy 하체 다음 날과 하체 날의 존 2에서 `run`을 빼는 것도 그 JSON 안의 enum 제한이다. 스키마 마이그레이션은 없다.
 
 되돌리기. 플래그를 끄면 그 테이블은 더 쓰지 않는다. 테이블까지 지우려면 백업 뒤에 `DROP TABLE IF EXISTS programming_shadow_logs`다. JSON 안의 존 2 필드는 이전 이미지가 읽지 않는다. 행을 고치지 않아도 된다. DB 전체를 배포 전 백업으로 되돌리면 그 테이블과 JSON이 함께 돌아간다.
 

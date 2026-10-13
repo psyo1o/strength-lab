@@ -657,6 +657,7 @@ async function writeSession(input: {
       blockPhase: input.plan.block_phase,
       weekIndex: input.week.weekIndex,
       recentPlans: input.week.recentPlans,
+      dropRun: (input.week.weekSkeleton?.zone2?.lowerAdjacent ?? []).includes(input.day.day),
     });
     if (frame && area === "conditioning" && zone2Spec) frame.zone2Slot = zone2Spec;
     if (frame) frames.set(area, frame);

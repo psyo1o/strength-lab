@@ -53,7 +53,7 @@ export type SessionFrame = {
   slots: FrameSlot[];
   piece: SessionPiece | null;
   /** 존 2 날이면 같은 응답의 한 칸에 A와 B를 둔다. */
-  zone2Slot?: { deload: boolean; previousModality?: string | null } | null;
+  zone2Slot?: { deload: boolean; previousModality?: string | null; dropRun?: boolean } | null;
 };
 
 const NON_LONG = { min: 8, max: 20 } as const;
@@ -274,13 +274,15 @@ function enumStrings(values: readonly (string | number)[]): { type: "string"; en
 }
 
 /** 존 2 날의 한 칸. primary가 A이고 alternate가 짧은 메트콘 B다. */
-export function zone2SlotSchema(spec: { deload: boolean; previousModality?: string | null }): Record<string, unknown> {
+export function zone2SlotSchema(spec: { deload: boolean; previousModality?: string | null; dropRun?: boolean }): Record<string, unknown> {
   const short = GOAL_TABLE_RULES.zone2.shortMetcon;
-  const ergo = movementBranches(short.ergo, "ergo");
+  const banned = GOAL_TABLE_RULES.zone2.bannedOnLowerAdjacent;
+  const ergoKeys = spec.dropRun ? short.ergo.filter((key) => key !== (banned as string)) : short.ergo;
+  const ergo = movementBranches(ergoKeys, "ergo");
   const body = movementBranches(short.bodyweight, "bodyweight");
   const primary = strictObject(
     {
-      modality: enumStrings(zone2Modalities(spec.previousModality)),
+      modality: enumStrings(zone2Modalities(spec.previousModality, { dropRun: spec.dropRun })),
       duration: enumStrings(zone2Durations("day", spec.deload)),
       effort: enumStrings(zone2Effort(spec.deload)),
       hr: enumStrings(GOAL_TABLE_RULES.zone2.hr),
@@ -301,7 +303,7 @@ export function zone2SlotSchema(spec: { deload: boolean; previousModality?: stri
   return strictObject({ primary, alternate }, ["primary", "alternate"]);
 }
 
-export function alternateOnlyFormat(spec: { deload: boolean; previousModality?: string | null }): ResponseFormat {
+export function alternateOnlyFormat(spec: { deload: boolean; previousModality?: string | null; dropRun?: boolean }): ResponseFormat {
   const slot = zone2SlotSchema(spec);
   const properties = (slot.properties ?? {}) as Record<string, unknown>;
   return {
@@ -387,7 +389,7 @@ function movementDraft(key: string, quantity: string) {
 
 function readZone2Slot(
   body: Record<string, unknown>,
-  spec: { deload: boolean; previousModality?: string | null },
+  spec: { deload: boolean; previousModality?: string | null; dropRun?: boolean },
 ): { ok: true; option: Record<string, unknown> } | { ok: false; errors: string[]; badSlots: string[] } {
   const slot = asRecord(body.zone2_slot);
   const primary = asRecord(slot?.primary);
@@ -398,6 +400,7 @@ function readZone2Slot(
   const primaryErrors = zone2PrimaryErrors({
     deload: spec.deload,
     previousModality: spec.previousModality,
+    dropRun: spec.dropRun,
     modality: typeof primary?.modality === "string" ? primary.modality : undefined,
     duration: duration(primary?.duration) ?? undefined,
     effort: typeof primary?.effort === "string" ? primary.effort : undefined,
@@ -414,6 +417,7 @@ function readZone2Slot(
   const intensity = duration(alternate?.intensity);
   const alternateErrors = shortMetconErrors({
     deload: spec.deload,
+    dropRun: spec.dropRun,
     format: typeof alternate?.format === "string" ? alternate.format : undefined,
     duration: duration(alternate?.duration) ?? undefined,
     rpe: typeof alternate?.rpe === "string" ? alternate.rpe : undefined,

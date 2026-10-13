@@ -1,3 +1,4 @@
+import { lowerAdjacentRunErrors } from "./coaching/zone2";
 import { lockedSkeletonDrift, validateSkeletonConformance, type MonthlyDirection, type WeekSkeleton } from "./direction";
 import { judgeWeek, type JudgeFailure, type WeekCheckContext } from "./rules";
 import type { MonthDirection, StoredStructure, WeekDraft, WeekIndex } from "./types";
@@ -114,11 +115,37 @@ function skeletonIssues(month: MonthDirection, context: EvaluateWeekContext): Va
   return issues;
 }
 
+function lowerAdjacentIssues(raw: unknown, context: EvaluateWeekContext): ValidationIssue[] {
+  return lowerAdjacentRunErrors(raw, context.weekSkeleton?.zone2?.lowerAdjacent).map((message) => {
+    const day = dayOf(message);
+    if (day) {
+      return makeIssue({
+        code: "week.structure",
+        severity: "hard_error",
+        scope: "day",
+        day,
+        message,
+        expected: "zone2 without the lower-adjacent banned modality",
+        actual: message,
+      });
+    }
+    return makeIssue({
+      code: "week.structure",
+      severity: "hard_error",
+      scope: "week",
+      message,
+      expected: "zone2 without the lower-adjacent banned modality",
+      actual: message,
+    });
+  });
+}
+
 /**
  * 주간 판정의 유일한 입구다. judgeWeek는 이 함수만 부른다.
  * too_similar와 language는 ADJUST다. 그 외 실패는 BLOCK이다. 둘 다 PASS가 아니다.
  * language는 하드 이슈로 남아 채택을 막는다. too_similar는 경고 이슈다.
  * monthlyDirection과 weekSkeleton이 있으면 정합과 잠금 해시를 더 본다. 어긋나면 BLOCK이다.
+ * 하체 인접 날의 존 2 A 모달과 B 동작 키가 GOAL_TABLE_RULES.zone2.bannedOnLowerAdjacent이면 BLOCK이다.
  */
 export function evaluateWeek(
   raw: unknown,
@@ -128,7 +155,7 @@ export function evaluateWeek(
   context: EvaluateWeekContext = {},
 ): WeekVerdict {
   const judged = judgeWeek(raw, month, weekIndex, recent, context);
-  const extra = skeletonIssues(month, context);
+  const extra = [...skeletonIssues(month, context), ...lowerAdjacentIssues(raw, context)];
   if (judged.ok && extra.length === 0) {
     return {
       status: "PASS",

@@ -34,6 +34,7 @@ export function shortMetconDurations(deload: boolean): readonly number[] {
 
 export function shortMetconErrors(input: {
   deload: boolean;
+  dropRun?: boolean;
   format?: string;
   duration?: number;
   rpe?: string;
@@ -42,6 +43,10 @@ export function shortMetconErrors(input: {
   bodyweight?: string;
 }): string[] {
   const errors: string[] = [];
+  const banned = GOAL_TABLE_RULES.zone2.bannedOnLowerAdjacent;
+  if (input.dropRun && input.ergo === banned) {
+    errors.push(`short metcon ergo ${banned} is banned on a lower-adjacent day`);
+  }
   const formats = SHORT.formats;
   if (!input.format || !(formats as readonly string[]).includes(input.format)) {
     errors.push(`short metcon format must be ${formats.join("|")}`);
@@ -60,7 +65,7 @@ export function shortMetconErrors(input: {
   } else if (intensityIsHigh(input.intensity)) {
     errors.push(`short metcon intensity ${input.intensity} is high`);
   }
-  const ergo = SHORT.ergo;
+  const ergo = input.dropRun ? SHORT.ergo.filter((key) => key !== (banned as string)) : SHORT.ergo;
   if (!input.ergo || !(ergo as readonly string[]).includes(input.ergo)) {
     errors.push(`short metcon ergo must be ${ergo.join("|")}`);
   }
@@ -74,13 +79,14 @@ export function shortMetconErrors(input: {
 export function zone2PrimaryErrors(input: {
   deload: boolean;
   previousModality?: string | null;
+  dropRun?: boolean;
   modality?: string;
   duration?: number;
   effort?: string;
   hr?: string;
 }): string[] {
   const errors: string[] = [];
-  const modalities = zone2Modalities(input.previousModality);
+  const modalities = zone2Modalities(input.previousModality, { dropRun: input.dropRun });
   if (!input.modality || !modalities.includes(input.modality)) {
     errors.push(`zone2 modality must be one of ${modalities.join("|")}`);
   }

@@ -188,5 +188,23 @@
     "picks": ["row_erg", "bike_erg", "row_erg", "bike_erg"],
     "tests": {"files": 80, "passed": 508, "tsc": "pass", "build": "pass", "live": false},
     "main_conflicts": []
+  },
+  "zone2_lower_adjacent_drops_run": {
+    "live_model": false,
+    "model_calls": 0,
+    "corrects": "zone2_modality_rotation.heavy_lower_next_keeps_run",
+    "weeks": 4,
+    "host": "tue",
+    "drop_run_before_rotation": true,
+    "never_restore_run": true,
+    "b_rejects_run": true,
+    "evaluate_week_blocks_run": true,
+    "picks": {
+      "run": ["row_erg", "bike_erg", "row_erg", "bike_erg"],
+      "row_erg": ["bike_erg", "row_erg", "bike_erg", "row_erg"],
+      "bike_erg": ["row_erg", "bike_erg", "row_erg", "bike_erg"]
+    },
+    "tests": {"files": 80, "passed": 510, "tsc": "pass", "build": "pass", "live": false},
+    "screen_smoke": "not_run"
   }
 }

@@ -592,6 +592,7 @@ async function runOne(
       const metconErrors = alternate
         ? shortMetconErrors({
             deload: skeleton?.zone2?.deload === true,
+            dropRun: host ? (skeleton?.zone2?.lowerAdjacent ?? []).includes(host.day) : false,
             format: alternate.format,
             duration: alternate.duration_min,
             rpe: alternate.rpe,

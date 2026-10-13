@@ -155,3 +155,21 @@
 실제 모델 호출은 0이다. mock 연속 4주(2099-04-06부터 7일 간격)에서 화요일은 heavy 하체 다음 날이다. 그 날 A enum은 직전 주 모달을 빼고 `run`은 남긴다. 고른 값은 `row_erg`, `bike_erg`, `row_erg`, `bike_erg`다. 직전 주가 `run`이면 회전 때문에 `run`만 빠지고 나머지는 남는다. 목록이 그 모달 하나뿐이면 그 값을 남겨 enum이 비지 않는다. 빈 카탈로그 인자는 표의 다섯 모달로 되돌린다. 주간 경계와 컨디셔닝 A enum은 같다.
 
 테스트 80파일 508개 통과. tsc --noEmit 통과. `npm run build` 통과. 이 수는 모킹이다. 모델 호출은 0이다. main과 머지 충돌 파일은 없다.
+
+## 하체 인접 날의 run 제거
+
+위 순환 절의 “heavy 하체 다음 날의 `run`은 남긴다”는 잘못이었다. 실제 모델 호출은 0이다. mock만 다시 돌렸다.
+
+heavy 하체 다음 날과 하체 날의 A enum은 `run`을 먼저 뺀다. 직전 주 모달 순환은 그 다음이다. 목록이 비면 직전 주 모달을 다시 허용하고, 그 모달이 `run`이면 넣지 않는다. 같은 날의 B 에르고도 `run`을 거절한다. `evaluateWeek`는 그 날 세션의 A 모달과 B 동작 키가 `run`이면 BLOCK한다.
+
+2099-04-06 화요일(월요일 heavy hinge 다음) 연속 4주. 직전 주 모달별 고른 값:
+
+| 직전 주 | 4주 |
+| --- | --- |
+| `run` | `row_erg`, `bike_erg`, `row_erg`, `bike_erg` |
+| `row_erg` | `bike_erg`, `row_erg`, `bike_erg`, `row_erg` |
+| `bike_erg` | `row_erg`, `bike_erg`, `row_erg`, `bike_erg` |
+
+세 경우 모두 A enum에 `run`이 없다. 직전 주가 `run`이어도 `run`은 돌아오지 않는다. 카탈로그가 `run`만 남고 직전 주가 `row_erg`면 `row_erg`를 다시 허용한다. 직전 주가 `run`이면 빈 목록이다.
+
+테스트 80파일 510개 통과. tsc --noEmit 통과. `npm run build` 통과. 이 수는 모킹이다. 모델 호출은 0이다. 화면 스모크는 하지 않았다.

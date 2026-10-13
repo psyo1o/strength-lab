@@ -168,7 +168,7 @@ function withZone2(bound: DayBound, zone2: Zone2Annotation, previousModality: st
   const designated = zone2.form === "none" ? null : (zone2.allowedDays[0] ?? null);
   const host = designated === bound.day;
   const dayHost = zone2.form === "day" && host;
-  const modalities = host ? zone2Modalities(previousModality) : [];
+  const modalities = host ? zone2Modalities(previousModality, { dropRun: zone2.lowerAdjacent.includes(bound.day) }) : [];
   const durations = host ? zone2Durations(zone2.form, zone2.deload) : [];
   const effort = host ? zone2Effort(zone2.deload) : [];
   return {
