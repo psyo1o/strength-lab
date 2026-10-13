@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardMemberRequest } from "@/lib/member-gate";
 import { getCurrentUser } from "@/lib/auth";
 import { applyJuggernautRealizationIfNeeded } from "@/lib/programs/juggernaut-hook";
 import { SetNotFoundError, toggleSetLog } from "@/lib/programs/queries";
@@ -6,6 +7,8 @@ import { SetNotFoundError, toggleSetLog } from "@/lib/programs/queries";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));

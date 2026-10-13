@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { guardMemberRequest } from "@/lib/member-gate";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,8 @@ const TYPES: Record<string, string> = {
 };
 
 export async function GET(_req: Request, ctx: { params: Promise<{ file: string }> }) {
+  const blocked = await guardMemberRequest(_req);
+  if (blocked) return blocked;
   const { file } = await ctx.params;
   const safe = path.basename(file);
   if (!safe || safe !== file || safe.includes("..")) {

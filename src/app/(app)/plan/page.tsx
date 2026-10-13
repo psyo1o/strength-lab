@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { PlanDayList } from "@/components/PlanDayList";
@@ -12,6 +13,7 @@ export const maxDuration = 300;
 export default async function PlanPage() {
   const user = await getCurrentUser();
   if (!user) return null;
+  if (user.status !== "active") redirect("/pending");
   const plan = await sharedWeekForUser(user.id);
   const today = await sharedToday(user.id);
 

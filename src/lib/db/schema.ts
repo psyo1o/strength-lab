@@ -12,6 +12,11 @@ export const users = sqliteTable("users", {
   lastSession: text("last_session"),
   sex: text("sex"),
   isAdmin: integer("is_admin").notNull().default(0),
+  displayName: text("display_name"),
+  birthDate: text("birth_date"),
+  role: text("role").notNull().default("member"),
+  status: text("status").notNull().default("active"),
+  rejectionReason: text("rejection_reason"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 

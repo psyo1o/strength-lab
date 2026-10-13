@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { FIRST_ADMIN_EMAIL } from "../first-admin";
+import { firstAdminEmail } from "../first-admin";
 import * as schema from "./schema";
 import { seedIfEmpty } from "./seed";
 
@@ -13,11 +13,11 @@ export function databasePath(): string {
   return process.env.DATABASE_PATH || path.join(process.cwd(), "data", "app.db");
 }
 
-/** Grants the first admin only when nobody is an admin. Does not delete rows. */
+/** Grants the first admin only when nobody is an admin. Does not delete rows. Existing rows stay active. */
 function promoteFirstAdminIfNone(raw: Database.Database) {
   const count = raw.prepare("SELECT COUNT(*) AS c FROM users WHERE is_admin = 1").get() as { c: number };
   if (count.c > 0) return;
-  raw.prepare("UPDATE users SET is_admin = 1 WHERE lower(email) = ?").run(FIRST_ADMIN_EMAIL);
+  raw.prepare("UPDATE users SET is_admin = 1, role = 'admin', status = 'active' WHERE lower(email) = ?").run(firstAdminEmail());
 }
 
 function applySchema(raw: Database.Database) {
@@ -105,6 +105,12 @@ function applySchema(raw: Database.Database) {
   if (!names.has("last_session")) raw.exec("ALTER TABLE users ADD COLUMN last_session TEXT");
   if (!names.has("sex")) raw.exec("ALTER TABLE users ADD COLUMN sex TEXT");
   if (!names.has("is_admin")) raw.exec("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0");
+  if (!names.has("display_name")) raw.exec("ALTER TABLE users ADD COLUMN display_name TEXT");
+  if (!names.has("birth_date")) raw.exec("ALTER TABLE users ADD COLUMN birth_date TEXT");
+  if (!names.has("role")) raw.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member'");
+  if (!names.has("status")) raw.exec("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+  if (!names.has("rejection_reason")) raw.exec("ALTER TABLE users ADD COLUMN rejection_reason TEXT");
+  raw.exec("UPDATE users SET role = 'admin' WHERE is_admin = 1 AND role != 'admin'");
   promoteFirstAdminIfNone(raw);
   const maxCols = raw.prepare("PRAGMA table_info(user_maxes)").all() as { name: string }[];
   if (!maxCols.some((c) => c.name === "start_kg")) {
@@ -346,7 +352,68 @@ function applySchema(raw: Database.Database) {
       status TEXT NOT NULL DEFAULT 'proposed',
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at INTEGER NOT NULL,
+      actor_id INTEGER,
+      action TEXT NOT NULL,
+      target_user_id INTEGER,
+      week_start TEXT,
+      detail_json TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS audit_log_created ON audit_log (created_at);
+    CREATE TABLE IF NOT EXISTS week_catalog_pins (
+      week_id INTEGER PRIMARY KEY REFERENCES programming_weeks(id) ON DELETE CASCADE,
+      catalog_version TEXT NOT NULL,
+      pinned_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS wod_editions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      week_start TEXT NOT NULL,
+      programming_week_id INTEGER NOT NULL REFERENCES programming_weeks(id),
+      version INTEGER NOT NULL,
+      parent_version INTEGER,
+      kind TEXT NOT NULL,
+      editor_id INTEGER,
+      edited_at INTEGER NOT NULL,
+      reason_ko TEXT NOT NULL DEFAULT '',
+      catalog_version TEXT NOT NULL,
+      draft_json TEXT NOT NULL,
+      display_json TEXT NOT NULL,
+      cells_json TEXT NOT NULL,
+      changes_json TEXT NOT NULL,
+      validation_json TEXT NOT NULL,
+      UNIQUE(week_start, version)
+    );
+    CREATE TABLE IF NOT EXISTS generation_charges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      week_start TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS generation_charges_user_at ON generation_charges (user_id, created_at);
   `);
+  backfillCatalogPins(raw);
+}
+
+function catalogVersionOnDisk(): string {
+  try {
+    const file = path.join(process.cwd(), "data", "movement-catalog.json");
+    const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as { version?: string };
+    return typeof parsed.version === "string" && parsed.version ? parsed.version : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/** 이 컬럼이 생기기 전에 만든 주는, 그때 버전이 없으므로 마이그레이션 시점의 카탈로그 버전으로 고정한다. */
+function backfillCatalogPins(raw: Database.Database) {
+  const version = catalogVersionOnDisk();
+  raw.prepare(
+    `INSERT INTO week_catalog_pins (week_id, catalog_version, pinned_at)
+     SELECT id, ?, created_at FROM programming_weeks
+     WHERE id NOT IN (SELECT week_id FROM week_catalog_pins)`,
+  ).run(version);
 }
 
 function tableColumns(raw: Database.Database, table: string): Set<string> {

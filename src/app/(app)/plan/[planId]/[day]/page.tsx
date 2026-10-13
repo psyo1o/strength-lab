@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { PlanDayView } from "@/components/PlanDayView";
 import { comparesForDay, loadHistoryContext } from "@/lib/month-plan/history";
@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 export default async function PlanDayPage({ params }: { params: Promise<{ planId: string; day: string }> }) {
   const user = await getCurrentUser();
   if (!user) return null;
+  if (user.status !== "active") redirect("/pending");
   const { planId, day: dayKey } = await params;
   if (!isDayKey(dayKey)) notFound();
   const plan = getPlan(user.id, Number(planId));

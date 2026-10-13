@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardMemberRequest } from "@/lib/member-gate";
 import { getCurrentUser } from "@/lib/auth";
 import { getClassPlanByStart, replaceClassWeek } from "@/lib/month-plan/class-week";
 import { swapConditioningMovements } from "@/lib/month-plan/metcon-edit";
@@ -8,9 +9,11 @@ import { isDayKey } from "@/lib/month-plan/types";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요해요." }, { status: 401 });
-  if (!user.isAdmin) return NextResponse.json({ error: "관리자만 바꿀 수 있어요." }, { status: 403 });
+  if (!user.isAdmin || user.status !== "active") return NextResponse.json({ error: "관리자만 바꿀 수 있어요." }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   const planId = Number(body?.planId);

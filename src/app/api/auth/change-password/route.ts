@@ -6,10 +6,13 @@ import {
   SESSION_COOKIE,
 } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { guardMemberRequest } from "@/lib/member-gate";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요해요" }, { status: 401 });
   const body = await req.json().catch(() => ({}));

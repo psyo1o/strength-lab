@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { guardMemberRequest } from "@/lib/member-gate";
 import { asAthleteSex, getCurrentUser, updateUserPrefs } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 export async function PATCH(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));

@@ -1,7 +1,8 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { getSqlite } from "./db/client";
-import { FIRST_ADMIN_EMAIL } from "./first-admin";
+import { firstAdminEmail } from "./first-admin";
+import { asMemberStatus, validateBirthDate, validateDisplayName, type MemberRole, type MemberStatus } from "./member-profile";
 
 const SESSION_COOKIE = "sl_session";
 const SESSION_DAYS = 30;
@@ -16,6 +17,11 @@ export type SessionUser = {
   lastSession: string | null;
   sex: AthleteSex;
   isAdmin: boolean;
+  name: string | null;
+  birthDate: string | null;
+  status: MemberStatus;
+  role: MemberRole;
+  rejectionReason: string | null;
 };
 
 type UserRow = {
@@ -26,9 +32,15 @@ type UserRow = {
   last_session: string | null;
   sex: string | null;
   is_admin: number;
+  display_name: string | null;
+  birth_date: string | null;
+  status: string;
+  role: string;
+  rejection_reason: string | null;
 };
 
 function sessionFromRow(row: UserRow): SessionUser {
+  const isAdmin = row.is_admin === 1 || row.role === "admin";
   return {
     id: row.id,
     email: row.email,
@@ -36,11 +48,17 @@ function sessionFromRow(row: UserRow): SessionUser {
     currentProgram: row.current_program,
     lastSession: row.last_session,
     sex: asAthleteSex(row.sex),
-    isAdmin: row.is_admin === 1,
+    isAdmin,
+    name: row.display_name,
+    birthDate: row.birth_date,
+    status: asMemberStatus(row.status),
+    role: isAdmin ? "admin" : "member",
+    rejectionReason: row.rejection_reason,
   };
 }
 
-const USER_FIELDS = "u.id, u.email, u.unit, u.current_program, u.last_session, u.sex, u.is_admin";
+const USER_FIELDS =
+  "u.id, u.email, u.unit, u.current_program, u.last_session, u.sex, u.is_admin, u.display_name, u.birth_date, u.status, u.role, u.rejection_reason";
 
 export function asAthleteSex(value: unknown): AthleteSex {
   return value === "m" || value === "f" ? value : null;
@@ -130,10 +148,13 @@ export function passwordsMatch(password: string, confirm: string): boolean {
   return password === confirm;
 }
 
+export type SignupProfile = { name: string; birthDate: string };
+
 export function registerUser(
   email: string,
   password: string,
   passwordConfirm?: string,
+  profile?: SignupProfile,
 ): { user: SessionUser } | { error: string } {
   const normalized = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
@@ -145,32 +166,48 @@ export function registerUser(
   if (passwordConfirm !== undefined && !passwordsMatch(password, passwordConfirm)) {
     return { error: "비밀번호가 달라요" };
   }
+  let name: string | null = null;
+  let birthDate: string | null = null;
+  if (profile) {
+    const named = validateDisplayName(profile.name);
+    if ("error" in named) return named;
+    const born = validateBirthDate(profile.birthDate);
+    if ("error" in born) return born;
+    name = named.name;
+    birthDate = born.birthDate;
+  }
   const existing = getSqlite()
     .prepare("SELECT id FROM users WHERE email = ?")
     .get(normalized);
   if (existing) return { error: "이미 등록된 이메일입니다." };
   const info = getSqlite()
-    .prepare("INSERT INTO users (email, password_hash, unit, created_at) VALUES (?, ?, 'kg', ?)")
-    .run(normalized, hashPassword(password), Date.now());
+    .prepare(
+      `INSERT INTO users (email, password_hash, unit, created_at, display_name, birth_date, status, role)
+       VALUES (?, ?, 'kg', ?, ?, ?, ?, 'member')`,
+    )
+    .run(normalized, hashPassword(password), Date.now(), name, birthDate, profile ? "pending" : "active");
   const userId = Number(info.lastInsertRowid);
-  const isAdmin = grantFirstAdminIfNone(normalized, userId);
-  const user: SessionUser = {
-    id: userId,
-    email: normalized,
-    unit: "kg",
-    currentProgram: null,
-    lastSession: null,
-    sex: null,
-    isAdmin,
-  };
+  grantFirstAdminIfNone(normalized, userId);
+  const user = userById(userId);
+  if (!user) return { error: "가입을 마치지 못했어요." };
   return { user };
 }
 
+function userById(userId: number): SessionUser | null {
+  const row = getSqlite()
+    .prepare(
+      `SELECT id, email, unit, current_program, last_session, sex, is_admin, display_name, birth_date, status, role, rejection_reason
+       FROM users WHERE id = ?`,
+    )
+    .get(userId) as UserRow | undefined;
+  return row ? sessionFromRow(row) : null;
+}
+
 function grantFirstAdminIfNone(email: string, userId: number): boolean {
-  if (email !== FIRST_ADMIN_EMAIL) return false;
+  if (email !== firstAdminEmail()) return false;
   const count = getSqlite().prepare("SELECT COUNT(*) AS c FROM users WHERE is_admin = 1").get() as { c: number };
   if (count.c > 0) return false;
-  getSqlite().prepare("UPDATE users SET is_admin = 1 WHERE id = ?").run(userId);
+  getSqlite().prepare("UPDATE users SET is_admin = 1, role = 'admin', status = 'active' WHERE id = ?").run(userId);
   return true;
 }
 
@@ -178,11 +215,15 @@ export function loginUser(email: string, password: string): { user: SessionUser 
   const normalized = email.trim().toLowerCase();
   const row = getSqlite()
     .prepare(
-      `SELECT id, email, password_hash, unit, current_program, last_session, sex, is_admin FROM users WHERE email = ?`,
+      `SELECT id, email, password_hash, unit, current_program, last_session, sex, is_admin, display_name, birth_date, status, role, rejection_reason
+       FROM users WHERE email = ?`,
     )
     .get(normalized) as (UserRow & { password_hash: string }) | undefined;
   if (!row || !verifyPassword(password, row.password_hash)) {
     return { error: "이메일 또는 비밀번호를 확인해 주세요" };
+  }
+  if (asMemberStatus(row.status) === "withdrawn") {
+    return { error: "탈퇴한 계정이에요." };
   }
   return { user: sessionFromRow(row) };
 }

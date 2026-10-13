@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { allowThrottle, resetPassword } from "@/lib/auth";
+import { guardMemberRequest } from "@/lib/member-gate";
 import { requestIp } from "@/lib/request-ip";
 
 export const runtime = "nodejs";
@@ -7,6 +8,8 @@ export const runtime = "nodejs";
 const HOUR = 60 * 60 * 1000;
 
 export async function POST(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const ip = requestIp(req);
   if (!allowThrottle(`reset-ip:${ip}`, 20, HOUR)) {
     return NextResponse.json({ error: "조금 뒤에 다시 시도해 주세요" }, { status: 429 });

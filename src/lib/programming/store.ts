@@ -1,4 +1,5 @@
 import { getSqlite } from "../db/client";
+import { movementCatalogVersion } from "./coaching/movement-catalog";
 import { completeEvaluation } from "./evaluate";
 import { completeMonthDirection } from "./month-direction";
 import { addDays } from "./types";
@@ -635,6 +636,9 @@ function insertWeekRow(
     fallbackReason: input.fallbackReason,
     logContext: input.logContext,
   });
+  raw.prepare(
+    `INSERT OR IGNORE INTO week_catalog_pins (week_id, catalog_version, pinned_at) VALUES (?, ?, ?)`,
+  ).run(weekId, movementCatalogVersion(), input.generatedAt);
   return weekId;
 }
 
