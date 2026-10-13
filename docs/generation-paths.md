@@ -17,6 +17,8 @@
 
 화면 `src/app/api/month-plan/route.ts`의 GET과 POST는 `ensureClassWeek()`를 호출한다. `ensureClassWeekForStart`는 그 주 `class_weeks` 행이 있으면 반환한다. 없을 때만 `ensureProgrammingWeek(weekStart, { nowMs })`를 호출한다. 이 호출은 `key`를 넘기지 않는다.
 
+날짜 보기는 생성 입구가 아니다. `/plan?date=YYYY-MM-DD`는 `readWeekBrowse`(`src/lib/month-plan/plan-browse.ts`)만 읽고 `ensureProgrammingWeek`를 부르지 않는다. `/plan/w/[weekStart]/[day]`는 `readClassDayBrowse`만 읽는다. 쿼리가 없는 `/plan`, 대시보드의 `sharedToday`, 위 API는 이번 수업 주 `classWeekToTrain(now)`만 `ensureClassWeekForMember`로 연다. 그 주 `class_weeks`가 없을 때만 `ensureProgrammingWeek`가 돈다. 이 이번 주 입구는 남긴다. 그 함수는 주소의 날짜가 아니라 이번 수업 주만 만들고, 행이 있으면 반환한다. 회원 오늘 카드와 월간 계획 API가 그 입구다. 다른 주 주소를 열 때 만들던 `/plan/w` 경로는 막았다.
+
 `ensureProgrammingWeek`는 활성 `programming_weeks`가 있으면 반환한다. 없으면 `writeProgrammingWeek`가 `ensureProgrammingMonth`를 먼저 호출한다. `regenerateProgrammingWeek`는 기존 행이 있어도 다시 쓴다. plan-lab과 admin은 `key` 문자열을 넘긴다.
 
 `writeProgrammingWeek`가 주 생성의 단일 진입점이다. 화면, admin, plan-lab 모두 여기로 모인다. 그 함수는 매주 `runCoachingOrchestrator`를 한 번 호출한다.
