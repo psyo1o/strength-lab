@@ -2,13 +2,14 @@ import { DAY_ORDER, type DayKey, type WeekIndex } from "../../month-plan/types";
 import type { WeekSkeleton, Zone2Annotation } from "../direction/contract";
 import { strengthIsHeavy } from "../schemes";
 import { exampleSets } from "../strength-methods";
-import { COACHING_STIMULI, PRIMARY_TRAININGS, SECONDARY_TRAININGS } from "../types";
+import { COACHING_STIMULI, PRIMARY_TRAININGS, SECONDARY_TRAININGS, type WeekGoal } from "../types";
 import { zone2Durations, zone2Effort, zone2Modalities } from "./zone2";
 import {
   BLOCK_PHASES,
   DURATION_PROFILES,
   EMPHASIS,
   FATIGUE_TARGETS,
+  INTENSITY_BANDS,
   INTENSITY_PROFILES,
   MOVEMENT_PATTERNS,
   RECOVERY_ROLES,
@@ -39,6 +40,12 @@ export type DayBound = {
   zone2_duration?: readonly string[];
   zone2_effort?: readonly string[];
   zone2_hr?: readonly string[];
+  /** 월간 목표 표가 있으면 그 날의 휴식·long·movement_pattern만 남긴다. */
+  primary_training?: readonly string[];
+  secondary_training?: readonly string[];
+  stimulus?: readonly string[];
+  movement_pattern?: readonly string[];
+  recovery_role?: readonly string[];
 };
 
 export type DayBoundOptions = {
@@ -239,7 +246,7 @@ export function lowerLiftCapSum(bounds: readonly DayBound[]): number {
 export function weekBoundsNote(bounds: readonly DayBound[]): string {
   const lines = bounds.map(
     (day) =>
-      `${day.day} heavy=${day.heavy} intensity_band=${day.intensity_band} intensity_profile=${day.intensity_profile.join("|")} strength_lift=${day.strength_lift.join("|")} combinations=${day.combinations.join("|")} lower_lift_cap=${day.lower_lift_cap}${day.zone2 ? ` zone2=${day.zone2.join("|")} zone2_modality=${day.zone2_modality?.join("|") ?? ""} zone2_duration=${day.zone2_duration?.join("|") ?? ""} zone2_effort=${day.zone2_effort?.join("|") ?? ""} zone2_hr=${day.zone2_hr?.join("|") ?? ""}` : ""}`,
+      `${day.day} heavy=${day.heavy} intensity_band=${day.intensity_band} intensity_profile=${day.intensity_profile.join("|")} strength_lift=${day.strength_lift.join("|")} combinations=${day.combinations.join("|")} lower_lift_cap=${day.lower_lift_cap}${day.primary_training ? ` primary_training=${day.primary_training.join("|")}` : ""}${day.secondary_training ? ` secondary_training=${day.secondary_training.join("|")}` : ""}${day.stimulus ? ` stimulus=${day.stimulus.join("|")}` : ""}${day.movement_pattern ? ` movement_pattern=${day.movement_pattern.join("|")}` : ""}${day.recovery_role ? ` recovery_role=${day.recovery_role.join("|")}` : ""}${day.zone2 ? ` zone2=${day.zone2.join("|")} zone2_modality=${day.zone2_modality?.join("|") ?? ""} zone2_duration=${day.zone2_duration?.join("|") ?? ""} zone2_effort=${day.zone2_effort?.join("|") ?? ""} zone2_hr=${day.zone2_hr?.join("|") ?? ""}` : ""}`,
   );
   return [
     "Per-day enums are closed. Do not use a value outside that day.",
@@ -270,17 +277,17 @@ function daySchema(bound: DayBound): Record<string, unknown> {
   return objectSchema(
     {
       day: enumOf([bound.day]),
-      primary_training: enumOf(PRIMARY_TRAININGS),
-      secondary_training: enumOf(SECONDARY_TRAININGS),
+      primary_training: enumOf(bound.primary_training ?? PRIMARY_TRAININGS),
+      secondary_training: enumOf(bound.secondary_training ?? SECONDARY_TRAININGS),
       training_goal: { type: "string" },
-      stimulus: enumOf(COACHING_STIMULI),
+      stimulus: enumOf(bound.stimulus ?? COACHING_STIMULI),
       intensity_profile: enumOf(bound.intensity_profile),
       volume_profile: enumOf(VOLUME_BANDS),
       duration_profile: enumOf(DURATION_PROFILES),
       fatigue_target: enumOf(FATIGUE_TARGETS),
-      movement_pattern: enumOf(MOVEMENT_PATTERNS),
+      movement_pattern: enumOf(bound.movement_pattern ?? MOVEMENT_PATTERNS),
       progression_required: { type: "boolean" },
-      recovery_role: enumOf(RECOVERY_ROLES),
+      recovery_role: enumOf(bound.recovery_role ?? RECOVERY_ROLES),
       strength_lift: enumOf(bound.strength_lift),
       benchmark: { type: "boolean" },
       notes_ko: { type: "string" },
@@ -296,6 +303,55 @@ function daySchema(bound: DayBound): Record<string, unknown> {
     },
     bound.zone2 ? [...DAY_FIELDS, "zone2", "zone2_modality", "zone2_duration", "zone2_effort", "zone2_hr"] : [...DAY_FIELDS],
   );
+}
+
+/** 뼈대가 없어도 목표 표가 있으면 주간 응답 스키마를 연다. 강도·리프트는 닫지 않는다. */
+export function boundsFromWeekGoal(goal: WeekGoal): DayBound[] {
+  const open: DayBound[] = DAY_ORDER.map((day) => ({
+    day,
+    heavy: false,
+    intensity_band: "1-3",
+    intensity_profile: [...INTENSITY_BANDS],
+    strength_lift: [...STRENGTH_LIFTS],
+    combinations: [],
+    deadliftConditioning: true,
+    lower_lift_cap: 1,
+  }));
+  return applyWeekGoalBounds(open, goal);
+}
+
+/**
+ * 월간 목표 표의 휴식, long, movement_pattern만 그 날 enum에 남긴다.
+ * 표에 없는 long_conditioning과 long_mixed는 넣지 않는다. 코드가 모델 출력을 고치지 않는다.
+ */
+export function applyWeekGoalBounds(bounds: readonly DayBound[], goal: WeekGoal): DayBound[] {
+  const withoutLong = SECONDARY_TRAININGS.filter((value) => value !== "long_conditioning");
+  const withoutLongStimulus = COACHING_STIMULI.filter((value) => value !== "long_mixed");
+  const trainingPrimary = PRIMARY_TRAININGS.filter((value) => value !== "rest");
+  const trainingRecovery = RECOVERY_ROLES.filter((value) => value !== "rest");
+  return bounds.map((bound) => {
+    const day = goal.days.find((row) => row.day === bound.day);
+    if (!day) return { ...bound };
+    if (day.rest) {
+      return {
+        ...bound,
+        primary_training: ["rest"],
+        recovery_role: ["rest"],
+        secondary_training: withoutLong,
+        stimulus: withoutLongStimulus,
+      };
+    }
+    const pattern = day.target?.movement_pattern;
+    const long = day.time_domain === "long";
+    return {
+      ...bound,
+      primary_training: trainingPrimary,
+      recovery_role: trainingRecovery,
+      secondary_training: long ? ["long_conditioning"] : withoutLong,
+      stimulus: long ? [...COACHING_STIMULI] : withoutLongStimulus,
+      ...(pattern ? { movement_pattern: [pattern] } : {}),
+    };
+  });
 }
 
 /** 7일 배열. 각 요일 스키마의 intensity_profile·strength_lift enum이 다르다. OpenAI strict는 prefixItems를 거절하므로 anyOf다. */

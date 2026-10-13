@@ -189,7 +189,7 @@ describe("월간 후보 틀", () => {
 
 describe("헤드 note_ko", () => {
   it("스키마에서 수정 값보다 앞이고 10자 미만은 실패다", () => {
-    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v11");
+    expect(HEAD_COACH_PROMPT_VERSION).toBe("head-coach-v12");
     const schema = headReviewFormat(["air_squat"]) as { json_schema: { schema: { properties: Record<string, { minLength?: number }>; required: string[] } } };
     const keys = Object.keys(schema.json_schema.schema.properties);
     expect(keys[0]).toBe("note_ko");

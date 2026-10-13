@@ -248,7 +248,7 @@ describe("engine button paths", () => {
       },
     ]);
     expect(months()[0]).toMatchObject({ month_start: "2099-10-01", prompt_version: "monthly-program-v4", generation_source: "fallback" });
-    expect(logVersions()).toEqual(expect.arrayContaining(["monthly-coach-v11", "weekly-coach-v5", "head-coach-v11"]));
+    expect(logVersions()).toEqual(expect.arrayContaining(["monthly-coach-v11", "weekly-coach-v5", "head-coach-v12"]));
     expect(counts().programming_weeks).toBe(before.programming_weeks + 1);
     expect(counts().class_weeks).toBe(before.class_weeks);
     expect(fetchMock).toHaveBeenCalled();

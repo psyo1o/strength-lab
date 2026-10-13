@@ -2,6 +2,7 @@ import { buildWeek } from "../month-plan/build-week";
 import { listPieceMaterial } from "../month-plan/pieces";
 import type { DayKey, MainLift, MetconPiece, MetconStimulus, PlannedWeek, WeekIndex } from "../month-plan/types";
 import { DAY_ORDER } from "../month-plan/types";
+import { sessionHasHeavyLowerMetcon } from "./coaching/heavy-lower-metcon";
 import { evaluateWeek } from "./evaluate-week";
 import { completeMonthDirection } from "./month-direction";
 import {
@@ -431,6 +432,11 @@ function bannedKeys(
   return [];
 }
 
+/** avoid인 날은 확정 수량·카탈로그 Rx가 하체 고중량 메트콘인 초안을 넣지 않는다. 무게를 코드가 낮추지 않는다. */
+function conditioningBreaksHeavyLower(conditioning: ConditioningDraft): boolean {
+  return sessionHasHeavyLowerMetcon({ conditioning } as SessionDraft);
+}
+
 function pieceAllowed(piece: MetconPiece, bans: string[], avoidLower: boolean): boolean {
   if (piece.id === "sl-month-benchmark" || piece.id === "wed-long") return false;
   if (avoidLower && (piece.pattern === "squat" || piece.pattern === "hinge")) return false;
@@ -571,7 +577,9 @@ function draftOptions(slot: DaySlot, weekIndex: WeekIndex, shift: number): Condi
   if (slot.role === "benchmark") {
     const benchmark = material.find((piece) => piece.id === "sl-month-benchmark");
     if (!benchmark) return [];
-    return [pieceConditioning(benchmark, { format: "for_time", minutes: 20, benchmark: true, longPiece: false })];
+    const draft = pieceConditioning(benchmark, { format: "for_time", minutes: 20, benchmark: true, longPiece: false });
+    if (slot.avoidLower && conditioningBreaksHeavyLower(draft)) return [];
+    return [draft];
   }
   const ordinal = dayIndex(slot.day);
   const short = slot.role === "short";
@@ -594,14 +602,14 @@ function draftOptions(slot: DaySlot, weekIndex: WeekIndex, shift: number): Condi
     const id = `${piece.id}|${format}|${minute}`;
     if (seen.has(id)) return;
     seen.add(id);
-    drafts.push(
-      pieceConditioning(piece, {
-        format,
-        minutes: minute,
-        benchmark: false,
-        longPiece: slot.role === "long",
-      }),
-    );
+    const draft = pieceConditioning(piece, {
+      format,
+      minutes: minute,
+      benchmark: false,
+      longPiece: slot.role === "long",
+    });
+    if (slot.avoidLower && conditioningBreaksHeavyLower(draft)) return;
+    drafts.push(draft);
   };
   for (const stimulus of stimuli) {
     for (const piece of ordered) {
@@ -806,6 +814,7 @@ function assignGuaranteedConditioning(
               if (slot.role === "long" && !longPiece) continue;
               if (slot.role === "short" && minutes > 12) continue;
               const draft = syntheticDraft(recipe, { format, minutes, volume, longPiece });
+              if (slot.avoidLower && conditioningBreaksHeavyLower(draft)) continue;
               const structure = asStructure(draft, slot.day);
               if (recent.some((prior) => structurallySimilar(structure, prior))) continue;
               if (out.some((row) => structurallySimilar(asStructure(row, slot.day), structure))) continue;
