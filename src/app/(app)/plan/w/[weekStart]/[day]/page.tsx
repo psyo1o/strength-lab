@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { PlanDayView } from "@/components/PlanDayView";
-import { ensureClassWeekForStart, isClassWeekStart, listClassDayScores, presentClassWeek } from "@/lib/month-plan/class-week";
+import { ensureClassWeekForMember, isClassWeekStart, listClassDayScores, presentClassWeek } from "@/lib/month-plan/class-week";
 import { comparesForDay, loadHistoryContext } from "@/lib/month-plan/history";
 import { getUserMaxes } from "@/lib/maxes";
 import { knownMovementChoices } from "@/lib/month-plan/movement-choices";
@@ -25,9 +25,10 @@ export const maxDuration = 300;
 export default async function ClassDayPage({ params }: { params: Promise<{ weekStart: string; day: string }> }) {
   const user = await getCurrentUser();
   if (!user) return null;
+  if (user.status !== "active") redirect("/pending");
   const { weekStart, day: dayKey } = await params;
   if (!isClassWeekStart(weekStart) || !isDayKey(dayKey)) notFound();
-  const stored = await ensureClassWeekForStart(weekStart);
+  const stored = await ensureClassWeekForMember(user.id, weekStart);
   const presentedWeek = presentClassWeek(stored.week, getUserMaxes(user.id), user.unit);
   const day = presentedWeek.days.find((row) => row.day === dayKey);
   if (!day) notFound();

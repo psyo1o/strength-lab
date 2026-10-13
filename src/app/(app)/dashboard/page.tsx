@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getProgram, listPrograms } from "@/lib/programs/queries";
 import { formatWeight } from "@/lib/calc/round";
@@ -18,6 +19,7 @@ export const maxDuration = 300;
 export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return null;
+  if (user.status !== "active") redirect("/pending");
   const programs = listPrograms();
   const current = user.currentProgram
     ? getProgram(user.currentProgram)

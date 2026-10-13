@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardMemberRequest } from "@/lib/member-gate";
 import { allowThrottle, FORGOT_GENERIC, passwordResetUrl, requestPasswordReset } from "@/lib/auth";
 import { sendPasswordResetEmail, smtpConfigured } from "@/lib/mail";
 import { requestIp } from "@/lib/request-ip";
@@ -8,6 +9,8 @@ export const runtime = "nodejs";
 const HOUR = 60 * 60 * 1000;
 
 export async function POST(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const body = await req.json().catch(() => ({}));
   const email = String(body.email ?? "");
   const ip = requestIp(req);

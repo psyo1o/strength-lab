@@ -1,4 +1,5 @@
 import { readUserUnit, type AthleteSex } from "../auth";
+import { reserveGeneration } from "../generation-cap";
 import type { WeightUnit } from "../calc/round";
 import { getSqlite } from "../db/client";
 import { getUserMaxes } from "../maxes";
@@ -136,8 +137,14 @@ export async function ensureClassWeek(nowMs = Date.now()): Promise<StoredPlan> {
   return ensureClassWeekForStart(classWeekToTrain(nowMs), nowMs);
 }
 
+/** 회원 상태와 생성 상한을 본 뒤에만 주를 연다. 엔진 직접 호출은 이 함수를 타지 않는다. */
+export async function ensureClassWeekForMember(userId: number, weekStart: string, nowMs = Date.now()): Promise<StoredPlan> {
+  reserveGeneration(userId, weekStart, nowMs);
+  return ensureClassWeekForStart(weekStart, nowMs);
+}
+
 export async function sharedToday(userId: number, nowMs = Date.now()): Promise<TodayPlan> {
-  const stored = await ensureClassWeek(nowMs);
+  const stored = await ensureClassWeekForMember(userId, classWeekToTrain(nowMs), nowMs);
   const presented = presentClassWeek(stored.week, getUserMaxes(userId), readUserUnit(userId));
   const dayKey = classDayToOpen(nowMs);
   const day =
@@ -155,7 +162,7 @@ export async function sharedToday(userId: number, nowMs = Date.now()): Promise<T
 }
 
 export async function sharedWeekForUser(userId: number, nowMs = Date.now()): Promise<StoredPlan> {
-  const stored = await ensureClassWeek(nowMs);
+  const stored = await ensureClassWeekForMember(userId, classWeekToTrain(nowMs), nowMs);
   return { ...stored, week: presentClassWeek(stored.week, getUserMaxes(userId), readUserUnit(userId)) };
 }
 

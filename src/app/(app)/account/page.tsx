@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
+import { WithdrawForm } from "@/components/WithdrawForm";
 
 export const runtime = "nodejs";
 
@@ -15,8 +16,9 @@ export default async function AccountPage() {
       </Link>
       <h1 className="mt-2 text-2xl font-black">비밀번호 변경</h1>
       <p className="mt-1 break-all text-sm text-[var(--muted)]">{user.email}</p>
-      <div className="mt-6">
+      <div className="mt-6 space-y-6">
         <ChangePasswordForm />
+        <WithdrawForm />
       </div>
       <Nav current="/settings" />
     </main>

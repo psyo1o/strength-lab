@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardMemberRequest } from "@/lib/member-gate";
 import { getCurrentUser } from "@/lib/auth";
 import { runAdminAction, type ActualCase, type SaveWeekMode } from "@/lib/programming/admin-tools";
 
@@ -12,6 +13,8 @@ function denied(user: { isAdmin: boolean } | null) {
 }
 
 export async function POST(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const user = await getCurrentUser();
   const block = denied(user);
   if (block) return block;

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardMemberRequest } from "@/lib/member-gate";
 import { getCurrentUser } from "@/lib/auth";
 import { getWodTemplate } from "@/lib/wod/templates";
 import { listWodResults, saveWodResult, wodPr } from "@/lib/wod/queries";
@@ -18,6 +19,8 @@ function optionalInt(value: unknown): number | null {
 }
 
 export async function GET(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const slug = new URL(req.url).searchParams.get("slug") || undefined;
@@ -27,6 +30,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));

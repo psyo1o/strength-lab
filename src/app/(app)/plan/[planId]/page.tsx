@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { PlanDayList } from "@/components/PlanDayList";
@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 export default async function StoredPlanPage({ params }: { params: Promise<{ planId: string }> }) {
   const user = await getCurrentUser();
   if (!user) return null;
+  if (user.status !== "active") redirect("/pending");
   const { planId } = await params;
   const plan = getPlan(user.id, Number(planId));
   if (!plan) notFound();

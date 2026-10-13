@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guardMemberRequest } from "@/lib/member-gate";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserMaxes, getUserStarts, saveUserMaxes } from "@/lib/maxes";
 import type { WeightUnit } from "@/lib/calc/round";
@@ -12,7 +13,9 @@ function optionalNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   return NextResponse.json({
@@ -23,6 +26,8 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
+  const blocked = await guardMemberRequest(req);
+  if (blocked) return blocked;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => ({}));

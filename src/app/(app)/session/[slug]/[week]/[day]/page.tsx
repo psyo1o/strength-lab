@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { loadSessionWorkout } from "@/lib/programs/session-load";
 import { UnitToggle } from "@/components/UnitToggle";
@@ -15,6 +15,7 @@ export default async function SessionPage({
 }) {
   const user = await getCurrentUser();
   if (!user) return null;
+  if (user.status !== "active") redirect("/pending");
   const { slug, week, day } = await params;
   const loaded = loadSessionWorkout({
     slug,

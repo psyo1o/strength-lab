@@ -141,7 +141,7 @@ describe("member admin", () => {
     if ("error" in created) throw new Error(created.error);
     vi.mocked(getCurrentUser).mockResolvedValue(created.user);
 
-    const res = await membersGet();
+    const res = await membersGet(new Request("http://localhost/api/admin/members"));
     expect(res.status).toBe(403);
     await expect(MembersPage()).rejects.toThrow();
     const count = getSqlite().prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number };
@@ -158,8 +158,26 @@ describe("member admin", () => {
     expect(granted.status).toBe(200);
     const grantedBody = await granted.json();
     expect(grantedBody.members).toEqual([
-      { id: admin.user.id, email: FIRST_ADMIN_EMAIL, isAdmin: true },
-      { id: member.user.id, email: "member@example.com", isAdmin: true },
+      expect.objectContaining({
+        id: admin.user.id,
+        email: FIRST_ADMIN_EMAIL,
+        isAdmin: true,
+        role: "admin",
+        status: "active",
+        name: null,
+        birthDate: null,
+        rejectionReason: null,
+      }),
+      expect.objectContaining({
+        id: member.user.id,
+        email: "member@example.com",
+        isAdmin: true,
+        role: "admin",
+        status: "active",
+        name: null,
+        birthDate: null,
+        rejectionReason: null,
+      }),
     ]);
     expect(JSON.stringify(grantedBody)).not.toMatch(/password/);
     expect(getSqlite().prepare("SELECT COUNT(*) AS c FROM users").get()).toEqual({ c: 2 });

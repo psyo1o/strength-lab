@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 
 export default async function SessionIndex() {
   const user = await getCurrentUser();
+  if (user && user.status !== "active") redirect("/pending");
   if (user?.lastSession) redirect(user.lastSession);
   if (user?.currentProgram) redirect(`/programs/${user.currentProgram}`);
   redirect("/programs/jim-wendler-531");
