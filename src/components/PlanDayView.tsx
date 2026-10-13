@@ -55,8 +55,8 @@ export function PlanDayView({
       ))}
 
       <div className="mt-4 space-y-3">
-        {day.blocks.map((block) => (
-          <section key={block.role} className={`card p-4 ${block.kept ? "" : "opacity-60"}`}>
+        {day.blocks.map((block, index) => (
+          <section key={`${block.role}-${block.titleKo}-${index}`} className={`card p-4 ${block.kept ? "" : "opacity-60"}`}>
             <div className="text-sm font-bold text-[var(--accent)]">
               {block.titleKo}
               {block.kept ? "" : " · 시간 없으면 뺌"}

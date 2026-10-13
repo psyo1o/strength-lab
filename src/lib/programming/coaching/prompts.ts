@@ -84,7 +84,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose format, duration, stimulus, movements, volume, and intensity. Do not return equipment. Do not rename a movement to escape a similar structure. Use other_training_days, previous_training_stimulus, and next_training_stimulus.",
     constraints:
-      "Return one movement_id and one quantity_option for each slot. Do not write units, loads, kilograms, or a display sentence. The server fills those from the catalog. Do not repeat a movement. Do not pick a movement that is not in that slot. When slot_repair is present, return only those slots. When edit_list is present, apply each listed item and do not change a slot that is not in edit_list.",
+      "Return one movement_id and one quantity_option for each slot. Do not write units, loads, kilograms, or a display sentence. The server fills those from the catalog. Do not repeat a movement. Do not pick a movement that is not in that slot. When zone2_slot is in the schema, the same response includes primary and alternate. primary is the zone2 block. alternate is the short metcon that replaces primary when time is short. Do not prescribe both as work to do. When slot_repair is present, return only those slots. When edit_list is present, apply each listed item and do not change a slot that is not in edit_list.",
     output_schema: "Each slot is slot, movement_id, and quantity_option. The server writes notes_ko, units, and Rx.",
     failure_behavior: "A bad piece is rejected. Other days and the strength and warmup of this day stay.",
   },

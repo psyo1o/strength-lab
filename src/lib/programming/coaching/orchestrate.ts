@@ -31,10 +31,12 @@ import { dayRecoveryPayload, isTransientCoachFailure, recoveryDrift, rejectedRev
 import { applyCellsToCoachJson, catalogLine, catalogMovement, catalogPromptLinesFor, isCellPayload, movementsForSlice, movementsForWeek, type CatalogSlice } from "./movement-catalog";
 import { askSpecialist, type SpecialistArea } from "./specialist-generate";
 import {
+  alternateOnlyFormat,
   buildSessionFrame,
   expandSlotPayload,
   isSlotPayload,
   mergeSlotPicks,
+  mergeZone2Alternate,
   narrowFrame,
   quantityOptions,
   readPicks,
@@ -496,6 +498,7 @@ function mergeSpecialists(input: {
       warmup_ko: warmup.warmup_ko,
       notes_ko: conditioning.notes_ko,
       conditioning: conditioning.conditioning,
+      ...(conditioning.zone2_option ? { zone2_option: conditioning.zone2_option } : {}),
     },
   };
 }
@@ -649,6 +652,9 @@ async function writeSession(input: {
       slot: rawSlot,
       skeletonCombo: skeletonComboFor(input.week, input.rules, input.day.day),
     });
+    if (frame && area === "conditioning" && input.day.zone2 === "day") {
+      frame.zone2Slot = { deload: input.plan.block_phase === "deload" || input.week.weekIndex === 4 };
+    }
     if (frame) frames.set(area, frame);
   }
   const slotClosed = new Set<SpecialistArea>();
@@ -700,6 +706,44 @@ async function writeSession(input: {
         const ready = present(area, asked.json);
         const picks = ready.ok ? ready.picks : readPicks(asked.json);
         const bad = ready.ok ? slotsForFitErrors(frame, picks, errors) : ready.badSlots;
+        const movementBad = bad.some((id) => /^s\d+$/.test(id));
+        if (area === "conditioning" && frame.zone2Slot && bad.includes("b") && !bad.includes("a") && !movementBad) {
+          const repair = await askSpecialist({
+            area,
+            user: areaUser(area, {
+              revision_number: 1,
+              slot_repair: [{ slot: "b", field: "alternate" }],
+              validation_errors: errors,
+            }),
+            key: input.week.key ?? "",
+            fetchImpl: input.week.fetchImpl,
+            timeoutMs: input.timeoutMs,
+            runId: input.runId,
+            weekId: input.week.weekStart,
+            day: input.day.day,
+            revisionNumber: 1,
+            maxAttempts: 1,
+            format: alternateOnlyFormat(frame.zone2Slot),
+            schemaNote: "Return only alternate. primary stays. alternate replaces the zone2 block. It is not added work.",
+            validate: (json) => {
+              const merged = mergeZone2Alternate(asked.json, json);
+              const built = expandSlotPayload(frame, merged);
+              if (!built.ok) return { ok: false as const, errors: built.errors, retry: false as const };
+              const verdict = validateArea(area)(built.json);
+              return verdict.ok ? verdict : { ...verdict, retry: false as const };
+            },
+          });
+          areaTraces.push(repair.trace);
+          if (repair.ok) {
+            const merged = mergeZone2Alternate(asked.json, repair.json);
+            const built = expandSlotPayload(frame, merged);
+            if (built.ok) {
+              parts[area] = built.json;
+              slotRecovered = true;
+              continue;
+            }
+          }
+        }
         const narrowed = narrowFrame(frame, picks, bad);
         if (narrowed) {
           const repair = await askSpecialist({

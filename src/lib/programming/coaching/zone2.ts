@@ -265,20 +265,42 @@ export function previousZone2Modality(plans: readonly WeeklyIntentPlan[] | null 
 }
 
 export function stampZone2Sessions(draft: WeekDraft, plan: WeeklyIntentPlan): WeekDraft {
+  const donor = draft.sessions.find((session) => session.zone2?.form === "day" && session.zone2.alternate)?.zone2 ?? null;
   return {
     ...draft,
     sessions: draft.sessions.map((session) => {
       const day = plan.days.find((row) => row.day === session.day);
       if (!day?.zone2 || day.zone2 === "none") return { ...session, zone2: null };
       const minutes = durationOf(day.zone2_duration);
+      const own = session.zone2?.alternate ? session.zone2 : null;
+      const coach = own ?? donor;
+      const coachOk = (deload: boolean) => {
+        if (!coach) return false;
+        const modalities = zone2Modalities(null);
+        const durations = zone2Durations("day", deload);
+        const effort = zone2Effort(deload);
+        const hr = GOAL_TABLE_RULES.zone2.hr;
+        return (
+          modalities.includes(coach.modality) &&
+          durations.includes(coach.duration_min as (typeof durations)[number]) &&
+          (effort as readonly string[]).includes(coach.effort) &&
+          (hr as readonly string[]).includes(coach.hr)
+        );
+      };
+      const chosen = coachOk(false) || coachOk(true) ? coach : null;
       return {
         ...session,
         zone2: {
           form: day.zone2,
-          modality: day.zone2_modality ?? "",
-          duration_min: minutes ?? 0,
-          effort: day.zone2_effort ?? "",
-          hr: day.zone2_hr ?? "unspecified",
+          modality: chosen ? chosen.modality : (day.zone2_modality ?? ""),
+          duration_min: chosen ? chosen.duration_min : (minutes ?? 0),
+          effort: chosen ? chosen.effort : (day.zone2_effort ?? ""),
+          hr: chosen ? chosen.hr : (day.zone2_hr ?? "unspecified"),
+          alternate: chosen?.alternate ?? coach?.alternate ?? null,
+          performed_option: null,
+          completion_status: null,
+          actual_duration_min: null,
+          actual_rpe: null,
         },
       };
     }),

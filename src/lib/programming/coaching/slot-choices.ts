@@ -4,6 +4,9 @@ import type { ConditioningSlot, DayIntent, Stimulus, VolumeBand, WodFormat } fro
 import { STIMULI } from "../types";
 import type { ResponseFormat } from "./contract";
 import { bannedConditioningKeys } from "./conditioning-board";
+import { GOAL_TABLE_RULES } from "./goal-table";
+import { shortMetconDurations, shortMetconErrors, zone2PrimaryErrors } from "./short-metcon";
+import { zone2Durations, zone2Effort, zone2Modalities } from "./zone2";
 import {
   catalogMovement,
   displayAmount,
@@ -49,6 +52,8 @@ export type SessionFrame = {
   day: DayKey;
   slots: FrameSlot[];
   piece: SessionPiece | null;
+  /** 존 2 날이면 같은 응답의 한 칸에 A와 B를 둔다. */
+  zone2Slot?: { deload: boolean; previousModality?: string | null } | null;
 };
 
 const NON_LONG = { min: 8, max: 20 } as const;
@@ -245,6 +250,70 @@ function slotSchema(slot: FrameSlot): Record<string, unknown> {
   return branches.length === 1 ? branches[0]! : { anyOf: branches };
 }
 
+function movementBranches(keys: readonly string[], slot: string): Record<string, unknown>[] {
+  const branches: Record<string, unknown>[] = [];
+  for (const key of keys) {
+    const options = quantityOptions(key);
+    if (!options.length) continue;
+    branches.push(
+      strictObject(
+        {
+          slot: { type: "string", enum: [slot] },
+          movement_id: { type: "string", enum: [key] },
+          quantity_option: { type: "string", enum: options.map((option) => option.id) },
+        },
+        ["slot", "movement_id", "quantity_option"],
+      ),
+    );
+  }
+  return branches;
+}
+
+function enumStrings(values: readonly (string | number)[]): { type: "string"; enum: string[] } {
+  return { type: "string", enum: values.map(String) };
+}
+
+/** 존 2 날의 한 칸. primary가 A이고 alternate가 짧은 메트콘 B다. */
+export function zone2SlotSchema(spec: { deload: boolean; previousModality?: string | null }): Record<string, unknown> {
+  const short = GOAL_TABLE_RULES.zone2.shortMetcon;
+  const ergo = movementBranches(short.ergo, "ergo");
+  const body = movementBranches(short.bodyweight, "bodyweight");
+  const primary = strictObject(
+    {
+      modality: enumStrings(zone2Modalities(spec.previousModality)),
+      duration: enumStrings(zone2Durations("day", spec.deload)),
+      effort: enumStrings(zone2Effort(spec.deload)),
+      hr: enumStrings(GOAL_TABLE_RULES.zone2.hr),
+    },
+    ["modality", "duration", "effort", "hr"],
+  );
+  const alternate = strictObject(
+    {
+      format: enumStrings(short.formats),
+      duration: enumStrings(shortMetconDurations(spec.deload)),
+      rpe: enumStrings(short.rpe),
+      intensity: enumStrings(short.intensity),
+      ergo: ergo.length === 1 ? ergo[0]! : { anyOf: ergo },
+      bodyweight: body.length === 1 ? body[0]! : { anyOf: body },
+    },
+    ["format", "duration", "rpe", "intensity", "ergo", "bodyweight"],
+  );
+  return strictObject({ primary, alternate }, ["primary", "alternate"]);
+}
+
+export function alternateOnlyFormat(spec: { deload: boolean; previousModality?: string | null }): ResponseFormat {
+  const slot = zone2SlotSchema(spec);
+  const properties = (slot.properties ?? {}) as Record<string, unknown>;
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "zone2_alternate_repair",
+      strict: true,
+      schema: strictObject({ alternate: properties.alternate }, ["alternate"]),
+    },
+  };
+}
+
 /** 칸이 하나여도 모델이 그 id를 고르게 한다. 코드가 칸을 대신 채우지 않는다. */
 export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
   const properties: Record<string, unknown> = {};
@@ -252,6 +321,10 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
   for (const slot of frame.slots) {
     required.push(slot.id);
     properties[slot.id] = slotSchema(slot);
+  }
+  if (frame.zone2Slot) {
+    required.push("zone2_slot");
+    properties.zone2_slot = zone2SlotSchema(frame.zone2Slot);
   }
   return {
     type: "json_schema",
@@ -297,6 +370,92 @@ export function readPicks(value: unknown): Record<string, string> {
   return picks;
 }
 
+function movementDraft(key: string, quantity: string) {
+  const choice = choiceById(key, quantity);
+  const row = resolved(key);
+  if (!choice || choice.method || !row) return null;
+  return {
+    key: row.key,
+    movement: row.key,
+    amount: displayAmount(choice.amount, choice.unit),
+    amount_value: choice.amount,
+    unit: choice.unit,
+    name_ko: row.name_ko,
+    load: prescribedLoad(row.key),
+  };
+}
+
+function readZone2Slot(
+  body: Record<string, unknown>,
+  spec: { deload: boolean; previousModality?: string | null },
+): { ok: true; option: Record<string, unknown> } | { ok: false; errors: string[]; badSlots: string[] } {
+  const slot = asRecord(body.zone2_slot);
+  const primary = asRecord(slot?.primary);
+  const alternate = asRecord(slot?.alternate);
+  const errors: string[] = [];
+  const bad = new Set<string>();
+  const duration = (value: unknown) => (typeof value === "string" && /^\d+$/.test(value) ? Number(value) : typeof value === "number" ? value : null);
+  const primaryErrors = zone2PrimaryErrors({
+    deload: spec.deload,
+    previousModality: spec.previousModality,
+    modality: typeof primary?.modality === "string" ? primary.modality : undefined,
+    duration: duration(primary?.duration) ?? undefined,
+    effort: typeof primary?.effort === "string" ? primary.effort : undefined,
+    hr: typeof primary?.hr === "string" ? primary.hr : undefined,
+  });
+  if (primaryErrors.length) {
+    errors.push(...primaryErrors.map((error) => `zone2 primary ${error}`));
+    bad.add("a");
+  }
+  const ergo = asRecord(alternate?.ergo);
+  const bodyweight = asRecord(alternate?.bodyweight);
+  const ergoKey = typeof ergo?.movement_id === "string" ? ergo.movement_id : undefined;
+  const bodyKey = typeof bodyweight?.movement_id === "string" ? bodyweight.movement_id : undefined;
+  const intensity = duration(alternate?.intensity);
+  const alternateErrors = shortMetconErrors({
+    deload: spec.deload,
+    format: typeof alternate?.format === "string" ? alternate.format : undefined,
+    duration: duration(alternate?.duration) ?? undefined,
+    rpe: typeof alternate?.rpe === "string" ? alternate.rpe : undefined,
+    intensity: intensity ?? undefined,
+    ergo: ergoKey,
+    bodyweight: bodyKey,
+  });
+  const ergoQty = typeof ergo?.quantity_option === "string" ? ergo.quantity_option : "";
+  const bodyQty = typeof bodyweight?.quantity_option === "string" ? bodyweight.quantity_option : "";
+  if (ergoKey && !choiceById(ergoKey, ergoQty)) alternateErrors.push(`short metcon ergo quantity ${ergoQty || "missing"} is outside the catalog`);
+  if (bodyKey && !choiceById(bodyKey, bodyQty)) alternateErrors.push(`short metcon bodyweight quantity ${bodyQty || "missing"} is outside the catalog`);
+  if (alternateErrors.length) {
+    errors.push(...alternateErrors);
+    bad.add("b");
+  }
+  if (errors.length || !primary || !alternate || !ergoKey || !bodyKey) {
+    return { ok: false, errors: errors.length ? errors : ["zone2 slot is missing primary or alternate"], badSlots: [...bad] };
+  }
+  const ergoMove = movementDraft(ergoKey, ergoQty);
+  const bodyMove = movementDraft(bodyKey, bodyQty);
+  if (!ergoMove || !bodyMove) return { ok: false, errors: ["zone2 alternate movement is not in the catalog"], badSlots: ["b"] };
+  return {
+    ok: true,
+    option: {
+      primary: {
+        modality: primary.modality,
+        duration_min: duration(primary.duration),
+        effort: primary.effort,
+        hr: primary.hr,
+      },
+      alternate: {
+        kind: "short_metcon",
+        format: alternate.format,
+        duration_min: duration(alternate.duration),
+        rpe: alternate.rpe,
+        intensity,
+        movements: [ergoMove, bodyMove],
+      },
+    },
+  };
+}
+
 function movementOn(frame: SessionFrame, slotId: string, movementId: string): FrameMovement | null {
   return frame.slots.find((slot) => slot.id === slotId)?.movements.find((movement) => movement.key === movementId) ?? null;
 }
@@ -324,6 +483,7 @@ function conditioningJson(frame: SessionFrame, picks: SlotPick[]): Record<string
   return {
     day: frame.day,
     notes_ko: "카탈로그에서 고른 수량으로 진행합니다.",
+    ...(frame.zone2Slot ? { zone2_option: null } : {}),
     conditioning: {
       format: piece.format,
       duration_min: piece.duration_min,
@@ -376,11 +536,32 @@ export function expandSlotPayload(
     }
     chosen.push({ slot: slot.id, movement_id: movement.key, quantity_option: option.id });
   }
+  if (frame.zone2Slot) {
+    const zone = readZone2Slot(body, frame.zone2Slot);
+    if (!zone.ok) {
+      errors.push(...zone.errors);
+      for (const id of zone.badSlots) bad.add(id);
+    } else if (!errors.length) {
+      const picks = Object.fromEntries(chosen.map((pick) => [pick.slot, pick.movement_id]));
+      return { ok: true, json: { ...conditioningJson(frame, chosen), zone2_option: zone.option }, picks };
+    }
+  }
   if (errors.length) return { ok: false, errors, badSlots: [...bad] };
   const picks = Object.fromEntries(chosen.map((pick) => [pick.slot, pick.movement_id]));
   if (frame.area === "strength") return { ok: true, json: strengthJson(frame, chosen[0]!), picks };
   if (frame.area === "warmup") return { ok: true, json: warmupJson(frame, chosen[0]!), picks };
   return { ok: true, json: conditioningJson(frame, chosen), picks };
+}
+
+/** B만 다시 받은 답을 원래 칸의 alternate에 넣는다. A와 다른 칸은 그대로다. */
+export function mergeZone2Alternate(original: unknown, repair: unknown): unknown {
+  const base = { ...(asRecord(original) ?? {}) };
+  const slot = { ...(asRecord(base.zone2_slot) ?? {}) };
+  const next = asRecord(repair);
+  const alternate = asRecord(next?.alternate);
+  if (alternate) slot.alternate = alternate;
+  base.zone2_slot = slot;
+  return base;
 }
 
 /** 조합 규칙이 가리키는 칸. 동작 이름이 없으면 위반한 칸을 전부 다시 묻는다. */
@@ -429,7 +610,7 @@ export function narrowFrame(frame: SessionFrame, picks: Record<string, string>, 
     slots.push({ ...slot, movements });
   }
   if (!slots.length) return null;
-  return { ...frame, slots };
+  return { ...frame, slots, zone2Slot: null };
 }
 
 export function mergeSlotPicks(original: unknown, repair: unknown, repairFrame: SessionFrame): unknown {

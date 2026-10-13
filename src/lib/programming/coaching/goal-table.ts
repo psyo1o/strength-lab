@@ -273,6 +273,18 @@ export const GOAL_TABLE_RULES = {
     /** day의 주간 intensity_profile. 1–2만 허용하고 light로 둔다. */
     dayIntensity: ["light"],
     countsTowardHighIntensity: false,
+    /**
+     * 존 2 날의 대체안. 기본값 A 대신 하는 짧은 메트콘이고, 둘을 더해 하지 않는다.
+     * 형식·시간·RPE·강도·동작은 이 목록만 허용한다.
+     */
+    shortMetcon: {
+      formats: ["emom", "intervals", "amrap"],
+      duration: { normal: [12, 15], deload: [10] },
+      rpe: ["4", "5"],
+      intensity: [2, 3],
+      ergo: ["row_erg", "bike_erg", "assault_bike", "ski_erg"],
+      bodyweight: ["push_up", "ring_row", "abmat_sit_up", "hanging_knee_raise"],
+    },
   },
 } as const;
 

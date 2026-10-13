@@ -81,13 +81,8 @@ export function applyLoadDecisions(input: {
     const strength = setsForAction({ action: decision.action, month: input.month, weekIndex: input.weekIndex, session });
     return fillSessionFields(
       {
-        day: session.day,
-        rest: session.rest,
-        optional: session.optional,
-        warmup_min: session.warmup_min,
-        warmup_ko: session.warmup_ko,
+        ...session,
         strength,
-        conditioning: session.conditioning,
       },
       decision.action === "cut" ? "low" : session.strength_volume,
     );

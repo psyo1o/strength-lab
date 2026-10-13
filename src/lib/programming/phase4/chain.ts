@@ -13,6 +13,7 @@ import {
   type WeekSkeleton,
 } from "../direction";
 import { profileTrainingDayCount } from "../coaching/goal-table";
+import { shortMetconErrors } from "../coaching/short-metcon";
 import { attachZone2, zone2RuleErrors } from "../coaching/zone2";
 import { fallbackMonth } from "../fallback";
 import { structurallySimilar, toStructure } from "../rules";
@@ -81,7 +82,7 @@ export const STRUCT_TOKEN_CAP = 1_500_000;
 export const STRUCT_MAX_STARTS = Math.floor(STRUCT_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
 export const PROFILE_TOKEN_CAP = 1_200_000;
 export const PROFILE_MAX_STARTS = Math.floor(PROFILE_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
-export const ZONE2_TOKEN_CAP = 800_000;
+export const ZONE2_TOKEN_CAP = 1_100_000;
 export const ZONE2_MAX_STARTS = Math.floor(ZONE2_TOKEN_CAP / D_REPAIR_WEEK_AVERAGE);
 
 export function phase4DPass(input: {
@@ -585,9 +586,31 @@ async function runOne(
         previousModality: null,
       });
       const host = result.plan.days.find((day) => day.zone2 === "addon" || day.zone2 === "day");
-      const line = host
-        ? `${host.day} ${host.zone2} ${host.zone2_modality ?? "-"} ${host.zone2_duration ?? "-"} ${host.zone2_effort ?? "-"}`
-        : "none";
+      const session = result.draft.sessions.find((row) => row.day === host?.day);
+      const zone = session?.zone2;
+      const alternate = zone?.alternate;
+      const metconErrors = alternate
+        ? shortMetconErrors({
+            deload: skeleton?.zone2?.deload === true,
+            format: alternate.format,
+            duration: alternate.duration_min,
+            rpe: alternate.rpe,
+            intensity: alternate.intensity,
+            ergo: alternate.movements[0]?.key,
+            bodyweight: alternate.movements[1]?.key,
+          })
+        : host
+          ? ["zone2 alternate is missing"]
+          : [];
+      zoneErrors.push(...metconErrors);
+      if (zone?.performed_option != null || zone?.completion_status != null || zone?.actual_duration_min != null || zone?.actual_rpe != null) {
+        zoneErrors.push("zone2 actuals must stay empty at planning");
+      }
+      const line = zone
+        ? `${host?.day ?? "-"} A ${zone.modality} ${zone.duration_min} ${zone.effort} | B ${alternate ? `${alternate.format} ${alternate.duration_min} rpe${alternate.rpe} i${alternate.intensity} ${alternate.movements.map((movement) => movement.key).join("+")}` : "missing"}`
+        : host
+          ? `${host.day} ${host.zone2} ${host.zone2_modality ?? "-"} ${host.zone2_duration ?? "-"} ${host.zone2_effort ?? "-"} | B missing`
+          : "none";
       report.zone2.push(`${weekStart} ${line}`);
       if (zoneErrors.length) {
         report.zone2Fail += 1;

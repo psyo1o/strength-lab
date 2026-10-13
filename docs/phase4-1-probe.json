@@ -154,5 +154,27 @@
       {"id": "z-deload", "week": "2099-08-24", "days": 6, "deload": true, "zone2_day": "mon", "form": "day", "modality": "row_erg", "duration_min": 30, "effort": "conversational", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1, "deload_conflicts": 2, "goal_breaks": 6}
     ]
   },
-  "tests_zone2_six": {"files": 79, "passed": 500, "tsc": "pass", "live": false}
+  "tests_zone2_six": {"files": 79, "passed": 500, "tsc": "pass", "live": false},
+  "zone2_short_metcon": {
+    "pass": true,
+    "live_model": true,
+    "note": "first live attempt before the load-session fix had zone2Fail 2 and is not a pass",
+    "adopted": "3/3",
+    "zone2_fail": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "tokens": 469475,
+    "token_cap": 1100000,
+    "week_average": 238292,
+    "max_starts": 4,
+    "scheduled": 3,
+    "stopped": null,
+    "http_429": false,
+    "runs": [
+      {"id": "six-a", "week": "2099-07-06", "zone2_day": "wed", "a": "row_erg 40 conversational", "b": "amrap 12 rpe4 i2 row_erg+push_up", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE", "goal_breaks": 8},
+      {"id": "six-normal", "week": "2099-01-05", "zone2_day": "wed", "a": "row_erg 40 conversational", "b": "amrap 12 rpe4 i2 row_erg+push_up", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE", "goal_breaks": 6},
+      {"id": "z-deload", "week": "2099-08-24", "deload": true, "zone2_day": "mon", "a": "row_erg 30 conversational", "b": "amrap 10 rpe4 i2 row_erg+ring_row", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1, "deload_conflicts": 4, "goal_breaks": 6}
+    ]
+  },
+  "tests_zone2_short_metcon": {"files": 80, "passed": 507, "tsc": "pass", "live": false}
 }

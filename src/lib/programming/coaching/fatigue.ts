@@ -2,6 +2,7 @@ import { previousLowerFatigue } from "../rules";
 import type { WeekActual } from "../summary";
 import type { SessionDraft, VolumeBand } from "../types";
 import { FATIGUE_ENGINE_VERSION } from "./prompts";
+import { zone2DayIsHigh } from "./short-metcon";
 
 export type FatigueLevel = "low" | "moderate" | "high";
 
@@ -81,6 +82,7 @@ export function fatigueReport(input: { sessions: readonly SessionDraft[]; actual
     if (session.conditioning?.intensity === "heavy" || session.conditioning?.stimulus === "heavy" || session.conditioning?.long_conditioning) {
       intense += 1;
     }
+    if (zone2DayIsHigh(session.zone2?.alternate?.intensity)) intense += 1;
   }
   const regions: FatigueReport["regions"] = {
     lower_body: level(lower),

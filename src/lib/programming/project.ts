@@ -129,6 +129,34 @@ function warmupBlock(session: SessionDraft): SessionBlock {
   };
 }
 
+function zone2Blocks(session: SessionDraft): SessionBlock[] {
+  const zone = session.zone2;
+  if (!zone || zone.form !== "day") return [];
+  const name = catalogMovement(zone.modality)?.name_ko ?? zone.modality;
+  const blocks: SessionBlock[] = [
+    {
+      role: "extra_conditioning",
+      titleKo: "존 2 · 기본",
+      bodyKo: `${name} ${zone.duration_min}분. 대화 가능 페이스.`,
+      minutes: zone.duration_min,
+      cuttable: false,
+      kept: true,
+    },
+  ];
+  const alternate = zone.alternate;
+  if (!alternate) return blocks;
+  const moves = alternate.movements.map((movement) => `${movement.name_ko} ${movement.amount}`).join(", ");
+  blocks.push({
+    role: "extra_conditioning",
+    titleKo: "짧은 메트콘 · 대체",
+    bodyKo: `${alternate.format} ${alternate.duration_min}분. RPE ${alternate.rpe}. ${moves}`,
+    minutes: alternate.duration_min,
+    cuttable: false,
+    kept: true,
+  });
+  return blocks;
+}
+
 function dayFrom(session: SessionDraft, strengthMethod: string): PlannedDay {
   if (session.rest) {
     return {
@@ -186,7 +214,7 @@ function dayFrom(session: SessionDraft, strengthMethod: string): PlannedDay {
     scheduled: true,
     piece,
     lift,
-    blocks: applyTimeCut(blocks, BODY_BUDGET_MIN),
+    blocks: [...applyTimeCut(blocks, BODY_BUDGET_MIN), ...zone2Blocks(session)],
   };
 }
 

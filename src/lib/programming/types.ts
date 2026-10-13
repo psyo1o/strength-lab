@@ -200,13 +200,26 @@ export type SessionDraft = {
   volume: VolumeBand | null;
   intensity: IntensityBand | null;
   expected_duration: number | null;
-  /** 주간 enum에서 고른 존 2. 컨디셔닝 시계와 별도다. */
+  /** 주간 enum에서 고른 존 2. 컨디셔닝 시계와 별도다. alternate는 대체이고 추가가 아니다. */
   zone2?: {
     form: "addon" | "day";
     modality: string;
     duration_min: number;
     effort: string;
     hr: string;
+    alternate?: {
+      kind: "short_metcon";
+      format: "emom" | "intervals" | "amrap";
+      duration_min: number;
+      rpe: string;
+      intensity: number;
+      movements: MovementDraft[];
+    } | null;
+    /** 계획 단계에서는 비운다. 코드가 채우지 않는다. */
+    performed_option: "zone2" | "short_metcon" | "skipped" | null;
+    completion_status: string | null;
+    actual_duration_min: number | null;
+    actual_rpe: number | null;
   } | null;
 };
 

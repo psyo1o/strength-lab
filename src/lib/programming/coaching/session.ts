@@ -12,6 +12,7 @@ import {
   type DayIntent,
   type IntensityBand,
   type MonthDirection,
+  type MovementDraft,
   type SessionDraft,
   type Stimulus,
   type StoredStructure,
@@ -181,6 +182,39 @@ function hangul(text: string): boolean {
  * Accepts one day's coaching JSON. time_domain in the payload is ignored.
  * Sets come from the method table. The server stamps the clock from duration_min.
  */
+function zone2FromOption(value: unknown, required: boolean): SessionDraft["zone2"] | null {
+  if (!required) return null;
+  if (!value || typeof value !== "object") return null;
+  const body = value as Record<string, unknown>;
+  const primary = body.primary;
+  const alternate = body.alternate;
+  if (!primary || typeof primary !== "object" || !alternate || typeof alternate !== "object") return null;
+  const zone = primary as Record<string, unknown>;
+  const metcon = alternate as Record<string, unknown>;
+  if (typeof zone.modality !== "string" || typeof zone.duration_min !== "number") return null;
+  if (metcon.kind !== "short_metcon" || !Array.isArray(metcon.movements)) return null;
+  if (metcon.format !== "emom" && metcon.format !== "intervals" && metcon.format !== "amrap") return null;
+  return {
+    form: "day",
+    modality: zone.modality,
+    duration_min: zone.duration_min,
+    effort: typeof zone.effort === "string" ? zone.effort : "",
+    hr: typeof zone.hr === "string" ? zone.hr : "unspecified",
+    alternate: {
+      kind: "short_metcon",
+      format: metcon.format,
+      duration_min: typeof metcon.duration_min === "number" ? metcon.duration_min : 0,
+      rpe: typeof metcon.rpe === "string" ? metcon.rpe : "",
+      intensity: typeof metcon.intensity === "number" ? metcon.intensity : 0,
+      movements: metcon.movements as MovementDraft[],
+    },
+    performed_option: null,
+    completion_status: null,
+    actual_duration_min: null,
+    actual_rpe: null,
+  };
+}
+
 export function sessionFromCoachJson(input: {
   json: unknown;
   intent: DayIntent;
@@ -256,6 +290,8 @@ export function sessionFromCoachJson(input: {
   const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual) : null;
   const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
   const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark);
+  const zone2 = zone2FromOption(body.zone2_option, input.intent.zone2 === "day");
+  if (input.intent.zone2 === "day" && !zone2) return null;
   if (
     format === "intervals" &&
     typeof piece.interval_work_sec === "number" &&
@@ -274,6 +310,7 @@ export function sessionFromCoachJson(input: {
       warmup_ko: warmupText,
       strength,
       conditioning: built,
+      ...(zone2 ? { zone2 } : {}),
     },
     strength ? (input.intent.volume_profile === "low" ? "low" : "moderate") : null,
   );
