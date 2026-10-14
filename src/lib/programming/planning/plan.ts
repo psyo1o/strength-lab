@@ -1,6 +1,7 @@
 import { DAY_ORDER } from "../../month-plan/types";
 import type { ResponseFormat } from "../coaching/contract";
-import { intensityBandsAtMost } from "../coaching/session-contract";
+import { intensityBandsAtMost, intensityBandsForStimulus } from "../coaching/session-contract";
+import { goalWeek } from "../coaching/goal-table";
 import { askCoach } from "../coaching/llm";
 import { coachModel } from "../coaching/models";
 import type { FetchLike } from "../model";
@@ -9,7 +10,9 @@ import type { WeekActual } from "../summary";
 import type { CoachingStimulus, IntensityBand, MonthDirection, PrimaryTraining, StrengthLiftChoice, WeekDraft, WeekIndex, WeeklyIntentPlan } from "../types";
 import { COACHING_STIMULI, PRIMARY_TRAININGS } from "../types";
 import { deriveMonthlyThesis, deriveQuarterly, deriveWeeklyThesis, deterministicIntent, skeletonFromIntent } from "./derive";
+import { coachingStimuliForCeiling } from "./feasibility";
 import { validationFeedback } from "./feedback";
+import { extractWeekRules } from "../coaching/stage13/rules";
 import { repairSkeleton } from "./repair";
 import { skeletonLiftMap, validateSkeleton, type SkeletonCheck } from "./structure";
 import { DURATION_CLASSES, PLANNING_VERSION, STRENGTH_EMPHASES, type DurationClass, type LongitudinalPlan, type SkeletonDay, type StrengthEmphasis, type WeeklySkeleton, type WeeklyThesis } from "./types";
@@ -71,6 +74,7 @@ function checkFor(input: PlanLongitudinalInput, thesis: WeeklyThesis, maps: read
     weekIndex: input.weekIndex,
     thesis,
     recentStrengthMaps: maps,
+    actual: input.previousActual,
   };
 }
 
@@ -89,7 +93,8 @@ function finish(skeleton: WeeklySkeleton, errors: readonly string[], thesis: Wee
 function settle(skeleton: WeeklySkeleton, check: SkeletonCheck, thesis: WeeklyThesis): WeeklySkeleton {
   const before = validateSkeleton(skeleton, check);
   if (!before.length) return finish(skeleton, [], thesis);
-  const repaired = repairSkeleton(skeleton, thesis.long_session);
+  const maxLower = extractWeekRules({ month: check.month, weekIndex: check.weekIndex, actual: check.actual }).max_lower_lifts;
+  const repaired = repairSkeleton(skeleton, thesis.long_session, maxLower);
   const after = validateSkeleton(repaired.skeleton, check);
   return finish({ ...repaired.skeleton, repair_trace: repaired.steps }, after, thesis);
 }
@@ -115,8 +120,11 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
   const maps = [...strengthMapsFromPlans(input.recentPlans), ...(input.recentStrengthMaps ?? [])];
   const check = checkFor(input, thesis, maps);
   const key = input.key?.trim() ? input.key.trim() : null;
+  const stimuli = goalStimuli(input);
+  const format = skeletonFormat(thesis.conditioning_intensity_ceiling, stimuli);
+  const impossible = DAY_ORDER.filter((day) => dayIntensityEnum(thesis.conditioning_intensity_ceiling, stimuli[day]).length === 0);
   let skeleton = seed;
-  if (key) {
+  if (key && format) {
     const asked = await askCoach({
       agent: "weekly",
       retryTransport: true,
@@ -138,17 +146,17 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
       promptVersion: "skeleton-v1",
       runId: `skeleton-${input.weekIndex}`,
       temperature: 0,
-      format: skeletonFormat(thesis.conditioning_intensity_ceiling),
+      format,
       systemPrompt: SKELETON_SYSTEM,
       schemaNote: SKELETON_SCHEMA,
       validate: (json) => {
-        const parsed = parseModelSkeleton(json, seed, thesis.conditioning_intensity_ceiling);
+        const parsed = parseModelSkeleton(json, seed, thesis.conditioning_intensity_ceiling, goalStimuli(input));
         if (!parsed) return { ok: false, errors: validationFeedback(["weekly skeleton must contain seven days"]) };
         const errors = validateSkeleton(parsed, check);
         return errors.length ? { ok: false, errors: validationFeedback(errors) } : { ok: true };
       },
     });
-    const parsed = parseModelSkeleton(asked.json, seed, thesis.conditioning_intensity_ceiling);
+    const parsed = parseModelSkeleton(asked.json, seed, thesis.conditioning_intensity_ceiling, goalStimuli(input));
     const modelName = asked.model || coachModel("weekly");
     if (asked.ok && parsed && !validateSkeleton(parsed, check).length) {
       skeleton = finish(parsed, [], thesis);
@@ -169,6 +177,10 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
     }
   } else {
     skeleton = settle(seed, check, thesis);
+    if (impossible.length) {
+      skeleton.skeleton_locked = false;
+      skeleton.validation_errors = impossible.map((day) => `empty_enum:${day}.intensity_class`);
+    }
   }
   return {
     version: PLANNING_VERSION,
@@ -180,7 +192,24 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
   };
 }
 
-function parseModelSkeleton(json: unknown, seed: WeeklySkeleton, ceiling: IntensityBand): WeeklySkeleton | null {
+function goalStimuli(input: PlanLongitudinalInput): Partial<Record<(typeof DAY_ORDER)[number], string | null>> {
+  const goal = goalWeek(input.month.coaching_plan?.goal_table, input.weekIndex);
+  const stimuli: Partial<Record<(typeof DAY_ORDER)[number], string | null>> = {};
+  for (const day of goal?.days ?? []) stimuli[day.day] = day.stimulus;
+  return stimuli;
+}
+
+function dayIntensityEnum(weekCeiling: IntensityBand, stimulus: string | null | undefined): IntensityBand[] {
+  if (stimulus === "heavy") return intensityBandsForStimulus(weekCeiling, ["heavy"]);
+  return intensityBandsAtMost(weekCeiling);
+}
+
+function parseModelSkeleton(
+  json: unknown,
+  seed: WeeklySkeleton,
+  ceiling: IntensityBand,
+  stimuli: Partial<Record<(typeof DAY_ORDER)[number], string | null>> = {},
+): WeeklySkeleton | null {
   if (!json || typeof json !== "object") return null;
   const body = json as { days?: unknown };
   if (!Array.isArray(body.days)) return null;
@@ -190,7 +219,7 @@ function parseModelSkeleton(json: unknown, seed: WeeklySkeleton, ceiling: Intens
     if (!row || typeof row !== "object") return null;
     const seedDay = seed.days.find((item) => item.day === key);
     if (!seedDay) return null;
-    const parsed = dayFromModel(row as Record<string, unknown>, seedDay, seed.week_phase === "DELOAD", ceiling);
+    const parsed = dayFromModel(row as Record<string, unknown>, seedDay, seed.week_phase === "DELOAD", ceiling, stimuli[key]);
     if (!parsed) return null;
     days.push(parsed);
   }
@@ -205,7 +234,13 @@ function parseModelSkeleton(json: unknown, seed: WeeklySkeleton, ceiling: Intens
   };
 }
 
-function dayFromModel(row: Record<string, unknown>, seed: SkeletonDay, deload: boolean, weekCeiling: IntensityBand): SkeletonDay | null {
+function dayFromModel(
+  row: Record<string, unknown>,
+  seed: SkeletonDay,
+  deload: boolean,
+  weekCeiling: IntensityBand,
+  sessionStimulus?: string | null,
+): SkeletonDay | null {
   const status = row.status === "rest" || row.status === "training" ? row.status : null;
   const primary = typeof row.primary_goal === "string" && (PRIMARY_TRAININGS as readonly string[]).includes(row.primary_goal) ? (row.primary_goal as PrimaryTraining) : null;
   if (!status || !primary) return null;
@@ -217,10 +252,12 @@ function dayFromModel(row: Record<string, unknown>, seed: SkeletonDay, deload: b
   const duration = durationOf((conditioning as { duration_class?: unknown }).duration_class);
   const intensity = intensityOf((conditioning as { intensity_class?: unknown }).intensity_class);
   if (!emphasis || !lift || !duration || !intensity) return null;
+  if (!dayIntensityEnum(weekCeiling, sessionStimulus).includes(intensity)) return null;
   if (bandRank(intensity) > bandRank(weekCeiling)) return null;
   if (typeof row.benchmark !== "boolean" || typeof row.long_day !== "boolean") return null;
   const rawStimulus = (conditioning as { stimulus?: unknown }).stimulus;
-  const stimulus = typeof rawStimulus === "string" && (COACHING_STIMULI as readonly string[]).includes(rawStimulus) ? (rawStimulus as CoachingStimulus) : seed.conditioning.stimulus;
+  const stimulus = typeof rawStimulus === "string" && (COACHING_STIMULI as readonly string[]).includes(rawStimulus) ? (rawStimulus as CoachingStimulus) : null;
+  if (!stimulus || !coachingStimuliForCeiling(intensity).includes(stimulus)) return null;
   const ceiling: IntensityBand = deload ? "moderate" : intensity;
   return {
     ...seed,
@@ -254,38 +291,66 @@ function bandRank(value: IntensityBand): number {
   return 1;
 }
 
-function skeletonFormat(ceiling: IntensityBand): ResponseFormat {
-  const day = {
+function conditioningBranch(intensity: IntensityBand): Record<string, unknown> {
+  return {
     type: "object",
     additionalProperties: false,
     properties: {
-      day: { type: "string", enum: [...DAY_ORDER] },
+      duration_class: { type: "string", enum: [...DURATION_CLASSES] },
+      intensity_class: { type: "string", enum: [intensity] },
+      stimulus: { type: "string", enum: coachingStimuliForCeiling(intensity) },
+    },
+    required: ["duration_class", "intensity_class", "stimulus"],
+  };
+}
+
+function strengthSchema(): Record<string, unknown> {
+  const branch = (lifts: readonly string[], emphases: readonly string[]) => ({
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      emphasis: { type: "string", enum: [...emphases] },
+      lift: { type: "string", enum: [...lifts] },
+    },
+    required: ["emphasis", "lift"],
+  });
+  return {
+    anyOf: [
+      branch(["squat", "deadlift"], ["heavy_lower", "light", "moderate"]),
+      branch(["bench", "ohp"], ["heavy_upper", "light", "moderate"]),
+      branch(["none"], ["none"]),
+    ],
+  };
+}
+
+function skeletonDaySchema(day: (typeof DAY_ORDER)[number], ceiling: IntensityBand, stimulus: string | null | undefined): Record<string, unknown> | null {
+  const bands = dayIntensityEnum(ceiling, stimulus);
+  if (!bands.length) return null;
+  const conditioning = bands.map((band) => conditioningBranch(band));
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      day: { type: "string", enum: [day] },
       status: { type: "string", enum: ["rest", "training"] },
       primary_goal: { type: "string", enum: [...PRIMARY_TRAININGS] },
-      strength: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          emphasis: { type: "string", enum: [...STRENGTH_EMPHASES] },
-          lift: { type: "string", enum: [...LIFTS] },
-        },
-        required: ["emphasis", "lift"],
-      },
-      conditioning: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          duration_class: { type: "string", enum: [...DURATION_CLASSES] },
-          intensity_class: { type: "string", enum: intensityBandsAtMost(ceiling) },
-          stimulus: { type: "string", enum: [...COACHING_STIMULI] },
-        },
-        required: ["duration_class", "intensity_class", "stimulus"],
-      },
+      strength: strengthSchema(),
+      conditioning: conditioning.length === 1 ? conditioning[0] : { anyOf: conditioning },
       benchmark: { type: "boolean" },
       long_day: { type: "boolean" },
     },
     required: ["day", "status", "primary_goal", "strength", "conditioning", "benchmark", "long_day"],
   };
+}
+
+/** Null when any day has an empty intensity enum. The caller stops and does not fill a band. */
+export function skeletonFormat(ceiling: IntensityBand, stimuli: Partial<Record<(typeof DAY_ORDER)[number], string | null>> = {}): ResponseFormat | null {
+  const days: Record<string, unknown>[] = [];
+  for (const day of DAY_ORDER) {
+    const schema = skeletonDaySchema(day, ceiling, stimuli[day]);
+    if (!schema) return null;
+    days.push(schema);
+  }
   return {
     type: "json_schema",
     json_schema: {
@@ -294,7 +359,7 @@ function skeletonFormat(ceiling: IntensityBand): ResponseFormat {
       schema: {
         type: "object",
         additionalProperties: false,
-        properties: { days: { type: "array", items: day } },
+        properties: { days: { type: "array", items: { anyOf: days } } },
         required: ["days"],
       },
     },

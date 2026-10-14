@@ -358,6 +358,8 @@ export type HeadPieceRef = {
   unit?: string | null;
   /** Legal bands except the current one. Present only when the stored intensity is over the ceiling. */
   intensity_values?: readonly string[];
+  /** When set, this cell is a violation and the one head call must patch it. */
+  required?: boolean;
 };
 
 function currentQuantityId(cell: HeadPieceRef): string | null {
@@ -424,8 +426,19 @@ export function headReviewFormat(keys: readonly string[], cells: readonly HeadPi
     const item = headRevisionItem(cell);
     return item ? [item] : [];
   });
-  const statusEnum = listed.length > 0 && revisable.length === 0 ? HEAD_STATUSES.filter((status) => status !== "REVISE") : HEAD_STATUSES;
-  const revisions = revisable.length
+  const requiredCells = listed.filter((cell) => cell.required);
+  const requiredItems = requiredCells.flatMap((cell) => {
+    const item = headRevisionItem(cell);
+    return item ? [item] : [];
+  });
+  const statusEnum = requiredItems.length
+    ? (["REVISE"] as const)
+    : listed.length > 0 && revisable.length === 0
+      ? HEAD_STATUSES.filter((status) => status !== "REVISE")
+      : HEAD_STATUSES;
+  const revisions = requiredItems.length
+    ? { type: "array", minItems: requiredItems.length, maxItems: requiredItems.length, items: requiredItems.length === 1 ? requiredItems[0] : { anyOf: requiredItems } }
+    : revisable.length
     ? { type: "array", items: { anyOf: revisable } }
     : listed.length
       ? { type: "array", items: strictObject({ day: stringEnum(DAY_ORDER) }, ["day"]) }
@@ -1162,6 +1175,20 @@ export function headReviewErrors(value: unknown): string[] {
   value.revisions.forEach((row, index) => {
     errors.push(...editItemErrors(row, index));
   });
+  return errors;
+}
+
+/** Every indicated violation cell must appear once. An empty revision list cannot satisfy this. */
+export function requiredRevisionErrors(value: unknown, cells: readonly HeadPieceRef[]): string[] {
+  const required = cells.filter((cell) => cell.required);
+  if (!required.length) return [];
+  const body = isRecord(value) ? value : null;
+  const revisions = Array.isArray(body?.revisions) ? body.revisions : [];
+  const errors: string[] = [];
+  for (const cell of required) {
+    const hit = revisions.filter((row) => isRecord(row) && row.day === cell.day && row.catalog_key === cell.catalog_key).length;
+    if (hit !== 1) errors.push(`missing_patch:${cell.day}.${cell.block}.${cell.catalog_key}`);
+  }
   return errors;
 }
 

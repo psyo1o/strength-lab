@@ -18,7 +18,7 @@ import {
   standardMovements,
   type CatalogUnit,
 } from "./movement-catalog";
-import { intensityBandsAtMost, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { intensityBandsForStimulus, stimuliForCeiling, type DaySessionLock, type DoseMovement } from "./session-contract";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
@@ -75,7 +75,9 @@ export class HeavyLowerEnumError extends Error {
 
 const NON_LONG = { min: 8, max: 20 } as const;
 const LONG = { min: TIME_DOMAIN_RANGES.long.min, max: TIME_DOMAIN_RANGES.long.max } as const;
-const CAP = 6;
+/** Free movement enums stay inside 8–15. Locked echoes of one value are unchanged. */
+const CAP = 12;
+const ENUM_MAX = 15;
 
 const PREFER: Record<"mono" | "gym" | "lift", readonly string[]> = {
   mono: ["row_erg", "assault_bike", "run", "ski_erg", "double_under", "bike_erg"],
@@ -111,6 +113,7 @@ export function quantityOptions(key: string): QuantityChoice[] {
       if (seen.has(id)) continue;
       seen.add(id);
       out.push({ id, unit, amount, method: false });
+      if (out.length >= ENUM_MAX) return out;
     }
   }
   return out;
@@ -440,11 +443,14 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
   if (frame.contract) {
     const minutes = (role: DaySessionLock["blocks"][number]["role"]) => frame.contract?.blocks.find((block) => block.role === role)?.minutes ?? 0;
     if (frame.area === "conditioning") {
-      for (const key of ["metcon_format", "metcon_minutes", "extra_minutes", "intensity"]) required.push(key);
+      const stimuli = stimuliForCeiling(frame.contract.intensity_ceiling, frame.piece?.stimulus);
+      const bands = intensityBandsForStimulus(frame.contract.intensity_ceiling, stimuli);
+      for (const key of ["metcon_format", "metcon_minutes", "extra_minutes", "stimulus", "intensity"]) required.push(key);
       properties.metcon_format = { type: "string", enum: [frame.contract.format] };
       properties.metcon_minutes = { type: "integer", enum: [frame.contract.metcon_minutes] };
       properties.extra_minutes = { type: "integer", enum: [minutes("extra_conditioning")] };
-      properties.intensity = { type: "string", enum: intensityBandsAtMost(frame.contract.intensity_ceiling) };
+      properties.stimulus = { type: "string", enum: stimuli };
+      properties.intensity = { type: "string", enum: bands };
     } else if (frame.area === "warmup") {
       for (const key of ["warmup_minutes", "cooldown_minutes"]) required.push(key);
       properties.warmup_minutes = { type: "integer", enum: [minutes("warmup")] };
@@ -708,9 +714,12 @@ function expandContract(
     if (echoed(body.metcon_format) !== lock.format) errors.push("metcon_format does not match the lock");
     if (echoed(body.metcon_minutes) !== String(lock.metcon_minutes)) errors.push("metcon_minutes does not match the lock");
     if (echoed(body.extra_minutes) !== String(minutesOf("extra_conditioning"))) errors.push("extra_minutes does not match the lock");
-    const allowed = intensityBandsAtMost(lock.intensity_ceiling);
+    const stimuli = stimuliForCeiling(lock.intensity_ceiling, frame.piece?.stimulus);
+    const bands = intensityBandsForStimulus(lock.intensity_ceiling, stimuli);
+    const pickedStimulus = echoed(body.stimulus);
+    if (!(stimuli as readonly string[]).includes(pickedStimulus)) errors.push("stimulus is outside the locked ceiling");
     const picked = echoed(body.intensity);
-    if (!allowed.includes(picked as (typeof allowed)[number])) errors.push("intensity is outside the locked ceiling");
+    if (!(bands as readonly string[]).includes(picked)) errors.push("intensity is outside the locked ceiling");
   } else if (frame.area === "warmup") {
     if (echoed(body.warmup_minutes) !== String(minutesOf("warmup"))) errors.push("warmup_minutes does not match the lock");
     if (echoed(body.cooldown_minutes) !== String(minutesOf("cooldown"))) errors.push("cooldown_minutes does not match the lock");
@@ -770,6 +779,7 @@ function expandContract(
   const metcon = chosen.filter((pick) => pick.phase === "metcon");
   const extra = chosen.find((pick) => pick.phase === "extra");
   const piece = frame.piece!;
+  const pickedStimulus = echoed(body.stimulus);
   const pickedIntensity = echoed(body.intensity);
   const movements = metcon.map((pick) => movementFrom(pick.movement_id, pick.option));
   return {
@@ -781,7 +791,7 @@ function expandContract(
       conditioning: {
         format: lock.format,
         duration_min: lock.metcon_minutes,
-        stimulus: piece.stimulus,
+        stimulus: pickedStimulus,
         movements,
         volume: piece.volume,
         intensity: pickedIntensity,

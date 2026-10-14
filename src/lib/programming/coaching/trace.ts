@@ -58,6 +58,7 @@ export type AgentName =
   | "day_placement"
   | "head_cell_apply"
   | "post_head_judge"
+  | "skeleton_feasibility"
   | "final_validator";
 
 export type TokenUsage = {

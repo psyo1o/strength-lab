@@ -13,6 +13,7 @@ import {
 import { applyHeadCells, intensityRevisionCells } from "../src/lib/programming/coaching/head-cells";
 import { movementDisplayName } from "../src/lib/programming/coaching/movement-catalog";
 import { planWeekContract } from "../src/lib/programming/coaching/session-contract";
+import { intensityBandsForStimulus, stimuliForCeiling } from "../src/lib/programming/coaching/session-contract";
 import { expandSlotPayload, quantityOptions, sessionSlotFormat, type SessionFrame } from "../src/lib/programming/coaching/slot-choices";
 import { projectWeek } from "../src/lib/programming/project";
 import type { SessionDraft, WeekDraft } from "../src/lib/programming/types";
@@ -121,12 +122,53 @@ describe("screen names and class intensity", () => {
       metcon_format: lock.format,
       metcon_minutes: lock.metcon_minutes,
       extra_minutes: extra,
+      stimulus: "high_rep",
     };
     expect(expandSlotPayload(frame, { ...base, intensity: "heavy" }).ok).toBe(false);
     const legal = expandSlotPayload(frame, { ...base, intensity: "moderate" });
     expect(legal.ok).toBe(true);
     if (!legal.ok) return;
-    expect((legal.json as { conditioning: { intensity: string } }).conditioning.intensity).toBe("moderate");
+    expect((legal.json as { conditioning: { intensity: string; stimulus: string } }).conditioning.intensity).toBe("moderate");
+    expect((legal.json as { conditioning: { stimulus: string } }).conditioning.stimulus).toBe("high_rep");
+  });
+
+  it("locks stimulus and intensity so light cannot meet heavy", () => {
+    const moderate = planWeekContract(
+      [{ day: "mon", rest: false, long: false, domain: "short", lift: "none", intensity_ceiling: "moderate" }],
+      1,
+    )[0]!;
+    const heavyPiece: SessionFrame = {
+      area: "conditioning",
+      day: "mon",
+      contract: moderate,
+      piece: { format: moderate.format, duration_min: moderate.metcon_minutes, stimulus: "heavy", volume: "moderate", intensity: "heavy" },
+      slots: [{ id: "s0", phase: "metcon", movements: [{ key: "row_erg", options: quantityOptions("row_erg") }] }],
+    };
+    const heavySchema = JSON.stringify(sessionSlotFormat(heavyPiece));
+    expect(stimuliForCeiling("moderate", "heavy")).toEqual(["heavy"]);
+    expect(intensityBandsForStimulus("moderate", ["heavy"])).toEqual(["moderate"]);
+    expect(heavySchema).toContain('"heavy"');
+    expect(heavySchema).toContain('"moderate"');
+    expect(heavySchema).not.toContain('"light"');
+    const light = planWeekContract(
+      [{ day: "fri", rest: false, long: false, domain: "short", lift: "none", intensity_ceiling: "light" }],
+      1,
+    )[0]!;
+    const lightPiece: SessionFrame = {
+      ...heavyPiece,
+      contract: light,
+      piece: { ...heavyPiece.piece!, stimulus: "heavy", intensity: "light" },
+    };
+    expect(stimuliForCeiling("light", "heavy")).toEqual([]);
+    expect(stimuliForCeiling(light.intensity_ceiling, "heavy")).toEqual([]);
+    expect(expandSlotPayload(lightPiece, {
+      s0: { movement_id: "row_erg", quantity_option: quantityOptions("row_erg")[0]!.id, reason: "상한 밖의 자극입니다" },
+      metcon_format: light.format,
+      metcon_minutes: light.metcon_minutes,
+      extra_minutes: light.blocks.find((block) => block.role === "extra_conditioning")?.minutes ?? 0,
+      stimulus: "heavy",
+      intensity: "light",
+    }).ok).toBe(false);
   });
 
   it("sends an over-ceiling intensity to the existing head cell", () => {
@@ -140,7 +182,7 @@ describe("screen names and class intensity", () => {
     ] as unknown as SessionDraft[];
     const cells = intensityRevisionCells(sessions, () => "moderate");
     expect(cells).toEqual([
-      { day: "mon", block: "conditioning", catalog_key: "intensity", intensity_values: ["light", "moderate"] },
+      { day: "mon", block: "conditioning", catalog_key: "intensity", intensity_values: ["light", "moderate"], required: true },
     ]);
     expect(intensityRevisionCells(sessions, () => "heavy")).toEqual([]);
     const lightHeavy = [
@@ -151,9 +193,7 @@ describe("screen names and class intensity", () => {
         intensity: "light",
       },
     ] as unknown as SessionDraft[];
-    expect(intensityRevisionCells(lightHeavy, () => "moderate")).toEqual([
-      { day: "fri", block: "conditioning", catalog_key: "intensity", intensity_values: ["moderate"] },
-    ]);
+    expect(intensityRevisionCells(lightHeavy, () => "moderate")).toEqual([]);
     expect(intensityRevisionCells(lightHeavy, () => "light")).toEqual([]);
     const applied = applyHeadCells(sessions, [
       {

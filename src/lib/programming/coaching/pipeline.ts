@@ -39,7 +39,10 @@ export type CoachWeekInput = {
   recentPlans?: readonly WeeklyIntentPlan[];
   /** Engine summary. The weekly coach sees it. It is not a second generator. */
   inputSummary?: unknown;
-  /** Locked week from planLongitudinal. Session fill uses it only when the skeleton is locked. */
+  /**
+   * Locked week from planLongitudinal. On a keyed week this is planned after coachMonthly,
+   * from that call's goal table. Session fill uses it only when the skeleton is locked.
+   */
   longitudinal?: LongitudinalPlan | null;
   /** Phase 3 direction. evaluateWeek checks conformance when the week skeleton is also set. */
   monthlyDirection?: MonthlyDirection | null;
@@ -79,6 +82,8 @@ export type CoachWeekResult = {
   final_status: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING";
   coach_notes: string[];
   monthly_plan: MonthlyCoachPlan;
+  /** Skeleton used for this week. Present when longitudinal planning ran inside the keyed path. */
+  longitudinal?: LongitudinalPlan | null;
   load_decisions: LoadDecision[];
   token_usage: TokenUsage;
   latency_ms: number;

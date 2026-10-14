@@ -458,17 +458,20 @@ async function writeProgrammingWeek(
     summary,
   };
   const key = options.key === undefined ? resolveImplicitCoachKey() : options.key;
-  const longitudinal = longitudinalPlanningEnabled()
-    ? await planLongitudinal({
-        month: month.direction,
-        weekIndex,
-        previousActual: summary.previous_week?.actual ?? null,
-        recentPlans: intentContext.recentPlans,
-        key: typeof key === "string" ? key : null,
-        fetchImpl: options.fetchImpl,
-        timeoutMs: options.timeoutMs,
-      })
-    : null;
+  const keyed = typeof key === "string" && key.length > 0;
+  // A keyed week plans the skeleton inside coachWeekActive, after coachMonthly, so the intensity enum sees that goal table.
+  const longitudinal =
+    longitudinalPlanningEnabled() && !keyed
+      ? await planLongitudinal({
+          month: month.direction,
+          weekIndex,
+          previousActual: summary.previous_week?.actual ?? null,
+          recentPlans: intentContext.recentPlans,
+          key: null,
+          fetchImpl: options.fetchImpl,
+          timeoutMs: options.timeoutMs,
+        })
+      : null;
   // docs/generation-paths.md. Every week enters runCoachingOrchestrator.
   // COACHING_PIPELINE does not select a generator. A null key is no_model.
   if (typeof key === "string" && key.length > 0 && process.env.STRENGTH_LAB_PROBE === "1" && weekStart === LIVE_CLASS_WEEK) {
@@ -628,6 +631,7 @@ async function writeProgrammingWeek(
     return saved;
   }
   const coached = outcome.result;
+  const skeletonPlan = coached.longitudinal ?? longitudinal;
   if (coached.monthly_plan?.reuse === true) {
     saveMonthCoachingPlan(month.id, { ...month.direction, coaching_plan: coached.monthly_plan });
   }
@@ -638,7 +642,7 @@ async function writeProgrammingWeek(
         monthId: month.id,
         weekIndex,
         weekStart,
-        draft: withLongitudinal(coached.rejected_draft, longitudinal),
+        draft: withLongitudinal(coached.rejected_draft, skeletonPlan),
         display: rejectedDisplay,
         inputSummaryJson: JSON.stringify(summary),
         generationSource: "fallback",
@@ -670,7 +674,7 @@ async function writeProgrammingWeek(
         monthId: month.id,
         weekIndex,
         weekStart,
-        draft: withLongitudinal(coached.draft, longitudinal),
+        draft: withLongitudinal(coached.draft, skeletonPlan),
         display: rejectedDisplay,
         inputSummaryJson: JSON.stringify(summary),
         generationSource: coached.generation_source,
@@ -696,7 +700,7 @@ async function writeProgrammingWeek(
           row?.final_source === "DETERMINISTIC_ADJUSTMENT",
       );
       const allowLegacyWeek =
-        longitudinal?.skeleton.skeleton_locked !== true &&
+        skeletonPlan?.skeleton.skeleton_locked !== true &&
         coachingWeekMayUseLegacyFallback({
           pipeline: coached.pipeline,
           weekStatus: coached.adoption?.weekStatus,
@@ -719,7 +723,7 @@ async function writeProgrammingWeek(
         monthId: month.id,
         weekIndex,
         weekStart,
-        draft: withLongitudinal(legal.draft, longitudinal),
+        draft: withLongitudinal(legal.draft, skeletonPlan),
         display: legal.display,
         inputSummaryJson: JSON.stringify(summary),
         mode,
@@ -776,7 +780,7 @@ async function writeProgrammingWeek(
             monthId: month.id,
             weekIndex,
             weekStart,
-            draft: withLongitudinal(coached.draft, longitudinal),
+            draft: withLongitudinal(coached.draft, skeletonPlan),
             display: projectWeek(coached.draft, weekIndex, "rules", month.direction.strength_method),
             inputSummaryJson: JSON.stringify(summary),
             generationSource: "fallback",
@@ -807,7 +811,7 @@ async function writeProgrammingWeek(
       monthId: month.id,
       weekIndex,
       weekStart,
-      draft: withLongitudinal(storedDraft, longitudinal),
+      draft: withLongitudinal(storedDraft, skeletonPlan),
       display,
       inputSummaryJson: JSON.stringify(summary),
       mode,

@@ -24,7 +24,7 @@ import {
 } from "../types";
 import { timeDomainFromMinutes } from "./canonical";
 import type { DaySessionLock } from "./session-contract";
-import { jointsFor, warmupIssues } from "./warmup-ramp";
+import { jointsFor, sessionJoints, warmupIssues } from "./warmup-ramp";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
 import { exactStrengthKey } from "./goal-table";
 import { catalogMovement, equipmentForKeys, type CatalogLoad, type CatalogUnit } from "./movement-catalog";
@@ -326,7 +326,7 @@ export function sessionFromCoachJson(input: {
   if (session.warmup_phases?.length) {
     const verdict = warmupIssues({
       picks: session.warmup_phases,
-      joints: jointsFor(input.lock?.patterns ?? [], input.lock?.lift ?? strength?.lift ?? null),
+      joints: input.lock ? sessionJoints(input.lock) : jointsFor([], strength?.lift ?? null),
       warmupMinutes: warmupBlock?.minutes ?? session.warmup_min,
       cooldownMinutes: session.session_blocks?.find((block) => block.role === "cooldown")?.minutes ?? 0,
     });

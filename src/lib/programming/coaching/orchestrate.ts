@@ -5,8 +5,8 @@ import { adoptionCollisionErrors, hardConstraints, overlapRetryErrors, overlapSe
 import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
-import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
-import { intensityBandsAtMost, planWeekContract, resolveSessionMinutes, type ContractDayInput, type DaySessionLock } from "./session-contract";
+import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { intensityBandsForStimulus, planWeekContract, resolveSessionMinutes, stimuliForCeiling, type ContractDayInput, type DaySessionLock } from "./session-contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -21,7 +21,7 @@ import {
 } from "./prompts";
 import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
 import { applyIntensityPatch, intensityPatchFormat, intensityPatchUser } from "./intensity-patch";
-import { applyWeekGoalBounds, boundsFromWeekGoal, dayBoundsFromSkeleton, weekBoundsNote, weeklyResponseFormat } from "./week-bounds";
+import { applyWeekGoalBounds, boundsFromWeekGoal, dayBoundsFromSkeleton, emptyIntensityCauses, weekBoundsNote, weeklyResponseFormat } from "./week-bounds";
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
 import { placeConditioningSlots, slotFitErrors } from "./conditioning-board";
 import { readStoredClassIntensity } from "../class-intensity";
@@ -77,6 +77,11 @@ import { lockWeekdaysForPlacement, placeTrainingDays } from "./day-place";
 import { applyHeadCells, intensityRevisionCells, pieceCells } from "./head-cells";
 import { classifyHeadRevise, is_heavy_lower_metcon, sessionHasHeavyLowerMetcon, type HeadReviseGap } from "./heavy-lower-metcon";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
+import { skeletonFeasibility, skeletonFitsGoal, type CellCause } from "../planning/feasibility";
+import { longitudinalPlanningEnabled } from "../planning/flag";
+import { planLongitudinal } from "../planning/plan";
+import type { LongitudinalPlan } from "../planning/types";
+import { rampSlots } from "./warmup-ramp";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { variationReport } from "./variation";
 import { planCoachedWeek, weeklyCoachPayload } from "./weekly";
@@ -210,6 +215,8 @@ function sessionUser(
   const nextStimulus = adjacentStimulus(writtenDays, day.day, 1);
   const blockedStimuli = new Set([previousStimulus, nextStimulus].filter((value): value is string => Boolean(value)));
   const allowedStimuli = STIMULI.filter((stimulus) => !blockedStimuli.has(stimulus));
+  const slotStimulus = rawSlot && (STIMULI as readonly string[]).includes(rawSlot.stimulus) ? rawSlot.stimulus : "high_rep";
+  const stimulusChoices = locked ? stimuliForCeiling(locked.conditioning.intensity_ceiling, slotStimulus) : [];
   return {
     agent_name: "session_coach",
     monthly_plan: input.month.coaching_plan ?? null,
@@ -247,7 +254,8 @@ function sessionUser(
           duration_min: lockedRange ? `${lockedRange.min}-${lockedRange.max}` : null,
           volume_max: locked.volume_profile,
           intensity_ceiling: locked.conditioning.intensity_ceiling,
-          intensity_choices: intensityBandsAtMost(locked.conditioning.intensity_ceiling),
+          stimulus_choices: stimulusChoices,
+          intensity_choices: intensityBandsForStimulus(locked.conditioning.intensity_ceiling, stimulusChoices),
           benchmark: locked.benchmark,
           long_day: locked.long_day,
           fields: ["conditioning.duration_min", "conditioning.volume", "conditioning.intensity", "conditioning.movements[].amount"],
@@ -339,14 +347,14 @@ function stimulusRetryText(error: string, draft: WeekDraft, day: DayKey, ignoreD
   return `${error}. Neighboring training stimulus is ${neighbors.join(" and ") || "none"}. Set conditioning.stimulus to ${choices}. A new movement name is not a stimulus change.`;
 }
 
-function stampSlotAxes(json: unknown, slot: ConditioningSlot): unknown {
+function stampSlotAxes(json: unknown, slot: ConditioningSlot, ceiling?: string | null): unknown {
   if (!json || typeof json !== "object") return json;
   const clone = JSON.parse(JSON.stringify(json)) as { conditioning?: Record<string, unknown> };
   const piece = clone.conditioning;
   if (!piece || typeof piece !== "object") return clone;
   piece.format = slot.format;
   piece.duration_min = slot.duration_min;
-  piece.stimulus = slot.stimulus;
+  if ((stimuliForCeiling(ceiling, slot.stimulus) as readonly string[]).includes(slot.stimulus)) piece.stimulus = slot.stimulus;
   piece.volume = slot.volume;
   if (slot.format === "intervals") {
     if (typeof piece.interval_work_sec !== "number") piece.interval_work_sec = 40;
@@ -401,7 +409,7 @@ function adoptDay(input: {
   const rawSlot = input.plan.conditioning_slots?.[input.day.day] ?? null;
   const goalOwned = goalLocked(rawSlot);
   const slot = locked && !goalOwned ? null : rawSlot;
-  const source = slot && input.stampAxes !== false && !slot.from_goal ? stampSlotAxes(input.json, slot) : input.json;
+  const source = slot && input.stampAxes !== false && !slot.from_goal ? stampSlotAxes(input.json, slot, locked?.conditioning.intensity_ceiling) : input.json;
   const normalized = normalizeSessionPayload(source, { inventWorkFromClock: false });
   const schemaErrors = [
     ...sessionSelfErrors(normalized.json, input.day, locked?.conditioning.intensity_ceiling),
@@ -1267,7 +1275,21 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let monthlyDegraded = monthly.direction.degraded;
   if (monthly.trace.source !== "model") noteFailure(monthly.trace.failure_reason);
   let month = { ...input.month, coaching_plan: monthly.plan };
-  let week: CoachWeekInput = { ...input, month };
+  const goalStimuli: Partial<Record<DayKey, string | null>> = {};
+  for (const day of goalWeek(month.coaching_plan?.goal_table, input.weekIndex)?.days ?? []) goalStimuli[day.day] = day.stimulus;
+  let longitudinal: LongitudinalPlan | null = input.longitudinal ?? null;
+  if (longitudinalPlanningEnabled() && !skeletonFitsGoal(longitudinal?.skeleton.skeleton_locked ? longitudinal.skeleton.days : null, goalStimuli)) {
+    longitudinal = await planLongitudinal({
+      month,
+      weekIndex: input.weekIndex,
+      previousActual: input.previousActual ?? null,
+      recentPlans: input.recentPlans,
+      key,
+      fetchImpl: input.fetchImpl,
+      timeoutMs,
+    });
+  }
+  let week: CoachWeekInput = { ...input, month, longitudinal };
   let rules = extractWeekRules({ month, weekIndex: input.weekIndex, actual: input.previousActual });
   traces.push(
     finishTrace(Date.now(), {
@@ -1298,7 +1320,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let plan = deterministic;
   let weeklyFromModel = false;
   let intensityPatchCount = 0;
-  const lockedLongitudinal = input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal : null;
+  const lockedLongitudinal = longitudinal?.skeleton.skeleton_locked ? longitudinal : null;
   if (lockedLongitudinal) {
     plan = planFromLockedSkeleton(lockedLongitudinal, month);
     traces.push(
@@ -1352,7 +1374,15 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     if (planErrors.length) return { ok: false as const, errors: planErrors, retry: !planErrors.some((error) => /high intensity days/.test(error)) };
     return { ok: true as const };
   };
-  const weeklyFormat = dayBounds ? weeklyResponseFormat(dayBounds) : undefined;
+  const skeletonEmpty = (longitudinal?.skeleton.validation_errors ?? [])
+    .filter((error) => String(error).startsWith("empty_enum:"))
+    .map((error) => ({
+      code: "empty_enum" as const,
+      path: String(error).slice("empty_enum:".length) || "skeleton",
+      detail: String(error),
+    }));
+  const emptyIntensity = [...(dayBounds ? emptyIntensityCauses(dayBounds) : []), ...skeletonEmpty];
+  const weeklyFormat = dayBounds && !emptyIntensity.length ? weeklyResponseFormat(dayBounds) : undefined;
   const weeklySchemaNote = dayBounds ? weekBoundsNote(dayBounds) : undefined;
   const weeklyUser = weeklyCoachPayload({
     month,
@@ -1365,7 +1395,23 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   });
   stage = "weekly_coach";
   const weeklyStarted = Date.now();
-  const weekly = await askCoach({
+  const weekly = emptyIntensity.length
+    ? {
+        ok: false,
+        json: null,
+        raw: null,
+        model: "",
+        latencyMs: 0,
+        reason: "empty_enum",
+        retryCount: 0,
+        validationErrors: emptyIntensity.map((cause) => `${cause.code}:${cause.path}`),
+        firstValidationErrors: emptyIntensity.map((cause) => `${cause.code}:${cause.path}`),
+        attempts: [],
+        temperature: 0,
+        usage: null,
+        promptVersion: WEEKLY_COACH_PROMPT_VERSION,
+      }
+    : await askCoach({
     agent: "weekly",
     retryTransport: true,
     format: weeklyFormat,
@@ -1729,8 +1775,69 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         }),
   };
   const queue = trainingDays(plan);
+  const skeletonEmptyCauses: CellCause[] = (longitudinal?.skeleton.validation_errors ?? [])
+    .filter((error) => String(error).startsWith("empty_enum:"))
+    .map((error) => ({
+      code: "empty_enum" as const,
+      path: String(error).slice("empty_enum:".length) || "skeleton",
+      detail: String(error),
+    }));
+  const feasibilityCauses: CellCause[] = [
+    ...skeletonEmptyCauses,
+    ...skeletonFeasibility(
+      queue.map((day) => {
+        const locked = lockedSkeletonDay(week, day.day);
+        const lock = sessionLockFor(week, plan, day.day);
+        const raw = plan.conditioning_slots?.[day.day]?.stimulus ?? null;
+        const stimulus = raw && (STIMULI as readonly string[]).includes(raw) ? raw : null;
+        const ceiling = locked?.conditioning.intensity_ceiling ?? lock?.intensity_ceiling ?? null;
+        const warmup = lock && !lock.rest ? rampSlots(lock) : [];
+        return {
+          day: day.day,
+          rest: false,
+          intensity_ceiling: ceiling,
+          stimulus,
+          format: lock?.format ?? null,
+          enums: warmup
+            .filter((slot) => slot.phase === "mobilise" || slot.phase === "activate" || slot.phase === "cooldown")
+            .map((slot) => ({
+              path: `${day.day}.warmup.${slot.id}`,
+              values: slot.choices.map((choice) => choice.key),
+            })),
+        };
+      }),
+    ),
+  ];
+  const feasibilityBlocked = feasibilityCauses.length > 0;
+  if (feasibilityBlocked) {
+    const lines = feasibilityCauses.map((cause) => `${cause.code}:${cause.path}`);
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "skeleton_feasibility",
+        agent_type: "validator",
+        model: null,
+        prompt_version: "skeleton-feasibility-v1",
+        input_hash: inputHash(lines),
+        output: { causes: feasibilityCauses },
+        validation_result: "fail",
+        validation_errors: lines,
+        retry_count: 0,
+        failure_reason: "empty_enum",
+        deterministic: true,
+        decision: "STOP",
+        revision_number: 0,
+        token_usage: null,
+      }),
+    );
+    for (const day of queue) {
+      unresolvedDays.set(day.day, lines);
+      dayOriginWhy[day.day] = `unresolved:${feasibilityCauses[0]?.code ?? "empty_enum"}`;
+    }
+  }
   stage = "session_coach";
-  for (let index = 0; index < queue.length; index += 1) {
+  for (let index = 0; index < queue.length && !feasibilityBlocked; index += 1) {
     const day = queue[index]!;
     const written = await writeSession({
       week,
@@ -1808,7 +1915,23 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   };
   stage = "load_coach";
   const loadStarted = Date.now();
-  const loadAsked = await askCoach({
+  const loadAsked = feasibilityBlocked
+    ? {
+        ok: false,
+        json: null,
+        raw: null,
+        model: "",
+        latencyMs: 0,
+        reason: "empty_enum",
+        retryCount: 0,
+        validationErrors: feasibilityCauses.map((cause) => `${cause.code}:${cause.path}`),
+        firstValidationErrors: feasibilityCauses.map((cause) => `${cause.code}:${cause.path}`),
+        attempts: [],
+        temperature: 0,
+        usage: null,
+        promptVersion: LOAD_COACH_PROMPT_VERSION,
+      }
+    : await askCoach({
     agent: "load",
     retryTransport: true,
     user: loadUser,
@@ -1897,11 +2020,11 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     return bundle;
   };
 
-  const skeletonLocked = input.longitudinal?.skeleton.skeleton_locked === true;
+  const skeletonLocked = longitudinal?.skeleton.skeleton_locked === true;
   const placed = placeTrainingDays({
     draft,
     plan,
-    skeleton: skeletonLocked ? (input.longitudinal?.skeleton ?? null) : null,
+    skeleton: skeletonLocked ? (longitudinal?.skeleton ?? null) : null,
     recent: input.recentStructures ?? [],
     lockWeekdays: lockWeekdaysForPlacement(skeletonLocked),
   });
@@ -1939,7 +2062,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       rewriteDays.add(hit.candidate_day as DayKey);
     }
   }
-  for (const dayKey of DAY_ORDER.filter((day) => rewriteDays.has(day))) {
+  for (const dayKey of DAY_ORDER.filter((day) => rewriteDays.has(day) && !feasibilityBlocked)) {
     const intent = plan.days.find((row) => row.day === dayKey);
     const session = draft.sessions.find((row) => row.day === dayKey);
     if (!intent || !session?.conditioning) continue;
@@ -2288,8 +2411,15 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         quantity_option: cell.quantity_ids,
         ...(cell.intensity_values ? { intensity: cell.intensity_values } : {}),
       })),
+      cell_violations: headReviewCells
+        .filter((cell) => cell.required)
+        .map((cell) => ({
+          code: "intensity_over_ceiling",
+          path: `${cell.day}.${cell.block}.${cell.catalog_key}`,
+          allowed_values: cell.intensity_values ?? [],
+        })),
       constitution:
-        "You are called once. Fix hard_constraints violations before warnings. On a day whose heavy_lower_metcon is avoid, REVISE only with a movement_id or quantity_option that remains in that day's revisable enum. REVISE only when value is a different movement_id or quantity_option in that cell's enum. If catalog_key is intensity, field is intensity and value is one of that cell's bands. If the enum has no different id, return APPROVE_WITH_NOTE with empty revisions and empty adjustments. Do not use adjustments as a cell edit. The server writes a legal cell and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4.",
+        "You are called once. Every cell_violations entry must appear once in revisions. Patch each indicated cell with one of its allowed_values. Do not leave an indicated cell unchanged. Fix hard_constraints violations before warnings. On a day whose heavy_lower_metcon is avoid, REVISE only with a movement_id or quantity_option that remains in that day's revisable enum. REVISE only when value is a different movement_id or quantity_option in that cell's enum. If catalog_key is intensity, field is intensity and value is one of that cell's bands. If the enum has no different id, return APPROVE_WITH_NOTE with empty revisions and empty adjustments. Do not use adjustments as a cell edit. The server writes a legal cell and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4.",
       unresolved_days: [...unresolvedDays.entries()].map(([day, errors]) => ({ day, errors })),
       monthly_goal: month.coaching_plan?.block_goal ?? null,
       monthly_method: month.coaching_plan?.strength_method ?? month.strength_method,
@@ -2329,7 +2459,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         headReviewCells,
       ),
       validate: (json) => {
-        const errors = headReviewErrors(json);
+        const errors = [...headReviewErrors(json), ...requiredRevisionErrors(json, headReviewCells)];
         if (errors.length) return { ok: false, errors };
         if (!parseHeadReview(json)) return { ok: false, errors: ["head review parser rejected the payload"] };
         return { ok: true };
@@ -2439,7 +2569,9 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     return review;
   };
 
-  let review = await askHead(0);
+  let review = feasibilityBlocked
+    ? { status: "APPROVE" as const, revisions: [], note_ko: "실현 가능성 검사에서 후보가 없어 헤드를 호출하지 않습니다." }
+    : await askHead(0);
   if (headModelStatus === "REVISE" && headAdjustments.length > 0 && review.status !== "BLOCK") {
     review = { status: "REVISE", revisions: [], note_ko: review.note_ko };
   }
@@ -2766,7 +2898,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const originals = new Map(draft.sessions.map((session) => [session.day, JSON.parse(JSON.stringify(session)) as SessionDraft]));
   const failedDays = new Set<DayKey>();
   const hardAdjusted = new Set<DayKey>();
-  if (finalErrors.length > 0) {
+  if (finalErrors.length > 0 && !feasibilityBlocked) {
     rejectedErrors = [...finalErrors];
     const targeted = isolationPlan({ errors: finalErrors, trainingDays: trained.map((day) => day.day) });
     const daysToReplace = (revisionScope ? targeted.replaceDays.filter((day) => revisionScope.includes(day)) : targeted.replaceDays).filter(
@@ -2823,7 +2955,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }
   }
   let skeletonHeld = true;
-  if (lockedLongitudinal) {
+  if (lockedLongitudinal && !feasibilityBlocked) {
     const enforced = enforceLockedSkeleton({
       skeleton: lockedLongitudinal.skeleton,
       draft,
@@ -2862,6 +2994,14 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     modelDayCount = trained.filter((day) => daySources[day.day] === "model").length;
     origin = prescriptionSource({ modelDays: modelDayCount, trainingDays: trained.length, revisions, legacy: false });
     modelAdopted = origin === "model" || origin === "model_revised";
+  }
+  if (feasibilityBlocked) {
+    for (const cause of feasibilityCauses) {
+      const line = `${cause.code}:${cause.path}`;
+      if (!finalErrors.includes(line)) finalErrors.push(line);
+    }
+    for (const day of queue) failedDays.add(day.day);
+    modelAdopted = false;
   }
   if (unresolvedDays.size > 0) {
     for (const [day, errors] of unresolvedDays) {
@@ -3154,6 +3294,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     final_status: resolvedStatus,
     coach_notes: notes,
     monthly_plan: monthly.plan,
+    longitudinal,
     load_decisions: loadDecisions,
     token_usage: usage,
     latency_ms: traces.reduce((sum, trace) => sum + trace.duration_ms, 0),

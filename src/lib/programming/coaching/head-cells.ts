@@ -2,7 +2,7 @@ import type { DayKey } from "../../month-plan/types";
 import type { SessionDraft } from "../types";
 import type { HeadPieceRef } from "./contract";
 import { patchStoredMovement } from "./movement-catalog";
-import { intensityBandsAtMost } from "./session-contract";
+import { intensityBandsAtMost, intensityBandsForStimulus } from "./session-contract";
 import { applyCatalogOption, peerMovementIds } from "./slot-choices";
 import type { SessionRevision } from "./review";
 
@@ -56,16 +56,17 @@ export function intensityRevisionCells(
   for (const session of sessions) {
     if (session.rest || !session.conditioning) continue;
     const current = session.conditioning.intensity;
-    const allowed = intensityBandsAtMost(ceilingFor(session.day));
-    const stimulusClash = current === "light" && session.conditioning.stimulus === "heavy";
-    if (allowed.includes(current) && !stimulusClash) continue;
-    const choices = allowed.filter((band) => band !== current);
+    const ceiling = ceilingFor(session.day);
+    if (intensityBandsAtMost(ceiling).includes(current)) continue;
+    const stimulus = session.conditioning.stimulus;
+    const choices = intensityBandsForStimulus(ceiling, stimulus ? [stimulus] : []).filter((band) => band !== current);
     if (!choices.length) continue;
     cells.push({
       day: session.day,
       block: "conditioning",
       catalog_key: "intensity",
       intensity_values: choices,
+      required: true,
     });
   }
   return cells;

@@ -93,6 +93,7 @@ export function buildCoachRequest(input: {
   maxTokens: number;
   temperature: number | null;
   format: ResponseFormat;
+  seed?: number | null;
 }): CoachRequest {
   if (input.provider === "anthropic") return anthropicRequest(input);
   if (input.provider === "gemini") return geminiRequest(input);
@@ -108,6 +109,7 @@ function chatRequest(
     maxTokens: number;
     temperature: number | null;
     format: ResponseFormat;
+    seed?: number | null;
   },
   url: string,
   xai: boolean,
@@ -123,6 +125,7 @@ function chatRequest(
   };
   if (!xai) body.reasoning_effort = "none";
   if (input.temperature != null) body.temperature = input.temperature;
+  if (typeof input.seed === "number") body.seed = input.seed;
   return {
     url,
     headers: { Authorization: `Bearer ${input.key}`, "Content-Type": "application/json" },

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { CatalogUnit } from "./movement-catalog";
-import { catalogMovement } from "./movement-catalog";
+import { catalogMovement, primaryJoints } from "./movement-catalog";
 import type { DaySessionLock } from "./session-contract";
 
 export type WarmupPhase = "raise" | "mobilise" | "activate" | "potentiate" | "cooldown";
@@ -73,19 +73,58 @@ const PATTERN_JOINTS: Record<string, string[]> = {
   cycle: ["hip", "ankle"],
   core: ["hip", "thoracic"],
   push: ["shoulder", "thoracic"],
+  lunge: ["hip", "ankle"],
 };
 
-export function jointsFor(patterns: readonly string[], lift: string | null): string[] {
+function rankedJoints(patterns: readonly string[], lift: string | null, limit: number | null): string[] {
   const counts = new Map<string, number>();
   const add = (pattern: string) => {
     for (const joint of PATTERN_JOINTS[pattern] ?? []) counts.set(joint, (counts.get(joint) ?? 0) + 1);
   };
   for (const pattern of lift ? (LIFT_PATTERN[lift] ?? []) : []) add(pattern);
   for (const pattern of patterns) add(pattern);
+  const ranked = [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([joint]) => joint);
+  return limit == null ? ranked : ranked.slice(0, limit);
+}
+
+export function jointsFor(patterns: readonly string[], lift: string | null): string[] {
+  return rankedJoints(patterns, lift, 2);
+}
+
+/** Joints the day's locked main and metcon movements actually use. Every ranked joint stays. */
+export function jointsForMovements(keys: readonly string[], lift: string | null): string[] {
+  const counts = new Map<string, number>();
+  const add = (joint: string) => counts.set(joint, (counts.get(joint) ?? 0) + 1);
+  for (const pattern of lift ? (LIFT_PATTERN[lift] ?? []) : []) {
+    for (const joint of PATTERN_JOINTS[pattern] ?? []) add(joint);
+  }
+  for (const key of keys) {
+    for (const joint of primaryJoints(key)) add(joint);
+  }
   return [...counts.entries()]
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
-    .slice(0, 2)
     .map(([joint]) => joint);
+}
+
+export function sessionJoints(lock: {
+  lift: string | null;
+  patterns?: readonly string[];
+  metcon?: readonly { key: string }[];
+  skill?: { key: string } | null;
+  extra?: { key: string } | null;
+}): string[] {
+  const keys = [
+    ...(lock.metcon ?? []).map((row) => row.key),
+    ...(lock.skill?.key ? [lock.skill.key] : []),
+    ...(lock.extra?.key ? [lock.extra.key] : []),
+  ];
+  if (keys.length) {
+    const joints = jointsForMovements(keys, lock.lift);
+    if (joints.length) return joints;
+  }
+  return jointsFor(lock.patterns ?? [], lock.lift);
 }
 
 function choices(keys: readonly string[], allowStatic: boolean, holdMax: number | null): RampChoice[] {
@@ -147,7 +186,7 @@ function prepares(keys: readonly string[], allowStatic: boolean, holdMax: number
   });
 }
 
-/** A listed movement stays only when its catalog joints meet this day. An empty bucket widens to that phase. */
+/** A listed movement stays only when its catalog joints meet this day. An empty bucket widens inside those joints. */
 function forJoint(
   table: Record<string, readonly string[]>,
   joint: string,
@@ -156,14 +195,15 @@ function forJoint(
   joints: readonly string[],
 ): RampChoice[] {
   const listed = prepares(table[joint] ?? [], allowStatic, holdMax, joints);
-  if (listed.length) return listed;
-  const widened = prepares([...new Set(Object.values(table).flat())], allowStatic, holdMax, joints);
-  return widened.length ? widened : choices(table[joint] ?? table.hip ?? [], allowStatic, holdMax);
+  const choices = listed.length ? listed : prepares([...new Set(Object.values(table).flat())], allowStatic, holdMax, joints);
+  return choices.slice(0, 15);
 }
 
-/** 코드가 그날 패턴에서 슬롯을 만든다. 정적 유지는 모빌라이즈 선택지에 남는다. */
-export function rampSlots(lock: Pick<DaySessionLock, "lift" | "patterns">): RampSlot[] {
-  const joints = jointsFor(lock.patterns, lock.lift);
+/** 코드가 그날 세션 동작에서 관절과 슬롯을 만든다. 정적 유지는 모빌라이즈 선택지에 남는다. */
+export function rampSlots(
+  lock: Pick<DaySessionLock, "lift" | "patterns"> & Partial<Pick<DaySessionLock, "metcon" | "skill" | "extra">>,
+): RampSlot[] {
+  const joints = sessionJoints(lock);
   const primary = joints[0] ?? "hip";
   const secondary = joints[1] ?? primary;
   const dynamicPrimary = forJoint(DYNAMIC, primary, false, null, joints);

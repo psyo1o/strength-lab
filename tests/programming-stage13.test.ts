@@ -299,7 +299,7 @@ describe("stage13 constitution and policy", () => {
     expect(decision.status).toBe("APPROVE");
   });
 
-  it("keeps a light pick when light is the only legal band", () => {
+  it("rejects light intensity paired with a heavy stimulus", () => {
     const json = {
       day: "fri",
       warmup_ko: "준비합니다.",
@@ -318,8 +318,8 @@ describe("stage13 constitution and policy", () => {
       },
     };
     const day = intent("fri", { volume_profile: "low", intensity_profile: "light" });
-    expect(sessionSelfErrors(json, day, "light").join("\n")).not.toMatch(/contradicts stimulus heavy/);
-    expect(sessionSelfErrors(json, day, "moderate").join("\n")).not.toMatch(/contradicts stimulus heavy/);
+    expect(sessionSelfErrors(json, day, "light").join("\n")).toContain("conditioning intensity light contradicts stimulus heavy");
+    expect(sessionSelfErrors(json, day, "moderate").join("\n")).toContain("conditioning intensity light contradicts stimulus heavy");
     expect(sessionSelfErrors(json, day).join("\n")).toContain("conditioning intensity light contradicts stimulus heavy");
   });
 

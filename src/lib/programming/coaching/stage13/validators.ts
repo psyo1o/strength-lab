@@ -54,8 +54,7 @@ function movementsOf(value: unknown): Array<{ key: string; amount: string }> {
   });
 }
 
-function intensityClash(value: unknown, ceiling?: string | null): string[] {
-  if (ceiling === "light" || ceiling === "moderate" || ceiling === "heavy") return [];
+function intensityClash(value: unknown, _ceiling?: string | null): string[] {
   if (!value || typeof value !== "object") return [];
   const piece = (value as { conditioning?: { intensity?: unknown; stimulus?: unknown } }).conditioning;
   if (!piece) return [];

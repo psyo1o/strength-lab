@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { DayKey, WeekIndex } from "../../month-plan/types";
 import { exampleSets } from "../strength-methods";
-import type { MainLift, WodFormat } from "../types";
+import { STIMULI, type MainLift, type Stimulus, type WodFormat } from "../types";
 
 /** 수업 창. 설정이 없으면 100이고, 그 사실을 한 번 남긴다. */
 export const SESSION_MINUTES_MIN = 90;
@@ -44,6 +44,26 @@ export function intensityBandsAtMost(ceiling: string | null | undefined): Intens
   if (ceiling === "light") return ["light"];
   if (ceiling === "moderate") return ["light", "moderate"];
   return ["light", "moderate", "heavy"];
+}
+
+/**
+ * Stimulus values that can sit under this ceiling.
+ * A slot stimulus already inside that set is echoed as one value.
+ * A stimulus the ceiling cannot host is an empty enum. The caller stops before generation.
+ */
+export function stimuliForCeiling(ceiling: string | null | undefined, current: string | null | undefined): Stimulus[] {
+  const legal: Stimulus[] = ceiling === "light" ? ["high_rep", "technical"] : [...STIMULI];
+  if (current && (STIMULI as readonly string[]).includes(current)) {
+    return (legal as readonly string[]).includes(current) ? [current as Stimulus] : [];
+  }
+  return legal;
+}
+
+/** Intensity bands at or under the ceiling. Heavy stimulus cannot be paired with light. */
+export function intensityBandsForStimulus(ceiling: string | null | undefined, stimuli: readonly string[]): IntensityCeiling[] {
+  const bands = intensityBandsAtMost(ceiling);
+  if (!stimuli.includes("heavy")) return bands;
+  return bands.filter((band) => band !== "light");
 }
 
 export type DaySessionLock = {

@@ -14,7 +14,7 @@ import {
 } from "../src/lib/programming/coaching/session-contract";
 import { standardMovements } from "../src/lib/programming/coaching/movement-catalog";
 import { tipFor } from "../src/lib/tips";
-import { jointsFor, rampSlots, warmupIssues } from "../src/lib/programming/coaching/warmup-ramp";
+import { jointsFor, rampSlots, sessionJoints, warmupIssues } from "../src/lib/programming/coaching/warmup-ramp";
 import type { SessionDraft, WeekDraft } from "../src/lib/programming/types";
 
 const ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -276,5 +276,46 @@ describe("warmup ramp", () => {
       expect(verdict.reject.join(" "), choice.key).not.toContain(`${choice.key} does not prepare`);
     }
     expect(offered.some((choice) => choice.key === "leg_swing")).toBe(false);
+  });
+
+  it("narrows warmup enums to joints from that day's movements", () => {
+    const lifts = ["none", "squat", "bench", "ohp", "deadlift"] as const;
+    for (const week of [1, 2, 3, 4] as const) {
+      for (const lift of lifts) {
+        const locks = planWeekContract(
+          ORDER.map((day, index) => ({
+            day,
+            rest: day === "sun",
+            long: day === "sat",
+            domain: index % 2 === 0 ? "short" : "medium",
+            lift,
+            intensity_ceiling: day === "fri" ? "light" : "moderate",
+          })),
+          week,
+        );
+        for (const lock of locks.filter((row) => !row.rest)) {
+          const slots = rampSlots(lock);
+          const joints = sessionJoints(lock);
+          expect(joints.length, `${week} ${lock.day}`).toBeGreaterThan(0);
+          expect(slots.every((slot) => slot.choices.length > 0), `${week} ${lift} ${lock.day}`).toBe(true);
+          const base = slots.map((slot) => {
+            const choice = slot.choices[0]!;
+            return { phase: slot.phase, key: choice.key, unit: choice.unit, amount: choice.amount, reason: "준비 동작입니다", static_hold: choice.static_hold };
+          });
+          for (const [index, slot] of slots.entries()) {
+            if (slot.phase !== "mobilise" && slot.phase !== "activate" && slot.phase !== "cooldown") continue;
+            for (const choice of slot.choices) {
+              const picks = base.map((pick, pickIndex) =>
+                pickIndex === index
+                  ? { phase: slot.phase, key: choice.key, unit: choice.unit, amount: choice.amount, reason: "준비 동작입니다", static_hold: choice.static_hold }
+                  : pick,
+              );
+              const verdict = warmupIssues({ picks, joints, warmupMinutes: 10, cooldownMinutes: 6 });
+              expect(verdict.reject, `${week} ${lift} ${lock.day} ${slot.id} ${choice.key}`).toEqual([]);
+            }
+          }
+        }
+      }
+    }
   });
 });
