@@ -1,0 +1,23 @@
+{
+  "stage": "date-view",
+  "model_probe": {
+    "ran": false,
+    "reason": "생성 알고리즘을 바꾸지 않았고, 날짜 보기는 모델을 부르지 않는다."
+  },
+  "mock_and_db": {
+    "tsc": "pass",
+    "vitest_files": 87,
+    "vitest_tests": 551,
+    "vitest_failed": 0,
+    "build": "pass",
+    "new_tests_database": "2099 temporary sqlite",
+    "view_generation_calls": 0
+  },
+  "http_temp_db": {
+    "dates": ["2099-07-08", "2099-07-13"],
+    "programming_weeks_before": 2,
+    "programming_weeks_after": 2,
+    "member_sees_failed_row_wod": false,
+    "admin_sees_failed_rules_label": true
+  }
+}

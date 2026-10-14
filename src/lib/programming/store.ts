@@ -545,6 +545,39 @@ export function getProgrammingWeek(weekStart: string): WeekRow | null {
   return row ? toWeek(row) : null;
 }
 
+/** Active row wins. Otherwise the latest failed row. Does not create a week. */
+export function getProgrammingWeekForView(weekStart: string): WeekRow | null {
+  const row = getSqlite()
+    .prepare(
+      `SELECT ${WEEK_SELECT} FROM programming_weeks
+       WHERE week_start = ? AND status IN ('active', 'failed')
+       ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, id DESC
+       LIMIT 1`,
+    )
+    .get(weekStart) as WeekSql | undefined;
+  return row ? toWeek(row) : null;
+}
+
+/** One row per week start. Active wins over a failed attempt. Does not create a week. */
+export function listProgrammingWeeksForView(): WeekRow[] {
+  const rows = getSqlite()
+    .prepare(
+      `SELECT ${WEEK_SELECT} FROM programming_weeks
+       WHERE status IN ('active', 'failed')
+       ORDER BY week_start DESC, CASE status WHEN 'active' THEN 0 ELSE 1 END, id DESC`,
+    )
+    .all() as WeekSql[];
+  const seen = new Set<string>();
+  const out: WeekRow[] = [];
+  for (const row of rows) {
+    const week = toWeek(row);
+    if (seen.has(week.weekStart)) continue;
+    seen.add(week.weekStart);
+    out.push(week);
+  }
+  return out;
+}
+
 export function listProgrammingWeekAttempts(weekStart: string): WeekRow[] {
   const rows = getSqlite()
     .prepare(`SELECT ${WEEK_SELECT} FROM programming_weeks WHERE week_start = ? ORDER BY id ASC`)

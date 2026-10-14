@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Nav } from "@/components/Nav";
 import { PlanScoreForm } from "@/components/PlanScoreForm";
 import { MetconEditor } from "@/components/MetconEditor";
@@ -20,6 +21,8 @@ export function PlanDayView({
   scores,
   choices,
   unit,
+  banner,
+  dateBar,
 }: {
   planId: number;
   weekIndex: WeekIndex;
@@ -31,12 +34,15 @@ export function PlanDayView({
   scores: PlanScore[];
   choices: MovementChoice[];
   unit: "kg" | "lb";
+  banner?: ReactNode;
+  dateBar?: ReactNode;
 }) {
   return (
-    <main className="min-w-0 px-4 pt-6 pb-8">
-      <Link href={backHref} className="text-sm font-bold text-[var(--accent)]">
+    <main className={`min-w-0 px-4 pt-6 ${dateBar ? "pb-fixed-stack" : "pb-8"}`}>
+      <Link href={backHref} className="tap inline-flex items-center text-sm font-bold text-[var(--accent)]">
         ← {weekIndex}주
       </Link>
+      {banner}
       <p className="mt-2 text-sm font-bold text-[var(--accent)]">
         {weekIndex}주 · {day.labelKo}
         {day.optional ? " · 선택" : ""}
@@ -109,6 +115,7 @@ export function PlanDayView({
           전체 기록
         </Link>
       </p>
+      {dateBar}
       <Nav />
     </main>
   );
