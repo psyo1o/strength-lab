@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ENGINE_DRY_ACTIONS,
@@ -9,15 +9,20 @@ import {
   enginePanelText,
   engineRequestBody,
 } from "@/lib/programming/admin-actions";
-import { ENGINE_CASE_HELP, engineHelp } from "@/lib/programming/admin-help";
+import { ENGINE_CASE_HELP, ENGINE_INTENSITY_HELP, engineHelp } from "@/lib/programming/admin-help";
 import { EngineHelpBlock } from "@/components/EngineHelpBlock";
 
-export function EngineAdminConsole() {
+export function EngineAdminConsole({ classIntensity }: { classIntensity: number }) {
   const router = useRouter();
   const [actualCase, setActualCase] = useState<"" | "a" | "b">("");
+  const [level, setLevel] = useState(String(classIntensity));
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState("");
+
+  useEffect(() => {
+    setLevel(String(classIntensity));
+  }, [classIntensity]);
 
   async function run(action: string) {
     setPending(action);
@@ -35,8 +40,41 @@ export function EngineAdminConsole() {
     if (res.ok && panel.error.length === 0) router.refresh();
   }
 
+  async function saveIntensity() {
+    setPending("save-class-intensity");
+    setError("");
+    const res = await fetch("/api/admin/engine", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "save-class-intensity", level: Number(level) }),
+    });
+    const body = (await res.json().catch(() => null)) as { error?: string; class_intensity_level?: number } | null;
+    setPending("");
+    const panel = enginePanelText(res.ok, body);
+    setError(panel.error);
+    setResult(panel.result || (body?.class_intensity_level ? `클래스 강도 ${body.class_intensity_level}을 저장했습니다. 다음 생성부터 적용됩니다.` : ""));
+    if (res.ok && panel.error.length === 0) router.refresh();
+  }
+
   return (
     <div className="mt-4 space-y-4">
+      <div>
+        <label className="block">
+          <span className="text-xs font-bold text-[var(--muted)]">클래스 강도</span>
+          <select className="field mt-1" value={level} onChange={(event) => setLevel(event.target.value)}>
+            {[1, 2, 3, 4, 5].map((choice) => (
+              <option key={choice} value={String(choice)}>
+                {choice}
+                {choice === 3 ? " (기본)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="btn-primary tap mt-2 w-full" disabled={pending !== ""} onClick={() => void saveIntensity()}>
+          {pending === "save-class-intensity" ? "저장 중…" : "클래스 강도 저장"}
+        </button>
+        <EngineHelpBlock help={ENGINE_INTENSITY_HELP} />
+      </div>
       {ENGINE_LIVE_ACTIONS.map(([action, label]) => (
         <div key={action}>
           <button type="button" className="btn-primary tap w-full" disabled={pending !== ""} onClick={() => void run(action)}>

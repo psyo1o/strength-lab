@@ -140,20 +140,47 @@ const POTENTIATE: Record<string, string[]> = {
   none: ["a_skip", "hip_hinge_drill"],
 };
 
+function prepares(keys: readonly string[], allowStatic: boolean, holdMax: number | null, joints: readonly string[]): RampChoice[] {
+  return choices(keys, allowStatic, holdMax).filter((choice) => {
+    const meta = warmupMeta(choice.key);
+    return Boolean(meta && joints.some((joint) => meta.joints.includes(joint)));
+  });
+}
+
+/** A listed movement stays only when its catalog joints meet this day. An empty bucket widens to that phase. */
+function forJoint(
+  table: Record<string, readonly string[]>,
+  joint: string,
+  allowStatic: boolean,
+  holdMax: number | null,
+  joints: readonly string[],
+): RampChoice[] {
+  const listed = prepares(table[joint] ?? [], allowStatic, holdMax, joints);
+  if (listed.length) return listed;
+  const widened = prepares([...new Set(Object.values(table).flat())], allowStatic, holdMax, joints);
+  return widened.length ? widened : choices(table[joint] ?? table.hip ?? [], allowStatic, holdMax);
+}
+
 /** 코드가 그날 패턴에서 슬롯을 만든다. 정적 유지는 모빌라이즈 선택지에 남는다. */
 export function rampSlots(lock: Pick<DaySessionLock, "lift" | "patterns">): RampSlot[] {
   const joints = jointsFor(lock.patterns, lock.lift);
   const primary = joints[0] ?? "hip";
   const secondary = joints[1] ?? primary;
-  const dynamicPrimary = choices(DYNAMIC[primary] ?? DYNAMIC.hip!, false, null);
+  const dynamicPrimary = forJoint(DYNAMIC, primary, false, null, joints);
   const mixed = [
-    ...choices(DYNAMIC[secondary] ?? DYNAMIC.hip!, false, null),
-    ...choices(STATIC[secondary] ?? STATIC.hip!, true, 5),
+    ...forJoint(DYNAMIC, secondary, false, null, joints),
+    ...forJoint(STATIC, secondary, true, 5, joints),
   ];
-  const third = choices([...(DYNAMIC[primary] ?? []), ...(STATIC[primary] ?? [])], true, 5);
-  const activate = choices(ACTIVATE[primary] ?? ACTIVATE.hip!, false, null);
+  const third = forJoint({ both: [...(DYNAMIC[primary] ?? []), ...(STATIC[primary] ?? [])] }, "both", true, 5, joints);
+  const activate = forJoint(ACTIVATE, primary, false, null, joints);
   const potentiate = choices(POTENTIATE[lock.lift ?? "none"] ?? POTENTIATE.none!, false, null);
-  const cooldown = choices([...(STATIC[primary] ?? []), ...(STATIC[secondary] ?? [])], true, null).map((choice) => ({
+  const cooldown = forJoint(
+    { both: [...(STATIC[primary] ?? []), ...(STATIC[secondary] ?? [])] },
+    "both",
+    true,
+    null,
+    joints,
+  ).map((choice) => ({
     ...choice,
     amount: 45,
   }));

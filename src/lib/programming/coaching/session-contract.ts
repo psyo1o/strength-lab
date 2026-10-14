@@ -37,6 +37,15 @@ export type ContractBlock = {
   movements: DoseMovement[];
 };
 
+export type IntensityCeiling = "light" | "moderate" | "heavy";
+
+/** Bands the model may pick. Anything above the ceiling is not in the enum. */
+export function intensityBandsAtMost(ceiling: string | null | undefined): IntensityCeiling[] {
+  if (ceiling === "light") return ["light"];
+  if (ceiling === "moderate") return ["light", "moderate"];
+  return ["light", "moderate", "heavy"];
+}
+
 export type DaySessionLock = {
   day: DayKey;
   rest: boolean;
@@ -57,6 +66,8 @@ export type DaySessionLock = {
   skill: DoseMovement;
   extra: DoseMovement;
   patterns: string[];
+  /** 뼈대가 잠근 컨디셔닝 강도 상한. 없으면 heavy. */
+  intensity_ceiling: IntensityCeiling;
 };
 
 type Pace = {
@@ -226,6 +237,7 @@ export type ContractDayInput = {
   long: boolean;
   domain: MetconBand | null;
   lift: MainLift | "none" | null;
+  intensity_ceiling?: IntensityCeiling;
 };
 
 function bandFor(day: ContractDayInput, index: number): MetconBand {
@@ -337,6 +349,7 @@ export function planWeekContract(
         skill: { key: "walking_lunge", unit: "reps", amount: 12 },
         extra: { key: "easy_jog", unit: "sec", amount: 150 },
         patterns: [],
+        intensity_ceiling: day.intensity_ceiling ?? "heavy",
       };
     }
     const index = training.findIndex((row) => row.day === day.day);
@@ -382,6 +395,7 @@ export function planWeekContract(
       skill: template.skill,
       extra: template.extra,
       patterns: template.patterns,
+      intensity_ceiling: day.intensity_ceiling ?? "heavy",
     };
   });
 }

@@ -103,7 +103,7 @@ describe("stage19 plan input and session lock feedback", () => {
     expect(unitError("double_under", "30sec")).toContain("field conditioning.movements.amount received 30sec");
   });
 
-  it("clamps intensity and leaves duration and volume for a rewrite", async () => {
+  it("does not rewrite an over-ceiling intensity", async () => {
     const planned = await planLongitudinal({ month: month(), weekIndex: 4 });
     const day = planned.skeleton.days.find((row) => row.status === "training" && row.conditioning.intensity_ceiling !== "heavy");
     expect(day).toBeTruthy();
@@ -128,9 +128,16 @@ describe("stage19 plan input and session lock feedback", () => {
       },
     } as SessionDraft;
     const fitted = fitSessionToSkeletonDay(session, day!);
-    expect(fitted.conditioning?.intensity).not.toBe("heavy");
+    expect(fitted.conditioning?.intensity).toBe("heavy");
     expect(fitted.conditioning?.duration_min).toBe(18);
     expect(fitted.conditioning?.time_domain).toBe("medium");
     expect(fitted.conditioning?.volume).toBe("high");
+    const minutes = day!.conditioning.duration_class === "short" ? 12 : day!.conditioning.duration_class === "long" ? 34 : 16;
+    const errors = lockedSessionFieldErrors(
+      { conditioning: { duration_min: minutes, volume: day!.volume_profile, intensity: "heavy" } },
+      day!,
+    );
+    expect(errors.join("\n")).toContain("conditioning.intensity received heavy");
+    expect(errors.join("\n")).toContain(day!.conditioning.intensity_ceiling);
   });
 });

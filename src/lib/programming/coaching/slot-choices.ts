@@ -18,7 +18,7 @@ import {
   standardMovements,
   type CatalogUnit,
 } from "./movement-catalog";
-import type { DaySessionLock, DoseMovement } from "./session-contract";
+import { intensityBandsAtMost, type DaySessionLock, type DoseMovement } from "./session-contract";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
@@ -440,10 +440,11 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
   if (frame.contract) {
     const minutes = (role: DaySessionLock["blocks"][number]["role"]) => frame.contract?.blocks.find((block) => block.role === role)?.minutes ?? 0;
     if (frame.area === "conditioning") {
-      for (const key of ["metcon_format", "metcon_minutes", "extra_minutes"]) required.push(key);
+      for (const key of ["metcon_format", "metcon_minutes", "extra_minutes", "intensity"]) required.push(key);
       properties.metcon_format = { type: "string", enum: [frame.contract.format] };
       properties.metcon_minutes = { type: "integer", enum: [frame.contract.metcon_minutes] };
       properties.extra_minutes = { type: "integer", enum: [minutes("extra_conditioning")] };
+      properties.intensity = { type: "string", enum: intensityBandsAtMost(frame.contract.intensity_ceiling) };
     } else if (frame.area === "warmup") {
       for (const key of ["warmup_minutes", "cooldown_minutes"]) required.push(key);
       properties.warmup_minutes = { type: "integer", enum: [minutes("warmup")] };
@@ -707,6 +708,9 @@ function expandContract(
     if (echoed(body.metcon_format) !== lock.format) errors.push("metcon_format does not match the lock");
     if (echoed(body.metcon_minutes) !== String(lock.metcon_minutes)) errors.push("metcon_minutes does not match the lock");
     if (echoed(body.extra_minutes) !== String(minutesOf("extra_conditioning"))) errors.push("extra_minutes does not match the lock");
+    const allowed = intensityBandsAtMost(lock.intensity_ceiling);
+    const picked = echoed(body.intensity);
+    if (!allowed.includes(picked as (typeof allowed)[number])) errors.push("intensity is outside the locked ceiling");
   } else if (frame.area === "warmup") {
     if (echoed(body.warmup_minutes) !== String(minutesOf("warmup"))) errors.push("warmup_minutes does not match the lock");
     if (echoed(body.cooldown_minutes) !== String(minutesOf("cooldown"))) errors.push("cooldown_minutes does not match the lock");
@@ -766,6 +770,7 @@ function expandContract(
   const metcon = chosen.filter((pick) => pick.phase === "metcon");
   const extra = chosen.find((pick) => pick.phase === "extra");
   const piece = frame.piece!;
+  const pickedIntensity = echoed(body.intensity);
   const movements = metcon.map((pick) => movementFrom(pick.movement_id, pick.option));
   return {
     ok: true,
@@ -779,7 +784,7 @@ function expandContract(
         stimulus: piece.stimulus,
         movements,
         volume: piece.volume,
-        intensity: piece.intensity,
+        intensity: pickedIntensity,
         interval_work_sec: lock.format === "intervals" ? 40 : null,
         interval_rest_sec: lock.format === "intervals" ? 20 : null,
       },

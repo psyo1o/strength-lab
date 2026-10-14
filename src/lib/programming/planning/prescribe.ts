@@ -1,5 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { buildSession } from "../coaching/session";
+import { intensityBandsAtMost } from "../coaching/session-contract";
 import { fillSessionFields } from "../session-fields";
 import type { WeekActual } from "../summary";
 import type { IntensityBand, MonthDirection, SessionDraft, StrengthLiftChoice, VolumeBand, WeekDraft, WeekIndex, WeeklyIntentPlan } from "../types";
@@ -107,27 +108,23 @@ export function prescriptionLockErrors(skeleton: WeeklySkeleton, draft: WeekDraf
 }
 
 /**
- * Category A only: lower intensity to the locked ceiling.
- * The piece, the duration class, and the volume band stay. Those are a one-day rewrite or a fallback.
+ * Does not rewrite intensity, duration, or volume.
+ * The model picks intensity inside the skeleton enum. A value outside that enum stays and fails the lock.
  */
 export function fitSessionToSkeletonDay(session: SessionDraft, day: SkeletonDay): SessionDraft {
   if (day.status === "rest" || session.rest || !session.conditioning) return session;
-  const piece = { ...session.conditioning };
-  const ceiling = day.conditioning.intensity_ceiling;
-  if (!isIntensity(piece.intensity) || rank(piece.intensity) <= rank(ceiling)) return session;
-  piece.intensity = ceiling;
-  return fillSessionFields({ ...session, conditioning: piece }, session.strength_volume);
+  return session;
 }
 
 const VOLUME_BANDS = ["low", "moderate", "high"] as const;
 
-/** Reject a session JSON that leaves the locked duration class or volume band. Intensity stays a clamp. */
+/** Reject a session JSON that leaves the locked duration class, volume band, or intensity ceiling. */
 export function lockedSessionFieldErrors(value: unknown, day: SkeletonDay): string[] {
   if (day.status !== "training") return [];
   if (!value || typeof value !== "object") return [`${day.day} field conditioning received nothing; expected an object`];
   const piece = (value as { conditioning?: unknown }).conditioning;
   if (!piece || typeof piece !== "object") return [`${day.day} field conditioning received nothing; expected an object`];
-  const body = piece as { duration_min?: unknown; volume?: unknown };
+  const body = piece as { duration_min?: unknown; volume?: unknown; intensity?: unknown };
   const errors: string[] = [];
   const klass = day.conditioning.duration_class;
   if (klass === "short" || klass === "medium" || klass === "long") {
@@ -145,6 +142,12 @@ export function lockedSessionFieldErrors(value: unknown, day: SkeletonDay): stri
     if (VOLUME_RANK[volume] > VOLUME_RANK[day.volume_profile]) {
       errors.push(`${day.day} field conditioning.volume received ${volume}; expected at or below ${day.volume_profile}`);
     }
+  }
+  const intensity = typeof body.intensity === "string" ? body.intensity : null;
+  if (isIntensity(intensity) && rank(intensity) > rank(day.conditioning.intensity_ceiling)) {
+    errors.push(
+      `${day.day} field conditioning.intensity received ${intensity}; expected at or below ${day.conditioning.intensity_ceiling}`,
+    );
   }
   return errors;
 }
@@ -249,7 +252,16 @@ export function rebuildLockedDay(input: {
     recent: input.recent ?? [],
     shortClock: skeletonDay.conditioning.duration_class === "short",
   });
-  return built ? alignFallbackSession(built, skeletonDay) : null;
+  return built ? alignFallbackSession(fallbackInsideCeiling(built, skeletonDay), skeletonDay) : null;
+}
+
+/** A newly built fallback starts inside the ceiling. It does not rewrite a model pick. */
+function fallbackInsideCeiling(session: SessionDraft, day: SkeletonDay): SessionDraft {
+  if (day.status === "rest" || session.rest || !session.conditioning) return session;
+  const allowed = intensityBandsAtMost(day.conditioning.intensity_ceiling);
+  if (allowed.includes(session.conditioning.intensity)) return session;
+  const intensity = allowed[allowed.length - 1]!;
+  return { ...session, intensity, conditioning: { ...session.conditioning, intensity } };
 }
 
 /** Fallback pieces must already satisfy the locked duration class and volume band. */
@@ -267,8 +279,6 @@ function alignFallbackSession(session: SessionDraft, day: SkeletonDay): SessionD
     }
   }
   if (VOLUME_RANK[piece.volume] > VOLUME_RANK[day.volume_profile]) piece.volume = day.volume_profile;
-  const ceiling = day.conditioning.intensity_ceiling;
-  if (isIntensity(piece.intensity) && rank(piece.intensity) > rank(ceiling)) piece.intensity = ceiling;
   return fillSessionFields(
     {
       day: session.day,

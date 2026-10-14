@@ -1,5 +1,6 @@
 import { DAY_ORDER } from "../../month-plan/types";
-import { JSON_OBJECT } from "../coaching/contract";
+import type { ResponseFormat } from "../coaching/contract";
+import { intensityBandsAtMost } from "../coaching/session-contract";
 import { askCoach } from "../coaching/llm";
 import { coachModel } from "../coaching/models";
 import type { FetchLike } from "../model";
@@ -23,7 +24,7 @@ const SKELETON_SYSTEM = [
   "OBJECTIVE",
   "Return seven days. Each day has status, primary goal, strength placement, conditioning duration class, conditioning intensity, stimulus, benchmark, and long-day.",
   "CONSTRAINTS",
-  "Use the project enums. duration_class is short, medium, long, or rest. intensity_class is light, moderate, or heavy. A rest day cannot hold a benchmark. A deload week cannot use heavy conditioning. Do not copy the previous two weeks' strength placement.",
+  "Use the project enums. duration_class is short, medium, long, or rest. intensity_class must be one of intensity_class_enum. Do not pick a band above conditioning_intensity_ceiling. A rest day cannot hold a benchmark. A deload week cannot use heavy conditioning. Do not copy the previous two weeks' strength placement.",
   "OUTPUT",
   "One JSON object with a days array. No sessions.",
 ].join("\n");
@@ -124,6 +125,7 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
         week_index: input.weekIndex,
         week_phase: thesis.week_phase,
         conditioning_intensity_ceiling: thesis.conditioning_intensity_ceiling,
+        intensity_class_enum: intensityBandsAtMost(thesis.conditioning_intensity_ceiling),
         benchmark_required: thesis.benchmark,
         long_required: thesis.long_session,
         recent_strength_maps: maps.slice(-2),
@@ -136,17 +138,17 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
       promptVersion: "skeleton-v1",
       runId: `skeleton-${input.weekIndex}`,
       temperature: 0,
-      format: JSON_OBJECT,
+      format: skeletonFormat(thesis.conditioning_intensity_ceiling),
       systemPrompt: SKELETON_SYSTEM,
       schemaNote: SKELETON_SCHEMA,
       validate: (json) => {
-        const parsed = parseModelSkeleton(json, seed);
+        const parsed = parseModelSkeleton(json, seed, thesis.conditioning_intensity_ceiling);
         if (!parsed) return { ok: false, errors: validationFeedback(["weekly skeleton must contain seven days"]) };
         const errors = validateSkeleton(parsed, check);
         return errors.length ? { ok: false, errors: validationFeedback(errors) } : { ok: true };
       },
     });
-    const parsed = parseModelSkeleton(asked.json, seed);
+    const parsed = parseModelSkeleton(asked.json, seed, thesis.conditioning_intensity_ceiling);
     const modelName = asked.model || coachModel("weekly");
     if (asked.ok && parsed && !validateSkeleton(parsed, check).length) {
       skeleton = finish(parsed, [], thesis);
@@ -178,7 +180,7 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
   };
 }
 
-function parseModelSkeleton(json: unknown, seed: WeeklySkeleton): WeeklySkeleton | null {
+function parseModelSkeleton(json: unknown, seed: WeeklySkeleton, ceiling: IntensityBand): WeeklySkeleton | null {
   if (!json || typeof json !== "object") return null;
   const body = json as { days?: unknown };
   if (!Array.isArray(body.days)) return null;
@@ -188,7 +190,7 @@ function parseModelSkeleton(json: unknown, seed: WeeklySkeleton): WeeklySkeleton
     if (!row || typeof row !== "object") return null;
     const seedDay = seed.days.find((item) => item.day === key);
     if (!seedDay) return null;
-    const parsed = dayFromModel(row as Record<string, unknown>, seedDay, seed.week_phase === "DELOAD");
+    const parsed = dayFromModel(row as Record<string, unknown>, seedDay, seed.week_phase === "DELOAD", ceiling);
     if (!parsed) return null;
     days.push(parsed);
   }
@@ -203,7 +205,7 @@ function parseModelSkeleton(json: unknown, seed: WeeklySkeleton): WeeklySkeleton
   };
 }
 
-function dayFromModel(row: Record<string, unknown>, seed: SkeletonDay, deload: boolean): SkeletonDay | null {
+function dayFromModel(row: Record<string, unknown>, seed: SkeletonDay, deload: boolean, weekCeiling: IntensityBand): SkeletonDay | null {
   const status = row.status === "rest" || row.status === "training" ? row.status : null;
   const primary = typeof row.primary_goal === "string" && (PRIMARY_TRAININGS as readonly string[]).includes(row.primary_goal) ? (row.primary_goal as PrimaryTraining) : null;
   if (!status || !primary) return null;
@@ -215,6 +217,7 @@ function dayFromModel(row: Record<string, unknown>, seed: SkeletonDay, deload: b
   const duration = durationOf((conditioning as { duration_class?: unknown }).duration_class);
   const intensity = intensityOf((conditioning as { intensity_class?: unknown }).intensity_class);
   if (!emphasis || !lift || !duration || !intensity) return null;
+  if (bandRank(intensity) > bandRank(weekCeiling)) return null;
   if (typeof row.benchmark !== "boolean" || typeof row.long_day !== "boolean") return null;
   const rawStimulus = (conditioning as { stimulus?: unknown }).stimulus;
   const stimulus = typeof rawStimulus === "string" && (COACHING_STIMULI as readonly string[]).includes(rawStimulus) ? (rawStimulus as CoachingStimulus) : seed.conditioning.stimulus;
@@ -243,6 +246,59 @@ function durationOf(value: unknown): DurationClass | null {
   if (typeof value !== "string") return null;
   const token = value.toLowerCase();
   return (DURATION_CLASSES as readonly string[]).includes(token) ? (token as DurationClass) : null;
+}
+
+function bandRank(value: IntensityBand): number {
+  if (value === "light") return 0;
+  if (value === "heavy") return 2;
+  return 1;
+}
+
+function skeletonFormat(ceiling: IntensityBand): ResponseFormat {
+  const day = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      day: { type: "string", enum: [...DAY_ORDER] },
+      status: { type: "string", enum: ["rest", "training"] },
+      primary_goal: { type: "string", enum: [...PRIMARY_TRAININGS] },
+      strength: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          emphasis: { type: "string", enum: [...STRENGTH_EMPHASES] },
+          lift: { type: "string", enum: [...LIFTS] },
+        },
+        required: ["emphasis", "lift"],
+      },
+      conditioning: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          duration_class: { type: "string", enum: [...DURATION_CLASSES] },
+          intensity_class: { type: "string", enum: intensityBandsAtMost(ceiling) },
+          stimulus: { type: "string", enum: [...COACHING_STIMULI] },
+        },
+        required: ["duration_class", "intensity_class", "stimulus"],
+      },
+      benchmark: { type: "boolean" },
+      long_day: { type: "boolean" },
+    },
+    required: ["day", "status", "primary_goal", "strength", "conditioning", "benchmark", "long_day"],
+  };
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "weekly_skeleton",
+      strict: true,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: { days: { type: "array", items: day } },
+        required: ["days"],
+      },
+    },
+  };
 }
 
 function intensityOf(value: unknown): IntensityBand | null {

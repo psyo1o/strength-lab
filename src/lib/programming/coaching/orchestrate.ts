@@ -6,7 +6,7 @@ import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
-import { planWeekContract, resolveSessionMinutes, type ContractDayInput, type DaySessionLock } from "./session-contract";
+import { intensityBandsAtMost, planWeekContract, resolveSessionMinutes, type ContractDayInput, type DaySessionLock } from "./session-contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -23,7 +23,8 @@ import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rule
 import { applyIntensityPatch, intensityPatchFormat, intensityPatchUser } from "./intensity-patch";
 import { applyWeekGoalBounds, boundsFromWeekGoal, dayBoundsFromSkeleton, weekBoundsNote, weeklyResponseFormat } from "./week-bounds";
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
-import { placeConditioningSlots, SESSION_INTENSITY_LEVEL, slotFitErrors } from "./conditioning-board";
+import { placeConditioningSlots, slotFitErrors } from "./conditioning-board";
+import { readStoredClassIntensity } from "../class-intensity";
 import { goalWeek, movementFrequency, profileTrainingDayCount, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
 import { pinZone2, previousZone2Modality, stampZone2Sessions, zone2RuleErrors, zone2SlotSpec } from "./zone2";
 import type { ConditioningSlot } from "../types";
@@ -73,7 +74,7 @@ import type { AdjustmentRequest } from "./stage16/types";
 import { compareEditList } from "./revision-compliance";
 import { parseHeadReview, type HeadCoachReview, type SessionRevision } from "./review";
 import { lockWeekdaysForPlacement, placeTrainingDays } from "./day-place";
-import { applyHeadCells, pieceCells } from "./head-cells";
+import { applyHeadCells, intensityRevisionCells, pieceCells } from "./head-cells";
 import { classifyHeadRevise, is_heavy_lower_metcon, sessionHasHeavyLowerMetcon, type HeadReviseGap } from "./heavy-lower-metcon";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
@@ -226,7 +227,8 @@ function sessionUser(
         : day.secondary_training === "long_conditioning"
           ? "30-40"
           : "8-20",
-    intensity_level: slot?.from_goal && slot.goal_intensity ? slot.goal_intensity : SESSION_INTENSITY_LEVEL,
+    intensity_level: slot?.from_goal && slot.goal_intensity ? slot.goal_intensity : readStoredClassIntensity(),
+    class_intensity_level: readStoredClassIntensity(),
     movement_frequency: movementFrequency(input.recentStructures ?? []),
     ...(slot
       ? {
@@ -245,6 +247,7 @@ function sessionUser(
           duration_min: lockedRange ? `${lockedRange.min}-${lockedRange.max}` : null,
           volume_max: locked.volume_profile,
           intensity_ceiling: locked.conditioning.intensity_ceiling,
+          intensity_choices: intensityBandsAtMost(locked.conditioning.intensity_ceiling),
           benchmark: locked.benchmark,
           long_day: locked.long_day,
           fields: ["conditioning.duration_min", "conditioning.volume", "conditioning.intensity", "conditioning.movements[].amount"],
@@ -345,7 +348,6 @@ function stampSlotAxes(json: unknown, slot: ConditioningSlot): unknown {
   piece.duration_min = slot.duration_min;
   piece.stimulus = slot.stimulus;
   piece.volume = slot.volume;
-  if (slot.stimulus === "heavy" && piece.intensity === "light") piece.intensity = "moderate";
   if (slot.format === "intervals") {
     if (typeof piece.interval_work_sec !== "number") piece.interval_work_sec = 40;
     if (typeof piece.interval_rest_sec !== "number") piece.interval_rest_sec = 20;
@@ -368,12 +370,14 @@ function sessionLockFor(week: CoachWeekInput, plan: WeeklyIntentPlan, day: DayKe
           ? slotDomain
           : null;
     const lift = row.strength_lift;
+    const ceiling = skeleton?.conditioning.intensity_ceiling;
     return {
       day: row.day,
       rest: row.primary_training === "rest" || row.recovery_role === "rest",
       long: domain === "long" || (domain == null && row.secondary_training === "long_conditioning"),
       domain,
       lift: lift === "squat" || lift === "bench" || lift === "ohp" || lift === "deadlift" ? lift : "none",
+      intensity_ceiling: ceiling === "light" || ceiling === "moderate" || ceiling === "heavy" ? ceiling : "heavy",
     };
   });
   return planWeekContract(days, week.weekIndex, week.month.strength_method || week.month.scheme || "531").find((row) => row.day === day) ?? null;
@@ -400,7 +404,7 @@ function adoptDay(input: {
   const source = slot && input.stampAxes !== false && !slot.from_goal ? stampSlotAxes(input.json, slot) : input.json;
   const normalized = normalizeSessionPayload(source, { inventWorkFromClock: false });
   const schemaErrors = [
-    ...sessionSelfErrors(normalized.json, input.day),
+    ...sessionSelfErrors(normalized.json, input.day, locked?.conditioning.intensity_ceiling),
     ...(locked ? lockedSessionFieldErrors(normalized.json, locked) : []),
     ...(slot
       ? slotFitErrors(normalized.json, slot, input.day.strength_lift).filter((error) => {
@@ -641,6 +645,7 @@ async function writeSession(input: {
       json,
       intent: input.day,
       revision: input.revisionNumber,
+      intensityCeiling: lockedSkeletonDay(input.week, input.day.day)?.conditioning.intensity_ceiling,
     });
   const areas = input.areas ?? (["strength", "conditioning", "warmup"] as const);
   const base = sessionJsonFromDraft(input.draft.sessions.find((session) => session.day === input.day.day));
@@ -2252,6 +2257,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         quantity_ids,
       };
     });
+    const headReviewCells = [
+      ...headPieceSpecs,
+      ...intensityRevisionCells(draft.sessions, (day) => sessionLockFor(input, plan, day)?.intensity_ceiling),
+    ];
     const user = {
       ...(headUser(week, plan, draft, loadDecisions, revisionNumber) as Record<string, unknown>),
       hard_rule_findings: headIssues,
@@ -2271,15 +2280,16 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         violates_heavy_lower_metcon:
           avoidHeavyLower && draft.sessions.some((session) => session.day === day.day && sessionHasHeavyLowerMetcon(session)),
       })),
-      revisable_enums: headPieceSpecs.map((cell) => ({
+      revisable_enums: headReviewCells.map((cell) => ({
         day: cell.day,
         block: cell.block,
         catalog_key: cell.catalog_key,
         movement_id: cell.movement_ids,
         quantity_option: cell.quantity_ids,
+        ...(cell.intensity_values ? { intensity: cell.intensity_values } : {}),
       })),
       constitution:
-        "You are called once. Fix hard_constraints violations before warnings. On a day whose heavy_lower_metcon is avoid, REVISE only with a movement_id or quantity_option that remains in that day's revisable enum. REVISE only when value is a different movement_id or quantity_option in that cell's enum. If the enum has no different id, return APPROVE_WITH_NOTE with empty revisions and empty adjustments. Do not use adjustments as a cell edit. The server writes a legal cell and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4.",
+        "You are called once. Fix hard_constraints violations before warnings. On a day whose heavy_lower_metcon is avoid, REVISE only with a movement_id or quantity_option that remains in that day's revisable enum. REVISE only when value is a different movement_id or quantity_option in that cell's enum. If catalog_key is intensity, field is intensity and value is one of that cell's bands. If the enum has no different id, return APPROVE_WITH_NOTE with empty revisions and empty adjustments. Do not use adjustments as a cell edit. The server writes a legal cell and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4.",
       unresolved_days: [...unresolvedDays.entries()].map(([day, errors]) => ({ day, errors })),
       monthly_goal: month.coaching_plan?.block_goal ?? null,
       monthly_method: month.coaching_plan?.strength_method ?? month.strength_method,
@@ -2315,8 +2325,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       runId,
       retryContext: { agent: "head", revision_number: revisionNumber },
       format: headReviewFormat(
-        headPieceSpecs.map((cell) => cell.catalog_key),
-        headPieceSpecs,
+        headReviewCells.map((cell) => cell.catalog_key),
+        headReviewCells,
       ),
       validate: (json) => {
         const errors = headReviewErrors(json);
@@ -2470,19 +2480,27 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
               revisions: [],
               note_ko: headPass.note,
             };
-  const beforeMoves = JSON.stringify(draft.sessions.map((session) => session.conditioning?.movements ?? null));
+  const beforeMoves = JSON.stringify(
+    draft.sessions.map((session) => ({ moves: session.conditioning?.movements ?? null, intensity: session.conditioning?.intensity ?? null })),
+  );
   const avoidHeavyLower = hardConstraints(input.previousActual).heavy_lower_metcon === "avoid";
   const violatingBeforeHead = draft.sessions.filter((session) => sessionHasHeavyLowerMetcon(session)).map((session) => session.day);
   const headCells = applyHeadCells(draft.sessions, modelRevisions, { avoidHeavyLower });
-  const afterMoves = JSON.stringify(draft.sessions.map((session) => session.conditioning?.movements ?? null));
+  const afterMoves = JSON.stringify(
+    draft.sessions.map((session) => ({ moves: session.conditioning?.movements ?? null, intensity: session.conditioning?.intensity ?? null })),
+  );
   if (headModelStatus === "REVISE") {
-    const catalog = modelRevisions.filter((row) => row.cell?.field === "movement_id" || row.cell?.field === "quantity_option");
-    const otherCells = modelRevisions.some((row) => row.cell && row.cell.field !== "movement_id" && row.cell.field !== "quantity_option");
+    const catalog = modelRevisions.filter(
+      (row) => row.cell?.field === "movement_id" || row.cell?.field === "quantity_option" || row.cell?.field === "intensity",
+    );
+    const otherCells = modelRevisions.some(
+      (row) => row.cell && row.cell.field !== "movement_id" && row.cell.field !== "quantity_option" && row.cell.field !== "intensity",
+    );
     if (catalog.length === 0 && !otherCells) {
       headCatalogOutcome = "unresolved";
       headUnappliedRevision = true;
     } else if (catalog.length > 0) {
-      const rows = headCells.rows.filter((row) => row.field === "movement_id" || row.field === "quantity_option");
+      const rows = headCells.rows.filter((row) => row.field === "movement_id" || row.field === "quantity_option" || row.field === "intensity");
       const applied = rows.length === catalog.length && rows.every((row) => row.result === "applied");
       const judged = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
       const hard = judged.ok ? [] : judged.errors.filter((error) => !isCoachingSignal(error));
@@ -2496,7 +2514,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   if (headParseFailed || headCatalogOutcome === "unresolved") {
     const judgedNow = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
     const hardNow = judgedNow.ok ? [] : judgedNow.errors.filter((error) => !isCoachingSignal(error));
-    const catalogRows = headCells.rows.filter((row) => row.field === "movement_id" || row.field === "quantity_option");
+    const catalogRows = headCells.rows.filter((row) => row.field === "movement_id" || row.field === "quantity_option" || row.field === "intensity");
     headReviseGap = classifyHeadRevise({
       parsed: !headParseFailed && headModelStatus === "REVISE",
       reviseRequested: headParseFailed || headModelStatus === "REVISE",

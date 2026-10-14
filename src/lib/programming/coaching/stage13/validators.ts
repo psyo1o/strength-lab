@@ -54,7 +54,8 @@ function movementsOf(value: unknown): Array<{ key: string; amount: string }> {
   });
 }
 
-function intensityClash(value: unknown): string[] {
+function intensityClash(value: unknown, ceiling?: string | null): string[] {
+  if (ceiling === "light" || ceiling === "moderate" || ceiling === "heavy") return [];
   if (!value || typeof value !== "object") return [];
   const piece = (value as { conditioning?: { intensity?: unknown; stimulus?: unknown } }).conditioning;
   if (!piece) return [];
@@ -89,18 +90,18 @@ function prescriptionErrors(value: unknown): string[] {
 /**
  * Session self-check. Recent weeks, other days, and monthly rules are not inputs.
  */
-export function sessionSelfReport(value: unknown, intent: DayIntent): SessionSelfReport {
+export function sessionSelfReport(value: unknown, intent: DayIntent, ceiling?: string | null): SessionSelfReport {
   const contract = bucket(sessionCoachErrors(value, intent));
   return {
     ...contract,
-    intensity: [...contract.intensity, ...intensityClash(value)],
+    intensity: [...contract.intensity, ...intensityClash(value, ceiling)],
     equipment: contract.equipment,
     unit: prescriptionErrors(value).map((issue) => `${intent.day} field conditioning.movements.amount: ${issue}`),
   };
 }
 
-export function sessionSelfErrors(value: unknown, intent: DayIntent): string[] {
-  const report = sessionSelfReport(value, intent);
+export function sessionSelfErrors(value: unknown, intent: DayIntent, ceiling?: string | null): string[] {
+  const report = sessionSelfReport(value, intent, ceiling);
   return [
     ...report.schema,
     ...report.movement,

@@ -14,7 +14,7 @@ import {
 } from "../src/lib/programming/coaching/session-contract";
 import { standardMovements } from "../src/lib/programming/coaching/movement-catalog";
 import { tipFor } from "../src/lib/tips";
-import { rampSlots, warmupIssues } from "../src/lib/programming/coaching/warmup-ramp";
+import { jointsFor, rampSlots, warmupIssues } from "../src/lib/programming/coaching/warmup-ramp";
 import type { SessionDraft, WeekDraft } from "../src/lib/programming/types";
 
 const ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -254,5 +254,27 @@ describe("warmup ramp", () => {
       const slots = rampSlots({ lift, patterns: lift === "deadlift" ? ["hinge"] : lift === "bench" || lift === "ohp" ? ["press"] : ["squat"] });
       expect(slots.every((slot) => slot.choices.length > 0), lift ?? "none").toBe(true);
     }
+    const patterns = ["pull", "squat", "jump"];
+    const overhead = rampSlots({ lift: "ohp", patterns });
+    const offered = overhead.filter((slot) => slot.phase === "mobilise" || slot.phase === "activate" || slot.phase === "cooldown").flatMap((slot) => slot.choices);
+    const joints = jointsFor(patterns, "ohp");
+    for (const choice of offered) {
+      const verdict = warmupIssues({
+        picks: [
+          { phase: "raise", key: "easy_bike", unit: "sec", amount: 150, reason: "준비", static_hold: false },
+          { phase: "mobilise", key: "wall_slide", unit: "reps", amount: 8, reason: "준비", static_hold: false },
+          { phase: "mobilise", key: "ankle_rock", unit: "reps", amount: 8, reason: "준비", static_hold: false },
+          { phase: "mobilise", key: choice.key, unit: choice.unit, amount: choice.amount, reason: "준비", static_hold: choice.static_hold },
+          { phase: "activate", key: "band_pull_apart", unit: "reps", amount: 8, reason: "준비", static_hold: false },
+          { phase: "potentiate", key: "scap_push_up", unit: "reps", amount: 8, reason: "준비", static_hold: false },
+          { phase: "cooldown", key: "doorway_pec_stretch", unit: "sec", amount: 45, reason: "정리", static_hold: true },
+        ],
+        joints,
+        warmupMinutes: 10,
+        cooldownMinutes: 6,
+      });
+      expect(verdict.reject.join(" "), choice.key).not.toContain(`${choice.key} does not prepare`);
+    }
+    expect(offered.some((choice) => choice.key === "leg_swing")).toBe(false);
   });
 });

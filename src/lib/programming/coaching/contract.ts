@@ -356,6 +356,8 @@ export type HeadPieceRef = {
   quantity_ids?: readonly string[];
   amount?: string;
   unit?: string | null;
+  /** Legal bands except the current one. Present only when the stored intensity is over the ceiling. */
+  intensity_values?: readonly string[];
 };
 
 function currentQuantityId(cell: HeadPieceRef): string | null {
@@ -396,6 +398,14 @@ function headRevisionItem(cell: HeadPieceRef): Record<string, unknown> | null {
     branches.push(
       strictObject(
         { ...base, field: stringEnum(["movement_id"]), value: stringEnum(movements) },
+        required,
+      ),
+    );
+  }
+  if (cell.intensity_values?.length) {
+    branches.push(
+      strictObject(
+        { ...base, field: stringEnum(["intensity"]), value: stringEnum(cell.intensity_values) },
         required,
       ),
     );

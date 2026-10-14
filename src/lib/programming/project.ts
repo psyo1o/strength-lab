@@ -1,6 +1,6 @@
 import { roundLoad } from "../calc/round";
 import { trainingMaxKg } from "../calc/wendler";
-import { liftName, readStoredOneRm, strengthBody } from "../month-plan/loads";
+import { readStoredOneRm, strengthBody } from "../month-plan/loads";
 import { renderPiece } from "../month-plan/pieces";
 import { pieceSignature } from "../month-plan/signature";
 import { applyTimeCut } from "../month-plan/time-cut";
@@ -15,8 +15,7 @@ import {
   type StrengthPrescription,
   type WeekIndex,
 } from "../month-plan/types";
-import { catalogMovement, displayAmount, linkedCatalogKey } from "./coaching/movement-catalog";
-import { cleanDisplayName } from "./coaching/session-contract";
+import { catalogMovement, displayAmount, linkedCatalogKey, movementDisplayName } from "./coaching/movement-catalog";
 import { loadBasisForMethod } from "./strength-methods";
 import { tipFor } from "../tips";
 import type { ConditioningDraft, MovementDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
@@ -68,11 +67,11 @@ function shownMovement(movement: MovementDraft): MovementDraft {
       next = { ...movement, key: linked.key, name_ko: row?.name_ko ?? movement.name_ko };
     }
   }
-  return { ...next, name_ko: cleanDisplayName(next.name_ko) };
+  return { ...next, name_ko: movementDisplayName(next.key) };
 }
 
 function tipLines(key: string, unit: string, amount: number): string {
-  const name = cleanDisplayName(catalogMovement(key)?.name_ko ?? key);
+  const name = movementDisplayName(key);
   const shown = unit === "sec" ? `${amount}초` : unit === "cal" ? `${amount}cal` : unit === "m" ? `${amount}m` : `${amount}회`;
   const tip = tipFor(key);
   const cue = tip?.cue ? `\n자세: ${tip.cue}` : "";
@@ -117,7 +116,7 @@ function strengthFrom(session: SessionDraft, strengthMethod: string): StrengthPr
   const specific = session.strength.movement_key;
   return {
     exerciseKey: session.strength.lift,
-    nameKo: cleanDisplayName((specific ? catalogMovement(specific)?.name_ko : null) ?? liftName(session.strength.lift)),
+    nameKo: movementDisplayName(specific || session.strength.lift),
     oneRmKg: null,
     trainingMaxKg: null,
     loadBasis: loadBasisForMethod(strengthMethod),
@@ -147,7 +146,7 @@ function warmupBlock(session: SessionDraft): SessionBlock {
 function zone2Blocks(session: SessionDraft): SessionBlock[] {
   const zone = session.zone2;
   if (!zone || zone.form !== "day") return [];
-  const name = catalogMovement(zone.modality)?.name_ko ?? zone.modality;
+  const name = movementDisplayName(zone.modality);
   const blocks: SessionBlock[] = [
     {
       role: "extra_conditioning",
@@ -160,7 +159,7 @@ function zone2Blocks(session: SessionDraft): SessionBlock[] {
   ];
   const alternate = zone.alternate;
   if (!alternate) return blocks;
-  const moves = alternate.movements.map((movement) => `${movement.name_ko} ${movement.amount}`).join(", ");
+  const moves = alternate.movements.map((movement) => `${movementDisplayName(movement.key)} ${movement.amount}`).join(", ");
   blocks.push({
     role: "extra_conditioning",
     titleKo: "짧은 메트콘 · 대체",

@@ -340,11 +340,8 @@ describe("stage 2 actuals and screen sync", () => {
     if (!month) throw new Error("month missing");
     const draft = draftForScheme(month.direction, 1, fallbackIntent(month.direction, 1, "model"));
     for (const session of draft.sessions) {
-      if (!session.conditioning) continue;
-      session.conditioning.movements = session.conditioning.movements.map((movement) => ({
-        ...movement,
-        name_ko: session.day === "wed" ? "화면동기화" : "새주토큰",
-      }));
+      if (session.rest) continue;
+      session.warmup_ko = session.day === "wed" ? "화면동기화 웜업 문장" : "새주토큰 웜업 문장";
     }
     const fetchImpl = vi.fn(async () => {
       return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(draft) } }] }), {

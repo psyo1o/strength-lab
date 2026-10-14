@@ -7,6 +7,7 @@ import { Nav } from "@/components/Nav";
 import { getCurrentUser } from "@/lib/auth";
 import { listGeneratedWeekLinks } from "@/lib/month-plan/plan-browse";
 import { readEngineAdminStatus } from "@/lib/programming/admin-status";
+import { readStoredClassIntensity } from "@/lib/programming/class-intensity";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,7 @@ export default async function EngineAdminPage() {
           회원 관리
         </Link>
       </p>
-      <EngineAdminConsole />
+      <EngineAdminConsole classIntensity={readStoredClassIntensity()} />
       <Nav current="/admin/engine" />
     </main>
   );

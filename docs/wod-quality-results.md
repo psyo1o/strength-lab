@@ -163,3 +163,96 @@ A 원본은 `docs/wod-quality-runs/`이고 gitignore다. 요약은 `docs/wod-qua
 ## 화면
 
 팁은 기존 블록 `bodyKo`에 `자세`와 `흔한 실수`로 들어간다. `projectWeek`가 `worlds_greatest_stretch` 본문에 `느껴야 할 부위`와 `흔한 실수`를 넣고 `(별칭 키)`는 넣지 않는 모킹이 있다. 브라우저로 회원 계획 화면을 열지는 않았다. 로그인된 수업 화면은 이 2099 DB와 붙어 있지 않다.
+
+## 화면 이름, 강도 상한, 클래스 강도
+
+모킹과 2099 실측은 따로 적는다. 아래 첫 두 실측은 채택이 아니다.
+
+화면 동작 이름은 카탈로그 `name_en`이다. 예는 Row Erg, Ski Erg, Bike Erg, Barbell Thruster, Overhead Press, AbMat Sit-up이다. 팁의 자세, 흔한 실수, 느껴야 할 부위는 한글이다.
+
+강도는 뼈대와 세션 enum이 상한 이하만 연다. 코드는 고른 강도를 바꾸지 않는다. 상한이 있으면 상한 안의 light와 heavy 자극은 세션을 거절하지 않는다. 더 높은 밴드가 상한에 있으면 같은 헤드 호출의 intensity 칸으로 넘긴다. 상한이 light뿐이면 그 칸은 없다. `DETERMINISTIC_ADJUSTMENT`로 낮추지 않는다.
+
+클래스 강도는 `app_meta.class_intensity_level`이다. 1–5, 없으면 3이다. 관리자 엔진 탭의 저장은 다음 생성부터다. 회원, 박스, 클래스, 기본 3 순이다. 회원과 박스 저장은 아직 없다. 이번 2099 생성은 그 행이 없어 3을 썼다.
+
+### 모킹
+
+`npx vitest run`은 90파일 575개 통과, 종료 코드 0이다. 이 숫자는 모델 호출이 아니다. 상한 밖 intensity 거절, light 상한의 light+heavy 통과, 상한이 없을 때의 충돌 거절, 헤드 intensity 칸, 클래스 강도 저장, 영어 화면 이름, 한글 팁, 웜업 enum이 그날 관절과 안 맞는 동작을 빼는 검사를 포함한다.
+
+브라우저로 엔진 탭을 열지는 않았다.
+
+### 2099 실측 1
+
+`PROBE_LABEL=wod-intensity` 첫 실행. 모델은 `gpt-5.4-nano`다. 채택 0/4. `DETERMINISTIC_ADJUSTMENT` 0, `fitted_days` 0, 호출 104, 토큰 870861이다. 실패는 세션 검사가 `intensity light`와 `stimulus heavy`를 거절한 날이다. 그 요약 JSON은 다음 실행이 덮었다.
+
+### 2099 실측 2
+
+같은 라벨의 둘째 실행. 요약은 `docs/wod-intensity-probe.json`이다. 채택 2/4. W2 `2099-07-13`과 W3 `2099-07-20`만 `active` `model`이다. W1은 화요일 웜업이 enum에는 있고 관절 검사에서 거절되어 세션이 없었다. W4는 상한이 moderate인 날의 light+heavy가 세션을 거절했다. `DETERMINISTIC_ADJUSTMENT` 0, `fitted_days` 0, 호출 126, 토큰 994806이다. 이 실행은 채택 4/4가 아니다.
+
+### 2099 실측 3
+
+`PROBE_LABEL=wod-fit`. DB는 `/tmp/wod-fit-phaseb.db`다. 요약은 `docs/wod-fit-probe.json`이다. 원본 로그는 `docs/wod-fit-runs/`이고 gitignore다. 모델은 전부 `gpt-5.4-nano`다. `HEAD_COACH_MODEL`은 비어 있다. 첫 HTTP 429는 없었다. 선행 주 `2099-06-29`도 `active` `model`이다.
+
+채택은 4/4다. `generation_source`는 `model`, `status`는 `active`, `fallback_reason`은 비어 있다. `final-validator-v1`은 다섯 주 모두 pass이고 오류 0이다. 헤드는 다섯 주 모두 `APPROVE_WITH_NOTE`, revisions 0이다.
+
+`model_weeks` 4, `fallback_weeks` 0, `failed_weeks` 0, 호출 150, 토큰 1219086, `tokens_unsupported` false, 경과 337763ms다. `fitted_days` 0, `regenerated_days` 0, `unresolved_days` 0이다. 요일 출처는 MODEL 12, MODEL_REVISED 12, DETERMINISTIC_ADJUSTMENT 0, FAILED 0이다. `unit_quality.adopted_pass` 0은 주 채택이 아니다.
+
+7월 방법 표는 ACCUMULATION이다. 작업 세트는 그 표의 저장값이다. 5/3/1의 3세트 표가 아니다. 분 열은 웜업 / 메인 / 기술·보조 / 메트콘 / 추가 / 쿨다운이다. 동작 이름은 화면의 영어 이름이다.
+
+| 주 | 시작 | 채택 | 호출 | 토큰 | 강도 맞춤 |
+|---|---|---|---|---|---|
+| W1 | 2099-07-06 | model, active | 36 | 293453 | 0 |
+| W2 | 2099-07-13 | model, active | 38 | 305979 | 0 |
+| W3 | 2099-07-20 | model, active | 39 | 346193 | 0 |
+| W4 | 2099-07-27 | model, active | 37 | 273461 | 0 |
+
+W4 화요일과 금요일만 헤드 intensity 칸이 열렸다. 값은 moderate다. 헤드는 revisions 0이라 그 칸을 바꾸지 않았고, 두 날은 light로 채택됐다.
+
+#### W1 2099-07-06
+
+| 날짜 | 요일 | 포맷 | 합 | 분 | 동작 수 | 메트콘 | 강도 |
+|---|---|---|---|---|---|---|---|
+| 2099-07-06 | 월 | for_time | 100 | 12 / 30 / 23 / 12 / 15 / 8 | 3 | Row Erg 12, Barbell Thruster 8, Burpee 12 | moderate |
+| 2099-07-07 | 화 | amrap | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Ski Erg 8, Wall-Ball Shot 20, Box Jump 15 | moderate |
+| 2099-07-08 | 수 | emom | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Double-under 10, Power Clean 3, Single-under 10 | light |
+| 2099-07-09 | 목 | chipper | 100 | 12 / 30 / 23 / 12 / 15 / 8 | 4 | Bike Erg 20, Dumbbell Snatch 12, Toes-to-Bar 8, AbMat Sit-up 15 | light |
+| 2099-07-10 | 금 | intervals | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 2 | Assault AirBike 6, Single-under 15 | moderate |
+| 2099-07-11 | 토 | partner | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Run 200, American Kettlebell Swing 18, Sumo Deadlift High Pull 10 | light |
+| 2099-07-12 | 일 | 휴식 | | | | | |
+
+메인은 deadlift 65%×8 네 세트, ohp 65%×8 네 세트, bench 65%×8 네 세트, squat 65%×8 네 세트, Air Squat 20, Walking Lunge 16이다.
+
+#### W2 2099-07-13
+
+| 날짜 | 요일 | 포맷 | 합 | 분 | 동작 수 | 메트콘 | 강도 |
+|---|---|---|---|---|---|---|---|
+| 2099-07-13 | 월 | amrap | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Ski Erg 8, Wall-Ball Shot 20, Box Jump 15 | moderate |
+| 2099-07-14 | 화 | emom | 100 | 12 / 30 / 23 / 12 / 15 / 8 | 3 | Double-under 10, Power Clean 3, Single-under 10 | moderate |
+| 2099-07-15 | 수 | 휴식 | | | | | |
+| 2099-07-16 | 목 | chipper | 100 | 12 / 30 / 23 / 12 / 15 / 8 | 4 | Bike Erg 20, Dumbbell Snatch 12, Toes-to-Bar 8, AbMat Sit-up 15 | moderate |
+| 2099-07-17 | 금 | intervals | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 2 | Assault AirBike 6, Single-under 15 | moderate |
+| 2099-07-18 | 토 | partner | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Run 200, American Kettlebell Swing 18, Sumo Deadlift High Pull 10 | moderate |
+| 2099-07-19 | 일 | for_time | 96 | 12 / — / 25 / 36 / 15 / 8 | 3 | Row Erg 12, Barbell Thruster 8, Burpee 12 | moderate |
+
+#### W3 2099-07-20
+
+| 날짜 | 요일 | 포맷 | 합 | 분 | 동작 수 | 메트콘 | 강도 |
+|---|---|---|---|---|---|---|---|
+| 2099-07-20 | 월 | emom | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Double-under 10, Power Clean 3, Single-under 10 | moderate |
+| 2099-07-21 | 화 | chipper | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 4 | Bike Erg 20, Dumbbell Snatch 12, Toes-to-Bar 8, AbMat Sit-up 15 | moderate |
+| 2099-07-22 | 수 | intervals | 100 | 12 / 30 / 23 / 12 / 15 / 8 | 2 | Assault AirBike 6, Single-under 15 | moderate |
+| 2099-07-23 | 목 | partner | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Run 200, American Kettlebell Swing 18, Sumo Deadlift High Pull 10 | light |
+| 2099-07-24 | 금 | 휴식 | | | | | |
+| 2099-07-25 | 토 | for_time | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Row Erg 12, Barbell Thruster 8, Burpee 12 | light |
+| 2099-07-26 | 일 | amrap | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Ski Erg 8, Wall-Ball Shot 20, Box Jump 15 | light |
+
+#### W4 2099-07-27
+
+| 날짜 | 요일 | 포맷 | 합 | 분 | 동작 수 | 메트콘 | 강도 |
+|---|---|---|---|---|---|---|---|
+| 2099-07-27 | 월 | chipper | 100 | 12 / 30 / 23 / 12 / 15 / 8 | 4 | Bike Erg 20, Dumbbell Snatch 12, Toes-to-Bar 8, AbMat Sit-up 15 | light |
+| 2099-07-28 | 화 | intervals | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 2 | Assault AirBike 6, Single-under 15 | light |
+| 2099-07-29 | 수 | partner | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Run 200, American Kettlebell Swing 18, Sumo Deadlift High Pull 10 | light |
+| 2099-07-30 | 목 | for_time | 100 | 12 / 30 / 23 / 12 / 15 / 8 | 3 | Row Erg 12, Barbell Thruster 8, Burpee 12 | light |
+| 2099-07-31 | 금 | amrap | 100 | 11 / 30 / 16 / 20 / 15 / 8 | 3 | Ski Erg 8, Wall-Ball Shot 20, Box Jump 15 | light |
+| 2099-08-01 | 토 | emom | 96 | 12 / — / 25 / 36 / 15 / 8 | 3 | Double-under 10, Power Clean 3, Single-under 10 | moderate |
+| 2099-08-02 | 일 | 휴식 | | | | | |

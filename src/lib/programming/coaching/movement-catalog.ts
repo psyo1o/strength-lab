@@ -29,7 +29,23 @@ type CatalogFile = {
   movements: CatalogMovement[];
 };
 
-export type MovementCellField = "movement" | "amount" | "unit" | "load" | "movement_id" | "quantity_option";
+export type MovementCellField = "movement" | "amount" | "unit" | "load" | "movement_id" | "quantity_option" | "intensity";
+
+const LIFT_SCREEN: Record<string, string> = {
+  squat: "Squat",
+  ohp: "Overhead Press",
+  bench: "Bench Press",
+  deadlift: "Deadlift",
+};
+
+/** Screen name. Catalog English, with Erg split. Tips stay Korean. */
+export function movementDisplayName(key: string): string {
+  const lift = LIFT_SCREEN[key];
+  if (lift) return lift;
+  const raw = catalogMovement(key)?.name_en?.trim() ?? "";
+  const base = raw || key.replace(/_/g, " ").replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  return base.replace(/Erg\b/g, " Erg").replace(/ {2,}/g, " ").trim();
+}
 
 export type CellEdit = {
   catalog_key: string;
