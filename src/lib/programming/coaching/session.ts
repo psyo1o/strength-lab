@@ -23,6 +23,8 @@ import {
   type WodFormat,
 } from "../types";
 import { timeDomainFromMinutes } from "./canonical";
+import type { DaySessionLock } from "./session-contract";
+import { jointsFor, warmupIssues } from "./warmup-ramp";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
 import { exactStrengthKey } from "./goal-table";
 import { catalogMovement, equipmentForKeys, type CatalogLoad, type CatalogUnit } from "./movement-catalog";
@@ -83,7 +85,9 @@ function conditioningFrom(day: DayKey, recipe: Recipe, benchmark: boolean): Cond
             ? `3라운드. 캡 ${recipe.minutes}분. ${names}.`
             : recipe.format === "chipper"
               ? `칩퍼. 캡 ${recipe.minutes}분. ${names}.`
-              : `${recipe.minutes}분 동안 반복합니다. ${names}.`;
+              : recipe.format === "partner"
+                ? `${recipe.minutes}분 파트너 형식. 개인도 가능. ${names}.`
+                : `${recipe.minutes}분 동안 반복합니다. ${names}.`;
   return {
     benchmark,
     format: recipe.format,
@@ -160,7 +164,7 @@ function strengthFor(lift: MainLift, month: MonthDirection, weekIndex: WeekIndex
   return { lift, sets, movement_key: exactStrengthKey(lift, weekIndex) };
 }
 
-const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
+const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner"] as const;
 
 function splitStoredAmount(amount: string, unit: CatalogUnit | undefined): { amount: string; unit?: CatalogUnit; amount_value?: number } {
   const text = amount.replace(/\s/g, "");
@@ -223,6 +227,7 @@ export function sessionFromCoachJson(input: {
   actual?: WeekActual | null;
   /** Scores a short piece for a retry hint. Adoption still requires the real minimum. */
   preview?: boolean;
+  lock?: DaySessionLock | null;
 }): SessionDraft | null {
   if (!input.json || typeof input.json !== "object") return null;
   const body = input.json as Record<string, unknown>;
@@ -301,7 +306,7 @@ export function sessionFromCoachJson(input: {
     built.work_rest_structure = clock;
     built.rep_structure = `${minutes}분 인터벌. ${clock}`;
   }
-  return fillSessionFields(
+  const session = fillSessionFields(
     {
       day: input.intent.day,
       rest: false,
@@ -314,6 +319,20 @@ export function sessionFromCoachJson(input: {
     },
     strength ? (input.intent.volume_profile === "low" ? "low" : "moderate") : null,
   );
+  if (Array.isArray(body.session_blocks)) session.session_blocks = body.session_blocks as SessionDraft["session_blocks"];
+  if (Array.isArray(body.warmup_phases)) session.warmup_phases = body.warmup_phases as SessionDraft["warmup_phases"];
+  const warmupBlock = session.session_blocks?.find((block) => block.role === "warmup");
+  if (warmupBlock) session.warmup_min = warmupBlock.minutes;
+  if (session.warmup_phases?.length) {
+    const verdict = warmupIssues({
+      picks: session.warmup_phases,
+      joints: jointsFor(input.lock?.patterns ?? [], input.lock?.lift ?? strength?.lift ?? null),
+      warmupMinutes: warmupBlock?.minutes ?? session.warmup_min,
+      cooldownMinutes: session.session_blocks?.find((block) => block.role === "cooldown")?.minutes ?? 0,
+    });
+    if (verdict.reject.length) return null;
+  }
+  return session;
 }
 
 export function buildSession(input: {

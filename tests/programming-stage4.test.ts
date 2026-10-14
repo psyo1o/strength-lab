@@ -294,8 +294,9 @@ describe("stage 4 model wait, schema, and fallback quality", () => {
     });
     for (const session of high.sessions) {
       if (session.strength?.lift === "squat" || session.strength?.lift === "deadlift") {
-        expect(session.strength.sets.length).toBeLessThan(schemeSets(month.scheme, 1).length);
-        expect(session.strength.sets.some((set) => set.amrap)).toBe(false);
+        expect(session.strength.sets).toHaveLength(schemeSets(month.scheme, 1).length);
+        expect(session.strength.sets.map((set) => set.percent_of_tm)).toEqual([65, 75, 75]);
+        expect(session.strength.sets.every((set) => set.amrap === false)).toBe(true);
       }
     }
     const note = high.intent.scheme_note;

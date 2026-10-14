@@ -122,7 +122,7 @@ describe("stage 8 weekly pipeline convergence", () => {
     expect(rule.applies_to).toContain("deadlift");
     expect(rule.active).toBe(true);
     expect(rule.mode).toBe("fatigue_cut");
-    expect(rule.sets?.map((set) => set.percent_of_tm)).toEqual([70, 80]);
+    expect(rule.sets?.map((set) => set.percent_of_tm)).toEqual([70, 80, 80]);
     expect(rule.forbidden_sets?.map((set) => set.percent_of_tm)).toEqual([70, 80, 90]);
     expect(rule.statement).toContain("squat and deadlift");
     expect(lowerBodyFatigueRule("531", 2, presetActual("b")).active).toBe(false);

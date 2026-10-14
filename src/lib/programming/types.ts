@@ -19,7 +19,7 @@ export type VolumeBand = "low" | "moderate" | "high";
 
 export type IntensityBand = "light" | "moderate" | "heavy";
 
-export type WodFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper";
+export type WodFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper" | "partner";
 
 export type MovementPattern = "squat" | "hinge" | "press" | "pull" | "olympic" | "engine" | "gymnastic";
 
@@ -221,6 +221,21 @@ export type SessionDraft = {
     actual_duration_min: number | null;
     actual_rpe: number | null;
   } | null;
+  /** 잠긴 세션 계약. 예전 세션에는 없다. */
+  session_blocks?: {
+    role: "warmup" | "main_lift" | "skill_or_accessory" | "metcon" | "extra_conditioning" | "cooldown";
+    minutes: number;
+    movements: { key: string; unit: "reps" | "cal" | "m" | "sec"; amount: number }[];
+  }[];
+  warmup_phases?: {
+    phase: "raise" | "mobilise" | "activate" | "potentiate" | "cooldown";
+    key: string;
+    unit: "reps" | "cal" | "m" | "sec";
+    amount: number;
+    reason: string;
+    static_hold: boolean;
+    load_percent?: number;
+  }[];
 };
 
 export type ProgrammingIntent = {
@@ -282,7 +297,7 @@ export const COACHING_STIMULI = [
 
 export type CoachingStimulus = (typeof COACHING_STIMULI)[number];
 
-export type DurationProfile = "30-45" | "45-60" | "60-75" | "rest";
+export type DurationProfile = "30-45" | "45-60" | "60-75" | "90-110" | "rest";
 
 export type RecoveryRole = "train" | "easy" | "rest";
 

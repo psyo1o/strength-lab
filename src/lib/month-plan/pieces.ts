@@ -92,7 +92,9 @@ export function renderPiece(input: {
             ? `${input.minutes}분 인터벌 · 라운드 사이 1분`
             : input.format === "chipper"
               ? `${input.minutes}분 칩퍼`
-              : `${input.minutes}분`;
+              : input.format === "partner"
+                ? `${input.minutes}분 파트너 형식 · 개인도 가능`
+                : `${input.minutes}분`;
   const lines = [head, ...input.movements.map(formatMovementLine)];
   if (input.noteKo) lines.push(input.noteKo);
   return lines.join("\n");

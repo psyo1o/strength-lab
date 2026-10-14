@@ -6,6 +6,7 @@ import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { planWeekContract, resolveSessionMinutes, type ContractDayInput, type DaySessionLock } from "./session-contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -260,7 +261,7 @@ function sessionUser(
         intensity_profile: row.intensity_profile,
         strength_lift: row.strength_lift,
       })),
-    class_minutes: 60,
+    class_minutes: resolveSessionMinutes().minutes,
     reported_fatigue: input.previousActual?.class_summary?.fatigue_signal ?? null,
     planned_volume: input.previousActual?.class_summary?.actual_volume ?? null,
     completion: input.previousActual?.class_summary
@@ -355,6 +356,29 @@ function stampSlotAxes(json: unknown, slot: ConditioningSlot): unknown {
   return clone;
 }
 
+function sessionLockFor(week: CoachWeekInput, plan: WeeklyIntentPlan, day: DayKey): DaySessionLock | null {
+  const days: ContractDayInput[] = plan.days.map((row) => {
+    const skeleton = lockedSkeletonDay(week, row.day);
+    const klass = skeleton?.conditioning.duration_class;
+    const slotDomain = plan.conditioning_slots?.[row.day]?.time_domain;
+    const domain =
+      klass === "short" || klass === "medium" || klass === "long"
+        ? klass
+        : slotDomain === "short" || slotDomain === "medium" || slotDomain === "long"
+          ? slotDomain
+          : null;
+    const lift = row.strength_lift;
+    return {
+      day: row.day,
+      rest: row.primary_training === "rest" || row.recovery_role === "rest",
+      long: domain === "long" || (domain == null && row.secondary_training === "long_conditioning"),
+      domain,
+      lift: lift === "squat" || lift === "bench" || lift === "ohp" || lift === "deadlift" ? lift : "none",
+    };
+  });
+  return planWeekContract(days, week.weekIndex, week.month.strength_method || week.month.scheme || "531").find((row) => row.day === day) ?? null;
+}
+
 function adoptDay(input: {
   week: CoachWeekInput;
   plan: WeeklyIntentPlan;
@@ -365,6 +389,7 @@ function adoptDay(input: {
   deferPlacement?: boolean;
   /** Recent-week rewrites may change the slot axes. The first write keeps them. */
   stampAxes?: boolean;
+  sessionLock?: DaySessionLock | null;
 }):
   | { ok: true; draft: WeekDraft; session: SessionDraft; json: unknown; normalizations: SessionNormalization[] }
   | { ok: false; errors: string[]; json: unknown; normalizations: SessionNormalization[] } {
@@ -378,9 +403,10 @@ function adoptDay(input: {
     ...sessionSelfErrors(normalized.json, input.day),
     ...(locked ? lockedSessionFieldErrors(normalized.json, locked) : []),
     ...(slot
-      ? slotFitErrors(normalized.json, slot, input.day.strength_lift).filter((error) =>
-          slot.from_goal || slot.primary_keys?.length ? true : error.includes("is banned"),
-        )
+      ? slotFitErrors(normalized.json, slot, input.day.strength_lift).filter((error) => {
+          if (input.sessionLock && error.includes("duration must stay in")) return false;
+          return slot.from_goal || slot.primary_keys?.length ? true : error.includes("is banned");
+        })
       : []),
   ];
   if (schemaErrors.length) return { ok: false, errors: schemaErrors, json: normalized.json, normalizations: normalized.normalizations };
@@ -390,6 +416,7 @@ function adoptDay(input: {
     month: input.week.month,
     weekIndex: input.week.weekIndex,
     actual: input.week.previousActual,
+    lock: input.sessionLock,
   });
   if (!session) {
     return {
@@ -492,6 +519,7 @@ function mergeSpecialists(input: {
         ? { day: input.day.day, warmup_ko: input.base.warmup_ko }
         : null);
   if (!strength || !conditioning || !warmup) return { ok: false, errors: ["specialist merge is missing an area"] };
+  const contract = assembleContract(warmup, strength, conditioning);
   return {
     ok: true,
     strengthNote: typeof strength.strength_note_ko === "string" && strength.strength_note_ko.trim() ? strength.strength_note_ko : null,
@@ -501,8 +529,48 @@ function mergeSpecialists(input: {
       notes_ko: conditioning.notes_ko,
       conditioning: conditioning.conditioning,
       ...(conditioning.zone2_option ? { zone2_option: conditioning.zone2_option } : {}),
+      ...(contract ?? {}),
     },
   };
+}
+
+function doseRow(value: unknown): { key: string; unit: "reps" | "cal" | "m" | "sec"; amount: number } | null {
+  const row = asRecord(value);
+  if (!row || typeof row.key !== "string") return null;
+  const unit = row.unit === "reps" || row.unit === "cal" || row.unit === "m" || row.unit === "sec" ? row.unit : null;
+  const amount = typeof row.amount === "number" ? row.amount : typeof row.amount_value === "number" ? row.amount_value : null;
+  if (!unit || amount == null) return null;
+  return { key: row.key, unit, amount };
+}
+
+function assembleContract(
+  warmup: Record<string, unknown>,
+  strength: Record<string, unknown>,
+  conditioning: Record<string, unknown>,
+): { session_blocks: unknown[]; warmup_phases: unknown[] } | null {
+  const warm = asRecord(warmup.contract_part);
+  const strong = asRecord(strength.contract_part);
+  const piece = asRecord(conditioning.contract_part);
+  if (!warm || !strong || !piece || !Array.isArray(warm.phases)) return null;
+  const phases = warm.phases.filter((row) => asRecord(row));
+  const ramp = phases.filter((row) => asRecord(row)?.phase !== "cooldown");
+  const cool = phases.filter((row) => asRecord(row)?.phase === "cooldown");
+  const metcon = asRecord(conditioning.conditioning);
+  const metconMoves = Array.isArray(metcon?.movements) ? metcon.movements.map(doseRow).filter((row) => row != null) : [];
+  const skill = doseRow(strong.skill);
+  const mainPattern = doseRow(strong.main);
+  const extra = doseRow(piece.extra);
+  const blocks: { role: string; minutes: number; movements: unknown[] }[] = [
+    { role: "warmup", minutes: Number(warm.warmup_minutes), movements: ramp.map(doseRow).filter((row) => row != null) },
+  ];
+  if (Number(strong.main_minutes) > 0) {
+    blocks.push({ role: "main_lift", minutes: Number(strong.main_minutes), movements: mainPattern ? [mainPattern] : [] });
+  }
+  if (skill) blocks.push({ role: "skill_or_accessory", minutes: Number(strong.skill_minutes), movements: [skill] });
+  blocks.push({ role: "metcon", minutes: Number(piece.metcon_minutes), movements: metconMoves });
+  if (extra) blocks.push({ role: "extra_conditioning", minutes: Number(piece.extra_minutes), movements: [extra] });
+  blocks.push({ role: "cooldown", minutes: Number(warm.cooldown_minutes), movements: cool.map(doseRow).filter((row) => row != null) });
+  return { session_blocks: blocks, warmup_phases: phases };
 }
 
 function affectedDays(days: readonly DayKey[]): DayKey[] {
@@ -583,6 +651,7 @@ async function writeSession(input: {
   const areaInvalid = new Map<SpecialistArea, unknown>();
   let failed: { errors: string[]; retry: number; reason: string | null; json: unknown } | null = null;
   let overlapShown = false;
+  const sessionLock = sessionLockFor(input.week, input.plan, input.day.day);
   const overlapPack = (json: unknown, draft: WeekDraft) => {
     const scored =
       sessionFromCoachJson({
@@ -591,6 +660,7 @@ async function writeSession(input: {
         month: input.week.month,
         weekIndex: input.week.weekIndex,
         actual: input.week.previousActual,
+        lock: sessionLock,
       }) ??
       sessionFromCoachJson({
         json,
@@ -599,6 +669,7 @@ async function writeSession(input: {
         weekIndex: input.week.weekIndex,
         actual: input.week.previousActual,
         preview: true,
+        lock: sessionLock,
       });
     const candidate = scored
       ? { ...draft, sessions: draft.sessions.map((row) => (row.day === input.day.day ? scored : row)) }
@@ -627,6 +698,7 @@ async function writeSession(input: {
       ignoreDays,
       deferPlacement: input.deferPlacement,
       stampAxes: input.revisionNumber === 0,
+      sessionLock,
     });
     normalizations.push(...adopted.normalizations);
     normalizedJson = adopted.json;
@@ -654,6 +726,7 @@ async function writeSession(input: {
       slot: rawSlot,
       skeletonCombo: skeletonComboFor(input.week, input.rules, input.day.day),
       avoidHeavyLower: hardConstraints(input.week.previousActual).heavy_lower_metcon === "avoid",
+      sessionLock,
     });
     const zone2Spec = zone2SlotSpec({
       zone2: input.day.zone2,
@@ -965,6 +1038,7 @@ async function writeSession(input: {
     ignoreDays,
     deferPlacement: input.deferPlacement,
     stampAxes: input.revisionNumber === 0,
+    sessionLock,
   });
   normalizations.push(...adopted.normalizations);
   if (!adopted.ok) {
@@ -2135,6 +2209,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
             slot: plan.conditioning_slots?.[cell.day as DayKey] ?? null,
             skeletonCombo: skeletonComboFor(input, rules, cell.day as DayKey),
             avoidHeavyLower,
+            sessionLock: sessionLockFor(input, plan, cell.day as DayKey),
           })
         : null;
       const home = frame?.slots.find((slot) => slot.movements.some((movement) => movement.key === cell.catalog_key));

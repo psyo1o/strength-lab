@@ -4,7 +4,7 @@ export type { AthleteSex };
 
 export type WeekIndex = 1 | 2 | 3 | 4;
 export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-export type BlockRole = "warmup" | "main" | "metcon" | "skill" | "assistance" | "extra_conditioning";
+export type BlockRole = "warmup" | "main" | "metcon" | "skill" | "assistance" | "extra_conditioning" | "cooldown";
 export type MainLift = "squat" | "ohp" | "bench" | "deadlift";
 export type MetconPattern = "squat" | "press" | "hinge" | "olympic" | "engine" | "gymnastic";
 export type MetconStimulus = "고중량" | "고반복" | "기술";
@@ -14,7 +14,7 @@ export const METCON_STIMULI: readonly MetconStimulus[] = ["고중량", "고반�
 export function isMetconStimulus(value: unknown): value is MetconStimulus {
   return value === "고중량" || value === "고반복" || value === "기술";
 }
-export type PieceFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper";
+export type PieceFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper" | "partner";
 
 export const DAY_ORDER: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
@@ -87,6 +87,8 @@ export type SessionBlock = {
   cuttable: boolean;
   kept: boolean;
   strength?: StrengthPrescription;
+  /** 화면 팁을 찾는 카탈로그 키. */
+  movementKeys?: string[];
 };
 
 export type PlannedDay = {

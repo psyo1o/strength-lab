@@ -1,4 +1,5 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
+import { resolveSessionMinutes } from "./coaching/session-contract";
 import { previousLowerFatigue } from "./rules";
 import type { ProgrammingSummary, WeekActual } from "./summary";
 import {
@@ -633,7 +634,7 @@ export function intentContextView(context: WeeklyIntentContext) {
   const read = performanceRead(context.previousActual);
   return {
     task: "Decide this week's training intent. Do not write workouts, sets, reps, or movement names.",
-    class_minutes: context.classMinutes ?? CLASS_MINUTES,
+    class_minutes: context.classMinutes ?? resolveSessionMinutes().minutes,
     equipment: context.equipment ?? [...EQUIPMENT],
     month_direction: {
       strength_method: context.month.strength_method || context.month.scheme,

@@ -116,18 +116,7 @@ export function fitSessionToSkeletonDay(session: SessionDraft, day: SkeletonDay)
   const ceiling = day.conditioning.intensity_ceiling;
   if (!isIntensity(piece.intensity) || rank(piece.intensity) <= rank(ceiling)) return session;
   piece.intensity = ceiling;
-  return fillSessionFields(
-    {
-      day: session.day,
-      rest: session.rest,
-      optional: session.optional,
-      warmup_min: session.warmup_min,
-      warmup_ko: session.warmup_ko,
-      strength: session.strength,
-      conditioning: piece,
-    },
-    session.strength_volume,
-  );
+  return fillSessionFields({ ...session, conditioning: piece }, session.strength_volume);
 }
 
 const VOLUME_BANDS = ["low", "moderate", "high"] as const;

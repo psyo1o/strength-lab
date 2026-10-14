@@ -1,3 +1,4 @@
+import { weekContractIssues } from "./coaching/session-contract";
 import { lowerAdjacentRunErrors } from "./coaching/zone2";
 import { lockedSkeletonDrift, validateSkeletonConformance, type MonthlyDirection, type WeekSkeleton } from "./direction";
 import { judgeWeek, type JudgeFailure, type WeekCheckContext } from "./rules";
@@ -155,7 +156,32 @@ export function evaluateWeek(
   context: EvaluateWeekContext = {},
 ): WeekVerdict {
   const judged = judgeWeek(raw, month, weekIndex, recent, context);
-  const extra = [...skeletonIssues(month, context), ...lowerAdjacentIssues(raw, context)];
+  const extra = [
+    ...skeletonIssues(month, context),
+    ...lowerAdjacentIssues(raw, context),
+    ...weekContractIssues(raw, weekIndex, month.strength_method || month.scheme || "531").map((message) => {
+      const day = dayOf(message);
+      if (day) {
+        return makeIssue({
+          code: "week.structure",
+          severity: "hard_error",
+          scope: "day",
+          day,
+          message,
+          expected: "session contract",
+          actual: message,
+        });
+      }
+      return makeIssue({
+        code: "week.structure",
+        severity: "hard_error",
+        scope: "week",
+        message,
+        expected: "session contract",
+        actual: message,
+      });
+    }),
+  ];
   if (judged.ok && extra.length === 0) {
     return {
       status: "PASS",

@@ -1,5 +1,6 @@
 import type { AthleteSex } from "../auth";
 import { EXERCISES } from "../programs/catalog";
+import { catalogMovement } from "../programming/coaching/movement-catalog";
 import { knownFallbackMovements } from "../programming/fallback";
 import { loadCanonical, loadTips, resolveTipExerciseId, TIP_ALIASES } from "../tips";
 import { listWodTemplates } from "../wod/templates";
@@ -111,6 +112,7 @@ function collect(sex: AthleteSex): Map<string, Entry> {
   }
 
   for (const [key, tip] of Object.entries(loadTips().tips ?? {})) {
+    if (catalogMovement(key)?.category === "warmup") continue;
     const entry = ensure(entries, key);
     if (!entry) continue;
     addName(entry, text(tip.name));

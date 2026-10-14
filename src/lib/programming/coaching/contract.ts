@@ -25,7 +25,7 @@ import type { CoachAgentName } from "./models";
  * A model that invents a key or an enum fails here, not later as a silent week fallback.
  */
 
-export const DURATION_PROFILES = ["30-45", "45-60", "60-75", "rest"] as const;
+export const DURATION_PROFILES = ["30-45", "45-60", "60-75", "90-110", "rest"] as const;
 export const STRENGTH_LIFTS = ["squat", "ohp", "bench", "deadlift", "none"] as const;
 export const BLOCK_PHASES = ["accumulation", "progression", "peak", "deload", "emphasis"] as const;
 export const EMPHASIS = ["mixed", "olympic", "gymnastics", "aerobic", "long_conditioning"] as const;
@@ -35,7 +35,7 @@ export const INTENSITY_PROFILES = ["light", "moderate", "heavy", "mixed"] as con
 export const INTENSITY_BANDS = ["light", "moderate", "heavy"] as const;
 export const FATIGUE_TARGETS = ["low", "moderate", "high"] as const;
 export const MOVEMENT_PATTERNS = ["squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic", "mixed", "none"] as const;
-export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
+export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner"] as const;
 export const LOAD_ACTIONS = ["progress", "hold", "cut"] as const;
 export const TARGET_EFFORTS = ["easy", "moderate", "hard"] as const;
 export const RELATIVE_INTENSITIES = ["up", "same", "down"] as const;

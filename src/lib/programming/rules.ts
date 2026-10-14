@@ -257,7 +257,7 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     return null;
   }
   if (!purpose || !isWodPurpose(purpose)) return null;
-  if (format !== "amrap" && format !== "for_time" && format !== "emom" && format !== "intervals" && format !== "chipper") return null;
+  if (format !== "amrap" && format !== "for_time" && format !== "emom" && format !== "intervals" && format !== "chipper" && format !== "partner") return null;
   if (timeDomain !== "short" && timeDomain !== "medium" && timeDomain !== "long") return null;
   if (stimulus !== null && (typeof stimulus !== "string" || !(STIMULI as readonly string[]).includes(stimulus))) return null;
   if (volume !== "low" && volume !== "moderate" && volume !== "high") return null;
@@ -338,7 +338,8 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
         row.metcon_format === "for_time" ||
         row.metcon_format === "emom" ||
         row.metcon_format === "intervals" ||
-        row.metcon_format === "chipper"
+        row.metcon_format === "chipper" ||
+        row.metcon_format === "partner"
           ? row.metcon_format
           : null,
       time_domain: row.time_domain === "short" || row.time_domain === "medium" || row.time_domain === "long" ? row.time_domain : null,
@@ -348,6 +349,8 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
       volume: row.volume === "low" || row.volume === "moderate" || row.volume === "high" ? row.volume : null,
       intensity: row.intensity === "light" || row.intensity === "moderate" || row.intensity === "heavy" ? row.intensity : null,
       expected_duration: asInt(row.expected_duration),
+      ...(Array.isArray(row.session_blocks) ? { session_blocks: row.session_blocks as SessionDraft["session_blocks"] } : {}),
+      ...(Array.isArray(row.warmup_phases) ? { warmup_phases: row.warmup_phases as SessionDraft["warmup_phases"] } : {}),
     });
   }
   return { intent: { why_ko: why, focus, scheme_note: note }, sessions };
@@ -598,7 +601,7 @@ export function dayLabel(day: string): string {
   return DAY_LABEL[day as DayKey] ?? day;
 }
 
-const SESSION_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
+const SESSION_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner"] as const;
 const SESSION_DOMAINS = ["short", "medium", "long"] as const;
 const SESSION_VOLUMES = ["low", "moderate", "high"] as const;
 const SESSION_INTENSITIES = ["light", "moderate", "heavy"] as const;
