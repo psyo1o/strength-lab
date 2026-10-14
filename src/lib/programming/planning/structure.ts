@@ -4,15 +4,17 @@ import type { SafetyDay } from "../coaching/stage15/safety-policy";
 import { safetyViolations } from "../coaching/stage15/safety-policy";
 import { deloadHeavyConditioningErrors } from "../coaching/stage15/week-structure";
 import { monthAllowsSameLiftDays, strengthLayoutRepeats } from "../rules";
+import type { WeekActual } from "../summary";
 import type { CoachingStimulus, DayIntent, MonthDirection, PrimaryTraining, VolumeBand, WeekIndex, WeeklyIntentPlan } from "../types";
 import { COACHING_STIMULI } from "../types";
-import type { SkeletonDay, WeeklySkeleton, WeeklyThesis } from "./types";
+import type { SkeletonDay, StrengthEmphasis, WeeklySkeleton, WeeklyThesis } from "./types";
 
 export type SkeletonCheck = {
   month: MonthDirection;
   weekIndex: WeekIndex;
   thesis: WeeklyThesis;
   recentStrengthMaps?: readonly string[];
+  actual?: WeekActual | null;
 };
 
 const RANK: Record<string, number> = { light: 0, moderate: 1, heavy: 2 };
@@ -98,6 +100,19 @@ export function intentFromSkeleton(skeleton: WeeklySkeleton, month: MonthDirecti
   };
 }
 
+export function emphasisForLift(lift: string, emphasis: StrengthEmphasis): StrengthEmphasis {
+  if (lift === "none") return "none";
+  if (lift === "squat" || lift === "deadlift") {
+    if (emphasis === "heavy_lower" || emphasis === "light" || emphasis === "moderate") return emphasis;
+    return "heavy_lower";
+  }
+  if (lift === "bench" || lift === "ohp") {
+    if (emphasis === "heavy_upper" || emphasis === "light" || emphasis === "moderate") return emphasis;
+    return "heavy_upper";
+  }
+  return "moderate";
+}
+
 function shapeErrors(days: readonly SkeletonDay[]): string[] {
   const errors: string[] = [];
   const seen = new Set<DayKey>();
@@ -114,6 +129,10 @@ function shapeErrors(days: readonly SkeletonDay[]): string[] {
     if (rest && day.conditioning.duration_class !== "rest") errors.push(`${day.day} rest day has a conditioning duration class`);
     if (rest && day.long_day) errors.push(`${day.day} rest day is marked long`);
     if (!rest && day.conditioning.duration_class === "rest") errors.push(`${day.day} training day has a rest duration class`);
+    if (day.strength.lift === "none" && day.strength.emphasis !== "none") errors.push(`${day.day} lift none requires emphasis none`);
+    if (emphasisForLift(day.strength.lift, day.strength.emphasis) !== day.strength.emphasis) {
+      errors.push(`${day.day} strength emphasis does not match the lift`);
+    }
     if (intensityRank(day.conditioning.intensity_class) > intensityRank(day.conditioning.intensity_ceiling)) {
       errors.push(`${day.day} conditioning intensity exceeds its ceiling`);
     }
@@ -134,7 +153,7 @@ function ceilingVolume(day: SkeletonDay, thesis: WeeklyThesis): VolumeBand {
  * use the same functions as the final gate.
  */
 export function validateSkeleton(skeleton: WeeklySkeleton, check: SkeletonCheck): string[] {
-  const rules: WeekRules = extractWeekRules({ month: check.month, weekIndex: check.weekIndex });
+  const rules: WeekRules = extractWeekRules({ month: check.month, weekIndex: check.weekIndex, actual: check.actual });
   const projected = intentFromSkeleton(skeleton, check.month, check.thesis);
   for (const day of projected.days) {
     const source = skeleton.days.find((item) => item.day === day.day);

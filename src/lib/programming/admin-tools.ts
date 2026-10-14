@@ -1,4 +1,5 @@
 import { ENGINE_DRY_ACTIONS, ENGINE_LIVE_ACTIONS, ENGINE_WRITE_ACTIONS } from "./admin-actions";
+import { writeStoredClassIntensity } from "./class-intensity";
 import { getSqlite } from "../db/client";
 import { classWeekToTrain, kstParts } from "../month-plan/calendar";
 import { recomputeWeeklyActual } from "./actual";
@@ -638,9 +639,14 @@ export async function runAdminAction(
     key?: string | null;
     fetchImpl?: FetchLike;
     mode?: SaveWeekMode;
+    level?: unknown;
   } = {},
 ): Promise<Record<string, unknown>> {
   const nowMs = input.nowMs ?? Date.now();
+  if (action === "save-class-intensity") {
+    const saved = writeStoredClassIntensity(input.level);
+    return { wrote: true, action, class_intensity_level: saved, applies: "next_generation" };
+  }
   if (action === "dry-run-week") return dryRunWeek({ nowMs, actualCase: input.actualCase, key: input.key, fetchImpl: input.fetchImpl });
   if (action === "dry-run-month") return dryRunMonth({ nowMs, key: input.key, fetchImpl: input.fetchImpl });
   if (action === "probe-similarity") return probeSimilarity();

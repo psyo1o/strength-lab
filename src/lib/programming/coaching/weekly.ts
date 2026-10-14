@@ -15,6 +15,7 @@ import type {
   CoachingStimulus,
 } from "../types";
 import { goalWeek, layoutFromGoal, restDayFor, weekTrainingLayout } from "./goal-table";
+import { resolveSessionMinutes } from "./session-contract";
 import { deterministicMonthlyPlan } from "./monthly";
 import { extractWeekRules } from "./stage13/rules";
 import type { DayBound } from "./week-bounds";
@@ -69,7 +70,7 @@ export function weeklyCoachPayload(input: {
     long_required_this_week: input.month.long_conditioning_weeks.includes(input.weekIndex),
     benchmark_week: input.month.benchmark_week === input.weekIndex,
     week_rules: extractWeekRules({ month: input.month, weekIndex: input.weekIndex, actual: input.previousActual }),
-    class_minutes: 60,
+    class_minutes: resolveSessionMinutes().minutes,
     reported_fatigue: summary?.fatigue_signal ?? null,
     planned_volume: summary?.actual_volume ?? null,
     completion: summary ? { completed_days: summary.completed_days, missed_days: summary.missed_days } : null,

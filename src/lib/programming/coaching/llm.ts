@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { assertPhase4Budget, logPhase4Call, notePhase4Tokens, Phase4Stop } from "../phase4/budget";
 import type { FetchLike } from "../model";
 import { JSON_OBJECT, responseFormatFor, schemaBrief, type ResponseFormat } from "./contract";
@@ -87,6 +88,7 @@ async function postOnce(input: {
   format: ResponseFormat;
   temperature: number | null;
   systemPrompt?: string;
+  seed?: number | null;
 }): Promise<Attempt> {
   const started = Date.now();
   const provider = coachProvider();
@@ -99,6 +101,7 @@ async function postOnce(input: {
     maxTokens: input.maxTokens,
     temperature: input.temperature,
     format: input.format,
+    seed: input.seed,
   });
   try {
     const response = await input.fetchImpl(request.url, {
@@ -120,12 +123,13 @@ async function postOnce(input: {
       const detail = typeof payload === "string" ? payload : JSON.stringify(payload).slice(0, 400);
       const schemaRejected = response.status === 400 && /response_format|json_schema|output_config|responseJsonSchema|responseSchema/i.test(detail);
       const temperatureRejected = response.status === 400 && /temperature/i.test(detail);
+      const seedRejected = response.status === 400 && /\bseed\b/i.test(detail);
       return {
         ok: false,
         json: null,
         raw: payload,
         status: response.status,
-        reason: schemaRejected ? "schema_rejected" : temperatureRejected ? "temperature_rejected" : "http_error",
+        reason: schemaRejected ? "schema_rejected" : temperatureRejected ? "temperature_rejected" : seedRejected ? "seed_rejected" : "http_error",
         latencyMs: Date.now() - started,
         usage: null,
       };
@@ -176,7 +180,8 @@ export async function askCoach(input: {
 }): Promise<CoachCall> {
   const model = coachModelForCall(input.agent);
   const fetchImpl = input.fetchImpl ?? fetch;
-  const temperature = input.temperature === undefined ? 0.2 : input.temperature;
+  const temperature = input.temperature === undefined ? 0 : input.temperature;
+  const seed = createHash("sha256").update(`${input.agent}:${JSON.stringify(input.user)}`).digest().readUInt32BE(0);
   let format = input.format ?? responseFormatFor(input.agent);
   let usage: TokenUsage | null = null;
   let latencyMs = 0;
@@ -226,6 +231,7 @@ export async function askCoach(input: {
       maxTokens: input.maxTokens,
       format,
       temperature,
+      seed,
       systemPrompt: input.systemPrompt,
     });
     if (attemptResult.reason === "temperature_rejected") {
@@ -239,6 +245,22 @@ export async function askCoach(input: {
         maxTokens: input.maxTokens,
         format,
         temperature: null,
+        seed,
+        systemPrompt: input.systemPrompt,
+      });
+    }
+    if (attemptResult.reason === "seed_rejected") {
+      attemptResult = await postOnce({
+        key: input.key,
+        fetchImpl,
+        timeoutMs: input.timeoutMs,
+        model,
+        agent: input.agent,
+        user,
+        maxTokens: input.maxTokens,
+        format,
+        temperature,
+        seed: null,
         systemPrompt: input.systemPrompt,
       });
     }

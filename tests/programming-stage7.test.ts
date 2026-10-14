@@ -128,7 +128,7 @@ describe("stage 7 constraint delivery and probe isolation", () => {
     expect(promptA.programming_space.heavy_lower_slots_available).toBe(1);
     expect(promptA.programming_space.does_not_assign).toContain("does not assign");
     expect(promptA.programming_guidance.note).toContain("recovery-friendly");
-    expect(promptA.allowed_programming.lower_body_sets?.map((set) => set.percent_of_tm)).toEqual([70, 80]);
+    expect(promptA.allowed_programming.lower_body_sets?.map((set) => set.percent_of_tm)).toEqual([70, 80, 80]);
     expect(promptA.allowed_programming.upper_body_sets?.map((set) => set.percent_of_tm)).toEqual([70, 80, 90]);
     expect(promptA.example_sets.lower_body?.some((set) => set.percent_of_tm >= 85)).toBe(false);
     expect(promptA.weekly_requirements.long_conditioning_sessions_min).toBe(1);

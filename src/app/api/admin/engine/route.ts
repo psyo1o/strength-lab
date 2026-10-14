@@ -28,12 +28,12 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   const block = denied(user);
   if (block) return block;
-  const body = (await req.json().catch(() => ({}))) as { action?: unknown; actualCase?: unknown; mode?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { action?: unknown; actualCase?: unknown; mode?: unknown; level?: unknown };
   const action = typeof body.action === "string" ? body.action : "";
   const actualCase = body.actualCase === "a" || body.actualCase === "b" ? (body.actualCase as ActualCase) : null;
   const mode: SaveWeekMode | undefined = body.mode === "production" ? "production" : body.mode === "probe" ? "probe" : undefined;
   try {
-    const result = await runAdminAction(action, { actualCase, mode });
+    const result = await runAdminAction(action, { actualCase, mode, level: body.level });
     logReturnedEngineError(action, mode, result);
     return NextResponse.json(result);
   } catch (error) {

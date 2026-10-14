@@ -96,10 +96,18 @@ export function setsMatchScheme(scheme: Scheme, weekIndex: WeekIndex, sets: Stre
 
 /**
  * Real volume cut for a tired lower body.
- * Drop the plus set when there is one, otherwise drop a set, otherwise lower the percent.
+ * A three-set scheme keeps three sets: AMRAP is cleared and the last percent drops by 10.
+ * Longer schemes still drop the plus set.
  */
 export function fatigueCutSets(scheme: Scheme, weekIndex: WeekIndex): StrengthSetDraft[] {
   const sets = schemeSets(scheme, weekIndex);
+  if (sets.length === 3) {
+    return sets.map((set, index) =>
+      index === sets.length - 1
+        ? { ...set, amrap: false, percent_of_tm: Math.max(40, set.percent_of_tm - 10) }
+        : { ...set, amrap: false },
+    );
+  }
   const withoutAmrap = sets.filter((set) => !set.amrap);
   if (withoutAmrap.length >= 2 && withoutAmrap.length < sets.length) return withoutAmrap;
   if (sets.length > 3) return sets.slice(0, 3);

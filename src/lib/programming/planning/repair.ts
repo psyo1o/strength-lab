@@ -1,6 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { safetyViolations } from "../coaching/stage15/safety-policy";
-import { safetyDaysFromSkeleton } from "./structure";
+import { emphasisForLift, safetyDaysFromSkeleton } from "./structure";
 import type { RepairStep, SkeletonDay, WeeklySkeleton } from "./types";
 
 /**
@@ -9,15 +9,27 @@ import type { RepairStep, SkeletonDay, WeeklySkeleton } from "./types";
  * training day later. A missing long day promotes one suitable conditioning day.
  * Deload heavy conditioning is clamped to the existing moderate ceiling.
  */
-export function repairSkeleton(skeleton: WeeklySkeleton, longRequired: boolean): { skeleton: WeeklySkeleton; steps: RepairStep[] } {
+export function repairSkeleton(skeleton: WeeklySkeleton, longRequired: boolean, maxLowerLifts = 2): { skeleton: WeeklySkeleton; steps: RepairStep[] } {
   const next = structuredClone(skeleton);
   const steps: RepairStep[] = [];
   const benchmark = moveBenchmark(next.days);
   if (benchmark) steps.push(benchmark);
   const strength = shiftStrength(next.days);
   if (strength) steps.push(strength);
+  const capped = capLowerLifts(next.days, maxLowerLifts);
+  if (capped) steps.push(capped);
+  const rested = restFromDuration(next.days);
+  if (rested) steps.push(rested);
+  const restGoal = alignRestGoal(next.days);
+  if (restGoal) steps.push(restGoal);
+  const noneLift = noneLiftEmphasis(next.days);
+  if (noneLift) steps.push(noneLift);
+  const aligned = alignLiftEmphasis(next.days);
+  if (aligned) steps.push(aligned);
   const promoted = promoteLong(next.days, longRequired);
   if (promoted) steps.push(promoted);
+  const cleared = clearUnexpectedLong(next.days, longRequired);
+  if (cleared) steps.push(cleared);
   const clamped = clampDeload(next.days, next.week_phase === "DELOAD");
   if (clamped) steps.push(clamped);
   next.repair_trace = steps;
@@ -74,6 +86,76 @@ function swapStrength(days: SkeletonDay[], left: DayKey, right: DayKey): void {
   if (a.strength.emphasis === "heavy_lower" || a.strength.emphasis === "heavy_upper") {
     if (a.primary_goal === "rest") a.primary_goal = b.primary_goal === "rest" ? "lower_strength" : b.primary_goal;
   }
+}
+
+function capLowerLifts(days: SkeletonDay[], maxLowerLifts: number): RepairStep | null {
+  const lowers = days.filter((day) => day.status === "training" && (day.strength.lift === "squat" || day.strength.lift === "deadlift"));
+  if (lowers.length <= maxLowerLifts) return null;
+  const extra = lowers.slice(maxLowerLifts);
+  for (const day of extra) {
+    day.strength = { emphasis: "none", lift: "none" };
+  }
+  return {
+    transform: "cap_lower_lifts",
+    day: extra[0]!.day,
+    detail: "extra lower lifts removed down to the week rule",
+  };
+}
+
+function alignRestGoal(days: SkeletonDay[]): RepairStep | null {
+  const hits = days.filter((day) => day.status === "rest" && day.primary_goal !== "rest");
+  if (!hits.length) return null;
+  for (const day of hits) {
+    day.primary_goal = "rest";
+    day.long_day = false;
+    day.benchmark = false;
+    day.strength = { emphasis: "none", lift: "none" };
+    if (day.conditioning.duration_class !== "rest") {
+      day.conditioning = { ...day.conditioning, duration_class: "rest" };
+    }
+  }
+  return { transform: "rest_goal", day: hits[0]!.day, detail: "rest status keeps a rest goal" };
+}
+
+function restFromDuration(days: SkeletonDay[]): RepairStep | null {
+  const hits = days.filter((day) => day.status === "training" && day.conditioning.duration_class === "rest");
+  if (!hits.length) return null;
+  for (const day of hits) {
+    day.status = "rest";
+    day.primary_goal = "rest";
+    day.long_day = false;
+    day.benchmark = false;
+    day.strength = { emphasis: "none", lift: "none" };
+    day.conditioning = { ...day.conditioning, duration_class: "rest", intensity_class: "light", intensity_ceiling: "light" };
+  }
+  return { transform: "rest_from_duration", day: hits[0]!.day, detail: "training day with a rest duration became rest" };
+}
+
+function alignLiftEmphasis(days: SkeletonDay[]): RepairStep | null {
+  const hits = days.filter((day) => emphasisForLift(day.strength.lift, day.strength.emphasis) !== day.strength.emphasis);
+  if (!hits.length) return null;
+  for (const day of hits) {
+    day.strength = { lift: day.strength.lift, emphasis: emphasisForLift(day.strength.lift, day.strength.emphasis) };
+  }
+  return { transform: "align_lift_emphasis", day: hits[0]!.day, detail: "emphasis follows the lift family" };
+}
+
+function noneLiftEmphasis(days: SkeletonDay[]): RepairStep | null {
+  const hits = days.filter((day) => day.strength.lift === "none" && day.strength.emphasis !== "none");
+  if (!hits.length) return null;
+  for (const day of hits) day.strength = { emphasis: "none", lift: "none" };
+  return { transform: "none_lift_emphasis", day: hits[0]!.day, detail: "lift none keeps emphasis none" };
+}
+
+function clearUnexpectedLong(days: SkeletonDay[], longRequired: boolean): RepairStep | null {
+  if (longRequired) return null;
+  const longs = days.filter((day) => day.status === "training" && (day.long_day || day.conditioning.duration_class === "long"));
+  if (!longs.length) return null;
+  for (const day of longs) {
+    day.long_day = false;
+    if (day.conditioning.duration_class === "long") day.conditioning.duration_class = "medium";
+  }
+  return { transform: "clear_long", day: longs[0]!.day, detail: "long day cleared because this week is not a long week" };
 }
 
 function promoteLong(days: SkeletonDay[], required: boolean): RepairStep | null {

@@ -24,7 +24,7 @@ import {
 describe("movement catalog", () => {
   it("keeps the catalog draft and does not invent a range", () => {
     expect(movementCatalogVersion()).toBe("0.5.0-draft");
-    expect(standardMovements()).toHaveLength(159);
+    expect(standardMovements()).toHaveLength(189);
     expect(closedRange(null)).toBeNull();
     expect(closedRange("15")).toBeNull();
     expect(closedRange("15 (50 ft)")).toBeNull();

@@ -178,7 +178,7 @@ describe("month conditioning board", () => {
     expect(even?.strength?.movement_key).toBe("front_squat");
     const shown = projectWeek({ intent: { why_ko: "", focus: "", scheme_note: "" }, sessions: [built!] } as WeekDraft, 1, "model");
     expect(shown.days[0]?.piece?.movements[0]?.amount).toBe("400m");
-    expect(shown.days[0]?.lift?.nameKo).toMatch(/스쿼트/);
+    expect(shown.days[0]?.lift?.nameKo).toBe("Back Squat");
     const normalized = normalizeSessionPayload({
       day: "mon",
       warmup_ko: "technical prep before the lift.",

@@ -124,6 +124,15 @@ export const ENGINE_HELP: Record<string, EngineHelp> = {
   },
 };
 
+export const ENGINE_INTENSITY_HELP: EngineHelp = {
+  short: "클래스 강도 1–5를 저장합니다. 기본은 3입니다. 다음 생성부터 쓰이고, 이미 만든 주는 바꾸지 않습니다.",
+  does: "고른 숫자를 app_meta의 class_intensity_level에 저장합니다. 생성의 intensity_level이 이 값을 읽습니다. 1은 가볍고 3은 보통, 5는 무겁다는 안내입니다. 뼈대 상한 밖의 밴드는 열리지 않습니다. 나중에 회원 설정이 박스 설정을, 박스 설정이 이 클래스 값을, 없으면 3을 덮습니다. 회원과 박스 값은 아직 이 화면에 없습니다.",
+  when: "다음 수업 생성의 강도를 바꿀 때 고르고 저장합니다. 저장 전에는 생성이 바뀌지 않습니다.",
+  effect: "다음 생성부터 그 숫자를 씁니다. 이미 저장된 주와 회원 화면은 그대로입니다.",
+  cost: "저장만으로는 모델을 부르지 않습니다. 비용이 없습니다.",
+  undo: "다른 숫자를 저장하면 그 다음 생성부터 그 숫자가 쓰입니다. 이 화면에서 저장 값을 지우는 버튼은 없습니다.",
+};
+
 export const ENGINE_CASE_HELP: EngineHelp = {
   short: "주 드라이런에 넣을 지난주 수행만 고릅니다. 다른 버튼에는 전달되지 않습니다.",
   does: "빈 값은 저장된 실제 수행입니다. Case A는 하체 볼륨과 피로가 높은 예시이고, Case B는 낮은 예시입니다. dry-run-week 요청에만 실립니다.",

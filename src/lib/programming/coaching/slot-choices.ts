@@ -18,6 +18,8 @@ import {
   standardMovements,
   type CatalogUnit,
 } from "./movement-catalog";
+import { intensityBandsForStimulus, stimuliForCeiling, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
 
@@ -37,6 +39,8 @@ export type FrameMovement = {
 export type FrameSlot = {
   id: string;
   movements: FrameMovement[];
+  phase?: string;
+  percents?: string[];
 };
 
 export type SessionPiece = {
@@ -55,6 +59,8 @@ export type SessionFrame = {
   piece: SessionPiece | null;
   /** 존 2 날이면 같은 응답의 한 칸에 A와 B를 둔다. */
   zone2Slot?: { deload: boolean; previousModality?: string | null; dropRun?: boolean } | null;
+  /** 잠긴 세션 계약이 있을 때만 단계·에코·이유를 요구한다. */
+  contract?: DaySessionLock | null;
 };
 
 /** avoid 날 칸에 남아야 하는 동작·수량 선택지. 이보다 적으면 생성 전에 멈춘다. */
@@ -69,7 +75,9 @@ export class HeavyLowerEnumError extends Error {
 
 const NON_LONG = { min: 8, max: 20 } as const;
 const LONG = { min: TIME_DOMAIN_RANGES.long.min, max: TIME_DOMAIN_RANGES.long.max } as const;
-const CAP = 6;
+/** Free movement enums stay inside 8–15. Locked echoes of one value are unchanged. */
+const CAP = 12;
+const ENUM_MAX = 15;
 
 const PREFER: Record<"mono" | "gym" | "lift", readonly string[]> = {
   mono: ["row_erg", "assault_bike", "run", "ski_erg", "double_under", "bike_erg"],
@@ -105,6 +113,7 @@ export function quantityOptions(key: string): QuantityChoice[] {
       if (seen.has(id)) continue;
       seen.add(id);
       out.push({ id, unit, amount, method: false });
+      if (out.length >= ENUM_MAX) return out;
     }
   }
   return out;
@@ -158,6 +167,13 @@ function legalConditioning(lift: string | null | undefined, deadliftConditioning
 function pool(keys: readonly string[], kind: "mono" | "gym" | "lift", pin?: string): FrameMovement[] {
   const matched = keys.filter((key) => modalityOf(key) === kind);
   return withOptions(takeKeys(matched, PREFER[kind], pin && modalityOf(pin) === kind ? pin : undefined));
+}
+
+const VOLUME_RANK: Record<VolumeBand, number> = { low: 0, moderate: 1, high: 2 };
+
+function volumeAtMost(current: VolumeBand, ceiling: VolumeBand | null | undefined): VolumeBand {
+  if (ceiling !== "low" && ceiling !== "moderate" && ceiling !== "high") return current;
+  return VOLUME_RANK[current] <= VOLUME_RANK[ceiling] ? current : ceiling;
 }
 
 function pieceOf(day: DayIntent, slot: ConditioningSlot | null): SessionPiece {
@@ -255,6 +271,37 @@ export function withoutHeavyLowerOptions(frame: SessionFrame): SessionFrame {
   return { ...frame, slots };
 }
 
+function doseMovement(move: DoseMovement): FrameMovement {
+  return {
+    key: move.key,
+    options: [{ id: `${move.unit}:${move.amount}`, unit: move.unit, amount: move.amount, method: false }],
+  };
+}
+
+function contractSlots(area: SlotArea, day: DayIntent, lock: DaySessionLock): FrameSlot[] {
+  if (area === "warmup") {
+    return rampSlots(lock).map((slot) => ({
+      id: slot.id,
+      phase: slot.phase,
+      percents: slot.phase === "potentiate" ? potentiatePercents(lock.first_working_percent) : undefined,
+      movements: slot.choices.map((choice) => ({
+        key: choice.key,
+        options: [{ id: `${choice.unit}:${choice.amount}`, unit: choice.unit, amount: choice.amount, method: false as const }],
+      })),
+    }));
+  }
+  if (area === "strength") {
+    return [
+      ...strengthSlots(day),
+      { id: "s1", phase: "skill", movements: [doseMovement(lock.skill)] },
+    ];
+  }
+  return [
+    ...lock.metcon.map((move, index) => ({ id: `s${index}`, phase: "metcon", movements: [doseMovement(move)] })),
+    { id: `s${lock.metcon.length}`, phase: "extra", movements: [doseMovement(lock.extra)] },
+  ];
+}
+
 export function buildSessionFrame(input: {
   area: SlotArea;
   day: DayIntent;
@@ -263,21 +310,32 @@ export function buildSessionFrame(input: {
   skeletonCombo?: { strengthLifts: readonly string[]; deadliftConditioning: boolean } | null;
   /** 직전 피로가 높아 heavy_lower_metcon=avoid일 때만 위반 조합을 뺀다. */
   avoidHeavyLower?: boolean;
+  /** 수업 블록이 잠겨 있으면 그 칸만 연다. */
+  sessionLock?: DaySessionLock | null;
 }): SessionFrame | null {
-  const slots =
-    input.area === "conditioning"
+  const locked = input.sessionLock && !input.sessionLock.rest ? input.sessionLock : null;
+  const slots = locked
+    ? contractSlots(input.area, input.day, locked)
+    : input.area === "conditioning"
       ? conditioningSlots(input.day, input.slot, input.skeletonCombo?.deadliftConditioning)
       : input.area === "strength"
         ? strengthSlots(input.day, input.skeletonCombo?.strengthLifts)
         : warmupSlots(input.day);
-  if (!slots.length) return null;
+  if (!slots.length || slots.some((slot) => slot.movements.length === 0)) return null;
+  const piece = input.area === "conditioning" ? pieceOf(input.day, input.slot) : null;
+  if (piece && locked) {
+    piece.format = locked.format;
+    piece.duration_min = locked.metcon_minutes;
+    piece.volume = volumeAtMost(piece.volume, input.day.volume_profile);
+  }
   const frame: SessionFrame = {
     area: input.area,
     day: input.day.day,
     slots,
-    piece: input.area === "conditioning" ? pieceOf(input.day, input.slot) : null,
+    piece,
+    contract: locked,
   };
-  if (input.avoidHeavyLower && frame.area === "conditioning") return withoutHeavyLowerOptions(frame);
+  if (input.avoidHeavyLower && frame.area === "conditioning" && !frame.contract) return withoutHeavyLowerOptions(frame);
   return frame;
 }
 
@@ -285,19 +343,26 @@ function strictObject(properties: Record<string, unknown>, required: string[]): 
   return { type: "object", additionalProperties: false, properties, required };
 }
 
-function branch(slot: string, movement: FrameMovement): Record<string, unknown> {
-  return strictObject(
-    {
-      slot: { type: "string", enum: [slot] },
-      movement_id: { type: "string", enum: [movement.key] },
-      quantity_option: { type: "string", enum: movement.options.map((option) => option.id) },
-    },
-    ["slot", "movement_id", "quantity_option"],
-  );
+function branch(slot: FrameSlot, movement: FrameMovement, locked: boolean): Record<string, unknown> {
+  const properties: Record<string, unknown> = {
+    slot: { type: "string", enum: [slot.id] },
+    movement_id: { type: "string", enum: [movement.key] },
+    quantity_option: { type: "string", enum: movement.options.map((option) => option.id) },
+  };
+  const required = ["slot", "movement_id", "quantity_option"];
+  if (locked) {
+    properties.reason = { type: "string", minLength: 8 };
+    required.push("reason");
+  }
+  if (slot.percents?.length) {
+    properties.load_percent = { type: "string", enum: slot.percents };
+    required.push("load_percent");
+  }
+  return strictObject(properties, required);
 }
 
-function slotSchema(slot: FrameSlot): Record<string, unknown> {
-  const branches = slot.movements.map((movement) => branch(slot.id, movement));
+function slotSchema(slot: FrameSlot, locked = false): Record<string, unknown> {
+  const branches = slot.movements.map((movement) => branch(slot, movement, locked));
   return branches.length === 1 ? branches[0]! : { anyOf: branches };
 }
 
@@ -373,7 +438,28 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
   const required: string[] = [];
   for (const slot of frame.slots) {
     required.push(slot.id);
-    properties[slot.id] = slotSchema(slot);
+    properties[slot.id] = slotSchema(slot, Boolean(frame.contract));
+  }
+  if (frame.contract) {
+    const minutes = (role: DaySessionLock["blocks"][number]["role"]) => frame.contract?.blocks.find((block) => block.role === role)?.minutes ?? 0;
+    if (frame.area === "conditioning") {
+      const stimuli = stimuliForCeiling(frame.contract.intensity_ceiling, frame.piece?.stimulus);
+      const bands = intensityBandsForStimulus(frame.contract.intensity_ceiling, stimuli);
+      for (const key of ["metcon_format", "metcon_minutes", "extra_minutes", "stimulus", "intensity"]) required.push(key);
+      properties.metcon_format = { type: "string", enum: [frame.contract.format] };
+      properties.metcon_minutes = { type: "integer", enum: [frame.contract.metcon_minutes] };
+      properties.extra_minutes = { type: "integer", enum: [minutes("extra_conditioning")] };
+      properties.stimulus = { type: "string", enum: stimuli };
+      properties.intensity = { type: "string", enum: bands };
+    } else if (frame.area === "warmup") {
+      for (const key of ["warmup_minutes", "cooldown_minutes"]) required.push(key);
+      properties.warmup_minutes = { type: "integer", enum: [minutes("warmup")] };
+      properties.cooldown_minutes = { type: "integer", enum: [minutes("cooldown")] };
+    } else {
+      for (const key of ["main_minutes", "skill_minutes"]) required.push(key);
+      properties.main_minutes = { type: "integer", enum: [minutes("main_lift")] };
+      properties.skill_minutes = { type: "integer", enum: [minutes("skill_or_accessory")] };
+    }
   }
   if (frame.zone2Slot) {
     required.push("zone2_slot");
@@ -569,12 +655,174 @@ function warmupJson(frame: SessionFrame, pick: SlotPick): Record<string, unknown
   return { day: frame.day, warmup_ko: noteWithoutKey(text) };
 }
 
+function echoed(value: unknown): string {
+  return typeof value === "number" || typeof value === "string" ? String(value) : "";
+}
+
+function movementFrom(key: string, option: QuantityChoice) {
+  const row = resolved(key);
+  return {
+    key: row?.key ?? key,
+    movement: row?.key ?? key,
+    amount: displayAmount(option.amount, option.unit),
+    amount_value: option.amount,
+    unit: option.unit,
+    name_ko: row?.name_ko ?? key,
+    load: prescribedLoad(row?.key ?? key),
+  };
+}
+
+function expandContract(
+  frame: SessionFrame,
+  body: Record<string, unknown>,
+): { ok: true; json: unknown; picks: Record<string, string> } | { ok: false; errors: string[]; badSlots: string[] } {
+  const lock = frame.contract!;
+  const errors: string[] = [];
+  const bad = new Set<string>();
+  const chosen: (SlotPick & { reason: string; load_percent: number | null; phase: string; option: QuantityChoice })[] = [];
+  for (const slot of frame.slots) {
+    const cell = asRecord(body[slot.id]);
+    const movementId = typeof cell?.movement_id === "string" ? cell.movement_id : "";
+    const quantity = typeof cell?.quantity_option === "string" ? cell.quantity_option : "";
+    const reason = typeof cell?.reason === "string" ? cell.reason.trim() : "";
+    const movement = movementOn(frame, slot.id, movementId);
+    const option = movement?.options.find((row) => row.id === quantity) ?? null;
+    if (!movement || !option) {
+      errors.push(`${slot.id} is not an allowed movement and quantity`);
+      bad.add(slot.id);
+      continue;
+    }
+    if (reason.length < 8) {
+      errors.push(`${slot.id} reason is missing`);
+      bad.add(slot.id);
+      continue;
+    }
+    let loadPercent: number | null = null;
+    if (slot.percents?.length) {
+      const percent = echoed(cell?.load_percent);
+      if (!slot.percents.includes(percent)) {
+        errors.push(`${slot.id} load_percent is not in the buildup`);
+        bad.add(slot.id);
+        continue;
+      }
+      loadPercent = Number(percent);
+    }
+    chosen.push({ slot: slot.id, movement_id: movement.key, quantity_option: option.id, reason, load_percent: loadPercent, phase: slot.phase ?? "metcon", option });
+  }
+  const minutesOf = (role: DaySessionLock["blocks"][number]["role"]) => lock.blocks.find((block) => block.role === role)?.minutes ?? 0;
+  if (frame.area === "conditioning") {
+    if (echoed(body.metcon_format) !== lock.format) errors.push("metcon_format does not match the lock");
+    if (echoed(body.metcon_minutes) !== String(lock.metcon_minutes)) errors.push("metcon_minutes does not match the lock");
+    if (echoed(body.extra_minutes) !== String(minutesOf("extra_conditioning"))) errors.push("extra_minutes does not match the lock");
+    const stimuli = stimuliForCeiling(lock.intensity_ceiling, frame.piece?.stimulus);
+    const bands = intensityBandsForStimulus(lock.intensity_ceiling, stimuli);
+    const pickedStimulus = echoed(body.stimulus);
+    if (!(stimuli as readonly string[]).includes(pickedStimulus)) errors.push("stimulus is outside the locked ceiling");
+    const picked = echoed(body.intensity);
+    if (!(bands as readonly string[]).includes(picked)) errors.push("intensity is outside the locked ceiling");
+  } else if (frame.area === "warmup") {
+    if (echoed(body.warmup_minutes) !== String(minutesOf("warmup"))) errors.push("warmup_minutes does not match the lock");
+    if (echoed(body.cooldown_minutes) !== String(minutesOf("cooldown"))) errors.push("cooldown_minutes does not match the lock");
+  } else if (echoed(body.main_minutes) !== String(minutesOf("main_lift")) || echoed(body.skill_minutes) !== String(minutesOf("skill_or_accessory"))) {
+    errors.push("strength minutes do not match the lock");
+  }
+  if (errors.length) return { ok: false, errors, badSlots: [...bad] };
+  const picks = Object.fromEntries(chosen.map((pick) => [pick.slot, pick.movement_id]));
+  if (frame.area === "warmup") {
+    const phases = chosen.map((pick) => ({
+      phase: pick.phase,
+      key: pick.movement_id,
+      unit: pick.option.unit,
+      amount: pick.option.amount,
+      reason: pick.reason,
+      static_hold: warmupMeta(pick.movement_id)?.static_hold === true,
+      ...(pick.load_percent != null ? { load_percent: pick.load_percent } : {}),
+    }));
+    const lines = phases.map((phase) => {
+      const name = resolved(phase.key)?.name_ko ?? phase.key;
+      const amount = phase.unit === "sec" ? `${phase.amount}초` : `${phase.amount}회`;
+      const percent = phase.load_percent != null ? ` ${phase.load_percent}%` : "";
+      return `${phase.phase} ${name} ${amount}${percent}`;
+    });
+    return {
+      ok: true,
+      picks,
+      json: {
+        day: frame.day,
+        warmup_ko: lines.join("\n"),
+        contract_part: {
+          kind: "warmup",
+          warmup_minutes: minutesOf("warmup"),
+          cooldown_minutes: minutesOf("cooldown"),
+          phases,
+        },
+      },
+    };
+  }
+  if (frame.area === "strength") {
+    const skill = chosen.find((pick) => pick.phase === "skill") ?? chosen[chosen.length - 1];
+    return {
+      ok: true,
+      picks,
+      json: {
+        ...strengthJson(frame, chosen[0]!),
+        contract_part: {
+          kind: "strength",
+          main_minutes: minutesOf("main_lift"),
+          skill_minutes: minutesOf("skill_or_accessory"),
+          skill: skill ? { key: skill.movement_id, unit: skill.option.unit, amount: skill.option.amount } : null,
+          main: !lock.lift && minutesOf("main_lift") > 0 && skill ? { key: skill.movement_id, unit: skill.option.unit, amount: skill.option.amount } : null,
+        },
+      },
+    };
+  }
+  const metcon = chosen.filter((pick) => pick.phase === "metcon");
+  const extra = chosen.find((pick) => pick.phase === "extra");
+  const piece = frame.piece!;
+  const pickedStimulus = echoed(body.stimulus);
+  const pickedIntensity = echoed(body.intensity);
+  const movements = metcon.map((pick) => movementFrom(pick.movement_id, pick.option));
+  return {
+    ok: true,
+    picks,
+    json: {
+      day: frame.day,
+      notes_ko: "카탈로그에서 고른 수량으로 진행합니다.",
+      conditioning: {
+        format: lock.format,
+        duration_min: lock.metcon_minutes,
+        stimulus: pickedStimulus,
+        movements,
+        volume: piece.volume,
+        intensity: pickedIntensity,
+        interval_work_sec: lock.format === "intervals" ? 40 : null,
+        interval_rest_sec: lock.format === "intervals" ? 20 : null,
+      },
+      contract_part: {
+        kind: "conditioning",
+        metcon_minutes: lock.metcon_minutes,
+        extra_minutes: minutesOf("extra_conditioning"),
+        format: lock.format,
+        extra: extra ? { key: extra.movement_id, unit: extra.option.unit, amount: extra.option.amount } : null,
+      },
+    },
+  };
+}
+
 export function expandSlotPayload(
   frame: SessionFrame,
   json: unknown,
 ): { ok: true; json: unknown; picks: Record<string, string> } | { ok: false; errors: string[]; badSlots: string[] } {
   const body = asRecord(json);
   if (!body) return { ok: false, errors: ["slot picks are not an object"], badSlots: frame.slots.map((slot) => slot.id) };
+  if (frame.contract) {
+    const expanded = expandContract(frame, body);
+    if (!expanded.ok || !frame.zone2Slot) return expanded;
+    const zone = readZone2Slot(body, frame.zone2Slot);
+    if (!zone.ok) return { ok: false, errors: zone.errors, badSlots: zone.badSlots };
+    const jsonBody = expanded.json as Record<string, unknown>;
+    return { ok: true, json: { ...jsonBody, zone2_option: zone.option }, picks: expanded.picks };
+  }
   const errors: string[] = [];
   const bad = new Set<string>();
   const chosen: SlotPick[] = [];

@@ -43,8 +43,9 @@ export function selfValidatorTraces(input: {
   json: unknown;
   intent: DayIntent;
   revision: number;
+  intensityCeiling?: string | null;
 }): AgentTrace[] {
-  const report = sessionSelfReport(input.json, input.intent);
+  const report = sessionSelfReport(input.json, input.intent, input.intensityCeiling);
   const rows: Array<[AgentTrace["agent_name"], string[]]> = [
     ["session_schema_validator", report.schema],
     ["session_movement_validator", report.movement],

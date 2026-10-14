@@ -155,7 +155,8 @@ function parseCellRevision(row: unknown): SessionRevision | null {
     item.field !== "unit" &&
     item.field !== "load" &&
     item.field !== "movement_id" &&
-    item.field !== "quantity_option"
+    item.field !== "quantity_option" &&
+    item.field !== "intensity"
   ) {
     return null;
   }
@@ -164,6 +165,9 @@ function parseCellRevision(row: unknown): SessionRevision | null {
   if (day !== "mon" && day !== "tue" && day !== "wed" && day !== "thu" && day !== "fri" && day !== "sat" && day !== "sun") return null;
   if (item.block !== "strength" && item.block !== "conditioning" && item.block !== "warmup") return null;
   if (typeof item.catalog_key !== "string" || typeof item.value !== "string") return null;
+  if (item.field === "intensity" && (item.catalog_key !== "intensity" || (item.value !== "light" && item.value !== "moderate" && item.value !== "heavy"))) {
+    return null;
+  }
   if (typeof item.reason !== "string" || !item.reason.trim()) return null;
   const target: TargetCoach = item.block === "strength" ? "strength_coach" : item.block === "warmup" ? "warmup_coach" : "conditioning_coach";
   return {

@@ -2,6 +2,7 @@ import type { DayKey } from "../../month-plan/types";
 import type { SessionDraft } from "../types";
 import type { HeadPieceRef } from "./contract";
 import { patchStoredMovement } from "./movement-catalog";
+import { intensityBandsAtMost, intensityBandsForStimulus } from "./session-contract";
 import { applyCatalogOption, peerMovementIds } from "./slot-choices";
 import type { SessionRevision } from "./review";
 
@@ -46,6 +47,31 @@ export function pieceCells(sessions: readonly SessionDraft[]): PieceCell[] {
   return cells;
 }
 
+/** Days whose stored intensity is outside the skeleton ceiling. The same head call can patch that one field. */
+export function intensityRevisionCells(
+  sessions: readonly SessionDraft[],
+  ceilingFor: (day: DayKey) => string | null | undefined,
+): HeadPieceRef[] {
+  const cells: HeadPieceRef[] = [];
+  for (const session of sessions) {
+    if (session.rest || !session.conditioning) continue;
+    const current = session.conditioning.intensity;
+    const ceiling = ceilingFor(session.day);
+    if (intensityBandsAtMost(ceiling).includes(current)) continue;
+    const stimulus = session.conditioning.stimulus;
+    const choices = intensityBandsForStimulus(ceiling, stimulus ? [stimulus] : []).filter((band) => band !== current);
+    if (!choices.length) continue;
+    cells.push({
+      day: session.day,
+      block: "conditioning",
+      catalog_key: "intensity",
+      intensity_values: choices,
+      required: true,
+    });
+  }
+  return cells;
+}
+
 /** Write each head cell. A catalog miss reverts that cell and leaves the week in place. */
 export function applyHeadCells(
   sessions: readonly SessionDraft[],
@@ -57,6 +83,31 @@ export function applyHeadCells(
     const cell = revision.cell;
     if (!cell) continue;
     const session = sessions.find((row) => row.day === cell.day);
+    if (cell.field === "intensity") {
+      const band = cell.value === "light" || cell.value === "moderate" || cell.value === "heavy" ? cell.value : null;
+      if (cell.catalog_key !== "intensity" || !band || !session?.conditioning) {
+        rows.push({
+          day: cell.day,
+          catalog_key: cell.catalog_key,
+          field: cell.field,
+          value: cell.value,
+          result: "reverted",
+          reason: "intensity is not on this day",
+        });
+        continue;
+      }
+      session.conditioning.intensity = band;
+      session.intensity = band;
+      rows.push({
+        day: cell.day,
+        catalog_key: cell.catalog_key,
+        field: cell.field,
+        value: cell.value,
+        result: "applied",
+        reason: null,
+      });
+      continue;
+    }
     const movement = session?.conditioning?.movements.find((row) => row.key === cell.catalog_key || row.movement === cell.catalog_key);
     if (!movement) {
       rows.push({

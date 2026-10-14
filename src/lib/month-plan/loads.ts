@@ -32,9 +32,17 @@ export function readStoredOneRm(maxes: Record<string, number> | null | undefined
   return null;
 }
 
+function rpeForPercent(percent: number): number {
+  if (percent >= 95) return 9;
+  if (percent >= 85) return 8;
+  if (percent >= 75) return 7;
+  if (percent >= 65) return 6;
+  return 5;
+}
+
 export function formatSetLine(set: StrengthSet, unit: WeightUnit = "kg"): string {
   const reps = set.amrap ? `${set.reps}회 이상` : `${set.reps}회`;
-  if (set.weightKg == null) return `${set.setIndex}. ${reps} · ${set.percentOfTm}%`;
+  if (set.weightKg == null) return `${set.setIndex}. ${reps} · ${set.percentOfTm}% · RPE ${rpeForPercent(set.percentOfTm)}`;
   return `${set.setIndex}. ${reps} · ${set.percentOfTm}% · ${formatWeight(set.weightKg, unit)}`;
 }
 

@@ -299,6 +299,30 @@ describe("stage13 constitution and policy", () => {
     expect(decision.status).toBe("APPROVE");
   });
 
+  it("rejects light intensity paired with a heavy stimulus", () => {
+    const json = {
+      day: "fri",
+      warmup_ko: "준비합니다.",
+      notes_ko: "상한이 light입니다.",
+      conditioning: {
+        format: "for_time",
+        duration_min: 12,
+        stimulus: "heavy",
+        movements: [
+          { key: "wall_ball", amount: "10", name_ko: "월볼", load: prescribedLoad("wall_ball") },
+          { key: "box_jump", amount: "8", name_ko: "박스 점프", load: prescribedLoad("box_jump") },
+        ],
+        equipment: ["wall_ball", "box"],
+        volume: "low",
+        intensity: "light",
+      },
+    };
+    const day = intent("fri", { volume_profile: "low", intensity_profile: "light" });
+    expect(sessionSelfErrors(json, day, "light").join("\n")).toContain("conditioning intensity light contradicts stimulus heavy");
+    expect(sessionSelfErrors(json, day, "moderate").join("\n")).toContain("conditioning intensity light contradicts stimulus heavy");
+    expect(sessionSelfErrors(json, day).join("\n")).toContain("conditioning intensity light contradicts stimulus heavy");
+  });
+
   it("rejects a weekly plan that drops a required benchmark before any session is written", () => {
     const source = month();
     const rules = extractWeekRules({ month: source, weekIndex: source.benchmark_week });

@@ -25,7 +25,7 @@ import type { CoachAgentName } from "./models";
  * A model that invents a key or an enum fails here, not later as a silent week fallback.
  */
 
-export const DURATION_PROFILES = ["30-45", "45-60", "60-75", "rest"] as const;
+export const DURATION_PROFILES = ["30-45", "45-60", "60-75", "90-110", "rest"] as const;
 export const STRENGTH_LIFTS = ["squat", "ohp", "bench", "deadlift", "none"] as const;
 export const BLOCK_PHASES = ["accumulation", "progression", "peak", "deload", "emphasis"] as const;
 export const EMPHASIS = ["mixed", "olympic", "gymnastics", "aerobic", "long_conditioning"] as const;
@@ -35,7 +35,7 @@ export const INTENSITY_PROFILES = ["light", "moderate", "heavy", "mixed"] as con
 export const INTENSITY_BANDS = ["light", "moderate", "heavy"] as const;
 export const FATIGUE_TARGETS = ["low", "moderate", "high"] as const;
 export const MOVEMENT_PATTERNS = ["squat", "hinge", "press", "pull", "olympic", "engine", "gymnastic", "mixed", "none"] as const;
-export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper"] as const;
+export const WOD_FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner"] as const;
 export const LOAD_ACTIONS = ["progress", "hold", "cut"] as const;
 export const TARGET_EFFORTS = ["easy", "moderate", "hard"] as const;
 export const RELATIVE_INTENSITIES = ["up", "same", "down"] as const;
@@ -356,6 +356,10 @@ export type HeadPieceRef = {
   quantity_ids?: readonly string[];
   amount?: string;
   unit?: string | null;
+  /** Legal bands except the current one. Present only when the stored intensity is over the ceiling. */
+  intensity_values?: readonly string[];
+  /** When set, this cell is a violation and the one head call must patch it. */
+  required?: boolean;
 };
 
 function currentQuantityId(cell: HeadPieceRef): string | null {
@@ -400,6 +404,14 @@ function headRevisionItem(cell: HeadPieceRef): Record<string, unknown> | null {
       ),
     );
   }
+  if (cell.intensity_values?.length) {
+    branches.push(
+      strictObject(
+        { ...base, field: stringEnum(["intensity"]), value: stringEnum(cell.intensity_values) },
+        required,
+      ),
+    );
+  }
   if (branches.length === 1) return branches[0]!;
   if (branches.length > 1) return { anyOf: branches };
   return null;
@@ -414,8 +426,19 @@ export function headReviewFormat(keys: readonly string[], cells: readonly HeadPi
     const item = headRevisionItem(cell);
     return item ? [item] : [];
   });
-  const statusEnum = listed.length > 0 && revisable.length === 0 ? HEAD_STATUSES.filter((status) => status !== "REVISE") : HEAD_STATUSES;
-  const revisions = revisable.length
+  const requiredCells = listed.filter((cell) => cell.required);
+  const requiredItems = requiredCells.flatMap((cell) => {
+    const item = headRevisionItem(cell);
+    return item ? [item] : [];
+  });
+  const statusEnum = requiredItems.length
+    ? (["REVISE"] as const)
+    : listed.length > 0 && revisable.length === 0
+      ? HEAD_STATUSES.filter((status) => status !== "REVISE")
+      : HEAD_STATUSES;
+  const revisions = requiredItems.length
+    ? { type: "array", minItems: requiredItems.length, maxItems: requiredItems.length, items: requiredItems.length === 1 ? requiredItems[0] : { anyOf: requiredItems } }
+    : revisable.length
     ? { type: "array", items: { anyOf: revisable } }
     : listed.length
       ? { type: "array", items: strictObject({ day: stringEnum(DAY_ORDER) }, ["day"]) }
@@ -1152,6 +1175,20 @@ export function headReviewErrors(value: unknown): string[] {
   value.revisions.forEach((row, index) => {
     errors.push(...editItemErrors(row, index));
   });
+  return errors;
+}
+
+/** Every indicated violation cell must appear once. An empty revision list cannot satisfy this. */
+export function requiredRevisionErrors(value: unknown, cells: readonly HeadPieceRef[]): string[] {
+  const required = cells.filter((cell) => cell.required);
+  if (!required.length) return [];
+  const body = isRecord(value) ? value : null;
+  const revisions = Array.isArray(body?.revisions) ? body.revisions : [];
+  const errors: string[] = [];
+  for (const cell of required) {
+    const hit = revisions.filter((row) => isRecord(row) && row.day === cell.day && row.catalog_key === cell.catalog_key).length;
+    if (hit !== 1) errors.push(`missing_patch:${cell.day}.${cell.block}.${cell.catalog_key}`);
+  }
   return errors;
 }
 

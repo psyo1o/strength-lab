@@ -4743,6 +4743,756 @@
         "S41"
       ],
       "memo": "dumbbell_clean 별칭의 읽기 대상. dumbbell_power_clean과 구분한다."
+    },
+    {
+      "key": "worlds_greatest_stretch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "월드 그레이티스트 스트레치",
+      "name_en": "World's Greatest Stretch",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–10"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise hip,thoracic,ankle"
+    },
+    {
+      "key": "leg_swing",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "레그 스윙",
+      "name_en": "Leg Swing",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–12"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise hip"
+    },
+    {
+      "key": "hip_opener",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "힙 오프너",
+      "name_en": "Hip Opener",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–10"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise hip"
+    },
+    {
+      "key": "thoracic_rotation",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "흉추 회전",
+      "name_en": "Thoracic Rotation",
+      "category": "warmup",
+      "pattern": "press",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–10"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise thoracic"
+    },
+    {
+      "key": "band_pass_through",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "밴드 패스스루",
+      "name_en": "Band Pass Through",
+      "category": "warmup",
+      "pattern": "press",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–12"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise shoulder"
+    },
+    {
+      "key": "cossack_squat",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "코사크 스쿼트",
+      "name_en": "Cossack Squat",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–8"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise hip,ankle"
+    },
+    {
+      "key": "inchworm",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "인치웜",
+      "name_en": "Inchworm",
+      "category": "warmup",
+      "pattern": "hinge",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "4–8"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise hamstring,shoulder"
+    },
+    {
+      "key": "ankle_rock",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "발목 락",
+      "name_en": "Ankle Rock",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–12"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise ankle"
+    },
+    {
+      "key": "wrist_rock",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "손목 락",
+      "name_en": "Wrist Rock",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–12"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise wrist"
+    },
+    {
+      "key": "glute_bridge",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "글루트 브리지",
+      "name_en": "Glute Bridge",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–12"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 activate hip"
+    },
+    {
+      "key": "scap_push_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스캡 푸시업",
+      "name_en": "Scapular Push-up",
+      "category": "warmup",
+      "pattern": "press",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–10"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 activate shoulder"
+    },
+    {
+      "key": "scap_pull_up",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "스캡 풀업",
+      "name_en": "Scapular Pull-up",
+      "category": "warmup",
+      "pattern": "press",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–10"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 activate shoulder"
+    },
+    {
+      "key": "band_pull_apart",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "밴드 풀아파트",
+      "name_en": "Band Pull Apart",
+      "category": "warmup",
+      "pattern": "press",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "10–15"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 activate shoulder,thoracic"
+    },
+    {
+      "key": "bird_dog",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "버드독",
+      "name_en": "Bird Dog",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–8"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 activate hip,thoracic"
+    },
+    {
+      "key": "hollow_hold",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "할로우 홀드",
+      "name_en": "Hollow Hold",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "10–20"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 activate hip"
+    },
+    {
+      "key": "banded_lateral_walk",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "밴드 사이드 워크",
+      "name_en": "Banded Lateral Walk",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–12"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 activate hip"
+    },
+    {
+      "key": "calf_raise",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "카프 레이즈",
+      "name_en": "Calf Raise",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–12"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 activate ankle"
+    },
+    {
+      "key": "hip_hinge_drill",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "힙 힌지 드릴",
+      "name_en": "Hip Hinge Drill",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–8"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 potentiate hip,hamstring"
+    },
+    {
+      "key": "wall_slide",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "월 슬라이드",
+      "name_en": "Wall Slide",
+      "category": "warmup",
+      "pattern": "press",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–10"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise/activate shoulder,thoracic"
+    },
+    {
+      "key": "active_hang",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "액티브 행",
+      "name_en": "Active Hang",
+      "category": "warmup",
+      "pattern": "press",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "10–20"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 activate shoulder"
+    },
+    {
+      "key": "a_skip",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "A 스킵",
+      "name_en": "A-Skip",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "8–12"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 potentiate ankle,hip"
+    },
+    {
+      "key": "easy_row",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "이지 로우",
+      "name_en": "Easy Row",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "120–180"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 raise hip,thoracic"
+    },
+    {
+      "key": "easy_bike",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "이지 바이크",
+      "name_en": "Easy Bike",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "120–180"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 raise hip,ankle"
+    },
+    {
+      "key": "easy_ski",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "이지 스키",
+      "name_en": "Easy Ski",
+      "category": "warmup",
+      "pattern": "press",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "120–180"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 raise shoulder,hip"
+    },
+    {
+      "key": "easy_jog",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "이지 조그",
+      "name_en": "Easy Jog",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "120–180"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 raise ankle,hip"
+    },
+    {
+      "key": "standing_hamstring_stretch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "선 햄스트링 스트레치",
+      "name_en": "Standing Hamstring Stretch",
+      "category": "warmup",
+      "pattern": "hinge",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "5–60"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise/cooldown hamstring static_hold"
+    },
+    {
+      "key": "couch_stretch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "카우치 스트레치",
+      "name_en": "Couch Stretch",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "5–60"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise/cooldown hip,ankle static_hold"
+    },
+    {
+      "key": "pigeon_stretch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "피전 스트레치",
+      "name_en": "Pigeon Stretch",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "5–60"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise/cooldown hip static_hold"
+    },
+    {
+      "key": "doorway_pec_stretch",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "문틀 가슴 스트레치",
+      "name_en": "Doorway Pec Stretch",
+      "category": "warmup",
+      "pattern": "press",
+      "equipment": "bodyweight",
+      "units": [
+        "sec"
+      ],
+      "ranges": {
+        "sec": "5–60"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 mobilise/cooldown shoulder,thoracic static_hold"
+    },
+    {
+      "key": "goblet_squat",
+      "proposed_key": null,
+      "existing": false,
+      "name_ko": "고블릿 스쿼트",
+      "name_en": "Goblet Squat",
+      "category": "warmup",
+      "pattern": "squat",
+      "equipment": "bodyweight",
+      "units": [
+        "reps"
+      ],
+      "ranges": {
+        "reps": "6–10"
+      },
+      "rx": {
+        "female": null,
+        "male": null
+      },
+      "scale_to": [],
+      "sources": [
+        "S1"
+      ],
+      "memo": "웜업 potentiate hip,ankle"
     }
   ]
 }

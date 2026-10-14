@@ -192,6 +192,46 @@ describe("stage17 planning core", () => {
     expect(validateSkeleton(repaired.skeleton, check(planned))).not.toContain("fri deload week has heavy conditioning");
   });
 
+  it("drops extra lower lifts and a long day the week does not allow", async () => {
+    const planned = await planLongitudinal({ month: month(), weekIndex: 1 });
+    const broken = cloneSkeleton(planned.skeleton);
+    const training = broken.days.filter((day) => day.status === "training");
+    for (const day of training.slice(0, 3)) day.strength = { emphasis: "heavy_lower", lift: "squat" };
+    const host = training.find((day) => !day.long_day) ?? training[0]!;
+    host.long_day = true;
+    host.conditioning = { ...host.conditioning, duration_class: "long" };
+    const before = validateSkeleton(broken, check(planned)).join("\n");
+    expect(before).toContain("lower lifts");
+    expect(before).toContain("not a long-conditioning week");
+    const stimulus = host.conditioning.stimulus;
+    const intensity = host.conditioning.intensity_class;
+    const repaired = repairSkeleton(broken, false, 2);
+    expect(repaired.steps.some((step) => step.transform === "cap_lower_lifts")).toBe(true);
+    expect(repaired.steps.some((step) => step.transform === "clear_long")).toBe(true);
+    expect(repaired.skeleton.days.find((day) => day.day === host.day)?.conditioning.stimulus).toBe(stimulus);
+    expect(repaired.skeleton.days.find((day) => day.day === host.day)?.conditioning.intensity_class).toBe(intensity);
+    const after = validateSkeleton(repaired.skeleton, check(planned)).join("\n");
+    expect(after).not.toContain("lower lifts");
+    expect(after).not.toContain("not a long-conditioning week");
+  });
+
+  it("aligns a deadlift day off heavy upper without changing stimulus", async () => {
+    const planned = await planLongitudinal({ month: month(), weekIndex: 1 });
+    const broken = cloneSkeleton(planned.skeleton);
+    const host = broken.days.find((day) => day.status === "training")!;
+    host.strength = { emphasis: "heavy_upper", lift: "deadlift" };
+    const stimulus = host.conditioning.stimulus;
+    const intensity = host.conditioning.intensity_class;
+    expect(validateSkeleton(broken, check(planned))).toContain(`${host.day} strength emphasis does not match the lift`);
+    const repaired = repairSkeleton(broken, planned.weekly_thesis.long_session);
+    expect(repaired.steps.some((step) => step.transform === "align_lift_emphasis" && step.day === host.day)).toBe(true);
+    const next = repaired.skeleton.days.find((day) => day.day === host.day)!;
+    expect(next.strength).toEqual({ emphasis: "heavy_lower", lift: "deadlift" });
+    expect(next.conditioning.stimulus).toBe(stimulus);
+    expect(next.conditioning.intensity_class).toBe(intensity);
+    expect(validateSkeleton(repaired.skeleton, check(planned))).not.toContain(`${host.day} strength emphasis does not match the lift`);
+  });
+
   it("asks gpt-5.4-nano for one skeleton rewrite, then locks the corrected days", async () => {
     const seed = await planLongitudinal({ month: month(), weekIndex: 2 });
     let calls = 0;

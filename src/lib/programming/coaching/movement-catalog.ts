@@ -15,6 +15,8 @@ export type CatalogMovement = {
   name_en: string;
   category: string;
   pattern: string;
+  /** Joints this movement needs. Stamped from the pattern when the catalog loads. */
+  primary_joints: string[];
   equipment: string | null;
   units: CatalogUnit[];
   ranges: Partial<Record<CatalogUnit, string | null>>;
@@ -29,7 +31,23 @@ type CatalogFile = {
   movements: CatalogMovement[];
 };
 
-export type MovementCellField = "movement" | "amount" | "unit" | "load" | "movement_id" | "quantity_option";
+export type MovementCellField = "movement" | "amount" | "unit" | "load" | "movement_id" | "quantity_option" | "intensity";
+
+const LIFT_SCREEN: Record<string, string> = {
+  squat: "Squat",
+  ohp: "Overhead Press",
+  bench: "Bench Press",
+  deadlift: "Deadlift",
+};
+
+/** Screen name. Catalog English, with Erg split. Tips stay Korean. */
+export function movementDisplayName(key: string): string {
+  const lift = LIFT_SCREEN[key];
+  if (lift) return lift;
+  const raw = catalogMovement(key)?.name_en?.trim() ?? "";
+  const base = raw || key.replace(/_/g, " ").replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  return base.replace(/Erg\b/g, " Erg").replace(/ {2,}/g, " ").trim();
+}
 
 export type CellEdit = {
   catalog_key: string;
@@ -37,13 +55,49 @@ export type CellEdit = {
   value: string;
 };
 
+const PATTERN_JOINTS: Record<string, readonly string[]> = {
+  squat: ["hip", "ankle", "thoracic"],
+  hinge: ["hip", "hamstring"],
+  press: ["shoulder", "thoracic"],
+  pull: ["shoulder", "thoracic"],
+  olympic: ["hip", "ankle", "wrist", "thoracic"],
+  gymnastic: ["shoulder", "wrist", "hip"],
+  engine: ["ankle", "hip"],
+  jump: ["ankle", "hip"],
+  run: ["ankle", "hip"],
+  cycle: ["hip", "ankle"],
+  core: ["hip", "thoracic"],
+  push: ["shoulder", "thoracic"],
+  lunge: ["hip", "ankle"],
+};
+
+/** Joints named by one catalog pattern token. */
+export function jointsForPattern(pattern: string): string[] {
+  const joints: string[] = [];
+  for (const part of pattern.split("+")) {
+    for (const joint of PATTERN_JOINTS[part.trim()] ?? []) {
+      if (!joints.includes(joint)) joints.push(joint);
+    }
+  }
+  return joints;
+}
+
 let cached: CatalogFile | null = null;
 
 function loadFile(): CatalogFile {
   if (cached) return cached;
   const file = path.join(process.cwd(), "data", "movement-catalog.json");
-  cached = JSON.parse(fs.readFileSync(file, "utf8")) as CatalogFile;
+  const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as CatalogFile;
+  for (const row of parsed.movements) {
+    if (!row.primary_joints?.length) row.primary_joints = jointsForPattern(row.pattern);
+  }
+  cached = parsed;
   return cached;
+}
+
+/** Catalog primary_joints for one movement. Empty when the key is unknown. */
+export function primaryJoints(key: string): string[] {
+  return catalogMovement(key)?.primary_joints ?? [];
 }
 
 export function movementCatalogVersion(): string {

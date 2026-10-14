@@ -354,6 +354,15 @@ export function applyWeekGoalBounds(bounds: readonly DayBound[], goal: WeekGoal)
   });
 }
 
+/** A day whose intensity enum was emptied by the ceiling table. Generation stops before the model call. */
+export function emptyIntensityCauses(bounds: readonly DayBound[]): { code: "empty_enum"; path: string; detail: string }[] {
+  return bounds.flatMap((bound) =>
+    bound.intensity_profile.length
+      ? []
+      : [{ code: "empty_enum" as const, path: `${bound.day}.intensity_profile`, detail: `${bound.day} intensity enum is empty` }],
+  );
+}
+
 /** 7일 배열. 각 요일 스키마의 intensity_profile·strength_lift enum이 다르다. OpenAI strict는 prefixItems를 거절하므로 anyOf다. */
 export function weeklyResponseFormat(bounds: readonly DayBound[]): ResponseFormat {
   return {

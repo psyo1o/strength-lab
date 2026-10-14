@@ -9,7 +9,7 @@
 | 변수 | 함수 | 이 브랜치에서 주 생성 알고리즘을 고르는가 |
 |---|---|---|
 | `COACHING_PIPELINE` | `coachingPipelineEnabled` (`src/lib/programming/coaching/models.ts`) | 아니오. 월 행에 `withCoachingPlan`을 붙일 때만 읽는다 (`engine.ts` `writeProgrammingMonth`). |
-| `LONGITUDINAL_PLANNING` | `longitudinalPlanningEnabled` (`src/lib/programming/planning/flag.ts`) | 주 함수를 바꾸지 않는다. 켜지면 `planLongitudinal` 결과를 같은 주 함수에 넘긴다. |
+| `LONGITUDINAL_PLANNING` | `longitudinalPlanningEnabled` (`src/lib/programming/planning/flag.ts`) | 주 함수를 바꾸지 않는다. 키가 있는 주는 `coachMonthly` 뒤에 `planLongitudinal`이 그 목표 표로 뼈대를 만든다. 키가 없으면 엔진이 시드만 정한다. |
 | `PHASE_C` | 없음 | `src`는 읽지 않는다. |
 | `FALLBACK_WEEK_DISPLAY` | `fallbackWeekDisplayEnabled` (`src/lib/programming/v2/fallback-display.ts`) | 주 알고리즘을 고르지 않는다. 코칭 결과의 fallback 주를 active로 저장하고 `syncClassWeek`로 복사할지만 정한다. 기본값은 꺼짐이다. |
 
@@ -116,7 +116,33 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 `revisionNumber === 0`이고 실패 사유가 `http_error`나 `timeout`이 아니면, 실패한 영역만 `askSpecialist`를 한 번 더 부른다 (`MAX_DAY_SCHEMA_RECOVERIES` 1). 그 호출의 사용자 JSON에 `day_recovery`가 있다. `field_edits`와 `failed_fields`는 같은 배열이다. 항목은 `field`, `current_value`, `required_format`이다. 수량에 숫자가 없어도 그 필드가 들어가고, 숫자는 있으나 단위가 아니면 오류 문장의 필드 경로와 `received` 값이 들어간다. 지시는 그 필드 경로만 현재 값에서 필요한 형식으로 고치고 다른 필드·동작·날·주간 뼈대는 바꾸지 말라는 문장이다. 컨디셔닝 복구의 라이브 스키마는 `cells`뿐이다. 각 칸은 `catalog_key`, `field`, `value`다. 서버는 `applyCellsToCoachJson`으로 그 칸만 이전 출력에 넣고 다시 검증한다. 세션 전체를 돌려주는 복구는 예전처럼 `recoveryDrift`를 탄다. 이전 출력, `validation_errors`, 보존·허용 범위, 이웃 날도 들어간다. `askCoach`는 그 호출 안에서 검증 실패를 한 번 더 고친다. 같은 오류가 다시 나와도 세 번째 전문 코치 호출은 없다. 스키마를 통과해도 `recoveryDrift`가 `field_edits`에 없는 형식, 동작, 수량, `notes_ko` 변경을 보면 그 출력을 채택하지 않는다. 전문 코치를 다시 부르지 않는다. 스키마가 다시 실패하거나 그 비교가 거부하면 그 날은 `day_status` FAILED이고 `final_prescription`은 null이다. 이름 있는 필드만 바뀌면 그 날만 채택한다. 다른 날의 세션은 유지한다. `http_error`와 `timeout`은 스키마 `day_recovery`를 타지 않는다. 그 영역만 `TRANSIENT_AREA_RETRY_MS`(400ms)만큼 기다린 뒤 같은 호출을 1회 다시 한다. 다시 실패하면 그 날은 모델 세션이 없고 다른 날은 다시 부르지 않는다. 그 실패는 `unresolved_day`를 붙이지 않는다. 헤드가 시킨 재생성(`revisionNumber > 0`)은 이 복구를 다시 타지 않는다. 그 재생성 결과가 무효면 직전 유효 세션을 유지한다.
 
-동작의 단일 기준은 `data/movement-catalog.json`이다. 컨디셔닝 사용자 JSON의 `movement_catalog`와 헤드 사용자 JSON의 `movement_catalog`에는 그 날의 `movement_pattern`과 `strength_lift`(패턴이 `mixed` 또는 `none`이면 `primary_training`)에 맞는 동작만 들어간다. 이미 그 세션에 있는 key도 넣는다. 138줄 전체를 시스템 프롬프트에 넣지 않는다. 라이브 스키마의 동작 enum도 그 목록이다. 닫힌 범위만 수량 검사에 쓴다. 범위가 없거나 한 숫자·주석이면 단위만 검사하고 범위를 만들지 않는다. 단위가 하나뿐인 동작에 정수만 오면 그 단위로 읽는다. `12reps`처럼 단위를 명시한 값은 그대로 거절한다. 세션 파서는 단위가 둘 이상인 동작의 정수만 거절한다. 헤드 칸은 그 조각에 이미 있는 단위를 유지한 뒤 그 단위의 범위를 본다. 범위 밖 수량은 그 단위와 다른 허용 단위의 범위를 오류에 적는다. 범위 숫자는 그대로다. 모델이 고른 칸은 `movement`, `amount`, `unit`, `load`로 저장하고, 화면 수량은 `amount` 문자열로 만든다.
+동작의 단일 기준은 `data/movement-catalog.json`이다. 컨디셔닝 사용자 JSON의 `movement_catalog`와 헤드 사용자 JSON의 `movement_catalog`에는 그 날의 `movement_pattern`과 `strength_lift`(패턴이 `mixed` 또는 `none`이면 `primary_training`)에 맞는 동작만 들어간다. 이미 그 세션에 있는 key도 넣는다. 카탈로그 전체를 시스템 프롬프트에 넣지 않는다. 라이브 스키마의 동작 enum도 그 목록이다. 닫힌 범위만 수량 검사에 쓴다. 범위가 없거나 한 숫자·주석이면 단위만 검사하고 범위를 만들지 않는다. 단위가 하나뿐인 동작에 정수만 오면 그 단위로 읽는다. `12reps`처럼 단위를 명시한 값은 그대로 거절한다. 세션 파서는 단위가 둘 이상인 동작의 정수만 거절한다. 헤드 칸은 그 조각에 이미 있는 단위를 유지한 뒤 그 단위의 범위를 본다. 범위 밖 수량은 그 단위와 다른 허용 단위의 범위를 오류에 적는다. 범위 숫자는 그대로다. 모델이 고른 칸은 `movement`, `amount`, `unit`, `load`로 저장하고, 화면 수량은 `amount` 문자열로 만든다.
+
+## 세션 시간 계약
+
+수업 분 `SESSION_MINUTES`는 90–110이다. 없으면 `resolveSessionMinutes`가 100을 쓰고 `console.info`로 `default_session_minutes`를 한 번 남긴다. 주간·세션 사용자 JSON의 `class_minutes`는 그 값이다. 호출부에 60을 고정하지 않는다.
+
+공통 상수는 `src/lib/programming/coaching/session-contract.ts`다. `planWeekContract`가 요일을 월–일 순으로 정렬한 뒤 훈련일마다 블록 분, 메트콘 포맷, 동작 수, 용량, 스킬, 추가 컨디셔닝을 잠근다. 모델은 그 잠금 안의 칸만 고른다. 코드는 빈 칸, 분, 용량을 대신 채우지 않는다. 잠긴 분·포맷 echo가 어긋나면 그 전문 코치 호출은 거절된다.
+
+블록 범위는 웜업 8–12, 메인 20–35(리프트가 있는 날), 스킬·보조 10–25, 메트콘 12–45, 추가 컨디셔닝 0–15, 쿨다운 3–8이다. 리프트가 없는 짧은·중간 날은 그 상한만으로 90분에 닿지 않으므로, 같은 20–35분 메인 블록을 바벨 리프트가 아닌 패턴 연습으로 둔다. 긴 메트콘 날이고 리프트가 없으면 메인 블록은 없다. 훈련일 합은 90–110이고 설정과 ±10 안이다. 메트콘 분은 잠긴 뼈대의 duration class를 따른다. 짧은 날 12, 중간 날 20, 긴 날 36이다. 볼륨은 그 날 `volume_profile`을 넘지 않는다. 목표 칸의 예전 시간 영역과 뼈대 등급이 다르면 계약 분은 뼈대를 따른다. `duration must stay in`은 그 잠금이 있을 때 다시 거절하지 않는다. 뼈대 등급·볼륨 상한 검사는 그대로다. 12와 20은 기존 비장시간 8–20과 시간 영역 short·medium 안에 있고, 36은 long 30–40 안에 있다. 존 2는 이 합 밖에 있다. 클래스 시계 상한 75는 그대로다.
+
+컨디셔닝 강도와 세션 자극은 모델이 고른다. 뼈대 직후 `skeletonFeasibility`가 강도 상한의 허용표를 본다. `light` 상한의 세션 자극은 `high_rep`와 `technical`뿐이다. 목표 칸 stimulus가 그 집합 밖이면 후보 집합은 빈다. 코드는 다른 자극이나 강도를 채워 넣지 않는다. `skeletonFormat`(프롬프트 `skeleton-v1`)은 요일마다 그 날 상한과 목표 자극이 같이 있는 `intensity_class`만 연다. 무거운 목표 자극이 있는 날은 `light` 가지가 없다. 키가 있는 주는 `coachMonthly`가 그 주의 목표 표를 돌려준 뒤에 뼈대를 묻는다. 엔진은 그 전에 뼈대 모델을 부르지 않는다. 이미 잠긴 뼈대의 상한이 그 표의 세션 stimulus를 담지 못하면 `skeletonFitsGoal`이 거짓이고, 그 표로 뼈대를 다시 묻는다. 맞는 뼈대는 다시 묻지 않는다. 코드는 어긋난 강도를 다른 밴드로 바꾸지 않는다. 그 enum이 빈 날은 스키마를 만들지 않고 `empty_enum:요일.intensity_class`로 생성 전에 멈춘다. 구조 수리만 하체 리프트가 주 상한을 넘으면 남는 날을 `none`으로 내리고, 긴 날이 없는 주에 `long`이 있으면 그 표시를 지운다. 리프트가 `none`이면 emphasis도 `none`이다. 하체 리프트의 emphasis는 `heavy_lower`·`light`·`moderate`만, 상체 리프트는 `heavy_upper`·`light`·`moderate`만, 리프트 `none`은 emphasis `none`만 스키마에 있다. 그 밖 조합이 오면 수리는 emphasis만 그 리프트 계열로 맞추고 stimulus와 intensity는 바꾸지 않는다. 훈련일인데 duration이 `rest`면 그 날은 휴식일이 된다. 휴식 상태의 목표는 휴식이다. 하체 리프트 상한은 그 주 피로를 포함한 같은 주 규칙을 쓴다. 자극은 그 수리에서 바꾸지 않는다. 주간 `intensity_profile`이 비면 주간 모델을 부르지 않는다. 세션 계약은 잠긴 상한과 목표 칸 stimulus가 같이 있을 때만 `stimuliForCeiling`이 그 값 하나를 echo한다. 같이 있을 수 없으면 그 날 세션·부하·헤드 모델을 부르지 않고 `stimulus_ceiling_clash:요일.conditioning.stimulus`를 남긴다. `expandContract`는 모델이 고른 두 값을 적고, 밖이면 그 호출을 거절한다. `fitSessionToSkeletonDay`는 강도를 바꾸지 않는다. `stampSlotAxes`는 상한과 같이 있을 수 없는 stimulus를 덮어쓰지 않는다. `light` intensity와 `heavy` stimulus는 세션 검사가 거절한다. 저장된 강도가 상한을 넘을 때만 같은 헤드 호출의 `field: intensity` 칸을 연다. 그 칸은 `required`이고, 입력 `cell_violations`에 `intensity_over_ceiling`, 경로, `allowed_values`가 있다. 스키마 상태는 `REVISE`만이고 revisions 길이는 그 칸 수와 같다. 표시된 칸은 그 한 호출에서 모두 패치된다. 동작 칸은 위반이 아니면 필수가 아니다. 그 뒤 `final_validator`는 한 번이다. 실현 가능성에서 멈춘 주는 `replaceDays`와 뼈대 재맞춤을 타지 않는다. 실패는 `코드:경로`로 남는다. 자유 enum은 8–15개다. 잠긴 한 값 echo는 한 개다. 코치 호출 기본 temperature는 0이고, 같은 입력의 seed는 해시로 고정한다. 제공자가 seed를 거절하면 그 시도 안에서 seed 없이 한 번 더 보낸다. 추가 단계와 루프는 없다. 폴백으로 새로 만드는 세션만 태어날 때 상한 안의 밴드로 시작한다. 이미 고른 모델 값을 고치지 않는다.
+
+클래스 강도는 `app_meta.class_intensity_level`이다. 1–5이고 없으면 3이다. 관리자 엔진 탭의 클래스 강도 저장이 그 행을 쓴다. 다음 생성의 `intensity_level`이 그 숫자를 읽는다. 월간 목표 칸에 `goal_intensity`가 있으면 그 칸만 그 숫자를 쓴다. 이미 저장된 주는 다시 쓰지 않는다. `resolveClassIntensity`는 회원, 박스, 클래스, 기본 3 순이다. 회원과 박스 값은 아직 저장하지 않는다. 이 숫자는 잠긴 상한 안의 안내이고, 상한 밖 밴드를 열지 않는다.
+
+화면 동작 이름은 카탈로그 `name_en`이다. `movementDisplayName`이 RowErg, SkiErg, BikeErg를 Row Erg, Ski Erg, Bike Erg로 띄운다. 리프트 가족은 Squat, Overhead Press, Bench Press, Deadlift다. 팁의 자세와 흔한 실수 문장은 한글이다.
+
+포맷은 For Time, AMRAP, EMOM, Chipper, Intervals, Partner를 훈련일 순서와 주 번호로 돌린다. 같은 포맷은 주 2회 이하, 같은 메트콘 조합은 한 번, 같은 메트콘 동작은 주 2회 이하, 같은 머신은 주 3회 이하이고 하루 메트콘 안에서는 1개다. 메트콘 동작은 3–6개이고 Chipper 상한은 8이다. 2동작은 뼈대가 `exception: "intervals"`로 표시한 날만 허용한다. EMOM은 카탈로그 최소 용량이 40초 작업을 넘지 않게 머신을 넣지 않는다.
+
+양-시간은 `data/session-meta.json`의 `seconds_per_rep`·`seconds_per_cal`·`seconds_per_m`와 `transition_seconds`다. 값이 없는 동작은 기본값을 넣지 않고 계약 enum에서 뺀다. AMRAP 한 라운드(느린 페이스 작업 + 동작 사이 전환)는 캡의 40% 이하이고 2.5라운드 이상이다. For Time과 Partner는 그 합이 캡 안이다. EMOM과 Intervals는 작업 40초 이하, 전환 20초 이하다. 1분의 나머지 20초가 전환이다. Chipper는 캡의 90% 이하다. Intervals 작업·휴식은 40초·20초라 블록을 60초 주기로 채운다.
+
+웜업은 RAMP다. Raise는 가벼운 유산소 2–3분, Mobilise는 동적 동작과 5초 이하 정적 유지 3–4개, Activate는 안정화 1개, Potentiate는 패턴 리허설과 빈 바(0%)에서 메인 첫 작업 세트 %까지의 빌드업이다. 관절 요구는 `sessionJoints`가 그날 잠긴 메인 리프트와 메트콘·스킬·추가 동작의 `primary_joints`로 만든다. 카탈로그에 태그가 없으면 패턴으로 채운다. 순위가 높은 관절만 자르지 않는다. 웜업 전문 코치는 그 메인·메트콘 잠금 뒤에 호출되고, Mobilise·Activate·쿨다운 enum은 그 관절과 겹치는 동작만 최대 15개 연다. 겹치는 동작이 없으면 그 단계 안에서만 넓히고, 관절이 안 맞는 동작으로 되돌리지 않는다. 그 칸이 비면 `empty_enum`으로 생성 전에 멈춘다. `warmupIssues`는 같은 관절 집합을 본다. 기본 합은 10분이다. 정적 스트레칭은 웜업 enum에 남긴다. 짧은 유지는 Mobilise, 45초 유지는 쿨다운이다. 웜업 칸이 전부 정적 유지일 때만 거절한다. 코드는 관절과 슬롯만 만들고 동작을 대신 고르지 않는다. 모델은 칸마다 이유 한 줄(8자 이상)을 낸다. 추가 단계와 루프는 없다.
+
+웜업 동작은 `category: "warmup"`이라 메트콘 모달리티 풀에 들어가지 않는다. 한글 팁은 `data/exercise-tips.ko.json`이다. `projectWeek`의 블록 `bodyKo`가 영어 동작 이름 뒤에 `자세`(느껴야 할 부위 포함)와 `흔한 실수`를 붙인다. `cleanDisplayName`은 저장 이름의 별칭 괄호를 뺀다. 화면 이름은 그 한글이 아니라 `name_en`이다.
+
+5/3/1 작업 세트는 매주 3개다. 피로 컷도 3세트를 유지하고 AMRAP를 끄며 마지막 %를 10 내린다(바닥 40). 더 긴 방법은 예전처럼 세트를 줄인다. 1RM이 없으면 kg를 만들지 않고 %와 RPE를 보여 준다.
+
+`session_blocks`가 있는 주만 `weekContractIssues`가 `evaluateWeek` 하드 오류가 된다. 블록이 없는 예전 주는 이 검사를 타지 않는다. 휴식일은 훈련 블록이 없어야 한다. 파이프라인 버전 문자열은 `coaching-pipeline-v6` 그대로다.
 
 세션 장비는 모델 출력이 아니다. `normalizeSessionPayload`와 `sessionFromCoachJson`이 동작 key의 카탈로그 `equipment`로 표시 목록을 덮어쓴다. 이미 저장된 주 JSON에 표시 enum 장비 배열이 있으면 `parseConditioning`은 그 배열을 읽는다. 배열이 없거나 비었으면 카탈로그로 채운다. 카탈로그 값이 표시 enum에 있을 때만 넣는다. `rope`, `slam_ball`, `glute_ham_developer`, `cable`, `-`는 표시 enum에 없어서 목록에 안 넣고, 그것으로 거절하지도 않는다. 모델이 `equipment`를 내도 무시한다. 장비 누락, 장비 불일치, `lists no equipment`, `requires equipment`, `recovery changed conditioning.equipment`는 세션 거절, 복구 거절, fallback, 헤드 판단의 하드 오류가 아니다. 박스 장비 비교를 나중에 켜는 분기는 없다. 장비 탭은 `src/app/(app)/gear/page.tsx`의 제휴 상품이고, `user_equipment`는 박스 높이·월볼·줄 종류다. 보유 목록이 아니다. 유사도 점수의 `equipment` 특징은 이렇게 채운 표시 목록을 그대로 쓴다. 임계값은 4다.
 
@@ -124,7 +150,7 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 필드 조정은 `runAdjustmentPass`다. `target_coach`가 없으면 세션 생성기를 다시 부르지 않는다. `MAX_HEAD_COACH_REVISIONS`는 0이고, 이 필드 조정 루프는 그 상수를 쓰지 않는다.
 
-헤드 상태 REVISE의 라이브 `revisions`는 칸 목록이다. 항목은 `day`, `block`, `catalog_key`, `field`, `value`, `reason`이다. 라이브 `field`는 `movement_id` 또는 `quantity_option`이고 값은 그 칸 enum이다. `unit`과 `load`는 카탈로그가 채우므로 헤드가 쓰면 그 칸만 되돌린다. 예전 `movement`와 `amount`는 파서가 받는다. 코드는 그 칸만 세션에 넣고 나머지 칸은 그대로 둔다. 전문 코치를 다시 부르지 않는다. 지시 자체도 카탈로그로 먼저 검사한다. 없는 key, 허용되지 않은 단위, 닫힌 범위 밖 수량은 스키마 오류다. 예전 `action` 항목(`replace`, `change_amount`, `delete`, `add`)은 파서가 그대로 받는다. 문장만 있고 `action`도 `field`도 없으면 `editItemErrors`가 `prose-only revision`을 반환한다. 이것은 스키마 오류다. `askCoach`가 헤드를 그 호출 안에서 한 번 더 묻는다. 두 번째도 문장이면 헤드 출처는 fallback이고 `modelRevisions`는 비고, 전문 코치를 다시 부르지 않는다. 코드 판정이 남는다. 세 번째 헤드 호출은 없다. 조정만 있는 REVISE는 `revisions`가 빈 배열이고 `adjustments`에 필드 변경이 있다. 생성기를 부르지 않는다. 병합이 그 빈 목록을 노트로 내려도 필드 변경은 적용한다.
+헤드 상태 REVISE의 라이브 `revisions`는 칸 목록이다. 항목은 `day`, `block`, `catalog_key`, `field`, `value`, `reason`이다. 라이브 `field`는 `movement_id` 또는 `quantity_option`이고 값은 그 칸 enum이다. 저장된 컨디셔닝 강도가 그 날 상한을 넘을 때만 같은 호출에 `catalog_key: intensity`, `field: intensity`가 더해진다. 그 칸의 값은 저장된 stimulus와 같이 있을 수 있는 상한 안 밴드다. 상한 안의 `light`와 `heavy`는 그 칸을 열지 않는다. 그 경우가 아니면 그 칸은 스키마에 없다. `unit`과 `load`는 카탈로그가 채우므로 헤드가 쓰면 그 칸만 되돌린다. 예전 `movement`와 `amount`는 파서가 받는다. 코드는 그 칸만 세션에 넣고 나머지 칸은 그대로 둔다. 전문 코치를 다시 부르지 않는다. 지시 자체도 카탈로그로 먼저 검사한다. 없는 key, 허용되지 않은 단위, 닫힌 범위 밖 수량은 스키마 오류다. 예전 `action` 항목(`replace`, `change_amount`, `delete`, `add`)은 파서가 그대로 받는다. 문장만 있고 `action`도 `field`도 없으면 `editItemErrors`가 `prose-only revision`을 반환한다. 이것은 스키마 오류다. `askCoach`가 헤드를 그 호출 안에서 한 번 더 묻는다. 두 번째도 문장이면 헤드 출처는 fallback이고 `modelRevisions`는 비고, 전문 코치를 다시 부르지 않는다. 코드 판정이 남는다. 세 번째 헤드 호출은 없다. 조정만 있는 REVISE는 `revisions`가 빈 배열이고 `adjustments`에 필드 변경이 있다. 생성기를 부르지 않는다. 병합이 그 빈 목록을 노트로 내려도 필드 변경은 적용한다.
 
 `action` 편집이 있으면 같은 날·같은 `target_coach`로 묶고, `COACHING_POLICY.max_head_revisions`인 2개만 `writeSession`으로 다시 부른다. 칸 편집은 이 예산에 넣지 않는다. 사용자 JSON의 `edit_list`가 그 목록이다. 전문 코치 프롬프트(`strength-coach-v3`, `conditioning-coach-v7`, `warmup-coach-v3`)는 목록에 있는 항목만 적용하고 나머지는 바꾸지 말라고 적는다. 장비 목록이 바뀌는 것은 `compareEditList`의 불일치가 아니다. `recoveryDrift`도 장비 변경을 거부하지 않는다. 헤드를 다시 부르지 않는다. 필드 조정이 이미 그 날을 고쳤으면 (`headPass.touched[day] === "head"`) 재생성하지 않는다.
 
@@ -154,7 +180,7 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 `available_days`가 있으면 월간 표는 그 요일만 훈련으로 둔다. 없으면 주 배치의 휴식일 하나, 훈련일 6이다. 휴식일 수는 `profileTrainingDayCount`로 7에서 훈련일 수를 뺀 값이고, 월간 표·뼈대 검증·`extractWeekRules`가 그 함수만 읽는다. 검사는 그 수와 정확히 같다. 주 6일은 휴식 1로 그대로다. 고강도 상한 같은 절대 수치는 `GOAL_TABLE_RULES.byTrainingDays`에 훈련일 수별로 있다. 주 2일의 고강도 상한은 1이고, 주 4–6일의 고강도 3, 피로 2, 딜로드 1, 하체 2, 올림픽 4는 바꾸지 않았다. 기본 6일 배치(`weekTrainingLayout`)는 그대로다. 프로필 요일만 긴 컨디셔닝 자리를 다시 잡는다.
 
-프롬프트 버전, `monthly-direction-v1`, 모델 `gpt-5.4-nano`, 평주 고강도 상한 3의 해시는 `893bbee3c1418feade1349ba277bb17ff0b5980f5467864c549058df3f16caa3`이다. `weekly-coach-v5`로 바뀐 값이다. `PINNED_COACHING_CONFIG_HASH`와 다르면 회귀를 시작하지 않는다.
+프롬프트 버전, `monthly-direction-v1`, 모델 `gpt-5.4-nano`, 평주 고강도 상한 3의 해시는 `coachingConfigHash()`다. 코드의 `PINNED_COACHING_CONFIG_HASH`는 `174444b848b49189bcb6f8ad1060159530e2b992750b4bc8885a6238b98ba09d`다. 세션 시간 계약은 프롬프트 버전 문자열을 올리지 않아서 이 핀을 바꾸지 않는다. 핀과 다르면 회귀를 시작하지 않는다.
 
 생성은 주 6일 프로그램만 한다. 주 2–5일 프로필의 존 2 형태와 그 실제 실행은 두지 않는다. 휴식일 수식(`expectedRestDays` = 7 − 훈련일 수)과 `byTrainingDays`는 주 6일 결과가 휴식 1·고강도 3이라 그대로다.
 
@@ -166,7 +192,7 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 Phase 4 D는 프로필 실행마다 `coachMonthly`를 한 번 부르고, 그 계획의 `reuse_key`로 4주를 잇는다. 주는 `monthId`와 `profileId`를 월간 호출에 넘긴다. 잠긴 뼈대는 `generateWeekSkeleton`과 `lockWeekSkeleton`으로 만들고, `monthlyDirection`과 `weekSkeleton`이 있으면 `evaluateWeek`가 정합과 `lockedSkeletonDrift`를 본다. 이전 주의 세션 구조, 의도, `WeekActual`은 다음 주 입력이다. 뼈대 해시를 `amendLockedSkeleton` 없이 바꾸면 그 주는 몰래 변경이다.
 
-`longitudinalPlanningEnabled()`가 true이면 주 함수 전에 `planLongitudinal`이 돈다. 버전에 적힌 값은 `longitudinal-v1`이다. 키가 문자열이면 `askCoach`가 `skeleton-v1`로 스켈레톤만 묻는다. 검증을 통과하면 `skeleton_locked`는 true다. 키가 null이면 시드 `settle`만 한다. 잠긴 스켈레톤이면 `coachWeekActive`가 주간 코치 호출을 건너뛰고 `planFromLockedSkeleton`을 쓴다. 플래그가 꺼지면 이 호출은 없고 인자는 null이다.
+`longitudinalPlanningEnabled()`가 true이고 키가 있으면 `coachWeekActive`가 `coachMonthly` 직후에 `planLongitudinal`을 돈다. 그 입력의 `coaching_plan`은 방금 받은 목표 표다. 버전에 적힌 값은 `longitudinal-v1`이다. `askCoach`가 `skeleton-v1`로 스켈레톤만 묻는다. 검증을 통과하면 `skeleton_locked`는 true다. 키가 없으면 오케스트레이터는 `no-model`이고, 엔진이 시드 `settle`만 한다. 잠긴 스켈레톤이면 주간 코치 호출을 건너뛰고 `planFromLockedSkeleton`을 쓴다. 저장하는 뼈대는 그 호출이 돌려준 계획이다. 플래그가 꺼지면 이 호출은 없고 인자는 null이다.
 
 ## 검증과 재시도
 

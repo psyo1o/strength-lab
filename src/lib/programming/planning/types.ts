@@ -91,7 +91,17 @@ export type SkeletonDay = {
   prohibited_patterns: string[];
 };
 
-export type RepairTransform = "move_benchmark" | "shift_strength" | "promote_long" | "clamp_deload_conditioning";
+export type RepairTransform =
+  | "move_benchmark"
+  | "shift_strength"
+  | "promote_long"
+  | "clamp_deload_conditioning"
+  | "cap_lower_lifts"
+  | "clear_long"
+  | "rest_from_duration"
+  | "rest_goal"
+  | "none_lift_emphasis"
+  | "align_lift_emphasis";
 
 export type RepairStep = {
   transform: RepairTransform;

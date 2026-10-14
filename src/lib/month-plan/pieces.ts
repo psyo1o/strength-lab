@@ -59,9 +59,9 @@ export function formatMovementLine(m: Move): string {
     const [base, ...rest] = m.amount.split(" ");
     const label = runDistanceLabel(base ?? m.amount) ?? m.amount;
     const tail = rest.length ? ` ${rest.join(" ").replace(/x/g, "×")}` : "";
-    return `런 ${label}${tail}`;
+    return `${m.nameKo} ${label}${tail}`;
   }
-  if (m.key === "fan_bike") return `팬바이크 ${m.amount.replace(/cal$/, "칼로리")}`;
+  if (m.key === "fan_bike") return `${m.nameKo} ${m.amount.replace(/cal$/, "칼로리")}`;
   if (m.key === "ski" || m.key === "row") return `${m.nameKo} ${m.amount}`;
   if (m.key === "box_jump") return `${m.nameKo} ${m.amount}`;
   if (m.key === "wall_ball" || m.key === "kb_swing") {
@@ -92,7 +92,9 @@ export function renderPiece(input: {
             ? `${input.minutes}분 인터벌 · 라운드 사이 1분`
             : input.format === "chipper"
               ? `${input.minutes}분 칩퍼`
-              : `${input.minutes}분`;
+              : input.format === "partner"
+                ? `${input.minutes}분 파트너 형식 · 개인도 가능`
+                : `${input.minutes}분`;
   const lines = [head, ...input.movements.map(formatMovementLine)];
   if (input.noteKo) lines.push(input.noteKo);
   return lines.join("\n");

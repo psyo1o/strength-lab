@@ -435,7 +435,7 @@ function weekResponseFormat(): ResponseFormat {
   const conditioning = strictObject(
     {
       benchmark: { type: "boolean" },
-      format: stringEnum(["amrap", "for_time", "emom", "intervals", "chipper"]),
+      format: stringEnum(["amrap", "for_time", "emom", "intervals", "chipper", "partner"]),
       time_domain: stringEnum(["short", "medium", "long"]),
       stimulus: stringEnum(STIMULI),
       movement_patterns: { type: "array", items: stringEnum(MOVEMENT_PATTERNS) },
@@ -493,7 +493,7 @@ function weekResponseFormat(): ResponseFormat {
     warmup_min: { type: "integer" },
     warmup_ko: WEEK_STRING,
     metcon_purpose: nullable(WEEK_STRING),
-    metcon_format: nullable(stringEnum(["amrap", "for_time", "emom", "intervals", "chipper"])),
+    metcon_format: nullable(stringEnum(["amrap", "for_time", "emom", "intervals", "chipper", "partner"])),
     time_domain: nullable(stringEnum(["short", "medium", "long"])),
     stimulus: nullable(stringEnum(STIMULI)),
     equipment: { type: "array", items: stringEnum(EQUIPMENT) },
@@ -1152,7 +1152,7 @@ export function weekPrompt(input: {
     enums: {
       day: [...DAY_ORDER],
       lift: ["squat", "ohp", "bench", "deadlift"],
-      format: ["amrap", "for_time", "emom", "intervals", "chipper"],
+      format: ["amrap", "for_time", "emom", "intervals", "chipper", "partner"],
       stimulus: [...STIMULI],
       time_domain: ["short", "medium", "long"],
       volume: ["low", "moderate", "high"],

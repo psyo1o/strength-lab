@@ -181,12 +181,12 @@ describe("stage18 locked skeleton prescriptions", () => {
       draft: injected,
       rebuildDay: () => null,
     });
-    expect(repaired.fittedDays).toContain(host!.day);
+    expect(repaired.fittedDays).toEqual([]);
     expect(repaired.regeneratedDays).not.toContain(neighbor!.day);
     expect(JSON.stringify(repaired.draft.sessions.find((session) => session.day === neighbor!.day))).toBe(neighborBefore);
-    expect(repaired.draft.sessions.find((session) => session.day === host!.day)?.conditioning?.intensity).not.toBe("heavy");
+    expect(repaired.draft.sessions.find((session) => session.day === host!.day)?.conditioning?.intensity).toBe("heavy");
     expect(repaired.draft.sessions.find((session) => session.day === host!.day)?.conditioning?.volume).toBe("high");
-    expect(repaired.after.join(" ")).toMatch(/volume/);
+    expect(repaired.after.join(" ")).toMatch(/volume|ceiling/);
     expect(repaired.ok).toBe(false);
   });
 
