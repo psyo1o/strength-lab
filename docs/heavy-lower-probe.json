@@ -361,5 +361,46 @@
         }
       }
     ]
+  },
+  "w4_continue": {
+    "model": "gpt-5.4-nano",
+    "database": "/tmp/heavy-lower-phaseb.db",
+    "kept_weeks": [
+      "2099-07-06",
+      "2099-07-13",
+      "2099-07-20"
+    ],
+    "generated_week": "2099-07-27",
+    "flags": "off",
+    "token_cap": 500000,
+    "attempts": [
+      {
+        "n": 1,
+        "result": "stopped_before_save",
+        "reason": "catalog path cwd /tmp",
+        "tokens": 53808,
+        "model_calls": 2,
+        "http_429": false
+      },
+      {
+        "n": 2,
+        "result": "adopted",
+        "generation_source": "model",
+        "status": "active",
+        "fallback_reason": null,
+        "prompt_version": "coaching-pipeline-v6",
+        "final_status": "APPROVE_WITH_NOTE",
+        "hard_errors": [],
+        "heavy_lower_hard": 0,
+        "heavy_lower_metcon": "allowed",
+        "head_status": "REVISE",
+        "head_revise_gap": null,
+        "tokens": 360986,
+        "model_calls": 38,
+        "http_429": false
+      }
+    ],
+    "tokens_both_attempts": 414794,
+    "adopted_weeks": 4
   }
 }

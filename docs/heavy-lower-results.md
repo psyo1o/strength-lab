@@ -35,10 +35,22 @@
 | W1 | 2099-07-06 | model, active | 0 | thu. 직전 피로가 high가 아니라 avoid가 아니다 |
 | W2 | 2099-07-13 | model, active | 0 | 없음 |
 | W3 | 2099-07-20 | model, active | 0 | 없음. avoid 주이고 enum이 조합을 막았다 |
-| W4 | 2099-07-27 | 실행 안 함 |  |  |
+| W4 | 2099-07-27 | 3회 시점에는 실행 안 함. 아래 이어서 생성에서 model, active | 0 | tue, fri, sat. 직전 피로는 moderate라 avoid가 아니다 |
 
 3회 토큰은 1058938이다. 모델 호출 120이다. `model_weeks` 3, `fallback_weeks` 0, `failed_weeks` 0이다. 요일 출처는 MODEL 17, MODEL_REVISED 1, FALLBACK 0, FAILED 0이다. W3 헤드는 REVISE이고 대상은 mon, wed다. 반영 1, `head_revise_gap`은 null이다. `final_validator` 오류는 세 주 모두 빈 배열이다.
 
 `consistency`의 `high_fatigue_not_limited`는 W3다. `LONGITUDINAL_PLANNING`이 꺼져 뼈대 thesis phase가 emphasis가 아니라는 프로브 표다. 하체 고중량 하드 오류가 아니다. 플래그는 켜지 않았다.
 
 원본 아카이브는 `docs/heavy-lower-runs/`이고 gitignore다. 요약은 `docs/heavy-lower-probe.json`이다.
+
+## W4를 이어서 생성
+
+W1–W3 행은 `/tmp/heavy-lower-phaseb.db`에 `active` `model`로 남아 있었다. 그 주를 지우지 않고 `2099-07-20`에 수행을 붙였다. 피로는 moderate, 완료 6, 결석 0이다. 그다음 `2099-07-27`만 `gpt-5.4-nano`로 생성했다. 플래그는 꺼 두었다. 토큰 상한은 0.5M이다.
+
+첫 호출은 작업 디렉터리가 `/tmp`라 카탈로그 파일을 열지 못하고 주 저장 전에 끊겼다. 월간·주간 호출만 있었고 토큰은 53808이다. 429는 아니었다. 같은 DB에서 작업 디렉터리를 `/workspace`로 두고 다시 생성했다. 이것이 두 번째 실제 실행이다.
+
+두 번째 실행의 `2099-07-27`은 `active`, `generation_source`는 `model`, `fallback_reason`은 null, 스탬프는 `coaching-pipeline-v6`이다. `final_status`는 `APPROVE_WITH_NOTE`다. 훈련 6일은 `MODEL`이고 `FAILED`는 없다. 일요일은 휴식이다. `final_validator` 오류는 빈 배열이다. 하체 고중량 하드 오류는 0이다. 직전 피로가 moderate라 `heavy_lower_metcon`은 allowed다. 헤드 전에 조합이 있던 날은 tue, fri, sat이고 위반은 아니다. 헤드는 REVISE이고 대상은 mon, tue, wed다. 칸 반영은 2이고 `head_revise_gap`은 null이다.
+
+두 번째 실행 토큰은 360986, 모델 호출은 38이다. 끊긴 호출까지 합치면 414794다. 둘 다 0.5M 안이다. W1–W3 행은 그대로 `active` `model`이다. 네 주 채택은 4/4다. 이어서 생성한 뒤 Vitest 87파일 555개, `tsc --noEmit`, `npm run build`를 다시 통과했다.
+
+유사도와 자극 반복 문장은 `isCoachingSignal` 경고다. 하드 게이트에 넣지 않았고, 이번에 임계값을 바꾸지 않았다.
