@@ -175,6 +175,7 @@ export function finalWeekReport(input: {
     intent: { why_ko: input.draft.intent.why_ko, focus: input.draft.intent.focus, scheme_note: input.draft.intent.scheme_note },
     sessions: input.draft.sessions,
   };
+  // heavy lower metcon은 evaluateWeek → is_heavy_lower_metcon. 슬롯 패턴 도장으로는 판정하지 않는다.
   const judged = evaluateWeek(bare, input.month, input.weekIndex, input.recent, input.context ?? {});
   const judgedErrors = judged.ok ? [] : judged.errors;
   const hard = judgedErrors.filter((error) => !isCoachingSignal(error));

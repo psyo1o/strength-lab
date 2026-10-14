@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { weeklyIntentErrors } from "../src/lib/programming/coaching/contract";
 import { applyIntensityPatch } from "../src/lib/programming/coaching/intensity-patch";
 import { extractWeekRules } from "../src/lib/programming/coaching/stage13/rules";
-import { dayBoundsFromSkeleton, lowerLiftCapSum, weeklyResponseFormat } from "../src/lib/programming/coaching/week-bounds";
+import { applyWeekGoalBounds, boundsFromWeekGoal, dayBoundsFromSkeleton, lowerLiftCapSum, weeklyResponseFormat } from "../src/lib/programming/coaching/week-bounds";
+import type { WeekGoal } from "../src/lib/programming/types";
 import type { WeekSkeleton } from "../src/lib/programming/direction/contract";
 import { month531 } from "./characterization/support";
 
@@ -131,5 +132,41 @@ describe("week bounds", () => {
       }),
     };
     expect(weeklyIntentErrors(legal, bounds)).toEqual([]);
+  });
+
+  it("목표 표의 long 요일만 long_conditioning을 남긴다", () => {
+    const bounds = dayBoundsFromSkeleton(skeleton(rows), 2)!;
+    const goal: WeekGoal = {
+      week_index: 1,
+      goal: "표",
+      days: bounds.map((bound) => ({
+        day: bound.day,
+        rest: bound.day === "sun",
+        purpose: "목적",
+        focus: null,
+        intensity: null,
+        target: bound.day === "sun" ? null : { movement_pattern: "hinge", body_region: "lower", energy_system: "phosphagen" },
+        stimulus: null,
+        time_domain: bound.day === "sat" ? "long" : "short",
+      })),
+    };
+    const narrowed = applyWeekGoalBounds(bounds, goal);
+    const format = weeklyResponseFormat(narrowed);
+    if (format.type !== "json_schema") throw new Error("expected json_schema");
+    const days = format.json_schema.schema.properties as {
+      days: { items: { anyOf: Array<{ properties: { day: { enum: string[] }; secondary_training: { enum: string[] }; stimulus: { enum: string[] }; movement_pattern: { enum: string[] }; primary_training: { enum: string[] } } }> } };
+    };
+    const sat = days.days.items.anyOf.find((row) => row.properties.day.enum[0] === "sat");
+    const mon = days.days.items.anyOf.find((row) => row.properties.day.enum[0] === "mon");
+    const sun = days.days.items.anyOf.find((row) => row.properties.day.enum[0] === "sun");
+    expect(sat?.properties.secondary_training.enum).toEqual(["long_conditioning"]);
+    expect(mon?.properties.secondary_training.enum).not.toContain("long_conditioning");
+    expect(mon?.properties.stimulus.enum).not.toContain("long_mixed");
+    expect(mon?.properties.movement_pattern.enum).toEqual(["hinge"]);
+    expect(sun?.properties.primary_training.enum).toEqual(["rest"]);
+    const open = boundsFromWeekGoal(goal);
+    expect(open).toHaveLength(7);
+    expect(open.find((day) => day.day === "sat")?.secondary_training).toEqual(["long_conditioning"]);
+    expect(open.find((day) => day.day === "mon")?.movement_pattern).toEqual(["hinge"]);
   });
 });

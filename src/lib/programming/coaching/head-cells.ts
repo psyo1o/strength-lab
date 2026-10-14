@@ -47,7 +47,11 @@ export function pieceCells(sessions: readonly SessionDraft[]): PieceCell[] {
 }
 
 /** Write each head cell. A catalog miss reverts that cell and leaves the week in place. */
-export function applyHeadCells(sessions: readonly SessionDraft[], revisions: readonly SessionRevision[]): HeadCellReport {
+export function applyHeadCells(
+  sessions: readonly SessionDraft[],
+  revisions: readonly SessionRevision[],
+  context?: { avoidHeavyLower?: boolean },
+): HeadCellReport {
   const rows: HeadCellRow[] = [];
   for (const revision of revisions) {
     const cell = revision.cell;
@@ -68,7 +72,11 @@ export function applyHeadCells(sessions: readonly SessionDraft[], revisions: rea
     const before = JSON.parse(JSON.stringify(movement)) as typeof movement;
     if (cell.field === "quantity_option" || cell.field === "movement_id" || cell.field === "unit" || cell.field === "load") {
       const allowed = peerMovementIds(movement.key, session?.strength?.lift ?? null);
-      const patched = applyCatalogOption(movement, cell.field, cell.value, allowed);
+      const patched = applyCatalogOption(movement, cell.field, cell.value, allowed, {
+        stimulus: session?.conditioning?.stimulus ?? null,
+        intensity: session?.conditioning?.intensity ?? null,
+        avoidHeavyLower: context?.avoidHeavyLower,
+      });
       if (!patched.ok) {
         Object.assign(movement, before);
         rows.push({

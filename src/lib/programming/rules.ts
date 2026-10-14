@@ -3,6 +3,7 @@ import { DAY_ORDER, type DayKey, type MainLift } from "../month-plan/types";
 import { isWodPurpose } from "../wod/purpose";
 import { completeMonthDirection } from "./month-direction";
 import { strengthIsHeavy } from "./schemes";
+import { sessionHasHeavyLowerMetcon } from "./coaching/heavy-lower-metcon";
 import { equipmentForKeys } from "./coaching/movement-catalog";
 import { safetyViolations } from "./coaching/stage15/safety-policy";
 import { benchmarkCountAllowed, longConditioningCountAllowed } from "./coaching/stage15/week-policy";
@@ -2117,9 +2118,7 @@ function isLowerMetcon(session: SessionDraft): boolean {
 }
 
 function heavyLowerMetcon(session: SessionDraft): boolean {
-  const conditioning = session.conditioning;
-  if (!conditioning || !isLowerMetcon(session)) return false;
-  return conditioning.stimulus === "heavy" || conditioning.intensity === "heavy";
+  return sessionHasHeavyLowerMetcon(session);
 }
 
 export function weekBurden(draft: WeekDraft): WeekBurden {

@@ -8,7 +8,7 @@ export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v3";
 export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v7";
 export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v3";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
-export const HEAD_COACH_PROMPT_VERSION = "head-coach-v11";
+export const HEAD_COACH_PROMPT_VERSION = "head-coach-v12";
 export const FATIGUE_ENGINE_VERSION = "fatigue-engine-v1";
 export const VARIATION_ENGINE_VERSION = "variation-engine-v1";
 export const COACHING_PIPELINE_VERSION = "coaching-pipeline-v2";
@@ -115,7 +115,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     inputs:
       "Evidence, specialist findings, risk, priority, trade-offs, monthly goal, weekly rules, athlete fatigue, and recent history. A concern is not a revision.",
     decision_principles:
-      "Order: hard violation, method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, then a status. REVISE only when you name a movement_id or quantity_option that is a different id in that cell's enum. If the enum has no different id, the status is APPROVE_WITH_NOTE. A concern, a similarity note, or a fatigue sentence is not a REVISE. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. You are called once. The server writes the cells and does not call you again.",
+      "Order: hard violation first, then method or weekly obligation, athlete state, real coaching concern, severity, priority, trade-off, fix cost, expected benefit, then a status. day_hard_constraints is per date. On a day whose heavy_lower_metcon is avoid, REVISE only with a movement_id or quantity_option that is still in that day's revisable enum. Fix those hard violations before any warning. REVISE only when you name a movement_id or quantity_option that is a different id in that cell's enum. If the enum has no different id, the status is APPROVE_WITH_NOTE. A concern, a similarity note, or a fatigue sentence is not a REVISE. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. You are called once. The server writes the cells and does not call you again.",
     constraints:
       "Status is APPROVE, APPROVE_WITH_NOTE, REVISE, or BLOCK. APPROVE, APPROVE_WITH_NOTE, and BLOCK use an empty revisions array and an empty adjustments array. REVISE requires one or more cells and an empty adjustments array. Each item has day, block, catalog_key, field, value, and reason. field is movement_id or quantity_option. value is a different id from that cell's enum. Do not return the id that is already on the cell. Do not write a unit, a load, or a free amount. catalog_key must be a movement already listed for that day and block in piece_cells. An empty revisions array is not a REVISE. Adjustments are not a cell edit. A sentence without those fields is invalid. Do not return a new week. Do not ask for the session to be regenerated.",
     output_schema:

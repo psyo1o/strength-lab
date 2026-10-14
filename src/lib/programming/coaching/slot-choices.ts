@@ -7,6 +7,7 @@ import { bannedConditioningKeys } from "./conditioning-board";
 import { GOAL_TABLE_RULES } from "./goal-table";
 import { shortMetconDurations, shortMetconErrors, zone2PrimaryErrors } from "./short-metcon";
 import { zone2Durations, zone2Effort, zone2Modalities } from "./zone2";
+import { is_heavy_lower_metcon } from "./heavy-lower-metcon";
 import {
   catalogMovement,
   displayAmount,
@@ -55,6 +56,16 @@ export type SessionFrame = {
   /** 존 2 날이면 같은 응답의 한 칸에 A와 B를 둔다. */
   zone2Slot?: { deload: boolean; previousModality?: string | null; dropRun?: boolean } | null;
 };
+
+/** avoid 날 칸에 남아야 하는 동작·수량 선택지. 이보다 적으면 생성 전에 멈춘다. */
+export const MIN_HEAVY_LOWER_CHOICES = 2;
+
+export class HeavyLowerEnumError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HeavyLowerEnumError";
+  }
+}
 
 const NON_LONG = { min: 8, max: 20 } as const;
 const LONG = { min: TIME_DOMAIN_RANGES.long.min, max: TIME_DOMAIN_RANGES.long.max } as const;
@@ -208,12 +219,50 @@ function warmupSlots(day: DayIntent): FrameSlot[] {
   return [{ id: "s0", movements }];
 }
 
+function optionIsHeavyLower(key: string, option: QuantityChoice, piece: SessionPiece | null): boolean {
+  if (!piece) return false;
+  return is_heavy_lower_metcon({
+    movement: key,
+    unit: option.unit,
+    amount: option.amount,
+    load: prescribedLoad(key),
+    stimulus: piece.stimulus,
+    intensity: piece.intensity,
+  });
+}
+
+/**
+ * heavy_lower_metcon=avoid인 날의 컨디셔닝 칸에서 위반 조합만 뺀다.
+ * 동작 키는 합법 수량이 하나라도 있으면 남긴다. 칸의 선택지가 2개 미만이면 생성 전에 던진다.
+ */
+export function withoutHeavyLowerOptions(frame: SessionFrame): SessionFrame {
+  if (frame.area !== "conditioning" || !frame.piece) return frame;
+  const slots = frame.slots.map((slot) => {
+    const movements = slot.movements
+      .map((movement) => ({
+        ...movement,
+        options: movement.options.filter((option) => !optionIsHeavyLower(movement.key, option, frame.piece)),
+      }))
+      .filter((movement) => movement.options.length > 0);
+    const choices = movements.reduce((sum, movement) => sum + movement.options.length, 0);
+    if (choices < MIN_HEAVY_LOWER_CHOICES) {
+      throw new HeavyLowerEnumError(
+        `${frame.day} ${slot.id} has ${choices} choices after heavy_lower_metcon=avoid. Need at least ${MIN_HEAVY_LOWER_CHOICES}.`,
+      );
+    }
+    return { ...slot, movements };
+  });
+  return { ...frame, slots };
+}
+
 export function buildSessionFrame(input: {
   area: SlotArea;
   day: DayIntent;
   slot: ConditioningSlot | null;
   /** 잠긴 뼈대 조합. 없을 때는 지금 카탈로그를 그대로 쓴다. */
   skeletonCombo?: { strengthLifts: readonly string[]; deadliftConditioning: boolean } | null;
+  /** 직전 피로가 높아 heavy_lower_metcon=avoid일 때만 위반 조합을 뺀다. */
+  avoidHeavyLower?: boolean;
 }): SessionFrame | null {
   const slots =
     input.area === "conditioning"
@@ -222,12 +271,14 @@ export function buildSessionFrame(input: {
         ? strengthSlots(input.day, input.skeletonCombo?.strengthLifts)
         : warmupSlots(input.day);
   if (!slots.length) return null;
-  return {
+  const frame: SessionFrame = {
     area: input.area,
     day: input.day.day,
     slots,
     piece: input.area === "conditioning" ? pieceOf(input.day, input.slot) : null,
   };
+  if (input.avoidHeavyLower && frame.area === "conditioning") return withoutHeavyLowerOptions(frame);
+  return frame;
 }
 
 function strictObject(properties: Record<string, unknown>, required: string[]): Record<string, unknown> {
@@ -652,11 +703,26 @@ export function applyCatalogOption(
   field: string,
   value: string,
   allowedMovementIds: readonly string[],
+  piece?: { stimulus?: string | null; intensity?: string | null; avoidHeavyLower?: boolean } | null,
 ): { ok: true } | { ok: false; reason: string } {
+  const blocked = (key: string, option: QuantityChoice) =>
+    Boolean(
+      piece?.avoidHeavyLower &&
+        is_heavy_lower_metcon({
+          movement: key,
+          unit: option.unit,
+          amount: option.amount,
+          load: prescribedLoad(key),
+          stimulus: piece.stimulus,
+          intensity: piece.intensity,
+        }),
+    );
   if (field === "unit" || field === "load") return { ok: false, reason: "catalog fills unit and load" };
   if (field === "quantity_option") {
     const choice = choiceById(movement.key, value);
-    if (!choice || choice.method) return { ok: false, reason: `${movement.key} quantity ${value} is not allowed` };
+    if (!choice || choice.method || blocked(movement.key, choice)) {
+      return { ok: false, reason: `${movement.key} quantity ${value} is not allowed` };
+    }
     const row = resolved(movement.key);
     movement.amount_value = choice.amount;
     movement.unit = choice.unit;
@@ -666,7 +732,7 @@ export function applyCatalogOption(
   }
   if (field === "movement_id") {
     if (!allowedMovementIds.includes(value)) return { ok: false, reason: `${value} is not an allowed movement` };
-    const options = quantityOptions(value);
+    const options = quantityOptions(value).filter((option) => !blocked(value, option));
     const choice = options[0];
     if (!choice) return { ok: false, reason: `${value} has no quantity` };
     const row = resolved(value);
