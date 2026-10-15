@@ -1,5 +1,5 @@
 import type { DayKey } from "../../../month-plan/types";
-import { previousLowerFatigue } from "../../rules";
+import { performanceRead } from "../../weekly-intent";
 import type { MonthDirection, WeekIndex, WeeklyIntentPlan } from "../../types";
 import type { WeekActual } from "../../summary";
 import { absoluteWeekCaps, expectedRestDays, profileTrainingDayCount } from "../goal-table";
@@ -30,7 +30,8 @@ export function extractWeekRules(input: {
   const method = input.month.strength_method || input.month.scheme;
   const deload =
     method === "DELOAD_RECOVERY" || method === "deload" || input.month.scheme === "deload" || input.weekIndex === 4;
-  const fatigued = previousLowerFatigue(input.actual) === "high";
+  const read = performanceRead(input.actual);
+  const fatigued = read.lower_fatigue === "high" || read.many_missed;
   const caps = absoluteWeekCaps({ trainingDays: profileTrainingDayCount(input.month), deload, fatigued });
   return {
     week_index: input.weekIndex,

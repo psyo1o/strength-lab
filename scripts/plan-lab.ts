@@ -24,6 +24,12 @@
  * One scenario and one pass. The default is still every scenario and both passes.
  * PROBE_SCENARIOS must be a prefix of W1,W2,W3,W4,S1,S2. The first model HTTP 429 stops the run.
  *   PROBE_MODE=db PROBE_LABEL=coaching-engine-d PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 npx tsx scripts/plan-lab.ts
+ * Member state is one scenario per process: four 2099 weeks, then A1 and A2.
+ * The predecessor week is written without a model key. PROBE_TOKEN_CAP=2500000.
+ *   PROBE_MODE=db PROBE_LABEL=lock-member-normal PROBE_MEMBER=normal PROBE_TOKEN_CAP=2500000 npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=lock-member-fatigue PROBE_MEMBER=high_fatigue PROBE_TOKEN_CAP=2500000 npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=lock-member-absence PROBE_MEMBER=absence PROBE_TOKEN_CAP=2500000 npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=lock-member-both PROBE_MEMBER=both PROBE_TOKEN_CAP=2500000 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The default model stays gpt-5.4-nano. PROBE_PROVIDER and PROBE_MODEL select another
@@ -56,7 +62,7 @@ import { planLongitudinal } from "../src/lib/programming/planning/plan";
 import { coachModel } from "../src/lib/programming/coaching/models";
 import { coachEndpoint, coachProvider, GEMINI_GENERATE_URL, providerKey, providerKeyEnv } from "../src/lib/programming/coaching/provider";
 import type { WeekActual } from "../src/lib/programming/summary";
-import type { WeekIndex } from "../src/lib/programming/types";
+import { weekIndexFromStart, type WeekIndex } from "../src/lib/programming/types";
 
 const WEEKS = ["2099-06-29", "2099-07-06", "2099-07-13", "2099-07-20", "2099-07-27", "2099-08-03", "2099-08-10"] as const;
 const SCENARIOS: Array<{
@@ -74,6 +80,58 @@ const SCENARIOS: Array<{
   { id: "S1", weekIndex: 1, weekStart: WEEKS[5], fatigue: null, completed: 0, missed: 0 },
   { id: "S2", weekIndex: 2, weekStart: WEEKS[6], fatigue: "high", completed: 6, missed: 0 },
 ];
+
+/** 회원 상태 하나당 4주. 앞주는 그 달 밖 월요일이고, 측정 주는 그 달 주 1–4다. */
+const MEMBER_STATES: Array<{
+  id: "normal" | "high_fatigue" | "absence" | "both";
+  fatigue: "moderate" | "high";
+  completed: number;
+  missed: number;
+  predecessor: string;
+  weeks: readonly [string, string, string, string];
+}> = [
+  {
+    id: "normal",
+    fatigue: "moderate",
+    completed: 6,
+    missed: 0,
+    predecessor: "2099-08-31",
+    weeks: ["2099-09-07", "2099-09-14", "2099-09-21", "2099-09-28"],
+  },
+  {
+    id: "high_fatigue",
+    fatigue: "high",
+    completed: 6,
+    missed: 0,
+    predecessor: "2099-10-26",
+    weeks: ["2099-11-02", "2099-11-09", "2099-11-16", "2099-11-23"],
+  },
+  {
+    id: "absence",
+    fatigue: "moderate",
+    completed: 0,
+    missed: 6,
+    predecessor: "2099-11-30",
+    weeks: ["2099-12-07", "2099-12-14", "2099-12-21", "2099-12-28"],
+  },
+  {
+    id: "both",
+    fatigue: "high",
+    completed: 0,
+    missed: 6,
+    predecessor: "2099-03-30",
+    weeks: ["2099-04-06", "2099-04-13", "2099-04-20", "2099-04-27"],
+  },
+];
+
+function memberState() {
+  const id = process.env.PROBE_MEMBER?.trim();
+  if (!id) return null;
+  const found = MEMBER_STATES.find((row) => row.id === id);
+  if (!found) throw new ProbeSafetyError("PROBE_MEMBER must be normal, high_fatigue, absence, or both");
+  if (process.env.PROBE_SCENARIOS?.trim()) throw new ProbeSafetyError("PROBE_MEMBER cannot combine with PROBE_SCENARIOS");
+  return found;
+}
 
 function actual(input: { fatigue: "low" | "moderate" | "high"; completed: number; missed: number }): WeekActual {
   return {
@@ -102,9 +160,9 @@ function actual(input: { fatigue: "low" | "moderate" | "high"; completed: number
 
 function assertCalendar() {
   if (LIVE_CLASS_WEEK !== "2026-10-05") throw new ProbeSafetyError("operational week constant changed");
-  for (const week of WEEKS) {
+  for (const week of [...WEEKS, ...MEMBER_STATES.flatMap((row) => [row.predecessor, ...row.weeks])]) {
     const start: string = week;
-    if (start === LIVE_CLASS_WEEK || !start.startsWith("2099-")) throw new ProbeSafetyError(`refusing ${start}`);
+    if (start === LIVE_CLASS_WEEK || start === "2026-10-12" || !start.startsWith("2099-")) throw new ProbeSafetyError(`refusing ${start}`);
   }
   if (PROBE_SIMULATION_ORDER.at(-1) !== "do not recompute actual again") {
     throw new ProbeSafetyError("simulation order lost the seed guard");
@@ -114,7 +172,22 @@ function assertCalendar() {
   }
 }
 
+function probePredecessor(): string {
+  return memberState()?.predecessor ?? WEEKS[0];
+}
+
 function probeScenarios() {
+  const member = memberState();
+  if (member) {
+    return member.weeks.map((weekStart, index) => ({
+      id: `${member.id}-W${index + 1}`,
+      weekIndex: weekIndexFromStart(weekStart),
+      weekStart,
+      fatigue: member.fatigue,
+      completed: member.completed,
+      missed: member.missed,
+    }));
+  }
   const raw = process.env.PROBE_SCENARIOS?.trim();
   if (!raw) return SCENARIOS;
   const ids = raw.split(",").map((id) => id.trim()).filter(Boolean);
@@ -176,7 +249,7 @@ async function deterministicTwice() {
   const runs: string[] = [];
   for (let pass = 0; pass < 2; pass += 1) {
     const lines: string[] = [];
-    for (const scenario of SCENARIOS) {
+    for (const scenario of memberState() ? probeScenarios() : SCENARIOS) {
       const planned = await planLongitudinal({
         month: source,
         weekIndex: scenario.weekIndex,
@@ -216,6 +289,48 @@ function tally(errors: readonly string[]): Record<string, number> {
   return counts;
 }
 
+function auditGeneration(rawLogs: readonly string[], sources: readonly string[]) {
+  let finalValidatorErrors = 0;
+  let lockMismatch = 0;
+  let appliedStillViolating = 0;
+  let pipelineSlots = 0;
+  const visit = (value: unknown) => {
+    if (typeof value === "string") {
+      if (/locked dose|locked ceiling|does not match lock|do not match lock/.test(value)) lockMismatch += 1;
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      for (const row of value) visit(row);
+      return;
+    }
+    const record = value as Record<string, unknown>;
+    if (record.head_revise_gap === "applied_still_violating") appliedStillViolating += 1;
+    if (Array.isArray(record.slots) && record.slots.some((slot) => slot && typeof slot === "object" && "code" in (slot as object))) {
+      pipelineSlots += record.slots.length;
+    }
+    if (record.agent_name === "final_validator" && record.validation_result === "fail") {
+      finalValidatorErrors += Array.isArray(record.validation_errors) ? record.validation_errors.length : 1;
+    }
+    for (const nested of Object.values(record)) visit(nested);
+  };
+  for (const raw of rawLogs) {
+    try {
+      visit(JSON.parse(raw));
+    } catch {
+      continue;
+    }
+  }
+  return {
+    final_validator_errors: finalValidatorErrors,
+    lock_mismatch: lockMismatch,
+    applied_still_violating: appliedStillViolating,
+    pipeline_failure_slots: pipelineSlots,
+    deterministic_adjustment: sources.filter((source) => source === "DETERMINISTIC_ADJUSTMENT").length,
+    fallback_days: sources.filter((source) => source === "FALLBACK" || source === "FAILED").length,
+  };
+}
+
 async function databasePass(pass: string) {
   const { regenerateProgrammingWeek, recordWeeklyActual } = await import("../src/lib/programming/engine");
   const { getProgrammingWeek, listProgrammingWeekAttempts } = await import("../src/lib/programming/store");
@@ -229,20 +344,21 @@ async function databasePass(pass: string) {
     `DELETE FROM programming_months WHERE month_start LIKE '2099-%' AND json_extract(direction_json, '$.coaching_plan.reuse') IS NOT 1`,
   ).run();
   raw.prepare(`DELETE FROM class_weeks WHERE week_start LIKE '2099-%'`).run();
-  const predecessor: string = WEEKS[0];
+  const member = memberState();
+  const predecessor = probePredecessor();
   if (!probeMayWriteWeek(predecessor)) throw new ProbeSafetyError(`refusing ${predecessor}`);
   const key = providerKey();
   if (!key) throw new ProbeSafetyError(`${providerKeyEnv(coachProvider())} is unset`);
   if (!getProgrammingWeek(predecessor)) {
-    const seeded = await regenerateProgrammingWeek(predecessor, { key });
-    if (seeded.weekStart !== predecessor) throw new ProbeSafetyError("predecessor write missed 2099-06-29");
+    const seeded = await regenerateProgrammingWeek(predecessor, { key: member ? "" : key });
+    if (seeded.weekStart !== predecessor) throw new ProbeSafetyError(`predecessor write missed ${predecessor}`);
   }
   const scenarios = probeScenarios();
   const weeks: unknown[] = [];
   let tokenStop: { cap: number; spent: number; after: string } | null = null;
   for (let index = 0; index < scenarios.length; index += 1) {
     const scenario = scenarios[index]!;
-    const previousWeek = index === 0 ? predecessor : SCENARIOS[index - 1]!.weekStart;
+    const previousWeek = index === 0 ? predecessor : scenarios[index - 1]!.weekStart;
     assertProbePredecessor({ simulationWeek: scenario.weekStart, previousWeek });
     if (!probeMayWriteWeek(scenario.weekStart)) throw new ProbeSafetyError(`refusing ${scenario.weekStart}`);
     if (scenario.fatigue) {
@@ -323,6 +439,7 @@ async function databasePass(pass: string) {
         completed_days: previousActual?.class_summary?.completed_days ?? null,
         record: !previousActual ? "missing" : previousActual.class_summary ? "summary" : "no_record",
       },
+      audit: auditGeneration(logs.map((log) => log.raw_json), sources),
     });
     console.error(`pass ${pass} ${scenario.id} done before=${(lock?.before ?? []).length} after=${(lock?.after ?? []).length} calls=${modelCalls} tokens=${spent}`);
     if (cap > 0 && spent > cap) {
@@ -816,6 +933,7 @@ async function main() {
       mode: "db",
       model: "gpt-5.4-nano",
       structure: digest,
+      member: memberState()?.id ?? null,
       scenarios: probeScenarios().map((scenario) => scenario.id),
       passes: passes.length,
       summary: summarize(passes),

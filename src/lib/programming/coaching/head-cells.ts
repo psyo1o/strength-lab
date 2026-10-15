@@ -1,8 +1,8 @@
 import type { DayKey } from "../../month-plan/types";
 import type { SessionDraft } from "../types";
 import type { HeadPieceRef } from "./contract";
-import { patchStoredMovement } from "./movement-catalog";
-import { intensityBandsAtMost, intensityBandsForStimulus } from "./session-contract";
+import { patchStoredMovement, type MovementCellField } from "./movement-catalog";
+import { intensityBandsAtMost, intensityBandsForStimulus, intensityLockEnum, isLockPatchField } from "./session-contract";
 import { applyCatalogOption, peerMovementIds } from "./slot-choices";
 import type { SessionRevision } from "./review";
 
@@ -51,15 +51,27 @@ export function pieceCells(sessions: readonly SessionDraft[]): PieceCell[] {
 export function intensityRevisionCells(
   sessions: readonly SessionDraft[],
   ceilingFor: (day: DayKey) => string | null | undefined,
+  classFor?: (day: DayKey) => string | null | undefined,
 ): HeadPieceRef[] {
   const cells: HeadPieceRef[] = [];
   for (const session of sessions) {
     if (session.rest || !session.conditioning) continue;
     const current = session.conditioning.intensity;
     const ceiling = ceilingFor(session.day);
-    if (intensityBandsAtMost(ceiling).includes(current)) continue;
     const stimulus = session.conditioning.stimulus;
-    const choices = intensityBandsForStimulus(ceiling, stimulus ? [stimulus] : []).filter((band) => band !== current);
+    const named = classFor?.(session.day);
+    const intensityClass = named === "light" || named === "moderate" || named === "heavy" ? named : null;
+    const choices = intensityClass
+      ? intensityLockEnum(
+          {
+            intensity_ceiling: ceiling === "light" || ceiling === "moderate" || ceiling === "heavy" ? ceiling : "heavy",
+            intensity_class: intensityClass,
+          },
+          stimulus ? [stimulus] : [],
+        ).filter((band) => band !== current)
+      : intensityBandsAtMost(ceiling).includes(current)
+        ? []
+        : intensityBandsForStimulus(ceiling, stimulus ? [stimulus] : []).filter((band) => band !== current);
     if (!choices.length) continue;
     cells.push({
       day: session.day,
@@ -72,17 +84,67 @@ export function intensityRevisionCells(
   return cells;
 }
 
+/**
+ * 후보를 적용한 뒤 위반이 없으면 그 값만 남긴다.
+ * 잠금을 깨는 수량은 여기서 빠진다. 코드가 다른 값을 채우지 않는다.
+ */
+export function clearingValues(
+  sessions: readonly SessionDraft[],
+  revision: { day: DayKey; catalog_key: string; field: MovementCellField; values: readonly string[] },
+  violates: (sessions: SessionDraft[]) => boolean,
+  context?: { avoidHeavyLower?: boolean },
+): string[] {
+  const kept: string[] = [];
+  for (const value of revision.values) {
+    const clone = JSON.parse(JSON.stringify(sessions)) as SessionDraft[];
+    const report = applyHeadCells(
+      clone,
+      [
+        {
+          day: revision.day,
+          reason: "후보가 뼈대와 규칙을 지키는지 확인합니다.",
+          correction_instruction: "candidate",
+          cell: {
+            day: revision.day,
+            block: "conditioning",
+            catalog_key: revision.catalog_key,
+            field: revision.field,
+            value,
+            reason: "후보가 뼈대와 규칙을 지키는지 확인합니다.",
+          },
+        },
+      ],
+      context,
+    );
+    if (report.applied !== 1) continue;
+    if (violates(clone)) continue;
+    kept.push(value);
+  }
+  return kept;
+}
+
 /** Write each head cell. A catalog miss reverts that cell and leaves the week in place. */
 export function applyHeadCells(
   sessions: readonly SessionDraft[],
   revisions: readonly SessionRevision[],
-  context?: { avoidHeavyLower?: boolean },
+  context?: { avoidHeavyLower?: boolean; accept?: (sessions: readonly SessionDraft[]) => boolean },
 ): HeadCellReport {
   const rows: HeadCellRow[] = [];
   for (const revision of revisions) {
     const cell = revision.cell;
     if (!cell) continue;
     const session = sessions.find((row) => row.day === cell.day);
+    if (isLockPatchField(cell.field)) {
+      rows.push({
+        day: cell.day,
+        catalog_key: cell.catalog_key,
+        field: cell.field,
+        value: cell.value,
+        result: "reverted",
+        reason: "lock field is not a patch target",
+      });
+      continue;
+    }
     if (cell.field === "intensity") {
       const band = cell.value === "light" || cell.value === "moderate" || cell.value === "heavy" ? cell.value : null;
       if (cell.catalog_key !== "intensity" || !band || !session?.conditioning) {
@@ -96,8 +158,23 @@ export function applyHeadCells(
         });
         continue;
       }
+      const previousBand = session.conditioning.intensity;
+      const previousSessionBand = session.intensity;
       session.conditioning.intensity = band;
       session.intensity = band;
+      if (context?.accept && !context.accept(sessions)) {
+        session.conditioning.intensity = previousBand;
+        session.intensity = previousSessionBand;
+        rows.push({
+          day: cell.day,
+          catalog_key: cell.catalog_key,
+          field: cell.field,
+          value: cell.value,
+          result: "reverted",
+          reason: "not an allowed candidate",
+        });
+        continue;
+      }
       rows.push({
         day: cell.day,
         catalog_key: cell.catalog_key,
@@ -128,7 +205,7 @@ export function applyHeadCells(
         intensity: session?.conditioning?.intensity ?? null,
         avoidHeavyLower: context?.avoidHeavyLower,
       });
-      if (!patched.ok) {
+      if (!patched.ok || (context?.accept && !context.accept(sessions))) {
         Object.assign(movement, before);
         rows.push({
           day: cell.day,
@@ -136,7 +213,7 @@ export function applyHeadCells(
           field: cell.field,
           value: cell.value,
           result: "reverted",
-          reason: patched.reason,
+          reason: patched.ok ? "not an allowed candidate" : patched.reason,
         });
         continue;
       }
@@ -151,7 +228,7 @@ export function applyHeadCells(
       continue;
     }
     const patched = patchStoredMovement(movement, cell);
-    if (!patched.ok) {
+    if (!patched.ok || (context?.accept && !context.accept(sessions))) {
       Object.assign(movement, before);
       rows.push({
         day: cell.day,
@@ -159,7 +236,7 @@ export function applyHeadCells(
         field: cell.field,
         value: cell.value,
         result: "reverted",
-        reason: patched.reason,
+        reason: patched.ok ? "not an allowed candidate" : patched.reason,
       });
       continue;
     }

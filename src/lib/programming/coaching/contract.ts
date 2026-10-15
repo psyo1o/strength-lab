@@ -376,10 +376,10 @@ function exceptCurrent(ids: readonly string[], current: string | null): string[]
 /** 현재 값만 남은 칸은 수정 후보가 아니다. 빈 enum으로 REVISE를 만들지 않는다. */
 function headRevisionItem(cell: HeadPieceRef): Record<string, unknown> | null {
   const quantities = exceptCurrent(
-    cell.quantity_ids?.length ? [...cell.quantity_ids] : quantityOptions(cell.catalog_key).map((option) => option.id),
+    cell.quantity_ids != null ? [...cell.quantity_ids] : quantityOptions(cell.catalog_key).map((option) => option.id),
     currentQuantityId(cell),
   );
-  const movements = exceptCurrent(cell.movement_ids?.length ? [...cell.movement_ids] : [cell.catalog_key], cell.catalog_key);
+  const movements = exceptCurrent(cell.movement_ids != null ? [...cell.movement_ids] : [cell.catalog_key], cell.catalog_key);
   const base = {
     day: stringEnum([cell.day]),
     block: stringEnum([cell.block]),

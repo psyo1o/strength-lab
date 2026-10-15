@@ -1,0 +1,847 @@
+{
+  "plan_lab": {
+    "mode": "db",
+    "model": "gpt-5.4-nano",
+    "structure": "ca5cd2f19f21c28c",
+    "member": "absence",
+    "scenarios": [
+      "absence-W1",
+      "absence-W2",
+      "absence-W3",
+      "absence-W4"
+    ],
+    "passes": 2,
+    "summary": {
+      "weeks_attempted": 8,
+      "skeleton_saved": 8,
+      "skeleton_save_rate": 1,
+      "weeks_matching_after_repair": 8,
+      "lock_violations_before": 0,
+      "lock_violations_after": 0,
+      "lock_before_kinds": {},
+      "lock_after_kinds": {},
+      "regenerated_days": 0,
+      "fitted_days": 0,
+      "unresolved_days": 0,
+      "failed_weeks": 0,
+      "day_final_sources": {
+        "MODEL": 24,
+        "MODEL_REVISED": 24,
+        "MODEL_ADJUSTED": 0,
+        "HEAD_ADJUSTED": 0,
+        "DETERMINISTIC_ADJUSTMENT": 0,
+        "FALLBACK": 0,
+        "FAILED": 0
+      },
+      "model_weeks": 8,
+      "fallback_weeks": 0,
+      "session_failure_kinds": {},
+      "normalizations": {
+        "unit_seen": 0,
+        "unit_converted": 0,
+        "unit_unconverted": 0,
+        "display_rewrites": 88
+      },
+      "session_rewrite": {
+        "retried_pass": 0,
+        "retried_fail": 0,
+        "retained_first_error": 0,
+        "retry_without_first_error": 0
+      },
+      "unit_quality": {
+        "sessions": 0,
+        "first_attempt_clean": 0,
+        "double_under_errors": 0,
+        "row_errors": 0,
+        "other_unit_errors": 0,
+        "adopted_pass": 0,
+        "not_success": 0,
+        "time_based_accepted": 0,
+        "prescription_revise": 0,
+        "prescription_unclear": 0
+      },
+      "consistency": {
+        "mismatches": [],
+        "mismatch_count": 0
+      },
+      "model_calls": 273,
+      "tokens": 2147105,
+      "tokens_unsupported": false,
+      "elapsed_ms": 584713,
+      "flags": {
+        "COACHING_PIPELINE": "1",
+        "LONGITUDINAL_PLANNING": "1"
+      }
+    },
+    "archive": {
+      "run_id": "lock-member-class-absence-9e99899a-4645-45c3-ab2d-f9af45b62281",
+      "root": "docs/lock-member-class-absence-runs",
+      "raw_saved": true,
+      "summary_is_not_raw": true,
+      "a1_intact_after_a2": true,
+      "missing": [],
+      "passes": [
+        {
+          "pass": "A1",
+          "dir": "docs/lock-member-class-absence-runs/lock-member-class-absence-9e99899a-4645-45c3-ab2d-f9af45b62281/A1",
+          "files": [
+            "generation-logs.json",
+            "weeks.json",
+            "months.json",
+            "evaluations.json",
+            "usage.json"
+          ]
+        },
+        {
+          "pass": "A2",
+          "dir": "docs/lock-member-class-absence-runs/lock-member-class-absence-9e99899a-4645-45c3-ab2d-f9af45b62281/A2",
+          "files": [
+            "generation-logs.json",
+            "weeks.json",
+            "months.json",
+            "evaluations.json",
+            "usage.json"
+          ]
+        }
+      ]
+    },
+    "months": [
+      {
+        "pass": "A1",
+        "months": [
+          {
+            "month_start": "2099-11-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "no_model",
+            "evaluation_status": "no_previous_month",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-12-01",
+            "scheme": "volume",
+            "strength_method": "ACCUMULATION",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          }
+        ]
+      },
+      {
+        "pass": "A2",
+        "months": [
+          {
+            "month_start": "2099-11-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "no_model",
+            "evaluation_status": "no_previous_month",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-12-01",
+            "scheme": "volume",
+            "strength_method": "ACCUMULATION",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          }
+        ]
+      }
+    ],
+    "runs": [
+      {
+        "pass": "A1",
+        "weeks": [
+          {
+            "id": "absence-W1",
+            "week": "2099-12-07",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": null,
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "accumulation",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 61842,
+            "log_count": 125,
+            "model_calls": 24,
+            "tokens": 188892,
+            "log_latency_ms": 89309,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 0,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 8,
+              "rules": {
+                "catalog_name_ko": 8
+              }
+            },
+            "previous_actual": {
+              "week": "2099-11-30",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 6,
+              "completed_days": 0,
+              "record": "summary"
+            },
+            "audit": {
+              "final_validator_errors": 0,
+              "lock_mismatch": 0,
+              "applied_still_violating": 0,
+              "pipeline_failure_slots": 0,
+              "deterministic_adjustment": 0,
+              "fallback_days": 0
+            }
+          },
+          {
+            "id": "absence-W2",
+            "week": "2099-12-14",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": null,
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "progression",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 84025,
+            "log_count": 185,
+            "model_calls": 38,
+            "tokens": 308910,
+            "log_latency_ms": 150491,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 0,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 12,
+              "rules": {
+                "catalog_name_ko": 12
+              }
+            },
+            "previous_actual": {
+              "week": "2099-12-07",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 6,
+              "completed_days": 0,
+              "record": "summary"
+            },
+            "audit": {
+              "final_validator_errors": 0,
+              "lock_mismatch": 0,
+              "applied_still_violating": 0,
+              "pipeline_failure_slots": 0,
+              "deterministic_adjustment": 0,
+              "fallback_days": 0
+            }
+          },
+          {
+            "id": "absence-W3",
+            "week": "2099-12-21",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": null,
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "peak",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 77521,
+            "log_count": 186,
+            "model_calls": 39,
+            "tokens": 325397,
+            "log_latency_ms": 149451,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 0,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 12,
+              "rules": {
+                "catalog_name_ko": 12
+              }
+            },
+            "previous_actual": {
+              "week": "2099-12-14",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 6,
+              "completed_days": 0,
+              "record": "summary"
+            },
+            "audit": {
+              "final_validator_errors": 0,
+              "lock_mismatch": 0,
+              "applied_still_violating": 0,
+              "pipeline_failure_slots": 0,
+              "deterministic_adjustment": 0,
+              "fallback_days": 0
+            }
+          },
+          {
+            "id": "absence-W4",
+            "week": "2099-12-28",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": null,
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 71315,
+            "log_count": 174,
+            "model_calls": 36,
+            "tokens": 258069,
+            "log_latency_ms": 136310,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 0,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 12,
+              "rules": {
+                "catalog_name_ko": 12
+              }
+            },
+            "previous_actual": {
+              "week": "2099-12-21",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 6,
+              "completed_days": 0,
+              "record": "summary"
+            },
+            "audit": {
+              "final_validator_errors": 0,
+              "lock_mismatch": 0,
+              "applied_still_violating": 0,
+              "pipeline_failure_slots": 0,
+              "deterministic_adjustment": 0,
+              "fallback_days": 0
+            }
+          }
+        ],
+        "token_stop": null
+      },
+      {
+        "pass": "A2",
+        "weeks": [
+          {
+            "id": "absence-W1",
+            "week": "2099-12-07",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": null,
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "accumulation",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 50612,
+            "log_count": 125,
+            "model_calls": 23,
+            "tokens": 177878,
+            "log_latency_ms": 86689,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 0,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 8,
+              "rules": {
+                "catalog_name_ko": 8
+              }
+            },
+            "previous_actual": {
+              "week": "2099-11-30",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 6,
+              "completed_days": 0,
+              "record": "summary"
+            },
+            "audit": {
+              "final_validator_errors": 0,
+              "lock_mismatch": 0,
+              "applied_still_violating": 0,
+              "pipeline_failure_slots": 0,
+              "deterministic_adjustment": 0,
+              "fallback_days": 0
+            }
+          },
+          {
+            "id": "absence-W2",
+            "week": "2099-12-14",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": null,
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "progression",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 78684,
+            "log_count": 185,
+            "model_calls": 38,
+            "tokens": 304003,
+            "log_latency_ms": 141949,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 0,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 12,
+              "rules": {
+                "catalog_name_ko": 12
+              }
+            },
+            "previous_actual": {
+              "week": "2099-12-07",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 6,
+              "completed_days": 0,
+              "record": "summary"
+            },
+            "audit": {
+              "final_validator_errors": 0,
+              "lock_mismatch": 0,
+              "applied_still_violating": 0,
+              "pipeline_failure_slots": 0,
+              "deterministic_adjustment": 0,
+              "fallback_days": 0
+            }
+          },
+          {
+            "id": "absence-W3",
+            "week": "2099-12-21",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": null,
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "peak",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 80761,
+            "log_count": 186,
+            "model_calls": 39,
+            "tokens": 325663,
+            "log_latency_ms": 147066,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 0,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 12,
+              "rules": {
+                "catalog_name_ko": 12
+              }
+            },
+            "previous_actual": {
+              "week": "2099-12-14",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 6,
+              "completed_days": 0,
+              "record": "summary"
+            },
+            "audit": {
+              "final_validator_errors": 0,
+              "lock_mismatch": 0,
+              "applied_still_violating": 0,
+              "pipeline_failure_slots": 0,
+              "deterministic_adjustment": 0,
+              "fallback_days": 0
+            }
+          },
+          {
+            "id": "absence-W4",
+            "week": "2099-12-28",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": null,
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 79953,
+            "log_count": 174,
+            "model_calls": 36,
+            "tokens": 258293,
+            "log_latency_ms": 144260,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 0,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 0,
+                "first_attempt_clean": 0,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 0,
+                "not_success": 0,
+                "time_based_accepted": 0,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 12,
+              "rules": {
+                "catalog_name_ko": 12
+              }
+            },
+            "previous_actual": {
+              "week": "2099-12-21",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 6,
+              "completed_days": 0,
+              "record": "summary"
+            },
+            "audit": {
+              "final_validator_errors": 0,
+              "lock_mismatch": 0,
+              "applied_still_violating": 0,
+              "pipeline_failure_slots": 0,
+              "deterministic_adjustment": 0,
+              "fallback_days": 0
+            }
+          }
+        ],
+        "token_stop": null
+      }
+    ]
+  }
+}

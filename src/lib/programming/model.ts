@@ -41,7 +41,7 @@ import {
   type WeekIndex,
   type WeeklyIntentPlan,
 } from "./types";
-import { intentContextView, parseWeeklyIntent, planWeeklyIntent, type WeeklyIntentContext } from "./weekly-intent";
+import { classSummaryForCoach, intentContextView, parseWeeklyIntent, planWeeklyIntent, type WeeklyIntentContext } from "./weekly-intent";
 import type { ProgrammingSummary } from "./summary";
 
 export const WEEK_MAX_TOKENS = 8_000;
@@ -1071,7 +1071,7 @@ export function weekPrompt(input: {
           week_start: previous.week_start,
           generation_source: previous.generation_source,
           intent: previous.programming_intent,
-          class_summary: previous.actual?.class_summary ?? null,
+          class_summary: classSummaryForCoach(previous.actual),
         }
       : null,
     recent_structures: (input.recent ?? []).map((row) => ({

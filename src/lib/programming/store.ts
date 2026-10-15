@@ -178,6 +178,7 @@ export function recordPipelineFailure(input: {
   reason: string;
   message: string;
   traces?: readonly unknown[];
+  slots?: readonly { day: string; code: string; field: string; message: string }[];
   createdAt?: number;
 }): void {
   try {
@@ -196,6 +197,7 @@ export function recordPipelineFailure(input: {
           stage: input.stage,
           reason: redactSecretText(input.reason).slice(0, 300),
           message: redactSecretText(input.message).slice(0, 2000),
+          ...(input.slots ? { slots: input.slots.map((slot) => ({ ...slot, message: redactSecretText(slot.message).slice(0, 500) })) } : {}),
         }),
       ),
       now,

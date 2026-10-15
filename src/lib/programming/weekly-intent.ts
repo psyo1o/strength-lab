@@ -55,6 +55,12 @@ export type PerformanceRead = {
   many_missed: boolean;
 };
 
+/**
+ * 2026-10-15. 공용 클래스 WOD는 회원 결석 수를 반영하지 않는다.
+ * 결석 판정과 감량 분기는 개인화에서 이 값을 true로 켠다.
+ */
+export const PERSONALIZATION_USES_ABSENCE = false;
+
 type Slot = {
   primary_training: PrimaryTraining;
   secondary_training: SecondaryTraining;
@@ -142,11 +148,20 @@ function slot(
   };
 }
 
+/** 결석이 많은 주인지. 공용 WOD는 이 값을 상한에 쓰지 않는다. */
+export function recordedManyMissed(actual: WeekActual | null | undefined): boolean {
+  const summary = actual?.class_summary;
+  const missed = summary?.missed_days ?? actual?.days.filter((day) => !day.rest && day.completed === false).length ?? 0;
+  const completed = summary?.completed_days ?? actual?.days.filter((day) => day.completed).length ?? 0;
+  return summary != null && (missed >= 3 || (completed > 0 && completed <= 2 && missed >= 2));
+}
+
 export function performanceRead(actual: WeekActual | null | undefined): PerformanceRead {
   const lower = previousLowerFatigue(actual);
-  const missed = actual?.class_summary?.missed_days ?? actual?.days.filter((day) => !day.rest && day.completed === false).length ?? 0;
-  const completed = actual?.class_summary?.completed_days ?? actual?.days.filter((day) => day.completed).length ?? 0;
-  const manyMissed = missed >= 3 || (actual != null && completed > 0 && completed <= 2 && missed >= 2);
+  const summary = actual?.class_summary;
+  const missed = summary?.missed_days ?? actual?.days.filter((day) => !day.rest && day.completed === false).length ?? 0;
+  const completed = summary?.completed_days ?? actual?.days.filter((day) => day.completed).length ?? 0;
+  const manyMissed = PERSONALIZATION_USES_ABSENCE && recordedManyMissed(actual);
   const strengthSucceeded = actual != null && !manyMissed && lower !== "high" && lower !== "unknown" && completed >= 4;
   return {
     lower_fatigue: lower,
@@ -155,6 +170,49 @@ export function performanceRead(actual: WeekActual | null | undefined): Performa
     strength_succeeded: strengthSucceeded,
     many_missed: manyMissed,
   };
+}
+
+/** 코치 입력에 넣는 완료 수. 공용 WOD에서는 결석 수를 빼 둔다. */
+export function classCompletionForCoach(
+  actual: WeekActual | null | undefined,
+): { completed_days: number; missed_days?: number } | null {
+  const summary = actual?.class_summary;
+  if (!summary) return null;
+  if (PERSONALIZATION_USES_ABSENCE) return { completed_days: summary.completed_days, missed_days: summary.missed_days };
+  return { completed_days: summary.completed_days };
+}
+
+/** 코치 입력에 넣는 클래스 요약. 공용 WOD에서는 결석 수와 결석 문장을 빼 둔다. */
+export function classSummaryForCoach(actual: WeekActual | null | undefined): Record<string, unknown> | null {
+  const summary = actual?.class_summary;
+  if (!summary) return null;
+  if (PERSONALIZATION_USES_ABSENCE) return { ...summary };
+  const { missed_days: _missed, plan_vs_actual, ...rest } = summary;
+  const plan = /미완료|빠뜨린 훈련일/.test(plan_vs_actual) ? null : plan_vs_actual;
+  return plan ? { ...rest, plan_vs_actual: plan } : { ...rest };
+}
+
+/** 주간 뼈대 요약처럼 중첩된 입력에서 결석 수만 뺀다. 저장된 기록은 바꾸지 않는다. */
+export function omitAbsenceSummary<T>(value: T): T {
+  if (PERSONALIZATION_USES_ABSENCE || value == null) return value;
+  return walkAbsence(value) as T;
+}
+
+function walkAbsence(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(walkAbsence);
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  const absenceLabel =
+    record.result_ko === "결석" || (typeof record.result_ko === "string" && record.result_ko.includes("결석"));
+  const out: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(record)) {
+    if (key === "missed_days") continue;
+    if (absenceLabel && (key === "result_ko" || key === "completed")) continue;
+    if (key === "plan_vs_actual" && typeof item === "string" && /미완료|빠뜨린 훈련일/.test(item)) continue;
+    if (key === "note_ko" && typeof item === "string" && /빠진 훈련일/.test(item)) continue;
+    out[key] = walkAbsence(item);
+  }
+  return out;
 }
 
 export function monthEmphasis(month: MonthDirection): IntentEmphasis {
@@ -305,7 +363,7 @@ function applyPhase(days: Slot[], phase: BlockPhase): void {
 }
 
 function applyPerformance(days: Slot[], read: PerformanceRead, recent: readonly WeeklyIntentPlan[]): string {
-  if (read.lower_fatigue === "high") {
+  if (read.lower_fatigue === "high" || read.many_missed) {
     const lowers = days.filter(
       (day) => day.strength_lift === "squat" || day.strength_lift === "deadlift" || day.primary_training === "lower_strength" || day.primary_training === "posterior_chain",
     );
@@ -329,17 +387,17 @@ function applyPerformance(days: Slot[], read: PerformanceRead, recent: readonly 
       keep.progression_required = false;
       keep.intensity_profile = "moderate";
     }
-    return "지난주 하체 피로가 높아 하체 노출을 한 번으로 줄이고 볼륨을 낮춥니다.";
-  }
-  if (read.many_missed) {
-    for (const day of days) {
-      if (day.primary_training === "rest") continue;
-      day.progression_required = false;
-      if (day.volume_profile === "high") day.volume_profile = "moderate";
-      else if (day.duration_profile !== "60-75") day.volume_profile = "low";
-      day.fatigue_target = "low";
+    if (read.many_missed) {
+      for (const day of days) {
+        if (day.primary_training === "rest") continue;
+        day.progression_required = false;
+        day.volume_profile = "low";
+        day.fatigue_target = "low";
+      }
     }
-    return "지난주 미완료가 많아 같은 훈련 목적을 더 낮은 볼륨으로 이어 갑니다.";
+    return read.lower_fatigue === "high"
+      ? "지난주 하체 피로가 높아 하체 노출을 한 번으로 줄이고 볼륨을 낮춥니다."
+      : "지난주 미완료가 많아 같은 훈련 목적을 더 낮은 볼륨으로 이어 갑니다.";
   }
   if (read.strength_succeeded) {
     for (const day of days) {
@@ -649,7 +707,7 @@ export function intentContextView(context: WeeklyIntentContext) {
       fatigue_direction: context.month.fatigue_direction,
     },
     week_index: context.weekIndex,
-    performance: read,
+    performance: PERSONALIZATION_USES_ABSENCE ? read : (({ missed_days: _missed, ...rest }) => rest)(read),
     recent_intents: (context.recentPlans ?? []).map((plan) => ({
       week_index: plan.week_index,
       block_phase: plan.block_phase,

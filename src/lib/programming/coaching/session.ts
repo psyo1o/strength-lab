@@ -291,7 +291,8 @@ export function sessionFromCoachJson(input: {
     volume: volume as VolumeBand,
     mono: movements.length < 2,
   };
-  const lift = longPiece || input.intent.strength_lift === "none" ? null : input.intent.strength_lift;
+  const namedLift = input.intent.strength_lift;
+  const lift = namedLift && namedLift !== "none" ? namedLift : null;
   const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual) : null;
   const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
   const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark);
@@ -359,7 +360,8 @@ export function buildSession(input: {
     });
   }
   const longPiece = day.secondary_training === "long_conditioning";
-  const lift = longPiece || day.strength_lift === "none" ? null : day.strength_lift;
+  const namedLift = day.strength_lift;
+  const lift = namedLift && namedLift !== "none" ? namedLift : null;
   const recipe = pickRecipe({
     intent: day,
     salt: input.salt,

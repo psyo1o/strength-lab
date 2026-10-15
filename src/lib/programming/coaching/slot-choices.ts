@@ -18,7 +18,7 @@ import {
   standardMovements,
   type CatalogUnit,
 } from "./movement-catalog";
-import { intensityBandsForStimulus, stimuliForCeiling, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { intensityLockEnum, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
@@ -443,8 +443,8 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
   if (frame.contract) {
     const minutes = (role: DaySessionLock["blocks"][number]["role"]) => frame.contract?.blocks.find((block) => block.role === role)?.minutes ?? 0;
     if (frame.area === "conditioning") {
-      const stimuli = stimuliForCeiling(frame.contract.intensity_ceiling, frame.piece?.stimulus);
-      const bands = intensityBandsForStimulus(frame.contract.intensity_ceiling, stimuli);
+      const stimuli = stimulusLockEnum(frame.contract, frame.piece?.stimulus);
+      const bands = intensityLockEnum(frame.contract, stimuli);
       for (const key of ["metcon_format", "metcon_minutes", "extra_minutes", "stimulus", "intensity"]) required.push(key);
       properties.metcon_format = { type: "string", enum: [frame.contract.format] };
       properties.metcon_minutes = { type: "integer", enum: [frame.contract.metcon_minutes] };
@@ -714,8 +714,8 @@ function expandContract(
     if (echoed(body.metcon_format) !== lock.format) errors.push("metcon_format does not match the lock");
     if (echoed(body.metcon_minutes) !== String(lock.metcon_minutes)) errors.push("metcon_minutes does not match the lock");
     if (echoed(body.extra_minutes) !== String(minutesOf("extra_conditioning"))) errors.push("extra_minutes does not match the lock");
-    const stimuli = stimuliForCeiling(lock.intensity_ceiling, frame.piece?.stimulus);
-    const bands = intensityBandsForStimulus(lock.intensity_ceiling, stimuli);
+    const stimuli = stimulusLockEnum(lock, frame.piece?.stimulus);
+    const bands = intensityLockEnum(lock, stimuli);
     const pickedStimulus = echoed(body.stimulus);
     if (!(stimuli as readonly string[]).includes(pickedStimulus)) errors.push("stimulus is outside the locked ceiling");
     const picked = echoed(body.intensity);

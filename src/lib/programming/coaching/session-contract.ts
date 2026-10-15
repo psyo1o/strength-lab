@@ -88,6 +88,10 @@ export type DaySessionLock = {
   patterns: string[];
   /** 뼈대가 잠근 컨디셔닝 강도 상한. 없으면 heavy. */
   intensity_ceiling: IntensityCeiling;
+  /** 뼈대가 잠근 세션 자극. 없으면 상한 안의 자극을 연다. */
+  stimulus: string | null;
+  /** 뼈대가 잠근 강도 칸. 상한 안이면 그 값만 연다. */
+  intensity_class: IntensityCeiling | null;
 };
 
 type Pace = {
@@ -257,7 +261,11 @@ export type ContractDayInput = {
   long: boolean;
   domain: MetconBand | null;
   lift: MainLift | "none" | null;
+  /** 저장된 주에 메인 블록이 있으면 그 분 배분을 유지한다. 리프트 이름이 없어도 메인 없는 날로 바꾸지 않는다. */
+  has_main?: boolean;
   intensity_ceiling?: IntensityCeiling;
+  stimulus?: string | null;
+  intensity_class?: IntensityCeiling | null;
 };
 
 function bandFor(day: ContractDayInput, index: number): MetconBand {
@@ -370,6 +378,8 @@ export function planWeekContract(
         extra: { key: "easy_jog", unit: "sec", amount: 150 },
         patterns: [],
         intensity_ceiling: day.intensity_ceiling ?? "heavy",
+        stimulus: day.stimulus ?? null,
+        intensity_class: day.intensity_class ?? null,
       };
     }
     const index = training.findIndex((row) => row.day === day.day);
@@ -379,8 +389,9 @@ export function planWeekContract(
     const lift = liftOf(day.lift);
     // 리프트가 없는 짧은·중간 날은 스킬만으로 90분에 닿지 않는다. 메인 분량은 패턴 연습이다.
     const patternMain = lift == null && band !== "long";
-    const fitted = fitBlocks({ hasMain: lift != null || patternMain, metcon: minutes, setting });
-    const roles: ContractRole[] = lift != null || patternMain
+    const hasMain = day.has_main ?? (lift != null || patternMain);
+    const fitted = fitBlocks({ hasMain, metcon: minutes, setting });
+    const roles: ContractRole[] = hasMain
       ? ["warmup", "main_lift", "skill_or_accessory", "metcon", "extra_conditioning", "cooldown"]
       : ["warmup", "skill_or_accessory", "metcon", "extra_conditioning", "cooldown"];
     const blocks: ContractBlock[] = roles.map((role) => ({
@@ -416,6 +427,8 @@ export function planWeekContract(
       extra: template.extra,
       patterns: template.patterns,
       intensity_ceiling: day.intensity_ceiling ?? "heavy",
+      stimulus: day.stimulus ?? null,
+      intensity_class: day.intensity_class ?? null,
     };
   });
 }
@@ -594,6 +607,120 @@ function doseFrom(row: { key?: string; unit?: string; amount_value?: number; amo
   return { key: row.key, unit, amount };
 }
 
+/** 세션 스키마, 헤드 패치, final_validator가 같이 쓰는 잠금 필드. */
+export const LOCK_FIELDS = ["format", "metcon_dose", "block_minutes", "intensity_ceiling", "stimulus"] as const;
+export type LockField = (typeof LOCK_FIELDS)[number];
+
+export type SlotCause = {
+  day: string;
+  code: string;
+  field: string;
+  message: string;
+};
+
+const LOCK_PATCH_FIELDS = new Set([
+  "format",
+  "metcon_format",
+  "metcon_dose",
+  "metcon_minutes",
+  "block_minutes",
+  "intensity_ceiling",
+  "stimulus",
+]);
+
+/** 잠금 필드 이름은 헤드 패치 대상이 아니다. 동작 수량은 적용 뒤 잠금으로 다시 본다. */
+export function isLockPatchField(field: string): boolean {
+  return LOCK_PATCH_FIELDS.has(field);
+}
+
+export function lockSnapshot(lock: DaySessionLock): string {
+  const blocks = lock.blocks.map((block) => `${block.role}:${block.minutes}`).join(",");
+  const dose = lock.metcon.map((move) => `${move.key}:${move.unit}:${move.amount}`).join("|");
+  return [lock.format, dose, blocks, lock.intensity_ceiling, lock.stimulus ?? "", lock.intensity_class ?? ""].join("~");
+}
+
+export function sameLockSnapshot(left: DaySessionLock, right: DaySessionLock): boolean {
+  return lockSnapshot(left) === lockSnapshot(right);
+}
+
+/** 뼈대 자극이 있으면 그 값만. 상한과 같이 있을 수 없으면 빈 목록이다. light 칸은 heavy 자극을 열지 않는다. */
+export function stimulusLockEnum(
+  lock: Pick<DaySessionLock, "intensity_ceiling" | "stimulus" | "intensity_class">,
+  current: string | null | undefined,
+): Stimulus[] {
+  const stimuli = stimuliForCeiling(lock.intensity_ceiling, lock.stimulus ?? current);
+  if (lock.intensity_class !== "light") return stimuli;
+  const withoutHeavy = stimuli.filter((item) => item !== "heavy");
+  return withoutHeavy.length ? withoutHeavy : [];
+}
+
+/** 뼈대 강도 칸이 있으면 그 값만. 상한 밖이면 빈 목록이다. 다른 밴드로 바꾸지 않는다. */
+export function intensityLockEnum(
+  lock: Pick<DaySessionLock, "intensity_ceiling" | "intensity_class">,
+  stimuli: readonly string[],
+): IntensityCeiling[] {
+  const ceilingBands = intensityBandsAtMost(lock.intensity_ceiling);
+  if (!lock.intensity_class) return intensityBandsForStimulus(lock.intensity_ceiling, stimuli);
+  return ceilingBands.includes(lock.intensity_class) ? [lock.intensity_class] : [];
+}
+
+type LockSession = {
+  day?: string;
+  conditioning?: {
+    format?: string | null;
+    stimulus?: string | null;
+    intensity?: string | null;
+    movements?: { key?: string; unit?: string; amount?: string | number; amount_value?: number }[];
+  } | null;
+  session_blocks?: { role?: string; minutes?: number; movements?: { key?: string; unit?: string; amount?: number; amount_value?: number }[] }[];
+};
+
+/** 포맷, 메트콘 양, 블록 분, 강도 상한, 자극. 세 경로가 이 문장만 쓴다. */
+export function lockMismatchMessages(session: LockSession, lock: DaySessionLock): string[] {
+  const day = session.day ?? lock.day;
+  const errors: string[] = [];
+  const blocks = session.session_blocks ?? [];
+  for (const block of lock.blocks) {
+    const found = blocks.find((row) => row.role === block.role);
+    if (!found) errors.push(`${day} is missing ${block.role}`);
+    else if (found.minutes !== block.minutes) errors.push(`${day} ${block.role} minutes ${found.minutes} do not match lock ${block.minutes}`);
+  }
+  const metcon = blocks.find((block) => block.role === "metcon");
+  const blockMoves = (metcon?.movements ?? []).map((row) => doseFrom(row)).filter((row): row is DoseMovement => row != null);
+  if (blockMoves.length !== lock.metcon.length || blockMoves.some((move, index) => !sameDose(move, lock.metcon[index]!))) {
+    errors.push(`${day} metcon does not match the locked dose`);
+  }
+  if (session.conditioning?.format && session.conditioning.format !== lock.format) {
+    errors.push(`${day} format ${session.conditioning.format} does not match lock ${lock.format}`);
+  }
+  if (lock.stimulus && session.conditioning?.stimulus && session.conditioning.stimulus !== lock.stimulus) {
+    errors.push(`${day} stimulus ${session.conditioning.stimulus} does not match lock ${lock.stimulus}`);
+  }
+  const intensity = session.conditioning?.intensity;
+  if (intensity && !intensityBandsAtMost(lock.intensity_ceiling).includes(intensity as IntensityCeiling)) {
+    errors.push(`${day} intensity ${intensity} is above the locked ceiling ${lock.intensity_ceiling}`);
+  } else if (lock.intensity_class && intensity && intensity !== lock.intensity_class) {
+    errors.push(`${day} intensity ${intensity} does not match lock ${lock.intensity_class}`);
+  }
+  return errors;
+}
+
+export function slotCauseFromMessage(message: string): SlotCause {
+  const day = message.match(/^(mon|tue|wed|thu|fri|sat|sun)/)?.[1] ?? "week";
+  if (message.includes("locked dose")) return { day, code: "lock.metcon_dose", field: "metcon_dose", message };
+  if (message.includes("format") && message.includes("does not match lock")) return { day, code: "lock.format", field: "format", message };
+  if (message.includes("minutes") && message.includes("do not match lock")) return { day, code: "lock.block_minutes", field: "block_minutes", message };
+  if (message.includes("stimulus") && message.includes("does not match lock")) return { day, code: "lock.stimulus", field: "stimulus", message };
+  if (message.includes("locked ceiling") || (message.includes("intensity") && message.includes("does not match lock"))) {
+    return { day, code: "lock.intensity_ceiling", field: "intensity_ceiling", message };
+  }
+  if (message.startsWith("empty_enum")) {
+    const path = message.split(":")[1] ?? "enum";
+    return { day: path.split(".")[0] || day, code: "empty_enum", field: path, message };
+  }
+  return { day, code: "hard_error", field: day, message };
+}
+
 /** 세션에 블록이 있을 때만 검사한다. 예전 주는 이 검사를 타지 않는다. */
 export function weekContractIssues(raw: unknown, weekIndex: WeekIndex = 1, method = "531"): string[] {
   const sessions = readSessions(raw);
@@ -603,12 +730,14 @@ export function weekContractIssues(raw: unknown, weekIndex: WeekIndex = 1, metho
     const domain = session.conditioning?.time_domain;
     const band: MetconBand | null = domain === "short" || domain === "medium" || domain === "long" ? domain : duration >= 30 ? "long" : duration <= 12 ? "short" : duration ? "medium" : null;
     const lift = session.strength?.lift;
+    const hasMainBlock = (session.session_blocks ?? []).some((block) => block.role === "main_lift" && (block.minutes ?? 0) > 0);
     return {
       day: session.day as DayKey,
       rest: session.rest === true,
       long: band === "long",
       domain: band,
       lift: lift === "squat" || lift === "bench" || lift === "ohp" || lift === "deadlift" ? lift : "none",
+      has_main: hasMainBlock,
     };
   });
   const locks = planWeekContract(inputs, weekIndex, method);
@@ -627,20 +756,8 @@ export function weekContractIssues(raw: unknown, weekIndex: WeekIndex = 1, metho
     }
     errors.push(...lockIssues(lock));
     const actualRoles = session.session_blocks.map((block) => block.role);
-    for (const block of lock.blocks) {
-      const found = session.session_blocks.find((row) => row.role === block.role);
-      if (!found) errors.push(`${session.day} is missing ${block.role}`);
-      else if (found.minutes !== block.minutes) errors.push(`${session.day} ${block.role} minutes ${found.minutes} do not match lock ${block.minutes}`);
-    }
+    errors.push(...lockMismatchMessages(session, lock));
     if (new Set(actualRoles).size !== actualRoles.length) errors.push(`${session.day} repeats a block role`);
-    const metcon = session.session_blocks.find((block) => block.role === "metcon");
-    const moves = (metcon?.movements ?? []).map((row) => doseFrom(row)).filter((row): row is DoseMovement => row != null);
-    if (moves.length !== lock.metcon.length || moves.some((move, index) => !sameDose(move, lock.metcon[index]!))) {
-      errors.push(`${session.day} metcon does not match the locked dose`);
-    }
-    if (session.conditioning?.format && session.conditioning.format !== lock.format) {
-      errors.push(`${session.day} format ${session.conditioning.format} does not match lock ${lock.format}`);
-    }
     const total = session.session_blocks.reduce((sum, block) => sum + (block.minutes ?? 0), 0);
     if (total < SESSION_MINUTES_MIN || total > SESSION_MINUTES_MAX) errors.push(`${session.day} blocks sum to ${total}; allowed ${SESSION_MINUTES_MIN}–${SESSION_MINUTES_MAX}`);
     diversity.push({

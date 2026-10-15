@@ -11,7 +11,7 @@ import { coachModel } from "../src/lib/programming/coaching/models";
 import { coachSystemPrompt } from "../src/lib/programming/coaching/prompts";
 import { fatigueReport } from "../src/lib/programming/coaching/fatigue";
 import { simulateFourWeeks } from "../src/lib/programming/coaching/score";
-import { sessionFromCoachJson } from "../src/lib/programming/coaching/session";
+import { buildSession, sessionFromCoachJson } from "../src/lib/programming/coaching/session";
 import { variationReport } from "../src/lib/programming/coaching/variation";
 import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
 import { ensureProgrammingWeek } from "../src/lib/programming/engine";
@@ -215,6 +215,45 @@ describe("coaching pipeline", () => {
     expect(session?.conditioning?.time_domain).toBe("medium");
     expect(session?.conditioning?.duration_min).toBe(14);
     expect(session?.expected_duration).toBe(14);
+  });
+
+  it("keeps a locked lift on a long conditioning day", () => {
+    const plan = planCoachedWeek({ month: month531(), weekIndex: 1 });
+    const base = plan.days.find((row) => row.primary_training !== "rest")!;
+    const day = { ...base, secondary_training: "long_conditioning" as const, strength_lift: "ohp" as const };
+    const session = sessionFromCoachJson({
+      json: {
+        day: day.day,
+        warmup_ko: "관절을 먼저 풀어 줍니다.",
+        conditioning: {
+          format: "amrap",
+          duration_min: 36,
+          stimulus: "high_rep",
+          movements: [
+            { key: "burpee", amount: "8", name_ko: "버피" },
+            { key: "sit_up", amount: "10", name_ko: "싯업" },
+          ],
+          equipment: ["bodyweight"],
+          volume: "low",
+          intensity: "moderate",
+        },
+      },
+      intent: day,
+      month: month531(),
+      weekIndex: 1,
+    });
+    expect(session?.strength?.lift).toBe("ohp");
+    const fallback = buildSession({
+      intent: day,
+      month: month531(),
+      weekIndex: 1,
+      salt: 0,
+      previousStimulus: null,
+      chosen: [],
+      recent: [],
+      shortClock: false,
+    });
+    expect(fallback?.strength?.lift).toBe("ohp");
   });
 
   it("refuses the live class week as a probe", () => {

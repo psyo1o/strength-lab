@@ -14,6 +14,7 @@ import type {
   WeeklyIntentPlan,
   CoachingStimulus,
 } from "../types";
+import { classCompletionForCoach, omitAbsenceSummary } from "../weekly-intent";
 import { goalWeek, layoutFromGoal, restDayFor, weekTrainingLayout } from "./goal-table";
 import { resolveSessionMinutes } from "./session-contract";
 import { deterministicMonthlyPlan } from "./monthly";
@@ -73,7 +74,8 @@ export function weeklyCoachPayload(input: {
     class_minutes: resolveSessionMinutes().minutes,
     reported_fatigue: summary?.fatigue_signal ?? null,
     planned_volume: summary?.actual_volume ?? null,
-    completion: summary ? { completed_days: summary.completed_days, missed_days: summary.missed_days } : null,
+    completion: classCompletionForCoach(input.previousActual),
+    summary: omitAbsenceSummary(input.inputSummary ?? null),
     recent_intents: (input.recentPlans ?? []).slice(-4).map((plan) => ({
       week_index: plan.week_index,
       block_phase: plan.block_phase,
@@ -90,7 +92,6 @@ export function weeklyCoachPayload(input: {
     week_goal: goalWeek(month.goal_table, input.weekIndex),
     day_bounds: input.dayBounds ?? null,
     recent_structures: (input.recentStructures ?? []).slice(-24),
-    summary: input.inputSummary ?? null,
     previous_generation_source:
       input.inputSummary && typeof input.inputSummary === "object" && "previous_week" in input.inputSummary
         ? ((input.inputSummary as { previous_week?: { generation_source?: string } | null }).previous_week?.generation_source ?? null)
@@ -250,7 +251,7 @@ function daySlot(input: {
       pattern: hinge ? "hinge" : "squat",
       lift: input.lower,
       volume,
-      intensity: input.phase === "deload" ? "light" : "heavy",
+      intensity: input.phase === "deload" ? "light" : input.fatigued || input.missed ? "moderate" : "heavy",
       fatigue: input.fatigued ? "low" : "high",
       recovery: "train",
       progression: input.succeeded && !input.fatigued && input.phase !== "deload",
