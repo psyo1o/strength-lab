@@ -225,19 +225,36 @@ export const SKELETON_FORMAT_FAILED = "skeleton_format_failed";
 /**
  * 기본 6일 수업은 일요일 휴식, 월~토 훈련이다.
  * 모델이 평일을 휴식으로 두면 그 요일은 코드 시드의 훈련일로 바꾼다.
- * 둘 다 훈련이면 모델의 목표·강도·리프트를 남긴다.
+ * 둘 다 훈련이면 모델의 목표와 강도를 얹고, 리프트 슬롯은 코드 시드를 유지한다.
  */
 export function applyClassSkeletonFrame(days: SkeletonDay[], seed: WeeklySkeleton): SkeletonDay[] {
   const seedRest = seed.days.filter((day) => day.status === "rest");
   if (seedRest.length !== 1 || seedRest[0]?.day !== "sun") return days;
   const seedBy = new Map(seed.days.map((day) => [day.day, day]));
-  return DAY_ORDER.map((key) => {
+  const framed = DAY_ORDER.map((key) => {
     const model = days.find((day) => day.day === key);
     const code = seedBy.get(key);
     if (!code) return model ?? days[0]!;
     if (key === "sun" || !model || model.status === "rest") return structuredClone(code);
-    return model;
+    if (code.steady_zone2) return structuredClone(code);
+    return { ...model, strength: structuredClone(code.strength), status: "training" as const, steady_zone2: false };
   });
+  const hasLong = framed.some((day) => day.long_day && day.conditioning.duration_class === "long" && !day.steady_zone2);
+  if (!hasLong) {
+    const seedLong = seed.days.find((day) => day.long_day && !day.steady_zone2);
+    if (seedLong) {
+      const index = framed.findIndex((day) => day.day === seedLong.day);
+      const current = framed[index];
+      if (current && current.status === "training") {
+        framed[index] = {
+          ...current,
+          long_day: true,
+          conditioning: { ...current.conditioning, duration_class: "long" },
+        };
+      }
+    }
+  }
+  return framed;
 }
 
 export function skeletonFormatFailed(plan: LongitudinalPlan | null | undefined): boolean {

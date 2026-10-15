@@ -156,6 +156,17 @@ export function prescriptionAmountIssue(key: string, amount: string, durationMin
   const catalog = unitError(key, amount);
   if (!catalog) return { status: "ok" };
   const parsed = parsedAmount(amount);
+  const zone2Clock = key === "row_erg" || key === "bike_erg" || key === "run";
+  if (
+    zone2Clock &&
+    parsed.unit === "sec" &&
+    durationMin != null &&
+    durationMin >= 30 &&
+    durationMin <= 45 &&
+    parsed.value === durationMin * 60
+  ) {
+    return { status: "ok" };
+  }
   if (CLEAR_WORK_CLOCK.has(key) && parsed.unit === "sec" && Number.isInteger(parsed.value) && parsed.value > 0) {
     if (durationMin != null && Number.isFinite(durationMin) && parsed.value > durationMin * 60) {
       return {

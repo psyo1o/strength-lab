@@ -414,7 +414,9 @@ describe("active coaching contracts", () => {
     expect(separated).toMatchObject({ reported_fatigue: "low", planned_volume: "high" });
     const deterministic = planCoachedWeek({ month: month531(), weekIndex: 3, previousActual: tired });
     expect(deterministic.adjustment_ko).toContain("피로");
-    expect(deterministic.days.filter((day) => day.strength_lift === "squat" || day.strength_lift === "deadlift")).toHaveLength(1);
+    const lowers = deterministic.days.filter((day) => day.strength_lift === "squat" || day.strength_lift === "deadlift");
+    expect(lowers).toHaveLength(2);
+    expect(lowers.filter((day) => day.intensity_profile === "heavy")).toHaveLength(1);
   });
 
   it("case 4 and 13 keep the class week on the attended rules when the record has absences", () => {

@@ -20,6 +20,7 @@ import { deterministicGoalTable, goalTableErrors } from "./goal-table";
 import { monthlyStrategyErrors } from "./stage13/rules";
 import { askCoach, coachAttemptRecord, type CoachCall } from "./llm";
 import { MONTHLY_COACH_PROMPT_VERSION } from "./prompts";
+import { actualWithoutStaleFatigue, fatigueExpired } from "../rules";
 import { finishTrace, inputHash, type AgentTrace, type TokenUsage } from "./trace";
 
 export type MonthlyDirectionResult = {
@@ -117,14 +118,15 @@ export function withCoachingPlan(month: MonthDirection, actual?: WeekActual | nu
   return { ...month, coaching_plan: deterministicMonthlyPlan(month, actual) };
 }
 
-export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual | null): unknown {
-  const framed = buildMonthFrame(month, actual);
+export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual | null, weekStart?: string | null): unknown {
+  const fresh = actualWithoutStaleFatigue(actual, weekStart);
+  const framed = buildMonthFrame(month, fresh);
   if (!framed.ok) return { agent_name: "monthly_coach", frame_error: framed.reason };
   return {
     ...(monthCellUser(month, framed.frame) as Record<string, unknown>),
-    reported_fatigue: actual?.class_summary?.fatigue_signal ?? null,
-    planned_volume: actual?.class_summary?.actual_volume ?? null,
-    completion: classCompletionForCoach(actual),
+    reported_fatigue: fatigueExpired(actual, weekStart) ? null : (fresh?.class_summary?.fatigue_signal ?? null),
+    planned_volume: fresh?.class_summary?.actual_volume ?? null,
+    completion: classCompletionForCoach(fresh),
   };
 }
 
@@ -173,8 +175,9 @@ export async function coachMonthly(input: {
   reuse?: boolean;
 }): Promise<{ plan: MonthlyCoachPlan; trace: AgentTrace; direction: MonthlyDirectionResult }> {
   const started = Date.now();
-  const deterministic = deterministicMonthlyPlan(input.month, input.actual);
-  const payload = monthlyCoachPayload(input.month, input.actual);
+  const actual = actualWithoutStaleFatigue(input.actual, input.weekId);
+  const deterministic = deterministicMonthlyPlan(input.month, actual);
+  const payload = monthlyCoachPayload(input.month, input.actual, input.weekId);
   const key = monthlyReuseKey({
     monthId: input.monthId ?? "2099-07",
     profileId: input.profileId ?? "class",
@@ -188,7 +191,8 @@ export async function coachMonthly(input: {
     recorded.reuse_schema_version === MONTHLY_DIRECTION_SCHEMA_VERSION &&
     recorded.reuse_prompt_version === MONTHLY_COACH_PROMPT_VERSION;
   const legacy = recorded?.reuse_key == null && recorded?.reuse === true;
-  if (input.regen == null && recorded && tableReusable(recorded, input.month) && (keyed || legacy)) {
+  const previousFailure = recorded?.direction_degraded === true ? (recorded.direction_reason ?? "direction_degraded") : null;
+  if (input.regen == null && recorded && recorded.direction_degraded !== true && tableReusable(recorded, input.month) && (keyed || legacy)) {
     const direction = cachedDirection(recorded);
     const fromModel = recorded.source === "model" && direction.degraded !== true;
     return {
@@ -242,7 +246,7 @@ export async function coachMonthly(input: {
       }),
     };
   }
-  const framed = buildMonthFrame(input.month, input.actual);
+  const framed = buildMonthFrame(input.month, actual);
   if (!framed.ok) {
     const direction = fallbackDirection(framed.reason, true);
     return {
@@ -255,7 +259,7 @@ export async function coachMonthly(input: {
         model: null,
         prompt_version: MONTHLY_COACH_PROMPT_VERSION,
         input_hash: inputHash(payload),
-        input_summary: { method: deterministic.strength_method },
+        input_summary: { method: deterministic.strength_method, previous_monthly_failure: previousFailure },
         output: deterministic,
         model_input: payload,
         validation_result: "fail",
@@ -304,7 +308,7 @@ export async function coachMonthly(input: {
         model: call.model,
         prompt_version: call.promptVersion,
         input_hash: inputHash(payload),
-        input_summary: { method: deterministic.strength_method },
+        input_summary: { method: deterministic.strength_method, previous_monthly_failure: previousFailure },
         output: extra?.json ?? call.json,
         raw_output: extra?.raw ?? call.raw,
         model_input: payload,
@@ -370,7 +374,7 @@ export async function coachMonthly(input: {
       model: asked.model,
       prompt_version: asked.promptVersion,
       input_hash: inputHash(payload),
-      input_summary: { method: plan.strength_method, roles: plan.week_roles.map((row) => row.role) },
+      input_summary: { method: plan.strength_method, roles: plan.week_roles.map((row) => row.role), previous_monthly_failure: previousFailure },
       output: plan,
       raw_output: repair?.raw ?? asked.raw,
       parsed_output: plan,

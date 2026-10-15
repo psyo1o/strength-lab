@@ -18,7 +18,7 @@ import {
   standardMovements,
   type CatalogUnit,
 } from "./movement-catalog";
-import { intensityLockEnum, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { cleanDisplayName, intensityLockEnum, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
@@ -291,8 +291,12 @@ function contractSlots(area: SlotArea, day: DayIntent, lock: DaySessionLock): Fr
     }));
   }
   if (area === "strength") {
+    const main = lock.blocks.find((block) => block.role === "main_lift")?.movements[0];
+    const strength = main
+      ? [{ id: "s0", phase: "main", movements: [doseMovement(main)] }]
+      : strengthSlots(day);
     return [
-      ...strengthSlots(day),
+      ...strength,
       { id: "s1", phase: "skill", movements: [doseMovement(lock.skill)] },
     ];
   }
@@ -617,7 +621,7 @@ function conditioningJson(frame: SessionFrame, picks: SlotPick[]): Record<string
       amount: displayAmount(choice.amount, choice.unit),
       amount_value: choice.amount,
       unit: choice.unit,
-      name_ko: row?.name_ko ?? key,
+      name_ko: cleanDisplayName(row?.name_ko ?? key),
       load: prescribedLoad(key),
     };
   });
@@ -667,7 +671,7 @@ function movementFrom(key: string, option: QuantityChoice) {
     amount: displayAmount(option.amount, option.unit),
     amount_value: option.amount,
     unit: option.unit,
-    name_ko: row?.name_ko ?? key,
+    name_ko: cleanDisplayName(row?.name_ko ?? key),
     load: prescribedLoad(row?.key ?? key),
   };
 }
@@ -771,7 +775,9 @@ function expandContract(
           main_minutes: minutesOf("main_lift"),
           skill_minutes: minutesOf("skill_or_accessory"),
           skill: skill ? { key: skill.movement_id, unit: skill.option.unit, amount: skill.option.amount } : null,
-          main: !lock.lift && minutesOf("main_lift") > 0 && skill ? { key: skill.movement_id, unit: skill.option.unit, amount: skill.option.amount } : null,
+          main:
+            lock.blocks.find((block) => block.role === "main_lift")?.movements[0] ??
+            (!lock.lift && minutesOf("main_lift") > 0 && skill ? { key: skill.movement_id, unit: skill.option.unit, amount: skill.option.amount } : null),
         },
       },
     };

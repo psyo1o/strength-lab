@@ -147,9 +147,13 @@ function noneLiftEmphasis(days: SkeletonDay[]): RepairStep | null {
   return { transform: "none_lift_emphasis", day: hits[0]!.day, detail: "lift none keeps emphasis none" };
 }
 
+function countableLong(day: SkeletonDay): boolean {
+  return day.status === "training" && !day.steady_zone2 && (day.long_day || day.conditioning.duration_class === "long");
+}
+
 function clearUnexpectedLong(days: SkeletonDay[], longRequired: boolean): RepairStep | null {
   if (longRequired) return null;
-  const longs = days.filter((day) => day.status === "training" && (day.long_day || day.conditioning.duration_class === "long"));
+  const longs = days.filter((day) => countableLong(day));
   if (!longs.length) return null;
   for (const day of longs) {
     day.long_day = false;
@@ -160,10 +164,11 @@ function clearUnexpectedLong(days: SkeletonDay[], longRequired: boolean): Repair
 
 function promoteLong(days: SkeletonDay[], required: boolean): RepairStep | null {
   if (!required) return null;
-  if (days.some((day) => day.long_day && day.status === "training" && day.conditioning.duration_class === "long")) return null;
+  if (days.some((day) => day.long_day && day.status === "training" && day.conditioning.duration_class === "long" && !day.steady_zone2)) return null;
   const candidates = days.filter(
     (day) =>
       day.status === "training" &&
+      !day.steady_zone2 &&
       day.strength.emphasis !== "heavy_lower" &&
       day.strength.lift !== "squat" &&
       day.strength.lift !== "deadlift",

@@ -16,6 +16,7 @@ import type {
 } from "../types";
 import { classCompletionForCoach, omitAbsenceSummary } from "../weekly-intent";
 import { goalWeek, layoutFromGoal, restDayFor, weekTrainingLayout } from "./goal-table";
+import type { ClassLiftDay } from "./class-lifts";
 import { resolveSessionMinutes } from "./session-contract";
 import { deterministicMonthlyPlan } from "./monthly";
 import { extractWeekRules } from "./stage13/rules";
@@ -167,23 +168,51 @@ export function planCoachedWeek(input: {
       lower: lowers.get(day) ?? null,
       upper: uppers.get(day) ?? null,
       emphasis,
+      classDay: layout.classLifts?.find((row) => row.day === day) ?? null,
     });
     const intent = intentFrom(day, built);
+    const assigned = layout.classLifts?.find((row) => row.day === day);
+    if (layout.classLifts && longDay && day === longDay) intent.secondary_training = "long_conditioning";
+    if (assigned?.role === "zone2") {
+      intent.zone2 = "day";
+      intent.zone2_modality = assigned.movement;
+      intent.zone2_duration = phase === "deload" ? 30 : 40;
+      intent.zone2_effort = "conversational";
+      intent.zone2_hr = "unspecified";
+      intent.companion_movement = assigned.companion;
+      intent.notes_ko = "존 2는 30–45분, RPE 2–3이다. 가벼운 상체 풀이나 코어를 포함한다.";
+    } else if (assigned) {
+      intent.zone2 = "none";
+      intent.main_movement = assigned.movement;
+      intent.companion_movement = assigned.companion;
+      if (assigned.role === "squat" || assigned.role === "hinge") {
+        intent.lower_exposure = assigned.tag === "heavy" ? "heavy" : "volume";
+      }
+      intent.notes_ko = assigned.companion
+        ? `메인은 ${assigned.movement}이고 보조는 ${assigned.companion}이다.`
+        : `메인은 ${assigned.movement} ${assigned.tag}이다.`;
+    }
     const goalDay = lockedGoal?.days.find((row) => row.day === day);
     if (goalDay && !goalDay.rest && goalDay.target) {
-      intent.movement_pattern = goalDay.target.movement_pattern;
+      if (!layout.classLifts) intent.movement_pattern = goalDay.target.movement_pattern;
       intent.training_goal = goalDay.purpose;
     }
     return intent;
   });
 
-  const adjustment = fatigued
-    ? "지난주 보고된 피로가 높아 하체 노출과 볼륨을 줄입니다."
-    : missed
-      ? "미완료가 많아 같은 목적을 낮은 볼륨으로 유지하고 진행하지 않습니다."
+  const adjustment = layout.classLifts
+    ? fatigued
+      ? "지난주 보고된 피로가 높아 하체 헤비는 하나이고, 리프트 역할은 유지합니다."
       : succeeded
-        ? "지난주 수행이 안정적이라 진행을 유지합니다. 요일 고정은 하지 않습니다."
-        : "이번 주는 월간 방향을 새 순서로 배치합니다.";
+        ? "지난주 수행이 안정적이라 진행을 유지합니다. 리프트 역할은 코드가 정합니다."
+        : "리프트 역할은 코드가 정합니다. 스쿼트, 힌지, 프레스, 벤치, 올림픽을 두고 존 2를 하루 둡니다."
+    : fatigued
+      ? "지난주 보고된 피로가 높아 하체 노출과 볼륨을 줄입니다."
+      : missed
+        ? "미완료가 많아 같은 목적을 낮은 볼륨으로 유지하고 진행하지 않습니다."
+        : succeeded
+          ? "지난주 수행이 안정적이라 진행을 유지합니다. 요일 고정은 하지 않습니다."
+          : "이번 주는 월간 방향을 새 순서로 배치합니다.";
   const repeated = (input.recentSignatures ?? []).length >= 2;
   return {
     version: "intent-v1",
@@ -222,11 +251,63 @@ function daySlot(input: {
   lower: MainLift | null;
   upper: MainLift | null;
   emphasis: WeeklyIntentPlan["emphasis"];
+  classDay?: ClassLiftDay | null;
 }): Slot {
   const easy = input.phase === "deload" || input.fatigued || input.missed;
   const volume: VolumeBand = easy ? "low" : "moderate";
   const intensity = input.phase === "deload" ? "light" : input.lower && !input.fatigued ? "heavy" : "moderate";
-  if (input.day === input.longDay) {
+  const assigned = input.classDay;
+  if (assigned?.role === "zone2") {
+    return slot({
+      primary: "aerobic",
+      secondary: "aerobic",
+      stimulus: "aerobic_capacity",
+      pattern: "engine",
+      lift: "none",
+      volume: "low",
+      intensity: "light",
+      fatigue: "low",
+      recovery: "easy",
+      progression: false,
+      duration: "30-45",
+      benchmark: false,
+    });
+  }
+  if (assigned?.role === "press" || assigned?.role === "bench") {
+    const deload = input.phase === "deload";
+    return slot({
+      primary: "upper_strength",
+      secondary: "moderate_conditioning",
+      stimulus: deload ? "recovery_technique" : "strength_mixed",
+      pattern: "press",
+      lift: assigned.lift === "bench" ? "bench" : "ohp",
+      volume: deload ? "low" : volume,
+      intensity: deload ? "light" : "moderate",
+      fatigue: deload ? "low" : "moderate",
+      recovery: deload ? "easy" : "train",
+      progression: !deload && input.succeeded,
+      duration: "45-60",
+      benchmark: input.day === input.benchmarkDay,
+    });
+  }
+  if (assigned?.role === "olympic") {
+    const deload = input.phase === "deload";
+    return slot({
+      primary: "olympic_technique",
+      secondary: "technique",
+      stimulus: deload ? "recovery_technique" : "olympic_short",
+      pattern: "olympic",
+      lift: "none",
+      volume: "low",
+      intensity: deload ? "light" : "moderate",
+      fatigue: "low",
+      recovery: "train",
+      progression: false,
+      duration: "45-60",
+      benchmark: false,
+    });
+  }
+  if (input.day === input.longDay && !assigned) {
     return slot({
       primary: "aerobic",
       secondary: "long_conditioning",
@@ -251,7 +332,14 @@ function daySlot(input: {
       pattern: hinge ? "hinge" : "squat",
       lift: input.lower,
       volume,
-      intensity: input.phase === "deload" ? "light" : input.fatigued || input.missed ? "moderate" : "heavy",
+      intensity:
+        input.phase === "deload" || assigned?.tag === "light"
+          ? "light"
+          : assigned?.tag === "heavy"
+            ? "heavy"
+            : assigned?.tag === "volume" || assigned?.tag === "technique" || input.fatigued || input.missed
+              ? "moderate"
+              : "heavy",
       fatigue: input.fatigued ? "low" : "high",
       recovery: "train",
       progression: input.succeeded && !input.fatigued && input.phase !== "deload",
@@ -359,6 +447,34 @@ export function intensityWithinCode(
  * 둘 다 훈련인 평일은 모델의 포커스와, 코드 상한을 넘지 않는 강도만 얹는다.
  * 자극과 볼륨은 코드 요일이다.
  */
+/**
+ * 잠긴 뼈대를 의도로 되돌리면 리프트 키와 존 2가 빠진다.
+ * 코드가 정한 그 요일의 메인, 보조, 존 2만 다시 얹는다.
+ */
+export function carryClassLiftDays(locked: WeeklyIntentPlan, code: WeeklyIntentPlan): WeeklyIntentPlan {
+  if (!code.days.some((day) => day.zone2 === "day" || day.main_movement)) return locked;
+  const codeBy = new Map(code.days.map((day) => [day.day, day]));
+  return {
+    ...locked,
+    days: locked.days.map((day) => {
+      const source = codeBy.get(day.day);
+      if (!source || (source.zone2 !== "day" && !source.main_movement)) return day;
+      return {
+        ...day,
+        main_movement: source.main_movement,
+        companion_movement: source.companion_movement,
+        lower_exposure: source.lower_exposure,
+        zone2: source.zone2,
+        zone2_modality: source.zone2_modality,
+        zone2_duration: source.zone2_duration,
+        zone2_effort: source.zone2_effort,
+        zone2_hr: source.zone2_hr,
+        notes_ko: source.notes_ko || day.notes_ko,
+      };
+    }),
+  };
+}
+
 export function applyClassIntentFrame(model: WeeklyIntentPlan, code: WeeklyIntentPlan): WeeklyIntentPlan {
   const codeRest = code.days.filter((day) => day.primary_training === "rest" || day.recovery_role === "rest");
   if (codeRest.length !== 1 || codeRest[0]?.day !== "sun") return model;

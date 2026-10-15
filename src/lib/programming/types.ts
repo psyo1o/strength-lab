@@ -325,6 +325,12 @@ export type DayIntent = {
   strength_lift: StrengthLiftChoice;
   benchmark: boolean;
   notes_ko: string;
+  /** 코드가 정한 메인 바벨. 올림픽 날이 여기 둔다. */
+  main_movement?: string | null;
+  /** 약점을 보완하는 보조 동작. 메인과 같으면 안 된다. */
+  companion_movement?: string | null;
+  /** 하체가 둘일 때 헤비 하루와 볼륨 하루. 고피로의 볼륨 하루는 75% 이하다. */
+  lower_exposure?: "heavy" | "volume";
   /** 존 2 블록. 없으면 이 날은 존 2가 아니다. */
   zone2?: "none" | "addon" | "day";
   zone2_modality?: string;

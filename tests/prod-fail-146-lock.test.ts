@@ -301,10 +301,10 @@ describe("prod week 146 lock failure", () => {
     const month = fallbackMonth({ summary_ko: "5/3/1 블록을 네 주 유지합니다.", next_scheme: "531", strength_method: "531" });
     const monthly = deriveMonthlyThesis(month);
     const scenarios = [
-      { name: "normal", fatigue: "low" as const, missed: 0, lowers: 2, ceiling: "heavy", volume: "high" },
-      { name: "fatigue", fatigue: "high" as const, missed: 0, lowers: 1, ceiling: "moderate", volume: "low" },
-      { name: "absent", fatigue: "low" as const, missed: 6, lowers: 2, ceiling: "heavy", volume: "high" },
-      { name: "both", fatigue: "high" as const, missed: 6, lowers: 1, ceiling: "moderate", volume: "low" },
+      { name: "normal", fatigue: "low" as const, missed: 0, lowers: 2, heavy: 2, ceiling: "heavy", volume: "high" },
+      { name: "fatigue", fatigue: "high" as const, missed: 0, lowers: 2, heavy: 1, ceiling: "moderate", volume: "low" },
+      { name: "absent", fatigue: "low" as const, missed: 6, lowers: 2, heavy: 2, ceiling: "heavy", volume: "high" },
+      { name: "both", fatigue: "high" as const, missed: 6, lowers: 2, heavy: 1, ceiling: "moderate", volume: "low" },
     ];
     const absentRecord = actual("low", 6);
     expect(recordedManyMissed(absentRecord)).toBe(true);
@@ -316,7 +316,7 @@ describe("prod week 146 lock failure", () => {
       const plan = planCoachedWeek({ month, weekIndex: 2, previousActual: previous });
       const lowerDays = plan.days.filter((day) => day.strength_lift === "squat" || day.strength_lift === "deadlift");
       expect(lowerDays, scenario.name).toHaveLength(scenario.lowers);
-      if (scenario.lowers === 1) expect(lowerDays[0]?.intensity_profile).toBe("moderate");
+      expect(lowerDays.filter((day) => day.intensity_profile === "heavy"), scenario.name).toHaveLength(scenario.heavy);
       const thesis = deriveWeeklyThesis({ month, weekIndex: 2, intent: plan, monthly, previousActual: previous });
       expect(thesis.conditioning_intensity_ceiling, scenario.name).toBe(scenario.ceiling);
       expect(thesis.volume_ceiling, scenario.name).toBe(scenario.volume);

@@ -26,6 +26,10 @@ export type QualityReport = {
   critical: string[];
 };
 
+function heavyLowerCount(plan: { days: Array<{ strength_lift?: string; intensity_profile?: string }> }): number {
+  return plan.days.filter((day) => (day.strength_lift === "squat" || day.strength_lift === "deadlift") && day.intensity_profile === "heavy").length;
+}
+
 export const QUALITY_CRITERIA = [
   "monthly_alignment",
   "weekly_coherence",
@@ -51,14 +55,13 @@ export function qualityOf(input: { result: CoachWeekResult; month: MonthDirectio
   const movements = new Set(training.flatMap((session) => session.conditioning?.movements.map((movement) => movement.key) ?? []));
   const lifts = sessions.map((session) => session.strength?.lift).filter(Boolean);
   const hasRest = input.result.plan.days.some((day) => day.recovery_role === "rest");
-  const lowers = sessions.filter((session) => session.strength?.lift === "squat" || session.strength?.lift === "deadlift").length;
   const method = input.month.strength_method || input.month.scheme;
   const scores: Record<string, number> = {
     monthly_alignment: input.result.plan.strength_method === method ? 8 : 3,
     weekly_coherence: new Set(input.result.plan.days.map((day) => day.primary_training)).size >= 4 ? 8 : 5,
     progression: input.result.plan.days.some((day) => day.progression_required) || input.weekIndex === 4 ? 8 : 5,
     recovery: hasRest ? 8 : 3,
-    fatigue_management: input.result.fatigue.reported_fatigue === "high" ? (lowers <= 1 ? 8 : 3) : 8,
+    fatigue_management: input.result.fatigue.reported_fatigue === "high" ? (heavyLowerCount(input.result.plan) <= 1 ? 8 : 3) : 8,
     strength_balance: lifts.length > 0 && lifts.length <= 4 ? 8 : 5,
     conditioning_balance: training.length >= 4 ? 8 : 4,
     stimulus_variety: stimuli.size >= 2 ? 8 : 5,
@@ -78,7 +81,7 @@ export function qualityOf(input: { result: CoachWeekResult; month: MonthDirectio
   if (impossible) critical.push("class impossible");
   if (training.some((session) => (session.conditioning?.movements.length ?? 0) === 0)) critical.push("invalid movement");
   if (input.result.variation.same_week_similarity >= 4) critical.push("duplicate structure");
-  if (input.result.fatigue.reported_fatigue === "high" && lowers > 1) critical.push("recovery conflict");
+  if (input.result.fatigue.reported_fatigue === "high" && heavyLowerCount(input.result.plan) > 1) critical.push("recovery conflict");
   if (input.weekIndex === 4 && input.result.plan.days.some((day) => day.progression_required && (day.strength_lift === "squat" || day.strength_lift === "deadlift"))) {
     critical.push("progression conflict");
   }
@@ -144,7 +147,6 @@ function scoreWeek(input: {
   const counts = trainingMovementCounts(sessions);
   const formats = new Set(sessions.map((session) => session.conditioning?.format).filter(Boolean));
   const primaries = new Set(input.result.plan.days.map((day) => day.primary_training));
-  const lowers = sessions.filter((session) => session.strength?.lift === "squat" || session.strength?.lift === "deadlift");
   const method = input.month.strength_method || input.month.scheme;
   const squat = sessions.find((session) => session.strength?.lift === "squat")?.strength?.sets ?? null;
   const scores: Record<string, number> = {
@@ -165,8 +167,8 @@ function scoreWeek(input: {
   if (input.weekIndex === 2 && !input.result.plan.adjustment_ko.includes("진행")) problems.push("good week did not progress");
   if (input.weekIndex === 3) {
     if (!input.result.plan.adjustment_ko.includes("피로")) problems.push("fatigue week did not respond");
-    if (lowers.length > 1) problems.push("high fatigue kept two lower lifts");
-    scores.fatigue_management = lowers.length <= 1 ? 9 : 3;
+    if (heavyLowerCount(input.result.plan) > 1) problems.push("high fatigue kept two heavy lower lifts");
+    scores.fatigue_management = heavyLowerCount(input.result.plan) <= 1 ? 9 : 3;
   }
   if (input.weekIndex === 4) {
     const deload = squat ? JSON.stringify(squat) === JSON.stringify(schemeSets("531", 4)) || input.result.plan.block_phase === "deload" : input.result.plan.block_phase === "deload";

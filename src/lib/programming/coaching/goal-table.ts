@@ -1,5 +1,6 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../../month-plan/types";
 import { monthEmphasis, performanceRead } from "../weekly-intent";
+import { classLongHost, placeClassLifts, type ClassLiftDay } from "./class-lifts";
 import type { WeekActual } from "../summary";
 import {
   BODY_REGIONS,
@@ -36,6 +37,8 @@ export type WeekTrainingLayout = {
   fatigued: boolean;
   missed: boolean;
   succeeded: boolean;
+  /** 기본 6일 수업의 코드 리프트. 다른 프로필 배치는 없다. */
+  classLifts: ClassLiftDay[] | null;
 };
 
 export function strengthFamily(key: string | null | undefined): MainLift | "none" {
@@ -185,12 +188,25 @@ export function weekTrainingLayout(input: {
   }
   const heavy = phase !== "deload";
   const wantsLong = input.month.long_conditioning_weeks.includes(input.weekIndex);
-  const longDay = wantsLong ? longDayFor(training, [...lowers.keys()], heavy) : null;
+  let longDay = wantsLong ? longDayFor(training, [...lowers.keys()], heavy) : null;
   const upperLifts: MainLift[] = shift % 2 === 0 ? ["bench", "ohp"] : ["ohp", "bench"];
   const uppers = new Map<DayKey, MainLift>();
   const upperHosts = liftHosts.filter((day) => !lowers.has(day) && day !== longDay);
   upperHosts.slice(0, phase === "deload" ? 1 : 2).forEach((day, index) => uppers.set(day, upperLifts[index]!));
   const emphasis = monthEmphasis(input.month);
+  const classLifts =
+    classRestDay(input.month) === "sun" && training.length === 6
+      ? placeClassLifts({ weekIndex: input.weekIndex, phase, fatigued })
+      : null;
+  if (classLifts) {
+    lowers.clear();
+    uppers.clear();
+    for (const day of classLifts) {
+      if (day.lift === "squat" || day.lift === "deadlift") lowers.set(day.day, day.lift);
+      if (day.lift === "bench" || day.lift === "ohp") uppers.set(day.day, day.lift);
+    }
+    if (wantsLong) longDay = classLongHost(classLifts);
+  }
   return {
     phase,
     rest,
@@ -201,6 +217,7 @@ export function weekTrainingLayout(input: {
     fatigued,
     missed,
     succeeded,
+    classLifts,
   };
 }
 
@@ -215,12 +232,12 @@ export function layoutFromGoal(
   const restDays = fixed ? new Set<DayKey>([fixed]) : goalRestDays;
   const longDay = goal.days.find((day) => !restDays.has(day.day) && day.time_domain === "long")?.day ?? null;
   const lowers = new Map([...layout.lowers].filter(([day]) => !restDays.has(day)));
-  if (longDay && layout.phase !== "deload") {
+  if (longDay && layout.phase !== "deload" && !layout.classLifts) {
     const previous = DAY_ORDER[DAY_ORDER.indexOf(longDay) - 1];
     if (previous) lowers.delete(previous);
   }
   const uppers = new Map([...layout.uppers].filter(([day]) => !restDays.has(day) && day !== longDay && layout.phase !== "deload"));
-  return { ...layout, rest, lowers, uppers, longDay };
+  return { ...layout, rest, lowers, uppers, longDay, classLifts: layout.classLifts };
 }
 
 export function placementSignature(day: DaySessionGoal): string {
@@ -276,7 +293,7 @@ export const GOAL_TABLE_RULES = {
     3: HISTORICAL_WEEK_CAPS,
     4: HISTORICAL_WEEK_CAPS,
     5: HISTORICAL_WEEK_CAPS,
-    6: HISTORICAL_WEEK_CAPS,
+    6: { ...HISTORICAL_WEEK_CAPS, maxLowerLiftsFatigued: 2 },
     7: HISTORICAL_WEEK_CAPS,
   },
   /**

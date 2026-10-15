@@ -84,7 +84,7 @@ import type { LongitudinalPlan } from "../planning/types";
 import { rampSlots } from "./warmup-ramp";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { variationReport } from "./variation";
-import { applyClassIntentFrame, classFrameAlignmentErrors, planCoachedWeek, weeklyCoachPayload } from "./weekly";
+import { applyClassIntentFrame, carryClassLiftDays, classFrameAlignmentErrors, planCoachedWeek, weeklyCoachPayload } from "./weekly";
 import { enforceLockedSkeleton, lockedSessionFieldErrors, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
 import type { CoachWeekInput, CoachWeekResult } from "./pipeline";
 import { finalizeWeekAdoption, makeIssue, type HeadDecision as AdoptionHead, type RepairRequest, type RepairResult } from "../v2";
@@ -397,6 +397,11 @@ function sessionLockFor(week: CoachWeekInput, plan: WeeklyIntentPlan, day: DayKe
       long: domain === "long" || (domain == null && row.secondary_training === "long_conditioning"),
       domain,
       lift: lift === "squat" || lift === "bench" || lift === "ohp" || lift === "deadlift" ? lift : "none",
+      main_key: row.main_movement ?? null,
+      companion_key: row.companion_movement ?? null,
+      zone2: row.zone2 === "day",
+      zone2_modality: row.zone2 === "day" ? row.zone2_modality ?? null : null,
+      zone2_minutes: row.zone2 === "day" ? row.zone2_duration ?? null : null,
       intensity_ceiling: ceiling === "light" || ceiling === "moderate" || ceiling === "heavy" ? ceiling : "heavy",
       intensity_class: bandOf(skeleton?.conditioning.intensity_class) ?? bandOf(row.intensity_profile),
       stimulus: lockableStimulus(sessionStimulus(plan.conditioning_slots?.[row.day]?.stimulus), bandOf(skeleton?.conditioning.intensity_class) ?? bandOf(row.intensity_profile)),
@@ -1373,7 +1378,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const adoptedModelSkeleton =
     longitudinal?.skeleton.skeleton_locked === true && longitudinal.skeleton.source !== "deterministic";
   const lockedLongitudinal = callerLockedSkeleton || adoptedModelSkeleton ? longitudinal : null;
-  const codePlan = lockedLongitudinal ? planFromLockedSkeleton(lockedLongitudinal, month) : deterministic;
+  const codePlan = lockedLongitudinal ? carryClassLiftDays(planFromLockedSkeleton(lockedLongitudinal, month), deterministic) : deterministic;
   plan = codePlan;
   const classRest = classRestDay(month);
   const acceptWeekly = (json: unknown): WeeklyIntentPlan | null => {
@@ -1862,7 +1867,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         const locked = lockedSkeletonDay(week, day.day);
         const lock = sessionLockFor(week, plan, day.day);
         const raw = plan.conditioning_slots?.[day.day]?.stimulus ?? null;
-        const stimulus = raw && (STIMULI as readonly string[]).includes(raw) ? raw : null;
+        const lockedStimulus = lock?.stimulus && (STIMULI as readonly string[]).includes(lock.stimulus) ? lock.stimulus : null;
+        const stimulus = lock?.steady ? lockedStimulus : raw && (STIMULI as readonly string[]).includes(raw) ? raw : null;
         const ceiling = locked?.conditioning.intensity_ceiling ?? lock?.intensity_ceiling ?? null;
         const warmup = lock && !lock.rest ? rampSlots(lock) : [];
         const stimuli = lock ? stimulusLockEnum(lock, lock.stimulus) : [];

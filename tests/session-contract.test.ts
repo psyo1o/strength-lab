@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formatSetLine } from "../src/lib/month-plan/loads";
+import { sessionCoachErrors } from "../src/lib/programming/coaching/contract";
+import type { DayIntent } from "../src/lib/programming/types";
 import { projectWeek } from "../src/lib/programming/project";
 import { fatigueCutSets, schemeSets } from "../src/lib/programming/schemes";
 import {
@@ -12,7 +14,7 @@ import {
   type ContractDayInput,
   type DaySessionLock,
 } from "../src/lib/programming/coaching/session-contract";
-import { standardMovements } from "../src/lib/programming/coaching/movement-catalog";
+import { amountDecision, standardMovements } from "../src/lib/programming/coaching/movement-catalog";
 import { tipFor } from "../src/lib/tips";
 import { jointsFor, rampSlots, sessionJoints, warmupIssues } from "../src/lib/programming/coaching/warmup-ramp";
 import type { SessionDraft, WeekDraft } from "../src/lib/programming/types";
@@ -151,6 +153,80 @@ describe("session contract", () => {
       movements: [{ key: "walking_lunge", unit: "reps", amount: 12 }],
     });
     expect(missing.join(" ")).toContain("no pace");
+  });
+
+  it("keeps a six-day class dose inside the catalog and off a heavy clock format", () => {
+    const order = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+    for (const week of [1, 2, 3, 4] as const) {
+      const days: ContractDayInput[] = order.map((day) => ({
+        day,
+        rest: day === "sun",
+        long: week % 2 === 0 && day === "sat",
+        domain: day === "wed" ? "long" : week % 2 === 0 && day === "sat" ? "long" : "medium",
+        lift: day === "mon" ? "squat" : day === "fri" ? "deadlift" : day === "tue" ? "ohp" : day === "sat" ? "bench" : "none",
+        zone2: day === "wed",
+        zone2_modality: "row_erg",
+        zone2_minutes: 40,
+        main_key: day === "thu" ? "power_clean" : null,
+        companion_key: day === "thu" ? "front_squat" : day === "wed" ? "ring_row" : null,
+        stimulus: "heavy",
+      }));
+      const locks = planWeekContract(days, week, "531", 100);
+      expect(
+        diversityIssues(
+          locks
+            .filter((lock) => !lock.rest)
+            .map((lock) => ({
+              day: lock.day,
+              format: lock.format,
+              band: lock.band,
+              movements: lock.metcon.map((move) => move.key),
+              exception: lock.exception,
+            })),
+        ),
+        `week ${week}`,
+      ).toEqual([]);
+      for (const lock of locks) {
+        expect(lockIssues(lock, 100), `${week} ${lock.day} ${lock.format}`).toEqual([]);
+        if (lock.format === "emom" || lock.format === "intervals") expect(lock.stimulus).not.toBe("heavy");
+        if (lock.steady) {
+          expect(lock.exception).toBe("mono");
+          expect(lock.metcon).toHaveLength(1);
+          continue;
+        }
+        for (const move of lock.metcon) {
+          const shown = move.unit === "reps" ? String(move.amount) : `${move.amount}${move.unit}`;
+          const verdict = amountDecision(move.key, shown);
+          expect(verdict.ok, `${week} ${lock.day} ${move.key} ${shown}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("accepts only a full zone2 clock in seconds", () => {
+    const name = standardMovements().find((row) => row.key === "row_erg")?.name_ko ?? "";
+    const intent = {
+      day: "wed",
+      primary_training: "aerobic",
+      secondary_training: "aerobic",
+      recovery_role: "easy",
+      zone2: "day",
+    } as DayIntent;
+    const piece = (minutes: number, amount: number) => ({
+      day: "wed",
+      warmup_ko: "준비 동작을 먼저 합니다.",
+      notes_ko: "존 2는 대화 페이스로 이어 갑니다.",
+      conditioning: {
+        format: "for_time",
+        duration_min: minutes,
+        stimulus: "technical",
+        volume: "low",
+        intensity: "light",
+        movements: [{ key: "row_erg", amount: `${amount}sec`, amount_value: amount, unit: "sec", name_ko: name }],
+      },
+    });
+    expect(sessionCoachErrors(piece(40, 2400), intent).join(" ")).not.toContain("does not allow sec");
+    expect(sessionCoachErrors(piece(16, 960), intent).join(" ")).toContain("does not allow sec");
   });
 
   it("rejects a two-movement metcon unless the day is an exception", () => {

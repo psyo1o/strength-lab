@@ -89,18 +89,20 @@ function specialistFetch(input: { alignDay?: { day: DayKey; format: string; dura
           }))
         : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
       const format = slot?.from_goal ? (aligned?.format ?? piece.format) : (slot?.format ?? aligned?.format ?? piece.format);
+      const requested = aligned?.stimulus ?? piece.stimulus;
+      const legalStimulus = (format === "emom" || format === "intervals") && requested === "heavy" ? "technical" : requested;
       return chat({
         day,
         notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
         conditioning: {
           format,
           duration_min: slot?.duration_min ?? aligned?.duration_min ?? piece.duration_min,
-          stimulus: slot?.stimulus ?? aligned?.stimulus ?? piece.stimulus,
+          stimulus: legalStimulus,
           movements,
           equipment: aligned?.equipment ?? piece.equipment,
           volume: slot?.volume ?? aligned?.volume ?? piece.volume,
           intensity:
-            (slot?.stimulus ?? aligned?.stimulus ?? piece.stimulus) === "heavy" && (aligned?.intensity ?? piece.intensity) === "light"
+            legalStimulus === "heavy" && (aligned?.intensity ?? piece.intensity) === "light"
               ? "moderate"
               : (aligned?.intensity ?? piece.intensity),
           interval_work_sec: format === "intervals" ? 30 : null,
@@ -143,7 +145,15 @@ describe("coaching schema adoption", () => {
     const month = fallbackMonth({ summary_ko: "5/3/1 블록을 네 주 유지합니다.", next_scheme: "531", strength_method: "531" });
     const plan = planCoachedWeek({ month, weekIndex: weekIndexFromStart(NEXT) });
     const built = assembleLegalWeek({ month, weekIndex: weekIndexFromStart(NEXT), plan });
-    const host = built.draft.sessions.find((session) => session.conditioning && !session.conditioning.long_conditioning && session.day !== "sun");
+    const order = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+    const host = built.draft.sessions.find((session) => {
+      if (!session.conditioning || session.conditioning.long_conditioning || session.day === "sun") return false;
+      const index = order.indexOf(session.day);
+      const neighbors = [order[index - 1], order[index + 1]].map(
+        (name) => built.draft.sessions.find((row) => row.day === name)?.conditioning?.stimulus,
+      );
+      return !neighbors.includes(prior.stimulus ?? undefined);
+    });
     expect(host).toBeTruthy();
     if (!host) return;
     const saved = await ensureProgrammingWeek(NEXT, {

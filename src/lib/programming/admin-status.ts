@@ -29,6 +29,18 @@ export type EngineAdminStatus = {
 
 const KST_MS = 9 * 60 * 60 * 1000;
 
+function monthCoachFallback(direction: { coaching_plan?: { source?: string; direction_degraded?: boolean } | null }): boolean {
+  const plan = direction.coaching_plan;
+  if (!plan) return false;
+  return plan.source === "deterministic" || plan.direction_degraded === true;
+}
+
+function monthCoachReason(direction: { coaching_plan?: { source?: string; direction_degraded?: boolean; direction_reason?: string | null } | null }): string | null {
+  const plan = direction.coaching_plan;
+  if (!plan || (plan.source !== "deterministic" && plan.direction_degraded !== true)) return null;
+  return plan.direction_reason ?? (plan.source === "deterministic" ? "deterministic_monthly_plan" : "direction_degraded");
+}
+
 export function formatEngineTime(ms: number): string {
   const iso = new Date(ms + KST_MS).toISOString();
   return `${iso.slice(0, 10)} ${iso.slice(11, 16)} KST`;
@@ -104,8 +116,8 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
         rowId: month.id,
         rowStatus: month.status,
         skeletonLocked: null,
-        usedFallback: month.generationSource === "fallback",
-        fallbackReason: null,
+        usedFallback: month.generationSource === "fallback" || monthCoachFallback(month.direction),
+        fallbackReason: monthCoachReason(month.direction),
       }
     : emptyStamp(monthStart);
   const weekPlan = week?.draft.intent.plan ?? week?.intent.plan ?? null;

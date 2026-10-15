@@ -85,6 +85,8 @@ export type SkeletonDay = {
   };
   benchmark: boolean;
   long_day: boolean;
+  /** 30–45분 존 2. 시간 영역은 long이지만 주의 긴 컨디셔닝 하루가 아니다. */
+  steady_zone2?: boolean;
   recovery_demand: "low" | "moderate" | "high";
   volume_profile: VolumeBand;
   preferred_format: string | null;

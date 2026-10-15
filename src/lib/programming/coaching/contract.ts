@@ -902,15 +902,23 @@ export function monthlyPlanErrors(value: unknown, month: MonthDirection): string
   return errors;
 }
 
+/** 존 2의 30–45분 시계만 초 단위다. 메트콘 칼로리·미터 검사는 그대로다. */
+function steadyClock(key: string, unit: unknown, amount: unknown, durationMin: unknown): boolean {
+  if (unit !== "sec") return false;
+  if (key !== "row_erg" && key !== "bike_erg" && key !== "run") return false;
+  if (typeof durationMin !== "number" || durationMin < 30 || durationMin > 45) return false;
+  const value = typeof amount === "number" ? amount : typeof amount === "string" ? Number(amount.replace(/sec$/i, "")) : Number.NaN;
+  return value === durationMin * 60;
+}
+
 function durationErrors(intent: DayIntent, minutes: unknown): string[] {
   const longPiece = intent.secondary_training === "long_conditioning";
-  const range = longPiece ? LONG_CONDITIONING : NON_LONG_CONDITIONING;
-  if (typeof minutes !== "number" || !Number.isInteger(minutes)) {
-    return [`conditioning.duration_min: received ${received(minutes)}; allowed: integer ${range.min}–${range.max}`];
-  }
-  if (minutes < range.min || minutes > range.max) {
+  const zone2 = intent.zone2 === "day";
+  const ranges = longPiece ? [LONG_CONDITIONING] : zone2 ? [NON_LONG_CONDITIONING, { min: 30, max: 45 }] : [NON_LONG_CONDITIONING];
+  const label = ranges.map((range) => `${range.min}–${range.max}`).join(" or ");
+  if (typeof minutes !== "number" || !Number.isInteger(minutes) || !ranges.some((range) => minutes >= range.min && minutes <= range.max)) {
     return [
-      `conditioning.duration_min: received ${minutes}; allowed: ${range.min}–${range.max} because this day is ${longPiece ? "long_conditioning" : "not long_conditioning"}. class_minutes is not the piece length.`,
+      `conditioning.duration_min: received ${received(minutes)}; allowed: integer ${label} because this day is ${longPiece ? "long_conditioning" : zone2 ? "zone2" : "not long_conditioning"}. class_minutes is not the piece length.`,
     ];
   }
   return [];
@@ -978,7 +986,7 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
         if (cellKey === "squat" || cellKey === "pause_squat" || cellKey === "pin_squat") {
           errors.push(`${prefix}.key: received ${cellKey}; use back_squat or front_squat`);
         }
-        errors.push(...cellMovementErrors(prefix, row, catalog));
+        if (!steadyClock(cellKey, row.unit, row.amount, piece.duration_min)) errors.push(...cellMovementErrors(prefix, row, catalog));
         return;
       }
       const keyText = typeof row.key === "string" ? row.key : typeof row.movement === "string" ? row.movement : "";
@@ -994,7 +1002,7 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
       }
       if (typeof row.amount !== "string" || !row.amount.trim() || /kg/i.test(row.amount)) {
         errors.push(`${prefix}.amount: received ${received(row.amount)}; reps are 12 or 12 reps, calories are 12cal or 12/10cal, distance is 500m. Never kilograms.`);
-      } else if (typeof row.amount_value === "number" && typeof row.unit === "string") {
+      } else if (typeof row.amount_value === "number" && typeof row.unit === "string" && !steadyClock(keyText, row.unit, row.amount_value, piece.duration_min)) {
         const suffix = row.unit === "reps" ? "" : String(row.unit);
         const verdict = checkCellEdit({ catalog_key: keyText, field: "amount", value: `${row.amount_value}${suffix}` });
         if (!verdict.ok) errors.push(`${prefix}: ${verdict.reason}`);
@@ -1002,6 +1010,13 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
         if (!unitVerdict.ok) errors.push(`${prefix}: ${unitVerdict.reason}`);
       }
     });
+    const ropeKeys = piece.movements
+      .map((row) => (isRecord(row) ? (typeof row.key === "string" ? row.key : typeof row.movement === "string" ? row.movement : "") : ""))
+      .filter((key) => key === "double_under" || key === "single_under");
+    if (new Set(ropeKeys).size > 1) errors.push("conditioning.movements: double_under and single_under are both in this metcon");
+    if ((piece.format === "intervals" || piece.format === "emom") && piece.stimulus === "heavy") {
+      errors.push(`conditioning.stimulus heavy does not match format ${piece.format}`);
+    }
     const seenKeys = new Set<string>();
     piece.movements.forEach((row, index) => {
       if (!isRecord(row)) return;

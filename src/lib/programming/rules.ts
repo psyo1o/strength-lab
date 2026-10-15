@@ -7,7 +7,7 @@ import { sessionHasHeavyLowerMetcon } from "./coaching/heavy-lower-metcon";
 import { equipmentForKeys } from "./coaching/movement-catalog";
 import { safetyViolations } from "./coaching/stage15/safety-policy";
 import { benchmarkCountAllowed, longConditioningCountAllowed } from "./coaching/stage15/week-policy";
-import { exampleSets, legacySchemeForMethod, prescriptionGuide, validateStrengthPrescription } from "./strength-methods";
+import { exampleSets, legacySchemeForMethod, prescriptionGuide, setsMatchSecondLowerVolume, validateStrengthPrescription } from "./strength-methods";
 import type { WeekActual } from "./summary";
 import {
   EQUIPMENT,
@@ -294,6 +294,25 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
 
 const LIFT_VALUES = ["squat", "ohp", "bench", "deadlift"] as const;
 
+function zone2Draft(value: unknown): SessionDraft["zone2"] | null {
+  if (!value || typeof value !== "object") return null;
+  const zone = value as { form?: unknown; modality?: unknown; duration_min?: unknown; effort?: unknown; hr?: unknown };
+  if (zone.form !== "day" && zone.form !== "addon") return null;
+  if (typeof zone.modality !== "string" || typeof zone.duration_min !== "number") return null;
+  return {
+    form: zone.form,
+    modality: zone.modality,
+    duration_min: zone.duration_min,
+    effort: typeof zone.effort === "string" ? zone.effort : "conversational",
+    hr: typeof zone.hr === "string" ? zone.hr : "unspecified",
+    alternate: null,
+    performed_option: null,
+    completion_status: null,
+    actual_duration_min: null,
+    actual_rpe: null,
+  };
+}
+
 export function parseWeekDraft(value: unknown): WeekDraft | null {
   if (!isRecord(value)) return null;
   const intentRaw = value.intent;
@@ -351,6 +370,7 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
       expected_duration: asInt(row.expected_duration),
       ...(Array.isArray(row.session_blocks) ? { session_blocks: row.session_blocks as SessionDraft["session_blocks"] } : {}),
       ...(Array.isArray(row.warmup_phases) ? { warmup_phases: row.warmup_phases as SessionDraft["warmup_phases"] } : {}),
+      ...(zone2Draft(row.zone2) ? { zone2: zone2Draft(row.zone2)! } : {}),
     });
   }
   return { intent: { why_ko: why, focus, scheme_note: note }, sessions };
@@ -937,6 +957,41 @@ function byDay(draft: WeekDraft): Map<DayKey, SessionDraft> {
   return new Map(draft.sessions.map((session) => [session.day, session]));
 }
 
+/**
+ * 고피로 주에 하체가 둘이면 하루는 피로 컷, 다른 하루는 75% 이하 볼륨 세트다.
+ * 하체가 하나뿐이면 피로 컷만 통과한다.
+ */
+function lowerSetProblem(
+  method: string,
+  weekIndex: 1 | 2 | 3 | 4,
+  session: SessionDraft,
+  actual: WeekActual | null | undefined,
+  lowers: readonly SessionDraft[],
+): string | null {
+  if (!session.strength) return null;
+  const fatigue = strengthCheckFatigue(session.strength.lift, actual);
+  const problem = validateStrengthPrescription(method, session.strength.sets, {
+    day: session.day,
+    weekIndex,
+    lift: session.strength.lift,
+    fatigue,
+  });
+  if (!problem || fatigue !== "high" || !isLowerBodyLift(session.strength.lift)) return problem;
+  if (!setsMatchSecondLowerVolume(method, weekIndex, session.strength.sets)) return problem;
+  const anchored = lowers.filter((row) => {
+    if (row.day === session.day || !row.strength || !isLowerBodyLift(row.strength.lift)) return false;
+    return (
+      validateStrengthPrescription(method, row.strength.sets, {
+        day: row.day,
+        weekIndex,
+        lift: row.strength.lift,
+        fatigue: "high",
+      }) == null
+    );
+  });
+  return anchored.length === 1 ? null : problem;
+}
+
 export function constitutionViolations(
   draft: WeekDraft,
   month: MonthDirection,
@@ -951,12 +1006,8 @@ export function constitutionViolations(
     if (!session) continue;
     exposures.set(day, exposure(session));
     if (session.strength) {
-      const problem = validateStrengthPrescription(month.strength_method || month.scheme, session.strength.sets, {
-        day,
-        weekIndex,
-        lift: session.strength.lift,
-        fatigue: strengthCheckFatigue(session.strength.lift, actual),
-      });
+      const lowers = draft.sessions.filter((row) => row.strength && isLowerBodyLift(row.strength.lift));
+      const problem = lowerSetProblem(month.strength_method || month.scheme, weekIndex, session, actual, lowers);
       if (problem) errors.push(problem);
     }
   }
@@ -973,7 +1024,7 @@ export function constitutionViolations(
           heavyPress: load.heavyPress,
           heavySnatch: load.heavySnatch,
           heavyClean: load.heavyClean,
-          longConditioning: Boolean(session.conditioning?.long_conditioning),
+          longConditioning: Boolean(session.conditioning?.long_conditioning) && session.zone2?.form !== "day",
         };
       }),
     ),
@@ -986,7 +1037,7 @@ export function constitutionViolations(
       errors.push(`stimulus ${current} repeats on ${training[index]!.day}`);
     }
   }
-  const longs = draft.sessions.filter((session) => session.conditioning?.long_conditioning);
+  const longs = draft.sessions.filter((session) => session.conditioning?.long_conditioning && session.zone2?.form !== "day");
   const expectsLong = month.long_conditioning_weeks.includes(weekIndex);
   if (!longConditioningCountAllowed(expectsLong, longs.length)) {
     errors.push(
@@ -1493,6 +1544,27 @@ export function strengthCheckFatigue(lift: MainLift, actual: WeekActual | null |
   const level = previousLowerFatigue(actual);
   if (isLowerBodyLift(lift) && (level === "high" || level === "low")) return level;
   return "unknown";
+}
+
+/** 피로 신호는 목표 주 시작보다 14일이 넘으면 쓰지 않는다. 날짜가 없으면 직전 주로 본다. */
+export const FATIGUE_TTL_DAYS = 14;
+
+export function fatigueExpired(actual: WeekActual | null | undefined, weekStart?: string | null): boolean {
+  if (!weekStart || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) return false;
+  const dates = (actual?.days ?? []).map((day) => day.date).filter((date): date is string => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date));
+  if (!dates.length) return false;
+  const latest = dates.slice().sort().at(-1)!;
+  const gap = (Date.parse(`${weekStart}T00:00:00Z`) - Date.parse(`${latest}T00:00:00Z`)) / 86_400_000;
+  return Number.isFinite(gap) && gap > FATIGUE_TTL_DAYS;
+}
+
+export function actualWithoutStaleFatigue(actual: WeekActual | null | undefined, weekStart?: string | null): WeekActual | null | undefined {
+  if (!actual || !fatigueExpired(actual, weekStart)) return actual;
+  return {
+    ...actual,
+    class_summary: actual.class_summary ? { ...actual.class_summary, fatigue_signal: "low" } : actual.class_summary,
+    days: actual.days.map((day) => ({ ...day, fatigue: day.fatigue ? "low" : day.fatigue })),
+  };
 }
 
 export function previousLowerFatigue(actual: WeekActual | null | undefined): "high" | "moderate" | "low" | "unknown" {
@@ -2173,13 +2245,7 @@ export function feedbackViolations(
   const lower = draft.sessions.filter((session) => session.strength && LOWER_LIFTS.has(session.strength.lift));
   if (level === "high" || level === "low") {
     for (const session of lower) {
-      if (!session.strength) continue;
-      const problem = validateStrengthPrescription(method, session.strength.sets, {
-        day: session.day,
-        weekIndex,
-        lift: session.strength.lift,
-        fatigue: strengthCheckFatigue(session.strength.lift, actual),
-      });
+      const problem = lowerSetProblem(method, weekIndex, session, actual, lower);
       if (problem) errors.push(problem);
     }
   }
@@ -2198,7 +2264,7 @@ export function feedbackViolations(
   }
   const text = `${draft.intent.why_ko}\n${draft.intent.focus}\n${draft.intent.scheme_note}`;
   const keptHeavy = lower.some((session) => {
-    if (!session.strength) return false;
+    if (!session.strength || !strengthIsHeavy(session.strength.sets)) return false;
     return (
       validateStrengthPrescription(method, session.strength.sets, {
         day: session.day,
@@ -2286,7 +2352,7 @@ export function orderViolations(draft: WeekDraft): string[] {
           heavyPress: load.heavyPress,
           heavySnatch: load.heavySnatch,
           heavyClean: load.heavyClean,
-          longConditioning: Boolean(session.conditioning?.long_conditioning),
+          longConditioning: Boolean(session.conditioning?.long_conditioning) && session.zone2?.form !== "day",
         };
       }),
     ),

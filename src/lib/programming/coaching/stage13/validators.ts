@@ -8,6 +8,7 @@ import { amountTextForCheck, intervalFitIssues, prescriptionAmountIssue } from "
 import { longConditioningCountAllowed } from "../stage15/week-policy";
 import { deloadHeavyConditioningErrors } from "../stage15/week-structure";
 import { weekPlanErrors, type WeekRules } from "./rules";
+import { classQualityErrors } from "../class-quality";
 import { classRestDay } from "../goal-table";
 import { DAY_ORDER } from "../../../month-plan/types";
 
@@ -232,6 +233,12 @@ export function finalWeekReport(input: {
     hard.push(message);
     issues.push(issueFromCheck(message, "week.structure", "hard_error"));
   }
+  if (classRestDay(input.month) === "sun") {
+    for (const message of classQualityErrors(input.draft)) {
+      hard.push(message);
+      issues.push(issueFromCheck(message, "week.structure", "hard_error"));
+    }
+  }
   for (const session of input.draft.sessions) {
     if (session.rest || !session.conditioning) continue;
     const strength = session.strength ? 15 : 0;
@@ -242,7 +249,7 @@ export function finalWeekReport(input: {
       issues.push(issueFromCheck(message, "amount.out_of_range", "hard_error", session.day));
     }
   }
-  const longs = input.draft.sessions.filter((session) => session.conditioning?.long_conditioning);
+  const longs = input.draft.sessions.filter((session) => session.conditioning?.long_conditioning && session.zone2?.form !== "day");
   if (!longConditioningCountAllowed(input.rules.long_conditioning_required, longs.length)) {
     const message = input.rules.long_conditioning_required
       ? `final week long conditioning count ${longs.length}; rule requires 1`

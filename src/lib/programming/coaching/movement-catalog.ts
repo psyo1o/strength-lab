@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { EQUIPMENT, type Equipment } from "../types";
+import { cleanDisplayName } from "./session-contract";
 
 /** Units stored on a catalog row. The same four the session already displays. */
 export type CatalogUnit = "reps" | "cal" | "m" | "sec";
@@ -90,6 +91,7 @@ function loadFile(): CatalogFile {
   const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as CatalogFile;
   for (const row of parsed.movements) {
     if (!row.primary_joints?.length) row.primary_joints = jointsForPattern(row.pattern);
+    if (typeof row.name_ko === "string") row.name_ko = cleanDisplayName(row.name_ko);
   }
   cached = parsed;
   return cached;
@@ -208,6 +210,13 @@ function loadMatches(text: string | null, options: readonly RxSide[]): boolean {
 /** When the catalog lists an Rx weight, that side's load is required and must be one of those weights. */
 export function rxLoadErrors(key: string, load: { male?: string | null; female?: string | null } | null | undefined): string[] {
   const weights = catalogRxWeights(key);
+  const text = catalogRxText(key);
+  if (!weights && text) {
+    const errors: string[] = [];
+    if (text.male && !(load?.male ?? "").includes(text.male)) errors.push(`${key} load.male is required and must include ${text.male}`);
+    if (text.female && !(load?.female ?? "").includes(text.female)) errors.push(`${key} load.female is required and must include ${text.female}`);
+    return errors;
+  }
   if (!weights) return [];
   const errors: string[] = [];
   if (weights.male.length && !loadMatches(load?.male ?? null, weights.male)) {
@@ -221,13 +230,31 @@ export function rxLoadErrors(key: string, load: { male?: string | null; female?:
   return errors;
 }
 
+export function catalogRxText(key: string): { male: string | null; female: string | null } | null {
+  const row = catalogMovement(key);
+  if (!row?.rx || catalogRxWeights(key)) return null;
+  const read = (text: string | null) => {
+    if (!text || text.trim() === "-" || text.trim() === "") return null;
+    if (!/1rm/i.test(text)) return null;
+    return text.trim();
+  };
+  const male = read(row.rx.male);
+  const female = read(row.rx.female);
+  if (!male && !female) return null;
+  return { male, female };
+}
+
 export function prescribedLoad(key: string): { male: string | null; female: string | null } | null {
   const weights = catalogRxWeights(key);
-  if (!weights) return null;
-  return {
-    male: weights.male[0] ? `${weights.male[0].amount} ${weights.male[0].unit}` : null,
-    female: weights.female[0] ? `${weights.female[0].amount} ${weights.female[0].unit}` : null,
-  };
+  if (weights) {
+    return {
+      male: weights.male[0] ? `${weights.male[0].amount} ${weights.male[0].unit}` : null,
+      female: weights.female[0] ? `${weights.female[0].amount} ${weights.female[0].unit}` : null,
+    };
+  }
+  const text = catalogRxText(key);
+  if (!text) return null;
+  return { male: text.male, female: text.female };
 }
 
 export function sampleAmount(key: string): string {
