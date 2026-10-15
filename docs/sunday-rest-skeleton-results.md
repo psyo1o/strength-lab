@@ -24,7 +24,9 @@
 
 ## 모킹
 
-Vitest 93파일 600개와 `tsc --noEmit`이 통과했다. 그 실행에는 실제 모델 호출이 없다.
+Vitest 93파일 601개와 `tsc --noEmit`이 통과했다. 그 실행에는 실제 모델 호출이 없다.
+
+`tests/phase4-d.test.ts`의 고강도 patch 테스트는 기본 6일 수업이 아니다. 기본 수업은 코드가 강도 상한을 맞추므로, 모델이 훈련일 전부를 heavy로 내도 `high intensity days` 규칙이 실패하지 않고 patch 횟수는 0이다. 그 상황은 이 구조에서 더 이상 생기지 않는다. 월요일만 쉬는 6일 프로필은 프레임이 강도를 덮지 않아 같은 규칙이 `high intensity days 6 exceed the week rule 3`으로 실패한다. 그 실패에서 patch는 한 번만 발동하고 `intensity_patch_count`는 1이다. 검증을 완화하거나 테스트를 지우지 않았다.
 
 `tests/sunday-rest-regenerate.test.ts`는 수요일·금요일 휴식 뼈대 응답을 `planLongitudinal`에 넣어도 결과가 일요일 휴식, 월~토 훈련 6일임을 본다. 운영과 같은 `runAdminAction("regenerate-week")`와 `generate-next-week`를 2099 주에 부른다. `LONGITUDINAL_PLANNING`은 꺼져 있다. `{}` 형식 실패는 뼈대 요청을 남기고 `pipeline-failure`를 기록한 뒤 `programming_weeks` 행을 만들지 않는다. 출력 한도는 상향과 `input_reduced`로 1회, HTTP 500은 3회 호출 뒤 `http_error`, 429는 1회다. 상태 카드는 최신 실패 행의 `weekly-coach-v5`, 골격 잠금 꺼짐, fallback 예, 사유 `weekly_schema`를 읽는다.
 

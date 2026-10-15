@@ -222,6 +222,70 @@ describe("phase 4 D", () => {
   });
 
   it("고강도 주 규칙 실패에서 patch는 한 번만 발동하고 횟수를 남긴다", async () => {
+    // 기본 6일(일요일 휴식)은 코드가 강도 상한을 맞추므로 전 요일 heavy 응답이 이 규칙을 깨지 않는다.
+    // 월요일만 쉬는 6일은 그 프레임이 강도를 덮지 않아, 같은 응답이 고강도 주 규칙을 그대로 실패시킨다.
+    const month = { ...month531(), available_days: ["tue", "wed", "thu", "fri", "sat", "sun"] as const };
+    const plan = planCoachedWeek({ month, weekIndex: 1, previousActual: null, recentSignatures: [] });
+    const heavy = {
+      block_phase: plan.block_phase,
+      emphasis: plan.emphasis,
+      why_ko: plan.why_ko,
+      focus: plan.focus,
+      scheme_note: plan.scheme_note,
+      adjustment_ko: plan.adjustment_ko,
+      days: plan.days.map((day) =>
+        day.primary_training === "rest" || day.recovery_role === "rest" ? day : { ...day, intensity_profile: "heavy" as const },
+      ),
+    };
+    expect(plan.days.filter((day) => day.primary_training === "rest" || day.recovery_role === "rest").map((day) => day.day)).toEqual(["mon"]);
+    expect(heavy.days.filter((day) => day.intensity_profile === "heavy")).toHaveLength(6);
+    const inner = fetchFor({ month, weekIndex: 1, monthly: "valid", weekly: "valid", head: "approve" });
+    let weeklyCalls = 0;
+    let patchCalls = 0;
+    const fetchImpl: typeof fetch = async (url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { messages?: Array<{ role: string; content: string }> };
+      const raw = body.messages?.find((message) => message.role === "user")?.content ?? "{}";
+      let user: Record<string, unknown> = {};
+      try {
+        user = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        user = {};
+      }
+      if (user.failure && user.locked) {
+        patchCalls += 1;
+        return chat({
+          days: Object.fromEntries(plan.days.map((day) => [day.day, { intensity_profile: day.intensity_profile }])),
+        });
+      }
+      if (user.agent_name === "weekly_coach") {
+        weeklyCalls += 1;
+        return chat(heavy);
+      }
+      return inner(url, init);
+    };
+    const result = await coachWeek({
+      month,
+      weekIndex: 1,
+      weekStart: "2099-11-02",
+      key: "sk-test",
+      fetchImpl,
+      timeoutMs: 1000,
+      nowMs: Date.parse("2099-11-02T01:00:00.000Z"),
+    });
+    const weeklyTraces = result.traces.filter((trace) => trace.agent_name === "weekly_coach");
+    expect(weeklyCalls).toBe(1);
+    expect(patchCalls).toBe(1);
+    expect(result.intensity_patch_count).toBe(1);
+    expect(result.generation_source).toBe("model");
+    expect(result.fallback_reason).toBeNull();
+    expect(weeklyTraces[0]?.validation_result).toBe("fail");
+    expect(weeklyTraces[0]?.validation_errors).toContain("high intensity days 6 exceed the week rule 3");
+    expect(weeklyTraces.at(-1)?.validation_result).toBe("pass");
+    expect(result.plan.days.filter((day) => day.intensity_profile === "heavy").length).toBeLessThanOrEqual(3);
+    expect(result.plan.days.map((day) => day.intensity_profile)).toEqual(plan.days.map((day) => day.intensity_profile));
+  });
+
+  it("기본 일요일 휴식 수업은 전 요일 heavy 응답을 코드 상한으로 받아들이고 patch를 부르지 않는다", async () => {
     const month = month531();
     const plan = planCoachedWeek({ month, weekIndex: 1, previousActual: null, recentSignatures: [] });
     const heavy = {
@@ -270,8 +334,11 @@ describe("phase 4 D", () => {
       nowMs: Date.parse("2099-11-02T01:00:00.000Z"),
     });
     expect(weeklyCalls).toBe(1);
-    expect(patchCalls).toBe(1);
-    expect(result.intensity_patch_count).toBe(1);
+    expect(patchCalls).toBe(0);
+    expect(result.intensity_patch_count ?? 0).toBe(0);
+    expect(result.generation_source).toBe("model");
+    expect(result.plan.days.map((day) => day.intensity_profile)).toEqual(plan.days.map((day) => day.intensity_profile));
+    expect(result.traces.filter((trace) => trace.agent_name === "weekly_coach").every((trace) => trace.validation_result === "pass")).toBe(true);
   });
 
   it("고정 해시와 그림자 화면, 주 2일 표", () => {
