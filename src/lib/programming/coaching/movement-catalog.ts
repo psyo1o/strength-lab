@@ -4,7 +4,7 @@ import { EQUIPMENT, type Equipment } from "../types";
 import { cleanDisplayName } from "./session-contract";
 
 /** Units stored on a catalog row. The same four the session already displays. */
-export type CatalogUnit = "reps" | "cal" | "m" | "sec";
+export type CatalogUnit = "reps" | "cal" | "m" | "sec" | "min";
 
 export type CatalogLoad = { male: string | null; female: string | null };
 
@@ -179,6 +179,7 @@ export function displayAmount(amount: number, unit: CatalogUnit): string {
   if (unit === "reps") return String(amount);
   if (unit === "cal") return `${amount}cal`;
   if (unit === "m") return `${amount}m`;
+  if (unit === "min") return `${amount}분`;
   return `${amount}sec`;
 }
 

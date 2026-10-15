@@ -174,16 +174,17 @@ function strengthFor(
   return { lift, sets, movement_key: exactStrengthKey(lift, weekIndex) };
 }
 
-const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner"] as const;
+const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner", "zone2"] as const;
+type StoredUnit = CatalogUnit | "min";
 
-function splitStoredAmount(amount: string, unit: CatalogUnit | undefined): { amount: string; unit?: CatalogUnit; amount_value?: number } {
+function splitStoredAmount(amount: string, unit: StoredUnit | undefined): { amount: string; unit?: StoredUnit; amount_value?: number } {
   const text = amount.replace(/\s/g, "");
-  const paired = text.match(/^(\d+)(cal|sec|m)$/i);
+  const paired = text.match(/^(\d+)(min|cal|sec|m)$/i);
   if (!paired) {
     if (/^\d+$/.test(text) && unit) return { amount: text, unit, amount_value: Number(text) };
     return unit ? { amount, unit } : { amount };
   }
-  const parsed = paired[2]!.toLowerCase() as CatalogUnit;
+  const parsed = paired[2]!.toLowerCase() as StoredUnit;
   const chosen = unit ?? parsed;
   return { amount: paired[1]!, unit: chosen, amount_value: Number(paired[1]) };
 }
@@ -268,7 +269,9 @@ export function sessionFromCoachJson(input: {
   if (!conditioning || typeof conditioning !== "object") return null;
   const piece = conditioning as Record<string, unknown>;
   const format = piece.format;
+  const zone2Day = input.intent.zone2 === "day";
   if (typeof format !== "string" || !(FORMATS as readonly string[]).includes(format)) return null;
+  if (!zone2Day && format === "zone2") return null;
   const minutes = piece.duration_min;
   const longPiece = input.intent.secondary_training === "long_conditioning";
   const steadyZone2 = input.intent.zone2 === "day" && typeof minutes === "number" && minutes >= 30 && minutes <= 45;
@@ -281,7 +284,7 @@ export function sessionFromCoachJson(input: {
   if (volume !== "low" && volume !== "moderate" && volume !== "high") return null;
   if (intensity !== "light" && intensity !== "moderate" && intensity !== "heavy") return null;
   const aerobicMono = input.intent.primary_training === "aerobic" && input.intent.secondary_training !== "long_conditioning";
-  const minMoves = input.preview || aerobicMono ? 1 : 2;
+  const minMoves = input.preview || aerobicMono || format === "zone2" ? 1 : 2;
   if (!Array.isArray(piece.movements) || piece.movements.length < minMoves || piece.movements.length > 5) return null;
   const catalog = new Map(movementCatalog().map((row) => [row.key, row.name_ko]));
   const movements = [];
@@ -294,7 +297,10 @@ export function sessionFromCoachJson(input: {
     const standardName = catalogMovement(movement.key)?.name_ko ?? null;
     if (!piecesName && !standardName) return null;
     if (movement.name_ko !== piecesName && movement.name_ko !== standardName) return null;
-    const declared = movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" ? (movement.unit as CatalogUnit) : undefined;
+    const declared =
+      movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" || movement.unit === "min"
+        ? movement.unit
+        : undefined;
     const stored = splitStoredAmount(movement.amount, declared);
     const load = storedLoad(movement.load);
     movements.push({
@@ -386,22 +392,22 @@ function applySteadyZone2(session: SessionDraft, intent: DayIntent) {
   const patterns: Array<"engine" | "pull"> = intent.companion_movement && /row|pull|core/i.test(intent.companion_movement) ? ["engine", "pull"] : ["engine"];
   const conditioning: NonNullable<SessionDraft["conditioning"]> = {
     ...piece,
-    format: "for_time",
+    format: "zone2",
     time_domain: "long",
     stimulus,
     movement_patterns: patterns,
-    movements: [{ key, amount: String(minutes * 60), name_ko: name, amount_value: minutes * 60, unit: "sec" }],
+    movements: [{ key, amount: `${minutes}분`, name_ko: name, amount_value: minutes, unit: "min" }],
     equipment: equipmentForKeys([key]),
     rep_structure: `${minutes}분 지속, RPE 2–3. ${name}.`,
     work_rest_structure: `${minutes}분 동안 대화가 가능한 페이스로 이어 갑니다.`,
     duration_min: minutes,
     volume: "low",
     intensity: "light",
-    long_conditioning: true,
+    long_conditioning: false,
     purpose: `${name} ${minutes}분, RPE 2–3. 고강도 메트콘은 두지 않습니다.`,
   };
   session.conditioning = conditioning;
-  session.metcon_format = "for_time";
+  session.metcon_format = "zone2";
   session.time_domain = "long";
   session.volume = "low";
   session.intensity = "light";
@@ -410,7 +416,7 @@ function applySteadyZone2(session: SessionDraft, intent: DayIntent) {
   const metcon = session.session_blocks?.find((block) => block.role === "metcon");
   if (metcon) {
     metcon.minutes = minutes;
-    metcon.movements = [{ key, unit: "sec", amount: minutes * 60 }];
+    metcon.movements = [{ key, unit: "min", amount: minutes }];
   }
 }
 

@@ -257,7 +257,17 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     return null;
   }
   if (!purpose || !isWodPurpose(purpose)) return null;
-  if (format !== "amrap" && format !== "for_time" && format !== "emom" && format !== "intervals" && format !== "chipper" && format !== "partner") return null;
+  if (
+    format !== "amrap" &&
+    format !== "for_time" &&
+    format !== "emom" &&
+    format !== "intervals" &&
+    format !== "chipper" &&
+    format !== "partner" &&
+    format !== "zone2"
+  ) {
+    return null;
+  }
   if (timeDomain !== "short" && timeDomain !== "medium" && timeDomain !== "long") return null;
   if (stimulus !== null && (typeof stimulus !== "string" || !(STIMULI as readonly string[]).includes(stimulus))) return null;
   if (volume !== "low" && volume !== "moderate" && volume !== "high") return null;
@@ -358,7 +368,8 @@ export function parseWeekDraft(value: unknown): WeekDraft | null {
         row.metcon_format === "emom" ||
         row.metcon_format === "intervals" ||
         row.metcon_format === "chipper" ||
-        row.metcon_format === "partner"
+        row.metcon_format === "partner" ||
+        row.metcon_format === "zone2"
           ? row.metcon_format
           : null,
       time_domain: row.time_domain === "short" || row.time_domain === "medium" || row.time_domain === "long" ? row.time_domain : null,
@@ -897,14 +908,20 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if ((session.stimulus ?? null) !== (session.conditioning.stimulus ?? null)) {
       errors.push(`${session.day} stimulus does not match`);
     }
-    if (!timeDomainFits(session.conditioning)) {
+    const zone2Piece = session.zone2?.form === "day" || session.conditioning.format === "zone2";
+    if (zone2Piece) {
+      const minutes = session.conditioning.duration_min;
+      if (minutes !== 30 && minutes !== 40 && minutes !== 45) {
+        errors.push(`${dayLabel(session.day)}: zone2 duration=${minutes} is outside 30–45`);
+      }
+    } else if (!timeDomainFits(session.conditioning)) {
       const domain = session.conditioning.time_domain;
       const range = TIME_DOMAIN_RANGES[domain];
       errors.push(
         `${dayLabel(session.day)}: time_domain=${domain} duration=${session.conditioning.duration_min} is outside ${range.min}–${range.max}`,
       );
     }
-    if (session.conditioning.long_conditioning !== (session.conditioning.time_domain === "long")) {
+    if (!zone2Piece && session.conditioning.long_conditioning !== (session.conditioning.time_domain === "long")) {
       errors.push(`${dayLabel(session.day)}: long flag does not match duration`);
     }
     if (session.conditioning.stimulus == null || !(STIMULI as readonly string[]).includes(session.conditioning.stimulus)) {

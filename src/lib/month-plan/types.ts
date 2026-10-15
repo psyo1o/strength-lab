@@ -14,7 +14,7 @@ export const METCON_STIMULI: readonly MetconStimulus[] = ["고중량", "고반�
 export function isMetconStimulus(value: unknown): value is MetconStimulus {
   return value === "고중량" || value === "고반복" || value === "기술";
 }
-export type PieceFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper" | "partner";
+export type PieceFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper" | "partner" | "zone2";
 
 export const DAY_ORDER: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 

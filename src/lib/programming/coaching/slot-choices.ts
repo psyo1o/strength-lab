@@ -25,7 +25,7 @@ export type SlotArea = "strength" | "conditioning" | "warmup";
 
 export type QuantityChoice = {
   id: string;
-  unit: CatalogUnit;
+  unit: CatalogUnit | "min";
   amount: number;
   /** 스트렝스 세트는 방법 표에 둔다. 이 선택지는 횟수가 아니다. */
   method: boolean;
@@ -271,11 +271,41 @@ export function withoutHeavyLowerOptions(frame: SessionFrame): SessionFrame {
   return { ...frame, slots };
 }
 
+/** A closed catalog span rejects an amount outside it. Minutes and the method table are not rep counts. */
+export function quantityInsideRange(key: string, option: { id: string; unit: string; amount: number; method?: boolean }): boolean {
+  if (option.method || option.id === "method" || option.unit === "min") return true;
+  if (option.unit !== "reps" && option.unit !== "cal" && option.unit !== "m" && option.unit !== "sec") return false;
+  const span = rangeFor(key, option.unit);
+  if (!span) return true;
+  return option.amount >= span.min && option.amount <= span.max;
+}
+
+export function catalogRangeText(key: string, options: readonly { unit: string; method?: boolean }[] = []): string {
+  if (options.some((option) => option.unit === "min")) return "min 30-45";
+  if (options.length > 0 && options.every((option) => option.method)) return "method";
+  const row = resolved(key);
+  if (!row) return "";
+  return row.units
+    .flatMap((unit) => {
+      const span = rangeFor(row.key, unit);
+      return span ? [`${unit} ${span.min}-${span.max}`] : [];
+    })
+    .join(", ");
+}
+
+function shownAmount(amount: number, unit: QuantityChoice["unit"]): string {
+  return unit === "min" ? `${amount}min` : displayAmount(amount, unit);
+}
+
 function doseMovement(move: DoseMovement): FrameMovement {
-  return {
-    key: move.key,
-    options: [{ id: `${move.unit}:${move.amount}`, unit: move.unit, amount: move.amount, method: false }],
-  };
+  if (move.unit === "min") {
+    return { key: move.key, options: [{ id: `min:${move.amount}`, unit: "min", amount: move.amount, method: false }] };
+  }
+  const span = rangeFor(move.key, move.unit);
+  const amount = span ? Math.min(span.max, Math.max(span.min, move.amount)) : move.amount;
+  const pinned = { id: `${move.unit}:${amount}`, unit: move.unit, amount, method: false as const };
+  const options = quantityInsideRange(move.key, pinned) ? [pinned] : quantityOptions(move.key);
+  return { key: move.key, options };
 }
 
 function contractSlots(area: SlotArea, day: DayIntent, lock: DaySessionLock): FrameSlot[] {
@@ -291,14 +321,15 @@ function contractSlots(area: SlotArea, day: DayIntent, lock: DaySessionLock): Fr
     }));
   }
   if (area === "strength") {
-    const main = lock.blocks.find((block) => block.role === "main_lift")?.movements[0];
-    const strength = main
-      ? [{ id: "s0", phase: "main", movements: [doseMovement(main)] }]
-      : strengthSlots(day);
-    return [
-      ...strength,
-      { id: "s1", phase: "skill", movements: [doseMovement(lock.skill)] },
-    ];
+    const mainBlock = lock.blocks.find((block) => block.role === "main_lift");
+    const pinned = mainBlock?.movements[0]?.key || day.main_movement || null;
+    const slots: FrameSlot[] = [];
+    if (mainBlock && mainBlock.minutes > 0) {
+      const key = pinned || "method_table";
+      slots.push({ id: "s0", phase: "main", movements: [{ key, options: [METHOD_OPTION] }] });
+    }
+    slots.push({ id: "s1", phase: "skill", movements: [doseMovement(lock.skill)] });
+    return slots;
   }
   return [
     ...lock.metcon.map((move, index) => ({ id: `s${index}`, phase: "metcon", movements: [doseMovement(move)] })),
@@ -348,10 +379,19 @@ function strictObject(properties: Record<string, unknown>, required: string[]): 
 }
 
 function branch(slot: FrameSlot, movement: FrameMovement, locked: boolean): Record<string, unknown> {
+  const range = catalogRangeText(movement.key, movement.options);
   const properties: Record<string, unknown> = {
     slot: { type: "string", enum: [slot.id] },
-    movement_id: { type: "string", enum: [movement.key] },
-    quantity_option: { type: "string", enum: movement.options.map((option) => option.id) },
+    movement_id: {
+      type: "string",
+      enum: [movement.key],
+      ...(slot.phase === "main" ? { description: "Only the skeleton lift." } : {}),
+    },
+    quantity_option: {
+      type: "string",
+      enum: movement.options.map((option) => option.id),
+      ...(range ? { description: `Catalog range: ${range}.` } : {}),
+    },
   };
   const required = ["slot", "movement_id", "quantity_option"];
   if (locked) {
@@ -480,13 +520,20 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
 }
 
 export function slotChoiceUser(frame: SessionFrame): unknown {
-  return frame.slots.map((slot) => ({
-    slot: slot.id,
-    movements: slot.movements.map((movement) => ({
-      movement_id: movement.key,
-      quantity_option: movement.options.map((option) => option.id),
+  return {
+    slots: frame.slots.map((slot) => ({
+      slot: slot.id,
+      ...(slot.phase === "main" ? { main_lift: slot.movements.map((movement) => movement.key) } : {}),
+      movements: slot.movements.map((movement) => ({
+        movement_id: movement.key,
+        catalog_range: catalogRangeText(movement.key, movement.options),
+        quantity_option: movement.options.map((option) => option.id),
+      })),
     })),
-  }));
+    ...(frame.contract && frame.area === "conditioning"
+      ? { format: frame.contract.format, stimulus: stimulusLockEnum(frame.contract, frame.piece?.stimulus) }
+      : {}),
+  };
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -520,7 +567,7 @@ function movementDraft(key: string, quantity: string) {
   return {
     key: row.key,
     movement: row.key,
-    amount: displayAmount(choice.amount, choice.unit),
+    amount: shownAmount(choice.amount, choice.unit),
     amount_value: choice.amount,
     unit: choice.unit,
     name_ko: row.name_ko,
@@ -618,7 +665,7 @@ function conditioningJson(frame: SessionFrame, picks: SlotPick[]): Record<string
     return {
       key,
       movement: key,
-      amount: displayAmount(choice.amount, choice.unit),
+      amount: shownAmount(choice.amount, choice.unit),
       amount_value: choice.amount,
       unit: choice.unit,
       name_ko: cleanDisplayName(row?.name_ko ?? key),
@@ -654,7 +701,7 @@ function warmupJson(frame: SessionFrame, pick: SlotPick): Record<string, unknown
   const row = resolved(pick.movement_id);
   const text =
     row && choice && !choice.method
-      ? `준비는 ${row.name_ko} ${displayAmount(choice.amount, choice.unit)}입니다.`
+      ? `준비는 ${row.name_ko} ${shownAmount(choice.amount, choice.unit)}입니다.`
       : "당일 본 운동을 위한 준비 동작입니다.";
   return { day: frame.day, warmup_ko: noteWithoutKey(text) };
 }
@@ -668,7 +715,7 @@ function movementFrom(key: string, option: QuantityChoice) {
   return {
     key: row?.key ?? key,
     movement: row?.key ?? key,
-    amount: displayAmount(option.amount, option.unit),
+    amount: shownAmount(option.amount, option.unit),
     amount_value: option.amount,
     unit: option.unit,
     name_ko: cleanDisplayName(row?.name_ko ?? key),
@@ -775,9 +822,7 @@ function expandContract(
           main_minutes: minutesOf("main_lift"),
           skill_minutes: minutesOf("skill_or_accessory"),
           skill: skill ? { key: skill.movement_id, unit: skill.option.unit, amount: skill.option.amount } : null,
-          main:
-            lock.blocks.find((block) => block.role === "main_lift")?.movements[0] ??
-            (!lock.lift && minutesOf("main_lift") > 0 && skill ? { key: skill.movement_id, unit: skill.option.unit, amount: skill.option.amount } : null),
+          main: lock.blocks.find((block) => block.role === "main_lift")?.movements[0] ?? null,
         },
       },
     };
@@ -980,7 +1025,7 @@ export function applyCatalogOption(
     const row = resolved(movement.key);
     movement.amount_value = choice.amount;
     movement.unit = choice.unit;
-    movement.amount = displayAmount(choice.amount, choice.unit);
+    movement.amount = shownAmount(choice.amount, choice.unit);
     movement.load = prescribedLoad(row?.key ?? movement.key);
     return { ok: true };
   }
@@ -996,7 +1041,7 @@ export function applyCatalogOption(
     movement.name_ko = row.name_ko;
     movement.amount_value = choice.amount;
     movement.unit = choice.unit;
-    movement.amount = displayAmount(choice.amount, choice.unit);
+    movement.amount = shownAmount(choice.amount, choice.unit);
     movement.load = prescribedLoad(row.key);
     return { ok: true };
   }

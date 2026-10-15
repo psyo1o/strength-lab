@@ -73,7 +73,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     inputs: "That day's intent, the monthly method, and whether a lift is required.",
     decision_principles: "Keep the lift the weekly plan locked. Do not change another day's strength.",
     constraints:
-      "Return one slot, one movement_id, and quantity_option method. Do not write sets, kilograms, units, or a display sentence. The server keeps the method table and writes the sentence. When edit_list is present, apply each item exactly and change nothing that is not listed. When day_recovery.field_edits names a field path, change only that field.",
+      "Return one slot, one movement_id, and quantity_option method. The main movement_id is only the skeleton lift. Do not choose another movement. Do not write sets, kilograms, units, or a display sentence. The server keeps the method table and writes the sentence. When edit_list is present, apply each item exactly and change nothing that is not listed. When day_recovery.field_edits names a field path, change only that field.",
     output_schema: "Each slot is movement_id and quantity_option. The server writes strength_note_ko.",
     failure_behavior: "A bad strength note is rejected. The server keeps the method table for that day.",
   },
@@ -84,7 +84,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose format, duration, stimulus, movements, volume, and intensity. Do not return equipment. Do not rename a movement to escape a similar structure. Use other_training_days, previous_training_stimulus, and next_training_stimulus.",
     constraints:
-      "Return one movement_id and one quantity_option for each slot. Do not write units, loads, kilograms, or a display sentence. The server fills those from the catalog. Do not repeat a movement. Do not pick a movement that is not in that slot. When zone2_slot is in the schema, the same response includes primary and alternate. primary is the zone2 block. alternate is the short metcon that replaces primary when time is short. Do not prescribe both as work to do. When slot_repair is present, return only those slots. When edit_list is present, apply each listed item and do not change a slot that is not in edit_list.",
+      "Return one movement_id and one quantity_option for each slot. quantity_option ids stay inside the catalog_range on that movement. Do not invent an amount outside that range. stimulus is only the enum for that format. emom and intervals do not include heavy. A zone2 block is format zone2, one movement, and minutes. It is not a metcon. Do not write units, loads, kilograms, or a display sentence. The server fills those from the catalog. Do not repeat a movement. Do not pick a movement that is not in that slot. When zone2_slot is in the schema, the same response includes primary and alternate. primary is the zone2 block. alternate is the short metcon that replaces primary when time is short. Do not prescribe both as work to do. When slot_repair is present, return only those slots. When edit_list is present, apply each listed item and do not change a slot that is not in edit_list.",
     output_schema: "Each slot is slot, movement_id, and quantity_option. The server writes notes_ko, units, and Rx.",
     failure_behavior: "A bad piece is rejected. Other days and the strength and warmup of this day stay.",
   },

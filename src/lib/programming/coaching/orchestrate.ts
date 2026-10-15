@@ -41,6 +41,7 @@ import {
   mergeSlotPicks,
   mergeZone2Alternate,
   narrowFrame,
+  quantityInsideRange,
   quantityOptions,
   readPicks,
   sessionSlotFormat,
@@ -350,7 +351,9 @@ function stampSlotAxes(json: unknown, slot: ConditioningSlot, ceiling?: string |
   if (!piece || typeof piece !== "object") return clone;
   piece.format = slot.format;
   piece.duration_min = slot.duration_min;
-  if ((stimuliForCeiling(ceiling, slot.stimulus) as readonly string[]).includes(slot.stimulus)) piece.stimulus = slot.stimulus;
+  const clocked = slot.format === "emom" || slot.format === "intervals";
+  const stamped = clocked && slot.stimulus === "heavy" ? "technical" : slot.stimulus;
+  if ((stimuliForCeiling(ceiling, stamped) as readonly string[]).includes(stamped)) piece.stimulus = stamped;
   piece.volume = slot.volume;
   if (slot.format === "intervals") {
     if (typeof piece.interval_work_sec !== "number") piece.interval_work_sec = 40;
@@ -440,7 +443,9 @@ function adoptDay(input: {
         })
       : []),
   ];
-  if (schemaErrors.length) return { ok: false, errors: schemaErrors, json: normalized.json, normalizations: normalized.normalizations };
+  if (schemaErrors.length) {
+    return { ok: false, errors: schemaErrors, json: normalized.json, normalizations: normalized.normalizations };
+  }
   const session = sessionFromCoachJson({
     json: normalized.json,
     intent: input.day,
@@ -565,10 +570,10 @@ function mergeSpecialists(input: {
   };
 }
 
-function doseRow(value: unknown): { key: string; unit: "reps" | "cal" | "m" | "sec"; amount: number } | null {
+function doseRow(value: unknown): { key: string; unit: "reps" | "cal" | "m" | "sec" | "min"; amount: number } | null {
   const row = asRecord(value);
   if (!row || typeof row.key !== "string") return null;
-  const unit = row.unit === "reps" || row.unit === "cal" || row.unit === "m" || row.unit === "sec" ? row.unit : null;
+  const unit = row.unit === "reps" || row.unit === "cal" || row.unit === "m" || row.unit === "sec" || row.unit === "min" ? row.unit : null;
   const amount = typeof row.amount === "number" ? row.amount : typeof row.amount_value === "number" ? row.amount_value : null;
   if (!unit || amount == null) return null;
   return { key: row.key, unit, amount };
@@ -2459,7 +2464,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       const stimulus = session?.conditioning?.stimulus ?? frame?.piece?.stimulus ?? null;
       const intensity = session?.conditioning?.intensity ?? frame?.piece?.intensity ?? null;
       const listed = home?.movements.find((movement) => movement.key === cell.catalog_key);
-      const quantityValues = (listed?.options ?? quantityOptions(cell.catalog_key))
+      const listedOptions = (listed?.options ?? quantityOptions(cell.catalog_key)).filter((option) =>
+        quantityInsideRange(cell.catalog_key, option),
+      );
+      const quantityValues = (listedOptions.length ? listedOptions : quantityOptions(cell.catalog_key))
         .filter(
           (option) =>
             !avoidHeavyLower ||

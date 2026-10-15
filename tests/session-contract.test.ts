@@ -9,11 +9,14 @@ import {
   diversityIssues,
   doseIssues,
   lockIssues,
+  lockMismatchMessages,
   planWeekContract,
+  scaleDose,
   weekContractIssues,
   type ContractDayInput,
   type DaySessionLock,
 } from "../src/lib/programming/coaching/session-contract";
+import { buildSessionFrame, quantityInsideRange, sessionSlotFormat, slotChoiceUser } from "../src/lib/programming/coaching/slot-choices";
 import { amountDecision, standardMovements } from "../src/lib/programming/coaching/movement-catalog";
 import { tipFor } from "../src/lib/tips";
 import { jointsFor, rampSlots, sessionJoints, warmupIssues } from "../src/lib/programming/coaching/warmup-ramp";
@@ -162,7 +165,7 @@ describe("session contract", () => {
         day,
         rest: day === "sun",
         long: week % 2 === 0 && day === "sat",
-        domain: day === "wed" ? "long" : week % 2 === 0 && day === "sat" ? "long" : "medium",
+        domain: day === "wed" ? "long" : day === "mon" ? "short" : week % 2 === 0 && day === "sat" ? "long" : "medium",
         lift: day === "mon" ? "squat" : day === "fri" ? "deadlift" : day === "tue" ? "ohp" : day === "sat" ? "bench" : "none",
         zone2: day === "wed",
         zone2_modality: "row_erg",
@@ -175,7 +178,7 @@ describe("session contract", () => {
       expect(
         diversityIssues(
           locks
-            .filter((lock) => !lock.rest)
+            .filter((lock) => !lock.rest && !lock.steady)
             .map((lock) => ({
               day: lock.day,
               format: lock.format,
@@ -190,8 +193,9 @@ describe("session contract", () => {
         expect(lockIssues(lock, 100), `${week} ${lock.day} ${lock.format}`).toEqual([]);
         if (lock.format === "emom" || lock.format === "intervals") expect(lock.stimulus).not.toBe("heavy");
         if (lock.steady) {
-          expect(lock.exception).toBe("mono");
-          expect(lock.metcon).toHaveLength(1);
+          expect(lock.format).toBe("zone2");
+          expect(lock.exception).toBeNull();
+          expect(lock.metcon).toEqual([expect.objectContaining({ unit: "min", amount: 40 })]);
           continue;
         }
         for (const move of lock.metcon) {
@@ -203,7 +207,7 @@ describe("session contract", () => {
     }
   });
 
-  it("accepts only a full zone2 clock in seconds", () => {
+  it("accepts a zone2 block in minutes and rejects a seconds clock", () => {
     const name = standardMovements().find((row) => row.key === "row_erg")?.name_ko ?? "";
     const intent = {
       day: "wed",
@@ -212,21 +216,83 @@ describe("session contract", () => {
       recovery_role: "easy",
       zone2: "day",
     } as DayIntent;
-    const piece = (minutes: number, amount: number) => ({
+    const piece = (minutes: number, amount: number, unit: "min" | "sec") => ({
       day: "wed",
       warmup_ko: "준비 동작을 먼저 합니다.",
       notes_ko: "존 2는 대화 페이스로 이어 갑니다.",
       conditioning: {
-        format: "for_time",
+        format: "zone2",
         duration_min: minutes,
         stimulus: "technical",
         volume: "low",
         intensity: "light",
-        movements: [{ key: "row_erg", amount: `${amount}sec`, amount_value: amount, unit: "sec", name_ko: name }],
+        movements: [{ key: "row_erg", amount: `${amount}${unit}`, amount_value: amount, unit, name_ko: name }],
       },
     });
-    expect(sessionCoachErrors(piece(40, 2400), intent).join(" ")).not.toContain("does not allow sec");
-    expect(sessionCoachErrors(piece(16, 960), intent).join(" ")).toContain("does not allow sec");
+    expect(sessionCoachErrors(piece(40, 40, "min"), intent)).toEqual([]);
+    expect(sessionCoachErrors(piece(16, 16, "min"), intent).join(" ")).toContain("does not allow min");
+    expect(sessionCoachErrors(piece(40, 2400, "sec"), intent).join(" ")).toContain("does not allow sec");
+  });
+
+  it("pins the skeleton lift, catalog quantities, and format-matched stimulus in the session schema", () => {
+    const days: ContractDayInput[] = ORDER.map((day) => ({
+      day,
+      rest: day === "sun",
+      long: day === "sat",
+      domain: day === "wed" || day === "sat" ? "long" : "medium",
+      lift: day === "mon" ? "squat" : "none",
+      zone2: day === "wed",
+      zone2_modality: "row_erg",
+      zone2_minutes: 40,
+      main_key: day === "mon" ? "back_squat" : null,
+      stimulus: "heavy",
+    }));
+    const locks = planWeekContract(days, 1, "531", 100);
+    const monday = locks.find((lock) => lock.day === "mon");
+    const wednesday = locks.find((lock) => lock.day === "wed");
+    expect(monday?.blocks.find((block) => block.role === "main_lift")?.movements[0]?.key).toBe("back_squat");
+    const strength = buildSessionFrame({
+      area: "strength",
+      day: { day: "mon", main_movement: "back_squat", strength_lift: "squat", volume_profile: "moderate" } as DayIntent,
+      slot: null,
+      sessionLock: monday,
+    });
+    const strengthSchema = JSON.stringify(sessionSlotFormat(strength!));
+    expect(strengthSchema).toContain('"back_squat"');
+    expect(strengthSchema).not.toContain("front_squat");
+    expect(strengthSchema).not.toContain("ring_row");
+    const swapped = sessionFromLock(monday!);
+    const main = swapped.session_blocks.find((block) => block.role === "main_lift");
+    main!.movements[0]!.key = "ring_row";
+    expect(lockMismatchMessages(swapped, monday!).join(" ")).toContain("main ring_row does not match lock back_squat");
+    expect(scaleDose("for_time", 12, [{ key: "burpee", unit: "reps", amount: 3 }])[0]?.amount).toBeGreaterThanOrEqual(10);
+    expect(quantityInsideRange("burpee", { id: "reps:3", unit: "reps", amount: 3 })).toBe(false);
+    expect(quantityInsideRange("burpee", { id: "reps:10", unit: "reps", amount: 10 })).toBe(true);
+    const zone = buildSessionFrame({
+      area: "conditioning",
+      day: { day: "wed", zone2: "day", volume_profile: "low", primary_training: "aerobic", secondary_training: "aerobic" } as DayIntent,
+      slot: null,
+      sessionLock: wednesday,
+    });
+    const zoneUser = JSON.stringify(slotChoiceUser(zone!));
+    expect(zoneUser).toContain("min 30-45");
+    expect(zoneUser).toContain('"zone2"');
+    expect(zoneUser).not.toContain("heavy");
+    const clock = locks.find((lock) => lock.format === "intervals" || lock.format === "emom");
+    expect(clock).toBeTruthy();
+    const clockFrame = buildSessionFrame({
+      area: "conditioning",
+      day: { day: clock!.day, volume_profile: "moderate" } as DayIntent,
+      slot: null,
+      sessionLock: clock,
+    });
+    const clockUser = slotChoiceUser(clockFrame!) as { stimulus?: string[] };
+    expect(clockUser.stimulus).not.toContain("heavy");
+    const stored = locks.filter((lock) => !lock.rest).map((lock) => ({
+      ...sessionFromLock(lock),
+      zone2: lock.steady ? { form: "day", modality: "row_erg", duration_min: lock.metcon_minutes } : null,
+    }));
+    expect(weekContractIssues({ sessions: stored }, 1, "531").join(" ")).not.toContain("metcon movements");
   });
 
   it("rejects a two-movement metcon unless the day is an exception", () => {

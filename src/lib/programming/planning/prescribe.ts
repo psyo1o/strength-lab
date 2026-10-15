@@ -1,5 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { buildSession } from "../coaching/session";
+import { catalogMovement, equipmentForKeys } from "../coaching/movement-catalog";
 import { intensityBandsAtMost } from "../coaching/session-contract";
 import { fillSessionFields } from "../session-fields";
 import type { WeekActual } from "../summary";
@@ -271,11 +272,19 @@ function alignFallbackSession(session: SessionDraft, day: SkeletonDay): SessionD
   const piece = { ...session.conditioning };
   const klass = day.conditioning.duration_class;
   if (day.steady_zone2) {
+    piece.format = "zone2";
     piece.duration_min = 40;
     piece.time_domain = "long";
     piece.long_conditioning = false;
     piece.volume = "low";
     piece.intensity = "light";
+    piece.stimulus = "technical";
+    const name = catalogMovement("row_erg")?.name_ko;
+    if (name) {
+      piece.movements = [{ key: "row_erg", amount: "40분", name_ko: name, amount_value: 40, unit: "min" }];
+      piece.equipment = equipmentForKeys(["row_erg"]);
+    }
+    piece.purpose = `${name ?? "로우"} 40분, RPE 2–3. 고강도 메트콘은 두지 않습니다.`;
   } else if (klass === "short" || klass === "medium" || klass === "long") {
     const range = TIME_DOMAIN_RANGES[klass];
     const domain = timeDomainFromMinutes(piece.duration_min);

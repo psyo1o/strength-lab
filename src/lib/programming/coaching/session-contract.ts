@@ -21,14 +21,14 @@ export const BLOCK_RANGES = {
 
 export type ContractRole = keyof typeof BLOCK_RANGES;
 
-export const CONTRACT_FORMATS = ["for_time", "amrap", "emom", "chipper", "intervals", "partner"] as const;
+export const CONTRACT_FORMATS = ["for_time", "amrap", "emom", "chipper", "intervals", "partner", "zone2"] as const;
 export type ContractFormat = (typeof CONTRACT_FORMATS)[number];
 
 export type MetconBand = "short" | "medium" | "long";
 
 export type DoseMovement = {
   key: string;
-  unit: "reps" | "cal" | "m" | "sec";
+  unit: "reps" | "cal" | "m" | "sec" | "min";
   amount: number;
   /** 추가 컨디셔닝처럼 시간·강도가 있는 프로토콜. */
   intensity?: "light" | "moderate" | "heavy";
@@ -47,6 +47,12 @@ export function intensityBandsAtMost(ceiling: string | null | undefined): Intens
   if (ceiling === "light") return ["light"];
   if (ceiling === "moderate") return ["light", "moderate"];
   return ["light", "moderate", "heavy"];
+}
+
+/** Clock formats do not offer heavy. Other formats keep the stimulus list they were given. */
+export function stimuliMatchingFormat(format: string | null | undefined, stimuli: readonly Stimulus[] = STIMULI): Stimulus[] {
+  if (format === "emom" || format === "intervals") return stimuli.filter((item) => item !== "heavy");
+  return [...stimuli];
 }
 
 /**
@@ -411,10 +417,10 @@ export function planWeekContract(
       : ["warmup", "skill_or_accessory", "metcon", "extra_conditioning", "cooldown"];
     const modality = day.zone2_modality === "bike_erg" || day.zone2_modality === "run" ? day.zone2_modality : "row_erg";
     const zone2Dose: DoseMovement[] | null = zone2
-      ? [{ key: modality, unit: "sec", amount: zone2Minutes * 60, intensity: "light" }]
+      ? [{ key: modality, unit: "min", amount: zone2Minutes, intensity: "light" }]
       : null;
     const pieceMinutes = zone2Dose ? zone2Minutes : minutes;
-    const format = zone2 ? "for_time" : template.format;
+    const format = zone2 ? "zone2" : template.format;
     const metcon = zone2Dose ?? scaleDose(format, pieceMinutes, template.metcon);
     const clocked = format === "emom" || format === "intervals";
     const stimulus = zone2 ? "technical" : clocked && day.stimulus === "heavy" ? "technical" : (day.stimulus ?? null);
@@ -445,7 +451,7 @@ export function planWeekContract(
       band,
       metcon_minutes: pieceMinutes,
       movement_count: metcon.length,
-      exception: zone2 ? "mono" : template.exception,
+      exception: zone2 ? null : template.exception,
       lift,
       machine: template.machine,
       main_sets: fitted.mainSets.sets,
@@ -535,6 +541,7 @@ export function doseIssues(input: { format: string; minutes: number; movements: 
 }
 
 function clampDose(movement: DoseMovement): boolean {
+  if (movement.unit === "min") return false;
   const range = rangeFor(movement.key, movement.unit);
   if (!range) return false;
   const next = Math.min(range.max, Math.max(range.min, movement.amount));
@@ -652,8 +659,14 @@ export function lockIssues(lock: DaySessionLock, setting = resolveSessionMinutes
   }
   const metcon = lock.blocks.find((block) => block.role === "metcon");
   if (metcon && metcon.minutes !== lock.metcon_minutes) errors.push(`${lock.day} metcon minutes do not match the lock`);
-  if (lock.band === "long" && lock.metcon_minutes < 30) errors.push(`${lock.day} long metcon is under 30`);
-  errors.push(...doseIssues({ format: lock.format, minutes: lock.metcon_minutes, movements: lock.metcon }));
+  if (lock.band === "long" && lock.metcon_minutes < 30 && lock.format !== "zone2") errors.push(`${lock.day} long metcon is under 30`);
+  if (lock.format === "zone2" || lock.steady) {
+    if (lock.metcon.length !== 1) errors.push(`${lock.day} zone2 has ${lock.metcon.length} movements; allowed 1`);
+    const minutes = lock.metcon[0]?.unit === "min" ? lock.metcon[0].amount : null;
+    if (minutes !== 30 && minutes !== 40 && minutes !== 45) errors.push(`${lock.day} zone2 minutes ${minutes ?? "missing"} are outside 30–45`);
+  } else {
+    errors.push(...doseIssues({ format: lock.format, minutes: lock.metcon_minutes, movements: lock.metcon }));
+  }
   return errors;
 }
 
@@ -675,14 +688,14 @@ function readSessions(raw: unknown): RawSession[] {
 
 function doseFrom(row: { key?: string; unit?: string; amount_value?: number; amount?: string | number } | undefined): DoseMovement | null {
   if (!row?.key) return null;
-  const unit = row.unit === "cal" || row.unit === "m" || row.unit === "sec" || row.unit === "reps" ? row.unit : null;
+  const unit = row.unit === "cal" || row.unit === "m" || row.unit === "sec" || row.unit === "reps" || row.unit === "min" ? row.unit : null;
   const amount = typeof row.amount_value === "number" ? row.amount_value : Number(String(row.amount ?? "").replace(/[^\d]/g, ""));
   if (!unit || !Number.isInteger(amount)) return null;
   return { key: row.key, unit, amount };
 }
 
 /** 세션 스키마, 헤드 패치, final_validator가 같이 쓰는 잠금 필드. */
-export const LOCK_FIELDS = ["format", "metcon_dose", "block_minutes", "intensity_ceiling", "stimulus"] as const;
+export const LOCK_FIELDS = ["format", "metcon_dose", "block_minutes", "intensity_ceiling", "stimulus", "main_lift"] as const;
 export type LockField = (typeof LOCK_FIELDS)[number];
 
 export type SlotCause = {
@@ -700,6 +713,7 @@ const LOCK_PATCH_FIELDS = new Set([
   "block_minutes",
   "intensity_ceiling",
   "stimulus",
+  "main_lift",
 ]);
 
 /** 잠금 필드 이름은 헤드 패치 대상이 아니다. 동작 수량은 적용 뒤 잠금으로 다시 본다. */
@@ -710,7 +724,8 @@ export function isLockPatchField(field: string): boolean {
 export function lockSnapshot(lock: DaySessionLock): string {
   const blocks = lock.blocks.map((block) => `${block.role}:${block.minutes}`).join(",");
   const dose = lock.metcon.map((move) => `${move.key}:${move.unit}:${move.amount}`).join("|");
-  return [lock.format, dose, blocks, lock.intensity_ceiling, lock.stimulus ?? "", lock.intensity_class ?? ""].join("~");
+  const main = lock.blocks.find((block) => block.role === "main_lift")?.movements[0]?.key ?? "";
+  return [lock.format, dose, blocks, lock.intensity_ceiling, lock.stimulus ?? "", lock.intensity_class ?? "", main].join("~");
 }
 
 export function sameLockSnapshot(left: DaySessionLock, right: DaySessionLock): boolean {
@@ -724,7 +739,7 @@ export function stimulusLockEnum(
 ): Stimulus[] {
   const stimuli = stimuliForCeiling(lock.intensity_ceiling, lock.stimulus ?? current);
   const clocked = lock.format === "emom" || lock.format === "intervals";
-  const legal = clocked ? stimuli.filter((item) => item !== "heavy") : stimuli;
+  const legal = stimuliMatchingFormat(lock.format, stimuli);
   const opened = legal.length ? legal : clocked ? stimuliForCeiling(lock.intensity_ceiling, "technical").filter((item) => item !== "heavy") : legal;
   if (lock.intensity_class !== "light") return opened;
   const withoutHeavy = opened.filter((item) => item !== "heavy");
@@ -767,6 +782,11 @@ export function lockMismatchMessages(session: LockSession, lock: DaySessionLock)
   if (blockMoves.length !== lock.metcon.length || blockMoves.some((move, index) => !sameDose(move, lock.metcon[index]!))) {
     errors.push(`${day} metcon does not match the locked dose`);
   }
+  const lockedMain = lock.blocks.find((block) => block.role === "main_lift")?.movements[0];
+  if (lockedMain) {
+    const actual = blocks.find((block) => block.role === "main_lift")?.movements?.[0]?.key;
+    if (actual !== lockedMain.key) errors.push(`${day} main ${actual ?? "missing"} does not match lock ${lockedMain.key}`);
+  }
   if (session.conditioning?.format && session.conditioning.format !== lock.format) {
     errors.push(`${day} format ${session.conditioning.format} does not match lock ${lock.format}`);
   }
@@ -787,6 +807,7 @@ export function slotCauseFromMessage(message: string): SlotCause {
   if (message.includes("locked dose")) return { day, code: "lock.metcon_dose", field: "metcon_dose", message };
   if (message.includes("format") && message.includes("does not match lock")) return { day, code: "lock.format", field: "format", message };
   if (message.includes("minutes") && message.includes("do not match lock")) return { day, code: "lock.block_minutes", field: "block_minutes", message };
+  if (message.includes(" main ") && message.includes("does not match lock")) return { day, code: "lock.main_lift", field: "main_lift", message };
   if (message.includes("stimulus") && message.includes("does not match lock")) return { day, code: "lock.stimulus", field: "stimulus", message };
   if (message.includes("locked ceiling") || (message.includes("intensity") && message.includes("does not match lock"))) {
     return { day, code: "lock.intensity_ceiling", field: "intensity_ceiling", message };
@@ -841,13 +862,15 @@ export function weekContractIssues(raw: unknown, weekIndex: WeekIndex = 1, metho
     if (new Set(actualRoles).size !== actualRoles.length) errors.push(`${session.day} repeats a block role`);
     const total = session.session_blocks.reduce((sum, block) => sum + (block.minutes ?? 0), 0);
     if (total < SESSION_MINUTES_MIN || total > SESSION_MINUTES_MAX) errors.push(`${session.day} blocks sum to ${total}; allowed ${SESSION_MINUTES_MIN}–${SESSION_MINUTES_MAX}`);
-    diversity.push({
-      day: lock.day,
-      format: lock.format,
-      band: lock.band,
-      movements: lock.metcon.map((move) => move.key),
-      exception: lock.exception,
-    });
+    if (!(lock.steady || lock.format === "zone2")) {
+      diversity.push({
+        day: lock.day,
+        format: lock.format,
+        band: lock.band,
+        movements: lock.metcon.map((move) => move.key),
+        exception: lock.exception,
+      });
+    }
     const sets = session.strength?.sets;
     if ((method === "531" || method.toLowerCase() === "531") && lock.lift && Array.isArray(sets) && sets.length !== 3) {
       errors.push(`${session.day} ${lock.lift} has ${sets.length} sets`);

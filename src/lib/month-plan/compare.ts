@@ -56,6 +56,7 @@ export function formatLabelKo(format: PieceFormat | string): string {
   if (format === "amrap") return "AMRAP";
   if (format === "emom") return "EMOM";
   if (format === "intervals") return "인터벌";
+  if (format === "zone2") return "존 2";
   return "포 타임";
 }
 

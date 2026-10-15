@@ -19,7 +19,7 @@ export type VolumeBand = "low" | "moderate" | "high";
 
 export type IntensityBand = "light" | "moderate" | "heavy";
 
-export type WodFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper" | "partner";
+export type WodFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper" | "partner" | "zone2";
 
 export type MovementPattern = "squat" | "hinge" | "press" | "pull" | "olympic" | "engine" | "gymnastic";
 
@@ -156,7 +156,7 @@ export type MovementDraft = {
   /** Catalog key. The display string stays in amount. */
   movement?: string;
   amount_value?: number | null;
-  unit?: "reps" | "cal" | "m" | "sec" | null;
+  unit?: "reps" | "cal" | "m" | "sec" | "min" | null;
   load?: { male: string | null; female: string | null } | null;
 };
 
@@ -225,7 +225,7 @@ export type SessionDraft = {
   session_blocks?: {
     role: "warmup" | "main_lift" | "skill_or_accessory" | "metcon" | "extra_conditioning" | "cooldown";
     minutes: number;
-    movements: { key: string; unit: "reps" | "cal" | "m" | "sec"; amount: number }[];
+    movements: { key: string; unit: "reps" | "cal" | "m" | "sec" | "min"; amount: number }[];
   }[];
   warmup_phases?: {
     phase: "raise" | "mobilise" | "activate" | "potentiate" | "cooldown";

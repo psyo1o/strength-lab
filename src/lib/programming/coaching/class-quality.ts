@@ -69,14 +69,15 @@ export function metconShapeErrors(draft: WeekDraft): string[] {
   for (const session of draft.sessions) {
     const piece = session.conditioning;
     if (!piece || session.rest) continue;
+    if (piece.format === "zone2" || session.zone2?.form === "day") {
+      if (piece.stimulus === "heavy" || piece.intensity === "heavy") errors.push(`${session.day} zone2 day has a heavy metcon`);
+      continue;
+    }
     const keys = piece.movements.map((movement) => movementKey(movement));
     const ropes = keys.filter((key) => ROPE.has(key));
     if (new Set(ropes).size > 1) errors.push(`${session.day} metcon has both double_under and single_under`);
     if ((piece.format === "intervals" || piece.format === "emom") && piece.stimulus === "heavy") {
       errors.push(`${session.day} ${piece.format} stimulus heavy does not match the format`);
-    }
-    if (session.zone2?.form === "day" && (piece.stimulus === "heavy" || piece.intensity === "heavy")) {
-      errors.push(`${session.day} zone2 day has a heavy metcon`);
     }
   }
   return errors;
