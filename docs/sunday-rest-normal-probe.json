@@ -64,17 +64,17 @@
         "mismatches": [],
         "mismatch_count": 0
       },
-      "model_calls": 279,
-      "tokens": 2142261,
+      "model_calls": 286,
+      "tokens": 2678263,
       "tokens_unsupported": false,
-      "elapsed_ms": 611927,
+      "elapsed_ms": 736854,
       "flags": {
         "COACHING_PIPELINE": "0",
         "LONGITUDINAL_PLANNING": "0"
       }
     },
     "archive": {
-      "run_id": "sunday-rest-normal-745fdd46-4fce-4c9a-82f0-0f3af44509d6",
+      "run_id": "sunday-rest-normal-11fb2851-2f56-474b-a095-4b84fd837d24",
       "root": "docs/sunday-rest-normal-runs",
       "raw_saved": true,
       "summary_is_not_raw": true,
@@ -83,7 +83,7 @@
       "passes": [
         {
           "pass": "A1",
-          "dir": "docs/sunday-rest-normal-runs/sunday-rest-normal-745fdd46-4fce-4c9a-82f0-0f3af44509d6/A1",
+          "dir": "docs/sunday-rest-normal-runs/sunday-rest-normal-11fb2851-2f56-474b-a095-4b84fd837d24/A1",
           "files": [
             "generation-logs.json",
             "weeks.json",
@@ -94,7 +94,7 @@
         },
         {
           "pass": "A2",
-          "dir": "docs/sunday-rest-normal-runs/sunday-rest-normal-745fdd46-4fce-4c9a-82f0-0f3af44509d6/A2",
+          "dir": "docs/sunday-rest-normal-runs/sunday-rest-normal-11fb2851-2f56-474b-a095-4b84fd837d24/A2",
           "files": [
             "generation-logs.json",
             "weeks.json",
@@ -196,11 +196,11 @@
               "MODEL",
               "MODEL"
             ],
-            "elapsed_ms": 68793,
+            "elapsed_ms": 63808,
             "log_count": 126,
             "model_calls": 25,
-            "tokens": 191053,
-            "log_latency_ms": 103130,
+            "tokens": 193562,
+            "log_latency_ms": 106087,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -261,8 +261,8 @@
               "sun"
             ],
             "skeleton_log": true,
-            "skeleton_source": "model",
-            "skeleton_rewrites": 0,
+            "skeleton_source": "repaired",
+            "skeleton_rewrites": 1,
             "thesis": {
               "phase": "progression",
               "volume_ceiling": "high",
@@ -284,11 +284,11 @@
               "MODEL",
               "MODEL"
             ],
-            "elapsed_ms": 84837,
+            "elapsed_ms": 102835,
             "log_count": 186,
             "model_calls": 39,
-            "tokens": 297121,
-            "log_latency_ms": 159509,
+            "tokens": 379106,
+            "log_latency_ms": 177593,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -372,11 +372,11 @@
               "MODEL",
               "MODEL_REVISED"
             ],
-            "elapsed_ms": 82736,
+            "elapsed_ms": 100727,
             "log_count": 186,
-            "model_calls": 39,
-            "tokens": 321176,
-            "log_latency_ms": 152933,
+            "model_calls": 40,
+            "tokens": 408018,
+            "log_latency_ms": 173870,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -460,11 +460,11 @@
               "MODEL_REVISED",
               "MODEL_REVISED"
             ],
-            "elapsed_ms": 78293,
+            "elapsed_ms": 99627,
             "log_count": 175,
-            "model_calls": 37,
-            "tokens": 266868,
-            "log_latency_ms": 151333,
+            "model_calls": 38,
+            "tokens": 354094,
+            "log_latency_ms": 174069,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -554,11 +554,11 @@
               "MODEL",
               "MODEL"
             ],
-            "elapsed_ms": 51237,
+            "elapsed_ms": 67470,
             "log_count": 126,
-            "model_calls": 24,
-            "tokens": 179721,
-            "log_latency_ms": 89647,
+            "model_calls": 25,
+            "tokens": 194540,
+            "log_latency_ms": 113024,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -620,7 +620,7 @@
             ],
             "skeleton_log": true,
             "skeleton_source": "model",
-            "skeleton_rewrites": 0,
+            "skeleton_rewrites": 1,
             "thesis": {
               "phase": "progression",
               "volume_ceiling": "high",
@@ -642,11 +642,11 @@
               "MODEL",
               "MODEL"
             ],
-            "elapsed_ms": 81727,
+            "elapsed_ms": 105316,
             "log_count": 186,
-            "model_calls": 39,
-            "tokens": 288259,
-            "log_latency_ms": 152714,
+            "model_calls": 40,
+            "tokens": 381313,
+            "log_latency_ms": 175687,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -730,11 +730,11 @@
               "MODEL",
               "MODEL_REVISED"
             ],
-            "elapsed_ms": 84038,
-            "log_count": 186,
-            "model_calls": 39,
-            "tokens": 330939,
-            "log_latency_ms": 154763,
+            "elapsed_ms": 102244,
+            "log_count": 187,
+            "model_calls": 41,
+            "tokens": 413535,
+            "log_latency_ms": 180541,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -818,11 +818,11 @@
               "MODEL_REVISED",
               "MODEL_REVISED"
             ],
-            "elapsed_ms": 80266,
+            "elapsed_ms": 94827,
             "log_count": 175,
-            "model_calls": 37,
-            "tokens": 267124,
-            "log_latency_ms": 151168,
+            "model_calls": 38,
+            "tokens": 354095,
+            "log_latency_ms": 173073,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,

@@ -64,17 +64,17 @@
         "mismatches": [],
         "mismatch_count": 0
       },
-      "model_calls": 270,
-      "tokens": 2061458,
+      "model_calls": 279,
+      "tokens": 2564087,
       "tokens_unsupported": false,
-      "elapsed_ms": 648456,
+      "elapsed_ms": 763146,
       "flags": {
         "COACHING_PIPELINE": "0",
         "LONGITUDINAL_PLANNING": "0"
       }
     },
     "archive": {
-      "run_id": "sunday-rest-fatigue-49b4d37a-b6d7-474f-8bda-acf748034a8e",
+      "run_id": "sunday-rest-fatigue-8447bb2d-5bdb-4058-9293-e575420cafae",
       "root": "docs/sunday-rest-fatigue-runs",
       "raw_saved": true,
       "summary_is_not_raw": true,
@@ -83,7 +83,7 @@
       "passes": [
         {
           "pass": "A1",
-          "dir": "docs/sunday-rest-fatigue-runs/sunday-rest-fatigue-49b4d37a-b6d7-474f-8bda-acf748034a8e/A1",
+          "dir": "docs/sunday-rest-fatigue-runs/sunday-rest-fatigue-8447bb2d-5bdb-4058-9293-e575420cafae/A1",
           "files": [
             "generation-logs.json",
             "weeks.json",
@@ -94,7 +94,7 @@
         },
         {
           "pass": "A2",
-          "dir": "docs/sunday-rest-fatigue-runs/sunday-rest-fatigue-49b4d37a-b6d7-474f-8bda-acf748034a8e/A2",
+          "dir": "docs/sunday-rest-fatigue-runs/sunday-rest-fatigue-8447bb2d-5bdb-4058-9293-e575420cafae/A2",
           "files": [
             "generation-logs.json",
             "weeks.json",
@@ -196,11 +196,11 @@
               "MODEL",
               "MODEL"
             ],
-            "elapsed_ms": 67044,
+            "elapsed_ms": 65023,
             "log_count": 114,
             "model_calls": 22,
-            "tokens": 158198,
-            "log_latency_ms": 94458,
+            "tokens": 160465,
+            "log_latency_ms": 102368,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -284,11 +284,11 @@
               "MODEL",
               "MODEL"
             ],
-            "elapsed_ms": 85628,
+            "elapsed_ms": 97464,
             "log_count": 186,
-            "model_calls": 39,
-            "tokens": 295787,
-            "log_latency_ms": 161476,
+            "model_calls": 40,
+            "tokens": 378278,
+            "log_latency_ms": 174447,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -372,11 +372,11 @@
               "MODEL",
               "MODEL_REVISED"
             ],
-            "elapsed_ms": 91627,
+            "elapsed_ms": 104758,
             "log_count": 186,
-            "model_calls": 38,
-            "tokens": 309109,
-            "log_latency_ms": 163030,
+            "model_calls": 39,
+            "tokens": 386284,
+            "log_latency_ms": 178876,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -437,8 +437,8 @@
               "sun"
             ],
             "skeleton_log": true,
-            "skeleton_source": "repaired",
-            "skeleton_rewrites": 1,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
             "thesis": {
               "phase": "DELOAD",
               "volume_ceiling": "moderate",
@@ -460,11 +460,11 @@
               "MODEL_REVISED",
               "MODEL_REVISED"
             ],
-            "elapsed_ms": 87663,
+            "elapsed_ms": 101981,
             "log_count": 175,
-            "model_calls": 36,
-            "tokens": 272901,
-            "log_latency_ms": 160944,
+            "model_calls": 38,
+            "tokens": 358667,
+            "log_latency_ms": 182396,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -532,7 +532,7 @@
             ],
             "skeleton_log": true,
             "skeleton_source": "model",
-            "skeleton_rewrites": 1,
+            "skeleton_rewrites": 0,
             "thesis": {
               "phase": "emphasis",
               "volume_ceiling": "low",
@@ -554,11 +554,11 @@
               "MODEL",
               "MODEL"
             ],
-            "elapsed_ms": 51500,
+            "elapsed_ms": 60220,
             "log_count": 114,
-            "model_calls": 21,
-            "tokens": 147113,
-            "log_latency_ms": 87673,
+            "model_calls": 22,
+            "tokens": 156649,
+            "log_latency_ms": 101201,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -642,11 +642,11 @@
               "MODEL",
               "MODEL"
             ],
-            "elapsed_ms": 94087,
-            "log_count": 186,
-            "model_calls": 38,
-            "tokens": 296433,
-            "log_latency_ms": 172247,
+            "elapsed_ms": 108967,
+            "log_count": 187,
+            "model_calls": 40,
+            "tokens": 378600,
+            "log_latency_ms": 191736,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -730,11 +730,11 @@
               "MODEL",
               "MODEL_REVISED"
             ],
-            "elapsed_ms": 89143,
+            "elapsed_ms": 114804,
             "log_count": 186,
-            "model_calls": 39,
-            "tokens": 304619,
-            "log_latency_ms": 160253,
+            "model_calls": 40,
+            "tokens": 389241,
+            "log_latency_ms": 201100,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,
@@ -818,11 +818,11 @@
               "MODEL_REVISED",
               "MODEL_REVISED"
             ],
-            "elapsed_ms": 81764,
+            "elapsed_ms": 109929,
             "log_count": 175,
-            "model_calls": 37,
-            "tokens": 277298,
-            "log_latency_ms": 154726,
+            "model_calls": 38,
+            "tokens": 355903,
+            "log_latency_ms": 197061,
             "session_failures": {
               "failed_days": 0,
               "passed_days": 0,

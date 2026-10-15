@@ -45,8 +45,8 @@ export type CoachWeekInput = {
    */
   longitudinal?: LongitudinalPlan | null;
   /**
-   * regenerate-week turns this on. The longitudinal flag can stay off.
-   * A keyed week then still plans the skeleton inside coachWeekActive.
+   * Kept for callers. The class path always plans the skeleton inside coachWeekActive.
+   * The longitudinal flag does not turn that lock off.
    */
   lockSkeleton?: boolean;
   /** Phase 3 direction. evaluateWeek checks conformance when the week skeleton is also set. */
@@ -106,6 +106,8 @@ export type CoachWeekResult = {
   day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
   week_status?: WeekLifecycle;
   adoption?: WeekAdoption;
+  /** weekly_schema면 잘못된 골격을 저장하지 않고 파이프라인을 멈춘다. */
+  halted?: "weekly_schema" | null;
 };
 
 export function assertProbeWeek(weekStart: string) {

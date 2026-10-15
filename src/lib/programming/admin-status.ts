@@ -14,6 +14,9 @@ export type EnginePlanStamp = {
   origin: EngineOrigin;
   rowId: number | null;
   rowStatus: "active" | "failed" | "superseded" | null;
+  skeletonLocked: boolean | null;
+  usedFallback: boolean | null;
+  fallbackReason: string | null;
 };
 
 export type EngineAdminStatus = {
@@ -75,6 +78,9 @@ function emptyStamp(start: string): EnginePlanStamp {
     origin: "없음",
     rowId: null,
     rowStatus: null,
+    skeletonLocked: null,
+    usedFallback: null,
+    fallbackReason: null,
   };
 }
 
@@ -97,8 +103,12 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
         origin: month.generationSource,
         rowId: month.id,
         rowStatus: month.status,
+        skeletonLocked: null,
+        usedFallback: month.generationSource === "fallback",
+        fallbackReason: null,
       }
     : emptyStamp(monthStart);
+  const weekPlan = week?.draft.intent.plan ?? week?.intent.plan ?? null;
   const weekStamp: EnginePlanStamp = week
     ? {
         start: week.weekStart,
@@ -109,6 +119,9 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
         origin: week.generationSource,
         rowId: week.id,
         rowStatus: week.status,
+        skeletonLocked: weekPlan?.longitudinal?.skeleton.skeleton_locked === true,
+        usedFallback: week.generationSource === "fallback" || Boolean(week.fallbackReason),
+        fallbackReason: week.fallbackReason,
       }
     : classPlan
       ? {
@@ -120,6 +133,9 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
           origin: "기존 시드",
           rowId: null,
           rowStatus: null,
+          skeletonLocked: null,
+          usedFallback: null,
+          fallbackReason: null,
         }
       : emptyStamp(weekStart);
   return {

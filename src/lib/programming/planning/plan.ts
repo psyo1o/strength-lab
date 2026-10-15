@@ -163,6 +163,17 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
       skeleton.source = "model";
       skeleton.model = modelName;
       skeleton.rewrite_count = asked.retryCount > 0 ? 1 : 0;
+    } else if (!parsed && (asked.reason === "schema" || asked.reason === "bad_json")) {
+      skeleton = settle(seed, check, thesis);
+      skeleton.model = modelName;
+      skeleton.rewrite_count = 1;
+      if (skeleton.skeleton_locked) {
+        skeleton.skeleton_locked = false;
+        skeleton.feedback = validationFeedback(["model skeleton format failed; code frame kept"]);
+      } else {
+        skeleton.validation_errors = [SKELETON_FORMAT_FAILED, ...skeleton.validation_errors];
+        skeleton.feedback = validationFeedback(["weekly skeleton format failed"]);
+      }
     } else {
       const repaired = parsed ? settle(parsed, check, thesis) : null;
       if (repaired?.skeleton_locked) {
@@ -170,7 +181,12 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
       } else {
         const rejected = parsed ? validateSkeleton(parsed, check) : ["weekly skeleton must contain seven days"];
         skeleton = settle(seed, check, thesis);
-        if (skeleton.skeleton_locked) skeleton.feedback = validationFeedback(rejected);
+        if (skeleton.skeleton_locked) {
+          skeleton.skeleton_locked = false;
+          skeleton.feedback = validationFeedback(rejected);
+        } else {
+          skeleton.validation_errors = [SKELETON_FORMAT_FAILED, ...skeleton.validation_errors];
+        }
       }
       skeleton.model = modelName;
       skeleton.rewrite_count = 1;
@@ -204,6 +220,30 @@ function dayIntensityEnum(weekCeiling: IntensityBand, stimulus: string | null | 
   return intensityBandsAtMost(weekCeiling);
 }
 
+export const SKELETON_FORMAT_FAILED = "skeleton_format_failed";
+
+/**
+ * 기본 6일 수업은 일요일 휴식, 월~토 훈련이다.
+ * 모델이 평일을 휴식으로 두면 그 요일은 코드 시드의 훈련일로 바꾼다.
+ * 둘 다 훈련이면 모델의 목표·강도·리프트를 남긴다.
+ */
+export function applyClassSkeletonFrame(days: SkeletonDay[], seed: WeeklySkeleton): SkeletonDay[] {
+  const seedRest = seed.days.filter((day) => day.status === "rest");
+  if (seedRest.length !== 1 || seedRest[0]?.day !== "sun") return days;
+  const seedBy = new Map(seed.days.map((day) => [day.day, day]));
+  return DAY_ORDER.map((key) => {
+    const model = days.find((day) => day.day === key);
+    const code = seedBy.get(key);
+    if (!code) return model ?? days[0]!;
+    if (key === "sun" || !model || model.status === "rest") return structuredClone(code);
+    return model;
+  });
+}
+
+export function skeletonFormatFailed(plan: LongitudinalPlan | null | undefined): boolean {
+  return Boolean(plan?.skeleton.validation_errors.includes(SKELETON_FORMAT_FAILED));
+}
+
 function parseModelSkeleton(
   json: unknown,
   seed: WeeklySkeleton,
@@ -223,9 +263,10 @@ function parseModelSkeleton(
     if (!parsed) return null;
     days.push(parsed);
   }
+  const framed = applyClassSkeletonFrame(days, seed);
   return {
     ...structuredClone(seed),
-    days,
+    days: framed,
     source: "model",
     skeleton_locked: false,
     validation_errors: [],

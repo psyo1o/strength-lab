@@ -14,6 +14,7 @@ import { coachingPipelineEnabled } from "./coaching/models";
 import { resolveImplicitCoachKey } from "./coaching/provider";
 import { longitudinalPlanningEnabled } from "./planning/flag";
 import { planLongitudinal, withLongitudinal } from "./planning/plan";
+import { classWeekShapeErrors } from "./coaching/stage13/validators";
 import { coachingWeekMayUseLegacyFallback } from "./coaching/stage16/hard";
 import { withCoachingPlan } from "./coaching/monthly";
 import { authorMonth, authorWeek, authorWeeklyIntent, evaluationStatus, monthPrompt, type AuthorTrace, type FetchLike } from "./model";
@@ -37,6 +38,7 @@ import {
   recordFailedProgrammingWeek,
   linkProgrammingWeek,
   pipelineFailureRecorded,
+  markPipelineFailureRecorded,
   recordPipelineFailure,
   saveMonthlyProposal,
   listProgrammingMonths,
@@ -488,7 +490,7 @@ async function writeProgrammingWeek(
     recentPlans: intentContext.recentPlans,
     recentLiftMaps,
     longitudinal,
-    lockSkeleton: mode === "regenerate",
+    lockSkeleton: true,
     inputSummary: summary,
     key,
     fetchImpl: options.fetchImpl,
@@ -635,6 +637,27 @@ async function writeProgrammingWeek(
   const skeletonPlan = coached.longitudinal ?? longitudinal;
   if (coached.monthly_plan?.reuse === true) {
     saveMonthCoachingPlan(month.id, { ...month.direction, coaching_plan: coached.monthly_plan });
+  }
+  const shapeErrors = classWeekShapeErrors(coached.draft, month.direction);
+  if (coached.halted === "weekly_schema" || shapeErrors.length > 0) {
+    const existing = getProgrammingWeek(weekStart);
+    if (existing) return { ...existing, writeOutcome: "kept_existing" };
+    const blocked = new Error(
+      coached.halted === "weekly_schema"
+        ? "weekly skeleton format failed and the week was not saved"
+        : "class week shape failed and the week was not saved",
+    );
+    if (shapeErrors.length > 0 && coached.halted !== "weekly_schema") {
+      recordPipelineFailure({
+        weekStart,
+        stage: "final_validator",
+        reason: "class_week_shape",
+        message: shapeErrors.join("; "),
+        createdAt: nowMs,
+      });
+    }
+    markPipelineFailureRecorded(blocked);
+    throw blocked;
   }
   {
     if (coached.rejected_draft) {

@@ -7,7 +7,7 @@ function PlanBlock({ title, stamp }: { title: string; stamp: EnginePlanStamp }) 
       <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">기간 {stamp.start}</p>
       {stamp.generated ? (
         <p className="mt-1 text-sm leading-relaxed">
-          최신 행 {stamp.rowId ?? "없음"}. 상태 {stamp.rowStatus ?? "없음"}. 시각 {stamp.generatedAt}. 생성기 {stamp.engineVersion}. 프롬프트 {stamp.promptVersion}. 출처 {stamp.origin}.
+          최신 행 {stamp.rowId ?? "없음"}. 상태 {stamp.rowStatus ?? "없음"}. 시각 {stamp.generatedAt}. 생성기 {stamp.engineVersion}. 프롬프트 {stamp.promptVersion}. 출처 {stamp.origin}. 골격 잠금 {stamp.skeletonLocked == null ? "없음" : stamp.skeletonLocked ? "켜짐" : "꺼짐"}. fallback {stamp.usedFallback ? "예" : "아니오"}{stamp.fallbackReason ? `. 사유 ${stamp.fallbackReason}` : ""}.
         </p>
       ) : stamp.origin === "기존 시드" ? (
         <p className="mt-1 text-sm leading-relaxed">

@@ -79,6 +79,29 @@ export function raisedOutputLimit(maxTokens: number): number {
   return Math.max(maxTokens * 2, maxTokens + 2000);
 }
 
+const BULKY_USER_KEYS = /recent|history|catalog|examples|overlap|structures|notes|raw/i;
+
+/** 출력 한도 재시도 한 번에서만 입력을 줄인다. */
+export function shrinkCoachUser(user: unknown): unknown {
+  if (!user || typeof user !== "object" || Array.isArray(user)) return { input_reduced: true, task: user ?? null };
+  const out: Record<string, unknown> = { input_reduced: true };
+  for (const [key, value] of Object.entries(user as Record<string, unknown>)) {
+    if (BULKY_USER_KEYS.test(key)) continue;
+    if (typeof value === "string" && value.length > 400) {
+      out[key] = value.slice(0, 400);
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+function transportBackoff(retryIndex: number): Promise<void> {
+  if (process.env.VITEST === "true" || process.env.COACH_BACKOFF_MS === "0") return Promise.resolve();
+  const ms = retryIndex <= 1 ? 400 : 800;
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function addUsage(left: TokenUsage | null, right: TokenUsage | null): TokenUsage | null {
   if (!left) return right;
   if (!right) return left;
@@ -164,8 +187,10 @@ async function postOnce(input: {
 }
 
 /**
- * Shared model wrapper. Schema failure retries once, with the errors and the invalid output.
- * HTTP and timeout retry once when retryTransport is set, except HTTP 429.
+ * Shared model wrapper.
+ * 출력 한도는 상한을 올리고 입력을 줄여 한 번만 다시 부른다.
+ * 일시적 HTTP·시간 초과는 백오프로 최대 두 번. 429는 다시 부르지 않는다.
+ * 형식·스키마 오류는 한 번 다시 부른 뒤 멈춘다.
  * A provider that rejects strict schema or temperature falls back inside the same attempt.
  */
 export async function askCoach(input: {
@@ -185,9 +210,9 @@ export async function askCoach(input: {
   systemPrompt?: string;
   /** Replaces the retry schema note. Absent keeps the agent schema brief. */
   schemaNote?: string;
-  /** HTTP 오류와 시간 초과를 오류 내용과 함께 한 번 더 부른다. 429는 제외다. */
+  /** 일시적 HTTP·시간 초과를 최대 두 번 다시 부른다. 429는 제외다. */
   retryTransport?: boolean;
-  /** 검증 재시도를 포함한 최대 호출 수. 기본은 2다. 1이면 다시 부르지 않는다. */
+  /** 형식 재시도 횟수의 기준. 기본 2는 형식 재시도 한 번이다. */
   maxAttempts?: number;
 }): Promise<CoachCall> {
   const model = coachModelForCall(input.agent);
@@ -215,25 +240,15 @@ export async function askCoach(input: {
     promptVersion: input.promptVersion,
   });
 
-  let limit = input.maxAttempts ?? 2;
+  const maxFormatRetries = Math.max(0, (input.maxAttempts ?? 2) - 1);
+  const maxHttpRetries = input.retryTransport === true ? 2 : 0;
   let tokens = input.maxTokens;
   let outputRaised = false;
-  for (let attempt = 1; attempt <= limit; attempt += 1) {
-    const overlap = retryExtra?.overlap_sessions;
-    const user =
-      attempt === 1
-        ? input.user
-        : {
-            instruction: overlap
-              ? "Validation failed. Rewrite this day so it does not copy overlap_sessions. Use a different format, a different stimulus, and different movement keys. Copying the movement amounts is not a new session. The threshold stays 4. This is the same task, not a new question."
-              : "Validation failed. Correct only the invalid fields. Do not rewrite valid fields. This is the same task, not a new question.",
-            original_input: input.user,
-            validation_errors: errors,
-            invalid_output: lastJson,
-            expected_schema: input.schemaNote ?? schemaBrief(input.agent),
-            context: input.retryContext ?? { agent: input.agent, run_id: input.runId },
-            ...(retryExtra ?? {}),
-          };
+  let httpRetries = 0;
+  let formatRetries = 0;
+  let user: unknown = input.user;
+  const hardCap = 2 + maxHttpRetries + maxFormatRetries + 1;
+  for (let attempt = 1; attempt <= hardCap; attempt += 1) {
     assertPhase4Budget();
     let attemptResult = await postOnce({
       key: input.key,
@@ -337,6 +352,7 @@ export async function askCoach(input: {
         errors = [`output_limit: retry once at max_tokens ${tokens}`];
         remember(errors);
         lastJson = attemptResult.raw;
+        user = shrinkCoachUser(input.user);
         attempts.push({
           attempt,
           raw: attemptResult.raw,
@@ -345,19 +361,62 @@ export async function askCoach(input: {
           reason: "output_limit",
         });
         settle("output_limit", errors[0] ?? "output_limit");
-        if (attempt === limit) limit += 1;
         continue;
       }
-      const transport =
-        input.retryTransport === true &&
-        (attemptResult.reason === "timeout" || (attemptResult.reason === "http_error" && attemptResult.status !== 429));
+      if (attemptResult.status === 429) {
+        errors = [`http_error: ${detail.slice(0, 400) || "no body"}`];
+        remember(errors);
+        attempts.push({
+          attempt,
+          raw: attemptResult.raw,
+          json: null,
+          validation_errors: errors,
+          reason: "http_error",
+        });
+        settle("rate_limit", errors[0] ?? "rate_limit");
+        return finish({
+          ok: false,
+          json: null,
+          raw: lastRaw,
+          model,
+          latencyMs: Date.now() - started,
+          reason: "http_error",
+          retryCount: attempt - 1,
+          validationErrors: errors,
+          usage,
+        });
+      }
+      const transport = attemptResult.reason === "timeout" || attemptResult.reason === "http_error";
       const shape = attemptResult.reason === "bad_json";
-      if (attempt < limit && (transport || shape)) {
-        errors = transport
-          ? [`${attemptResult.reason}: ${detail.slice(0, 400) || "no body"}`]
-          : [`${attemptResult.reason}: return one JSON object that matches the schema`];
+      if (transport && httpRetries < maxHttpRetries) {
+        httpRetries += 1;
+        errors = [`${attemptResult.reason}: ${detail.slice(0, 400) || "no body"}`];
         remember(errors);
         lastJson = attemptResult.raw;
+        user = {
+          instruction: "The previous call failed in transit. Retry the same task.",
+          original_input: input.user,
+          validation_errors: errors,
+          invalid_output: lastJson,
+          context: input.retryContext ?? { agent: input.agent, run_id: input.runId },
+        };
+        attempts.push({
+          attempt,
+          raw: attemptResult.raw,
+          json: null,
+          validation_errors: errors,
+          reason: attemptResult.reason,
+        });
+        settle(loggedResult, errors[0] ?? loggedResult);
+        await transportBackoff(httpRetries);
+        continue;
+      }
+      if (shape && formatRetries < maxFormatRetries) {
+        formatRetries += 1;
+        errors = [`${attemptResult.reason}: return one JSON object that matches the schema`];
+        remember(errors);
+        lastJson = attemptResult.raw;
+        user = formatRetryUser(input, errors, lastJson, retryExtra);
         attempts.push({
           attempt,
           raw: attemptResult.raw,
@@ -422,7 +481,7 @@ export async function askCoach(input: {
       reason: "schema",
     });
     settle("schema_fail", errors[0] ?? "schema");
-    if (attempt === limit || verdict.retry === false) {
+    if (formatRetries >= maxFormatRetries || verdict.retry === false) {
       return finish({
         ok: false,
         json: attemptResult.json,
@@ -435,6 +494,8 @@ export async function askCoach(input: {
         usage,
       });
     }
+    formatRetries += 1;
+    user = formatRetryUser(input, errors, lastJson, retryExtra);
   }
   return finish({
     ok: false,
@@ -443,8 +504,28 @@ export async function askCoach(input: {
     model,
     latencyMs,
     reason: "schema",
-    retryCount: 1,
+    retryCount: Math.max(0, attempts.length - 1),
     validationErrors: errors,
     usage,
   });
+}
+
+function formatRetryUser(
+  input: { user: unknown; agent: CoachAgentName; schemaNote?: string; retryContext?: unknown; runId: string },
+  errors: string[],
+  lastJson: unknown,
+  retryExtra: Record<string, unknown> | null,
+): Record<string, unknown> {
+  const overlap = retryExtra?.overlap_sessions;
+  return {
+    instruction: overlap
+      ? "Validation failed. Rewrite this day so it does not copy overlap_sessions. Use a different format, a different stimulus, and different movement keys. Copying the movement amounts is not a new session. The threshold stays 4. This is the same task, not a new question."
+      : "Validation failed. Correct only the invalid fields. Do not rewrite valid fields. This is the same task, not a new question.",
+    original_input: input.user,
+    validation_errors: errors,
+    invalid_output: lastJson,
+    expected_schema: input.schemaNote ?? schemaBrief(input.agent),
+    context: input.retryContext ?? { agent: input.agent, run_id: input.runId },
+    ...(retryExtra ?? {}),
+  };
 }

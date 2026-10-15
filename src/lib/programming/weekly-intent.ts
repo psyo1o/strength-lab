@@ -579,7 +579,7 @@ function asEnum<T extends string>(value: unknown, allowed: readonly T[]): T | nu
   return typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : null;
 }
 
-const DURATION: readonly DurationProfile[] = ["30-45", "45-60", "60-75", "rest"];
+const DURATION: readonly DurationProfile[] = ["30-45", "45-60", "60-75", "90-110", "rest"];
 const LIFTS: readonly StrengthLiftChoice[] = ["squat", "ohp", "bench", "deadlift", "none"];
 const PHASES: readonly BlockPhase[] = ["accumulation", "progression", "peak", "deload", "emphasis"];
 const EMPHASIS: readonly IntentEmphasis[] = ["mixed", "olympic", "gymnastics", "aerobic", "long_conditioning"];

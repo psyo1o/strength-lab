@@ -78,13 +78,13 @@ import { applyHeadCells, clearingValues, intensityRevisionCells, pieceCells } fr
 import { classifyHeadRevise, is_heavy_lower_metcon, sessionHasHeavyLowerMetcon, type HeadReviseGap } from "./heavy-lower-metcon";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
 import { skeletonFeasibility, skeletonFitsGoal, type CellCause } from "../planning/feasibility";
-import { longitudinalPlanningEnabled } from "../planning/flag";
+import { skeletonFormatFailed } from "../planning/plan";
 import { planLongitudinal } from "../planning/plan";
 import type { LongitudinalPlan } from "../planning/types";
 import { rampSlots } from "./warmup-ramp";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
 import { variationReport } from "./variation";
-import { planCoachedWeek, weeklyCoachPayload } from "./weekly";
+import { applyClassIntentFrame, classFrameAlignmentErrors, planCoachedWeek, weeklyCoachPayload } from "./weekly";
 import { enforceLockedSkeleton, lockedSessionFieldErrors, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
 import type { CoachWeekInput, CoachWeekResult } from "./pipeline";
 import { finalizeWeekAdoption, makeIssue, type HeadDecision as AdoptionHead, type RepairRequest, type RepairResult } from "../v2";
@@ -1153,7 +1153,13 @@ function parsedDecisions(json: unknown): LoadDecision[] {
   }));
 }
 
+function withoutClassRest<T extends { day: string }>(rows: readonly T[], rest: DayKey | null): T[] {
+  if (!rest) return [...rows];
+  return rows.filter((row) => row.day !== rest);
+}
+
 function headUser(input: CoachWeekInput, plan: WeeklyIntentPlan, draft: WeekDraft, load: readonly LoadDecision[], revisionNumber: number) {
+  const rest = classRestDay(input.month);
   const fatigue = fatigueReport({ sessions: draft.sessions, actual: input.previousActual });
   const variation = variationReport({
     sessions: draft.sessions,
@@ -1169,7 +1175,7 @@ function headUser(input: CoachWeekInput, plan: WeeklyIntentPlan, draft: WeekDraf
       emphasis: plan.emphasis,
       why_ko: plan.why_ko,
       adjustment_ko: plan.adjustment_ko,
-      days: plan.days.map((day) => ({
+      days: withoutClassRest(plan.days, rest).map((day) => ({
         day: day.day,
         primary_training: day.primary_training,
         secondary_training: day.secondary_training,
@@ -1184,7 +1190,7 @@ function headUser(input: CoachWeekInput, plan: WeeklyIntentPlan, draft: WeekDraf
         long_day: day.secondary_training === "long_conditioning",
       })),
     },
-    sessions: draft.sessions.map((session) => ({
+    sessions: withoutClassRest(draft.sessions, rest).map((session) => ({
       day: session.day,
       rest: session.rest,
       lift: session.strength?.lift ?? null,
@@ -1296,7 +1302,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const goalStimuli: Partial<Record<DayKey, string | null>> = {};
   for (const day of goalWeek(month.coaching_plan?.goal_table, input.weekIndex)?.days ?? []) goalStimuli[day.day] = day.stimulus;
   let longitudinal: LongitudinalPlan | null = input.longitudinal ?? null;
-  const planSkeleton = longitudinalPlanningEnabled() || input.lockSkeleton === true;
+  const planSkeleton = true;
   if (planSkeleton && !skeletonFitsGoal(longitudinal?.skeleton.skeleton_locked ? longitudinal.skeleton.days : null, goalStimuli)) {
     longitudinal = await planLongitudinal({
       month,
@@ -1315,9 +1321,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         agent_type: "coach",
         model: longitudinal.skeleton.model,
         prompt_version: "skeleton-v1",
-        input_hash: inputHash({ week_index: input.weekIndex, lock_skeleton: input.lockSkeleton === true }),
+        input_hash: inputHash({ week_index: input.weekIndex, skeleton_lock_enabled: true }),
         output: {
           skeleton_locked: longitudinal.skeleton.skeleton_locked,
+          skeleton_lock_enabled: true,
           source: longitudinal.skeleton.source,
           rest: longitudinal.skeleton.days.filter((day) => day.status === "rest").map((day) => day.day),
         },
@@ -1362,29 +1369,22 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   let plan = deterministic;
   let weeklyFromModel = false;
   let intensityPatchCount = 0;
-  const lockedLongitudinal = longitudinal?.skeleton.skeleton_locked ? longitudinal : null;
-  if (lockedLongitudinal) {
-    plan = planFromLockedSkeleton(lockedLongitudinal, month);
-    traces.push(
-      finishTrace(Date.now(), {
-        run_id: runId,
-        week_id: input.weekStart,
-        agent_name: "weekly_coach",
-        model: null,
-        prompt_version: WEEKLY_COACH_PROMPT_VERSION,
-        input_hash: inputHash({ source: "locked_skeleton", week_index: input.weekIndex }),
-        output: { block_phase: plan.block_phase, days: plan.days.map((day) => day.primary_training), source: "locked_skeleton" },
-        validation_result: "pass",
-        retry_count: 0,
-        failure_reason: null,
-        deterministic: true,
-        source: "fallback",
-        fallback_reason: null,
-        revision_number: 0,
-      }),
-    );
-  }
-  if (!lockedLongitudinal) {
+  const callerLockedSkeleton = input.longitudinal?.skeleton.skeleton_locked === true && longitudinal === input.longitudinal;
+  const adoptedModelSkeleton =
+    longitudinal?.skeleton.skeleton_locked === true && longitudinal.skeleton.source !== "deterministic";
+  const lockedLongitudinal = callerLockedSkeleton || adoptedModelSkeleton ? longitudinal : null;
+  const codePlan = lockedLongitudinal ? planFromLockedSkeleton(lockedLongitudinal, month) : deterministic;
+  plan = codePlan;
+  const classRest = classRestDay(month);
+  const acceptWeekly = (json: unknown): WeeklyIntentPlan | null => {
+    const parsed = parseWeeklyIntent(json, codePlan);
+    if (!parsed) return null;
+    return applyClassIntentFrame(parsed, codePlan);
+  };
+  const skeletonHalted = skeletonFormatFailed(longitudinal);
+  let weeklyStopReason: string | null = skeletonHalted ? "weekly_schema" : null;
+  let weeklyStopErrors: string[] = skeletonHalted ? ["skeleton_format_failed"] : [];
+  if (!skeletonHalted) {
   const skeletonBounds = dayBoundsFromSkeleton(input.weekSkeleton ?? null, rules.max_lower_lifts, {
     method: month.strength_method || month.scheme,
     previousWeek: input.previousWeekSkeleton ?? null,
@@ -1398,16 +1398,15 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     : goalForSchema
       ? boundsFromWeekGoal(goalForSchema)
       : null;
-  const classRest = classRestDay(month);
   if (dayBounds && classRest) dayBounds = lockClassRestBounds(dayBounds, classRest);
   const weeklyGate = (json: unknown) => {
     const errors = weeklyIntentErrors(json, dayBounds);
     if (errors.length) return { ok: false as const, errors };
-    const parsed = parseWeeklyIntent(json, deterministic);
+    const parsed = acceptWeekly(json);
     if (!parsed) return { ok: false as const, errors: ["weekly intent parser rejected the payload"] };
     const ruleErrors = weekPlanErrors(parsed, rules);
     const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
-    const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
+    const alignErrors = goal ? classFrameAlignmentErrors(weekGoalAlignmentErrors(parsed, goal), classRest) : [];
     const zoneErrors = zone2RuleErrors({
       trainingDays: profileTrainingDayCount(month),
       planDays: parsed.days,
@@ -1473,7 +1472,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   modelName = weekly.model;
   usage = addUsage(usage, weekly.usage);
   if (weekly.ok && weekly.json) {
-    const parsed = parseWeeklyIntent(weekly.json, deterministic);
+    const parsed = acceptWeekly(weekly.json);
     if (parsed) {
       plan = {
         ...parsed,
@@ -1577,11 +1576,11 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       retryContext: { agent: "weekly", week_index: input.weekIndex, revision_number: 1, patch: "intensity_profile" },
       validate: (json) => {
         const merged = applyIntensityPatch(weekly.json, json, dayBounds);
-        const parsed = parseWeeklyIntent(merged, deterministic);
+        const parsed = acceptWeekly(merged);
         if (!parsed) return { ok: false, errors: ["weekly intent parser rejected the patched payload"], retry: false };
         const ruleErrors = weekPlanErrors(parsed, rules);
         const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
-        const alignErrors = goal ? weekGoalAlignmentErrors(parsed, goal) : [];
+        const alignErrors = goal ? classFrameAlignmentErrors(weekGoalAlignmentErrors(parsed, goal), classRest) : [];
         const planErrors = [...ruleErrors, ...alignErrors];
         if (planErrors.length) return { ok: false, errors: planErrors, retry: false };
         return { ok: true };
@@ -1590,9 +1589,9 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     usage = addUsage(usage, patch.usage);
     modelName = patch.model;
     if (patch.ok && patch.json) {
-      const parsed = parseWeeklyIntent(applyIntensityPatch(weekly.json, patch.json, dayBounds), deterministic);
+      const parsed = acceptWeekly(applyIntensityPatch(weekly.json, patch.json, dayBounds));
       const goal = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
-      const alignErrors = goal && parsed ? weekGoalAlignmentErrors(parsed, goal) : [];
+      const alignErrors = goal && parsed ? classFrameAlignmentErrors(weekGoalAlignmentErrors(parsed, goal), classRest) : [];
       if (parsed && weekPlanErrors(parsed, rules).length === 0 && alignErrors.length === 0) {
         plan = {
           ...parsed,
@@ -1672,7 +1671,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     usage = addUsage(usage, weeklyRetry.usage);
     modelName = weeklyRetry.model;
     if (weeklyRetry.ok && weeklyRetry.json) {
-      const parsed = parseWeeklyIntent(weeklyRetry.json, deterministic);
+      const parsed = acceptWeekly(weeklyRetry.json);
       if (parsed && weekPlanErrors(parsed, rules).length === 0) {
         plan = {
           ...parsed,
@@ -1710,8 +1709,17 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       }),
     );
   }
+    weeklyStopReason = weeklyFromModel ? null : (weekly.reason ?? "schema");
+    weeklyStopErrors = weeklyFromModel ? [] : weekly.validationErrors;
   }
-  const weeklySchemaBlocked = !lockedLongitudinal && !weeklyFromModel;
+  const weeklyFormatFailed =
+    skeletonHalted ||
+    weeklyStopReason === "bad_json" ||
+    weeklyStopReason === "weekly_schema" ||
+    (weeklyStopReason === "schema" &&
+      weeklyStopErrors.some((error) => /parser rejected|must contain seven days|"days"|not one object|skeleton format/i.test(error)));
+  const weeklySchemaBlocked = !weeklyFromModel && (weeklyFormatFailed || weeklyStopReason != null);
+  const formatHalted = !weeklyFromModel && weeklyFormatFailed;
   if (weeklySchemaBlocked) {
     noteFailure("weekly_schema");
     traces.push(
@@ -1839,7 +1847,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           lockedDays: plan.days.filter((day) => lockedSkeletonDay(week, day.day)).map((day) => day.day),
         }),
   };
-  const queue = trainingDays(plan);
+  const queue = trainingDays(plan).filter((day) => day.day !== classRest);
   const skeletonEmptyCauses: CellCause[] = (longitudinal?.skeleton.validation_errors ?? [])
     .filter((error) => String(error).startsWith("empty_enum:"))
     .map((error) => ({
@@ -1944,6 +1952,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }
   }
   for (const day of weeklySchemaBlocked ? [] : plan.days) {
+    if (day.day === classRest) continue;
     if (day.primary_training !== "rest" && day.recovery_role !== "rest") continue;
     traces.push(
       finishTrace(Date.now(), {
@@ -1967,8 +1976,30 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       }),
     );
   }
+  if (classRest && !weeklySchemaBlocked) {
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        day: classRest,
+        agent_name: "weekly_validator",
+        agent_type: "validator",
+        model: null,
+        prompt_version: WEEKLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash({ rest: classRest, model_call: false }),
+        output: { rest: true, model_call: false, day: classRest },
+        validation_result: "skipped",
+        retry_count: 0,
+        failure_reason: null,
+        deterministic: true,
+        decision: "REST",
+        revision_number: 0,
+        token_usage: null,
+      }),
+    );
+  }
 
-  const loadDays = decisionDays(plan);
+  const loadDays = decisionDays(plan).filter((day) => day !== classRest);
   const loadUser = {
     agent_name: "load_coach",
     strength_method: month.strength_method || month.scheme,
@@ -2486,7 +2517,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       similarity: { threshold: preHeadSimilarity.threshold, hits: preHeadSimilarity.hits },
       recent_overlap_after_rewrite: recentRewrites,
       piece_cells: pieceCells(draft.sessions),
-      day_hard_constraints: plan.days.map((day) => ({
+      day_hard_constraints: withoutClassRest(plan.days, classRest).map((day) => ({
         day: day.day,
         heavy_lower_metcon: dayLimits.heavy_lower_metcon,
         heavy_lower_sessions_max: dayLimits.heavy_lower_sessions_max,
@@ -2592,7 +2623,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           headModelStatus = parsed.status;
           headUnappliedRevision = false;
           const rejectedIndexes = new Set(rejected.map((row) => row.index));
-          modelRevisions = parsed.revisions.filter((_, index) => !rejectedIndexes.has(index));
+          modelRevisions = parsed.revisions.filter((row, index) => !rejectedIndexes.has(index) && row.day !== classRest);
         }
       } else if (
         (asked.json && typeof asked.json === "object" && (asked.json as { status?: unknown }).status === "REVISE") ||
@@ -3392,13 +3423,14 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   );
   const originLog = DAY_ORDER.map((day) => `${day}:${daySources[day]}:${dayOriginWhy[day]}`).join(" ");
   if (process.env.PHASE4_STAGE) console.log(`origin ${originLog}`);
-  if (finalErrors.length > 0) {
+  if (finalErrors.length > 0 || formatHalted) {
     recordPipelineFailure({
       weekStart: input.weekStart,
-      stage: weeklySchemaBlocked ? "weekly_coach" : feasibilityBlocked ? "skeleton_feasibility" : "final_validator",
-      reason: weeklySchemaBlocked ? "weekly_schema" : feasibilityBlocked ? "empty_enum" : "final_validation_failed",
-      message: finalErrors.slice(0, 8).join("; "),
+      stage: formatHalted || weeklySchemaBlocked ? "weekly_coach" : feasibilityBlocked ? "skeleton_feasibility" : "final_validator",
+      reason: formatHalted || weeklySchemaBlocked ? "weekly_schema" : feasibilityBlocked ? "empty_enum" : "final_validation_failed",
+      message: finalErrors.slice(0, 8).join("; ") || "weekly skeleton format failed",
       slots: finalErrors.map((error) => slotCauseFromMessage(error)),
+      traces: formatHalted ? traces : undefined,
     });
   }
   return {
@@ -3438,6 +3470,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     prescription_source: origin,
     rejected_draft: rejectedDraft,
     day_records: dayRecords,
+    halted: formatHalted ? "weekly_schema" : null,
   };
   } catch (error) {
     if (error instanceof WeekDocumentResponse) throw error;
