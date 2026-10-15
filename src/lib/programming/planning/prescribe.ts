@@ -1,5 +1,6 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { buildSession } from "../coaching/session";
+import { catalogMovement, equipmentForKeys } from "../coaching/movement-catalog";
 import { intensityBandsAtMost } from "../coaching/session-contract";
 import { fillSessionFields } from "../session-fields";
 import type { WeekActual } from "../summary";
@@ -76,13 +77,14 @@ export function changesFromPrescription(skeleton: WeeklySkeleton, draft: WeekDra
       continue;
     }
     const rest = session.rest || !session.conditioning;
+    const steady = session.zone2?.form === "day" || day.steady_zone2 === true;
     const lift: StrengthLiftChoice = rest || !session.strength ? "none" : session.strength.lift;
     const planDay = planDays.find((row) => row.day === key);
     const change: LockedFieldChange = {
       day: key,
       status: rest ? "rest" : "training",
       benchmark: rest ? false : Boolean(session.conditioning?.benchmark),
-      long_day: rest ? false : Boolean(session.conditioning?.long_conditioning || session.conditioning?.time_domain === "long"),
+      long_day: rest || steady ? false : Boolean(session.conditioning?.long_conditioning || session.conditioning?.time_domain === "long"),
       strength_lift: lift,
       strength_emphasis: emphasisForPlacement(lift, day.strength.emphasis),
     };
@@ -269,7 +271,21 @@ function alignFallbackSession(session: SessionDraft, day: SkeletonDay): SessionD
   if (day.status === "rest" || session.rest || !session.conditioning) return session;
   const piece = { ...session.conditioning };
   const klass = day.conditioning.duration_class;
-  if (klass === "short" || klass === "medium" || klass === "long") {
+  if (day.steady_zone2) {
+    piece.format = "zone2";
+    piece.duration_min = 40;
+    piece.time_domain = "long";
+    piece.long_conditioning = false;
+    piece.volume = "low";
+    piece.intensity = "light";
+    piece.stimulus = "technical";
+    const name = catalogMovement("row_erg")?.name_ko;
+    if (name) {
+      piece.movements = [{ key: "row_erg", amount: "40분", name_ko: name, amount_value: 40, unit: "min" }];
+      piece.equipment = equipmentForKeys(["row_erg"]);
+    }
+    piece.purpose = `${name ?? "로우"} 40분, RPE 2–3. 고강도 메트콘은 두지 않습니다.`;
+  } else if (klass === "short" || klass === "medium" || klass === "long") {
     const range = TIME_DOMAIN_RANGES[klass];
     const domain = timeDomainFromMinutes(piece.duration_min);
     if (domain !== klass || piece.time_domain !== klass) {
@@ -279,6 +295,20 @@ function alignFallbackSession(session: SessionDraft, day: SkeletonDay): SessionD
     }
   }
   if (VOLUME_RANK[piece.volume] > VOLUME_RANK[day.volume_profile]) piece.volume = day.volume_profile;
+  const zone2 = day.steady_zone2
+    ? {
+        form: "day" as const,
+        modality: "row_erg",
+        duration_min: piece.duration_min,
+        effort: "conversational",
+        hr: "unspecified",
+        alternate: null,
+        performed_option: null,
+        completion_status: null,
+        actual_duration_min: null,
+        actual_rpe: null,
+      }
+    : session.zone2;
   return fillSessionFields(
     {
       day: session.day,
@@ -288,6 +318,7 @@ function alignFallbackSession(session: SessionDraft, day: SkeletonDay): SessionD
       warmup_ko: session.warmup_ko,
       strength: session.strength,
       conditioning: piece,
+      ...(zone2 ? { zone2 } : {}),
     },
     session.strength_volume,
   );

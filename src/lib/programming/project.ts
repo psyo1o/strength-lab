@@ -94,7 +94,7 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
   return {
     id: conditioning.benchmark ? "sl-month-benchmark" : `class-${session.day}`,
     named: conditioning.benchmark,
-    nameKo: conditioning.benchmark ? "월간 벤치마크" : "클래스 메트콘",
+    nameKo: conditioning.benchmark ? "월간 벤치마크" : conditioning.format === "zone2" ? "존 2" : "클래스 메트콘",
     format: conditioning.format,
     minutes: conditioning.duration_min,
     pattern,

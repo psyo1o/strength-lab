@@ -213,6 +213,26 @@ export function prescriptionGuide(method: string, weekIndex: WeekIndex, fatigue:
   return rangeGuide(method, weekIndex, fatigue);
 }
 
+/**
+ * 고피로 주에 하체 역할이 둘이면, 헤비 하루는 피로 컷을 쓰고
+ * 둘째 하체는 이 세트를 쓴다. 상한은 75%라 헤비(85% 이상)로 세지 않는다.
+ * 피로 컷이 이미 85% 미만이면 null이다. 그 주는 둘 다 피로 컷이면 된다.
+ */
+export function secondLowerVolumeSets(method: string, weekIndex: WeekIndex): StrengthSetDraft[] | null {
+  const cut = exampleSets(method, weekIndex, "high", "squat");
+  if (!cut || !cut.some((set) => set.percent_of_tm >= 85)) return null;
+  return cut.map((set) => ({ ...set, amrap: false, percent_of_tm: Math.min(set.percent_of_tm, 75) }));
+}
+
+export function setsMatchSecondLowerVolume(method: string, weekIndex: WeekIndex, sets: readonly StrengthSetDraft[]): boolean {
+  const expected = secondLowerVolumeSets(method, weekIndex);
+  if (!expected || expected.length !== sets.length) return false;
+  return expected.every((set, index) => {
+    const other = sets[index]!;
+    return set.percent_of_tm === other.percent_of_tm && set.reps === other.reps && set.amrap === other.amrap;
+  });
+}
+
 export function exampleSets(method: string, weekIndex: WeekIndex, fatigue: PrescriptionContext["fatigue"], lift: MainLift): StrengthSetDraft[] | null {
   const guide = prescriptionGuide(method, weekIndex, fatigue);
   if (!guide) return null;

@@ -19,7 +19,7 @@ export type VolumeBand = "low" | "moderate" | "high";
 
 export type IntensityBand = "light" | "moderate" | "heavy";
 
-export type WodFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper" | "partner";
+export type WodFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper" | "partner" | "zone2";
 
 export type MovementPattern = "squat" | "hinge" | "press" | "pull" | "olympic" | "engine" | "gymnastic";
 
@@ -156,7 +156,7 @@ export type MovementDraft = {
   /** Catalog key. The display string stays in amount. */
   movement?: string;
   amount_value?: number | null;
-  unit?: "reps" | "cal" | "m" | "sec" | null;
+  unit?: "reps" | "cal" | "m" | "sec" | "min" | null;
   load?: { male: string | null; female: string | null } | null;
 };
 
@@ -225,7 +225,7 @@ export type SessionDraft = {
   session_blocks?: {
     role: "warmup" | "main_lift" | "skill_or_accessory" | "metcon" | "extra_conditioning" | "cooldown";
     minutes: number;
-    movements: { key: string; unit: "reps" | "cal" | "m" | "sec"; amount: number }[];
+    movements: { key: string; unit: "reps" | "cal" | "m" | "sec" | "min"; amount: number }[];
   }[];
   warmup_phases?: {
     phase: "raise" | "mobilise" | "activate" | "potentiate" | "cooldown";
@@ -325,6 +325,12 @@ export type DayIntent = {
   strength_lift: StrengthLiftChoice;
   benchmark: boolean;
   notes_ko: string;
+  /** 코드가 정한 메인 바벨. 올림픽 날이 여기 둔다. */
+  main_movement?: string | null;
+  /** 약점을 보완하는 보조 동작. 메인과 같으면 안 된다. */
+  companion_movement?: string | null;
+  /** 하체가 둘일 때 헤비 하루와 볼륨 하루. 고피로의 볼륨 하루는 75% 이하다. */
+  lower_exposure?: "heavy" | "volume";
   /** 존 2 블록. 없으면 이 날은 존 2가 아니다. */
   zone2?: "none" | "addon" | "day";
   zone2_modality?: string;

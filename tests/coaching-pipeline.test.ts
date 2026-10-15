@@ -273,7 +273,9 @@ describe("coaching pipeline", () => {
     expect(rests.every((day) => day === "sun")).toBe(true);
     expect(report.results[1]?.plan.adjustment_ko).toContain("진행");
     expect(report.results[2]?.plan.adjustment_ko).toContain("피로");
-    expect(report.results[2]?.draft.sessions.filter((session) => session.strength?.lift === "squat" || session.strength?.lift === "deadlift")).toHaveLength(1);
+    const tiredLowers = report.results[2]?.plan.days.filter((day) => day.strength_lift === "squat" || day.strength_lift === "deadlift") ?? [];
+    expect(tiredLowers).toHaveLength(2);
+    expect(tiredLowers.filter((day) => day.intensity_profile === "heavy")).toHaveLength(1);
     expect(report.results[3]?.plan.block_phase).toBe("deload");
     const squat = report.results.map((week) => week.draft.sessions.find((session) => session.strength?.lift === "squat")?.strength?.sets ?? null);
     expect(squat[0]).toEqual(schemeSets("531", 1));

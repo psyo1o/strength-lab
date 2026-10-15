@@ -303,7 +303,7 @@ describe("phase 3 월간 방향", () => {
       runId: "phase3-degraded-2",
       weekId: weekStart(2),
     });
-    expect(failedCalls).toBe(2);
+    expect(failedCalls).toBe(4);
     expect(second.direction.degraded).toBe(true);
     const adoption = finalizeWeekAdoption({
       weeklyCoachFromModel: true,

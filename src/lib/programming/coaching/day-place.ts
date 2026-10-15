@@ -170,6 +170,8 @@ function contractInputs(plan: WeeklyIntentPlan): ContractDayInput[] {
     long: row.secondary_training === "long_conditioning",
     domain: row.secondary_training === "long_conditioning" ? "long" : "short",
     lift: row.strength_lift === "squat" || row.strength_lift === "bench" || row.strength_lift === "ohp" || row.strength_lift === "deadlift" ? row.strength_lift : "none",
+    main_key: row.main_movement ?? null,
+    companion_key: row.companion_movement ?? null,
     intensity_ceiling: row.intensity_profile === "light" || row.intensity_profile === "moderate" || row.intensity_profile === "heavy" ? row.intensity_profile : "heavy",
     intensity_class: row.intensity_profile === "light" || row.intensity_profile === "moderate" || row.intensity_profile === "heavy" ? row.intensity_profile : null,
   }));

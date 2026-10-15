@@ -182,7 +182,12 @@ function probePredecessor(): string {
 function probeScenarios() {
   const member = memberState();
   if (member) {
-    return member.weeks.map((weekStart, index) => ({
+    const requested = Number(process.env.PROBE_WEEK_COUNT ?? "");
+    const weeks =
+      Number.isInteger(requested) && requested > 0 && requested < member.weeks.length
+        ? member.weeks.slice(0, requested)
+        : member.weeks;
+    return weeks.map((weekStart, index) => ({
       id: `${member.id}-W${index + 1}`,
       weekIndex: weekIndexFromStart(weekStart),
       weekStart,

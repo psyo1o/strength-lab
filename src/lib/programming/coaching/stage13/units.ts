@@ -94,7 +94,7 @@ export const MOVEMENT_EQUIPMENT: Record<string, Equipment | null> = {
 };
 
 export function allowedUnits(key: string): readonly AmountUnit[] {
-  const catalog = catalogUnits(key);
+  const catalog = catalogUnits(key)?.filter((unit): unit is AmountUnit => unit !== "min");
   if (catalog && catalog.length > 0) return catalog;
   return MOVEMENT_UNITS[key] ?? REPS;
 }
@@ -156,6 +156,12 @@ export function prescriptionAmountIssue(key: string, amount: string, durationMin
   const catalog = unitError(key, amount);
   if (!catalog) return { status: "ok" };
   const parsed = parsedAmount(amount);
+  const zone2Clock = key === "row_erg" || key === "bike_erg" || key === "run";
+  const minutes = amount.replace(/\s/g, "").match(/^(\d+)(?:min|분)$/i);
+  if (zone2Clock && minutes) {
+    const value = Number(minutes[1]);
+    if ((value === 30 || value === 40 || value === 45) && (durationMin == null || durationMin === value)) return { status: "ok" };
+  }
   if (CLEAR_WORK_CLOCK.has(key) && parsed.unit === "sec" && Number.isInteger(parsed.value) && parsed.value > 0) {
     if (durationMin != null && Number.isFinite(durationMin) && parsed.value > durationMin * 60) {
       return {
@@ -244,6 +250,7 @@ export function amountRepairHint(key: string, amount: string): string {
 
 /** A numeric amount plus a separate unit is the same work as 20cal or 400m. */
 export function amountTextForCheck(amount: string, unit: unknown): string {
+  if (unit === "min" && /^\d+$/.test(amount)) return `${amount}분`;
   if ((unit === "cal" || unit === "m" || unit === "sec") && /^\d+$/.test(amount)) return `${amount}${unit}`;
   return amount;
 }

@@ -94,7 +94,9 @@ export function renderPiece(input: {
               ? `${input.minutes}분 칩퍼`
               : input.format === "partner"
                 ? `${input.minutes}분 파트너 형식 · 개인도 가능`
-                : `${input.minutes}분`;
+                : input.format === "zone2"
+                  ? `${input.minutes}분 존 2 · RPE 2–3`
+                  : `${input.minutes}분`;
   const lines = [head, ...input.movements.map(formatMovementLine)];
   if (input.noteKo) lines.push(input.noteKo);
   return lines.join("\n");

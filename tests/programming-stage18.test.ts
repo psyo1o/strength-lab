@@ -103,7 +103,11 @@ describe("stage18 locked skeleton prescriptions", () => {
     const longDay = planned.skeleton.days.find((day) => day.long_day);
     expect(longDay).toBeTruthy();
     expect(enforced.after).toEqual([]);
-    const longs = enforced.draft.sessions.filter((session) => session.conditioning?.long_conditioning || session.conditioning?.time_domain === "long");
+    const longs = enforced.draft.sessions.filter((session) => {
+      const skeletonDay = planned.skeleton.days.find((day) => day.day === session.day);
+      if (skeletonDay?.steady_zone2) return false;
+      return session.conditioning?.long_conditioning || session.conditioning?.time_domain === "long";
+    });
     expect(longs.map((session) => session.day)).toEqual([longDay!.day]);
   });
 

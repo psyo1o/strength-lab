@@ -10,7 +10,7 @@ import { fatigueReport, type FatigueReport } from "./fatigue";
 import { deterministicLoadDecisions, type LoadDecision } from "./load";
 import { coachMonthly } from "./monthly";
 import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
-import { planCoachedWeek } from "./weekly";
+import { carryClassLiftDays, planCoachedWeek } from "./weekly";
 import type { MonthlyDirection, WeekSkeleton } from "../direction";
 import type { LongitudinalPlan } from "../planning/types";
 import type { WeekAdoption } from "../v2";
@@ -171,7 +171,7 @@ async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult>
     recentSignatures: input.recentSignatures,
   });
   let plan = input.longitudinal?.skeleton.skeleton_locked
-    ? planFromLockedSkeleton(input.longitudinal, input.month)
+    ? carryClassLiftDays(planFromLockedSkeleton(input.longitudinal, input.month), deterministic)
     : deterministic;
   const weeklyStarted = Date.now();
   traces.push(

@@ -42,7 +42,7 @@ export function safetyDaysFromSkeleton(days: readonly SkeletonDay[]): SafetyDay[
       heavyPress: Boolean(day && (day.strength.lift === "bench" || day.strength.lift === "ohp") && day.strength.emphasis === "heavy_upper"),
       heavySnatch: false,
       heavyClean: false,
-      longConditioning: Boolean(day?.long_day || day?.conditioning.duration_class === "long"),
+      longConditioning: Boolean(day && !day.steady_zone2 && (day.long_day || day.conditioning.duration_class === "long")),
     };
   });
 }
@@ -61,15 +61,16 @@ export function intentFromSkeleton(skeleton: WeeklySkeleton, month: MonthDirecti
       day.strength.emphasis === "heavy_lower" ||
       day.strength.emphasis === "heavy_upper";
     const primary: PrimaryTraining = rest ? "rest" : day.primary_goal;
+    const steady = day.steady_zone2 === true;
     return {
       day: day.day,
       primary_training: primary,
-      secondary_training: rest ? "none" : day.long_day || day.conditioning.duration_class === "long" ? "long_conditioning" : day.conditioning.duration_class === "short" ? "short_anaerobic" : "moderate_conditioning",
+      secondary_training: rest ? "none" : steady ? "aerobic" : day.long_day || day.conditioning.duration_class === "long" ? "long_conditioning" : day.conditioning.duration_class === "short" ? "short_anaerobic" : "moderate_conditioning",
       training_goal: "주간 뼈대입니다.",
       stimulus: stimulusOf(day.conditioning.stimulus),
-      intensity_profile: heavy ? "heavy" : day.conditioning.intensity_class,
+      intensity_profile: steady ? "light" : heavy ? "heavy" : day.conditioning.intensity_class,
       volume_profile: day.volume_profile,
-      duration_profile: rest ? "rest" : day.long_day ? "60-75" : "45-60",
+      duration_profile: rest ? "rest" : steady ? "30-45" : day.long_day ? "60-75" : "45-60",
       fatigue_target: day.recovery_demand,
       movement_pattern: "none",
       progression_required: false,
@@ -125,7 +126,10 @@ function shapeErrors(days: readonly SkeletonDay[]): string[] {
     if (day.status === "training" && day.primary_goal === "rest") errors.push(`${day.day} training status has a rest goal`);
     const flagged = day.long_day;
     const klass = day.conditioning.duration_class === "long";
-    if (flagged !== klass) errors.push(`${day.day} long-day flag does not match duration class`);
+    if (day.steady_zone2) {
+      if (day.long_day) errors.push(`${day.day} zone2 day is not the long-conditioning day`);
+      if (day.conditioning.duration_class !== "long") errors.push(`${day.day} zone2 day duration class must be long`);
+    } else if (flagged !== klass) errors.push(`${day.day} long-day flag does not match duration class`);
     if (rest && day.conditioning.duration_class !== "rest") errors.push(`${day.day} rest day has a conditioning duration class`);
     if (rest && day.long_day) errors.push(`${day.day} rest day is marked long`);
     if (!rest && day.conditioning.duration_class === "rest") errors.push(`${day.day} training day has a rest duration class`);

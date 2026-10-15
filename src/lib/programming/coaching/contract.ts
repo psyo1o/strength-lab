@@ -16,6 +16,7 @@ import {
 import { movementCatalog } from "./pieces";
 import { catalogMovement, catalogUnits, cellEditErrors, checkCellEdit, rxLoadErrors, standardCatalogKeys } from "./movement-catalog";
 import { quantityOptions } from "./slot-choices";
+import { stimuliMatchingFormat } from "./session-contract";
 import { unitGuide } from "./stage13/units";
 import type { CoachAgentName } from "./models";
 
@@ -133,6 +134,8 @@ export function schemaBrief(agent: CoachAgentName): string {
       "conditioning keys: format, duration_min, stimulus, movements, volume, intensity.",
       "Do not return time_domain, kilograms, percentages, sets, or equipment. The server fills equipment from the movement catalog.",
       enumLine("format", WOD_FORMATS),
+      "When format is emom or intervals, stimulus is high_rep or technical. heavy is not a candidate for those formats.",
+      "A zone2 block uses format zone2, one movement, and minutes 30, 40, or 45. It is not a metcon.",
       enumLine("stimulus", STIMULI),
       enumLine("volume", VOLUME_BANDS),
       enumLine("intensity", INTENSITY_BANDS),
@@ -147,12 +150,19 @@ export function schemaBrief(agent: CoachAgentName): string {
     ].join("\n");
   }
   if (agent === "strength") {
-    return ["JSON object. Each slot key is s0. The value is slot, movement_id, and quantity_option.", "quantity_option is method. Do not return sets, kilograms, units, or a display sentence. The server writes strength_note_ko from the method table."].join("\n");
+    return [
+      "JSON object. Each slot key is s0. The value is slot, movement_id, and quantity_option.",
+      "The main slot movement_id is only the skeleton lift in main_lift. Do not choose another movement.",
+      "quantity_option is method. Do not return sets, kilograms, units, or a display sentence. The server writes strength_note_ko from the method table.",
+    ].join("\n");
   }
   if (agent === "conditioning") {
     return [
-      "JSON object. Each slot key is s0, s1, and so on. The value is slot, movement_id, and quantity_option.",
-      "movement_id and quantity_option must be one of that slot's ids. Do not write units, loads, kilograms, or a display sentence.",
+      "JSON object. slot_choices.slots lists s0, s1, and so on. Each value is slot, movement_id, and quantity_option.",
+      "movement_id and quantity_option must be one of that slot's ids. catalog_range is the closed min and max. Do not invent an amount outside it.",
+      "stimulus is only the list next to format. emom and intervals do not include heavy.",
+      "A zone2 block uses format zone2 and one movement in minutes. Do not treat it as a metcon.",
+      "Do not write units, loads, kilograms, or a display sentence.",
       "The server fills notes_ko, the unit, and Rx from the catalog.",
     ].join("\n");
   }
@@ -315,14 +325,13 @@ export function recoveryCellFormat(keys: readonly string[] = standardCatalogKeys
   );
 }
 
-function conditioningFields(keys: readonly string[]) {
-  const movement = conditioningMovementSchema(keys);
+function conditioningBranch(format: string, movements: unknown, duration: unknown): Record<string, unknown> {
   return strictObject(
     {
-      format: stringEnum(WOD_FORMATS),
-      duration_min: { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max },
-      stimulus: stringEnum(STIMULI),
-      movements: { type: "array", items: movement },
+      format: { type: "string", enum: [format] },
+      duration_min: duration,
+      stimulus: stringEnum(stimuliMatchingFormat(format)),
+      movements,
       volume: stringEnum(VOLUME_BANDS),
       intensity: stringEnum(INTENSITY_BANDS),
       interval_work_sec: { type: ["integer", "null"] },
@@ -330,6 +339,13 @@ function conditioningFields(keys: readonly string[]) {
     },
     ["format", "duration_min", "stimulus", "movements", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
   );
+}
+
+function conditioningFields(keys: readonly string[]) {
+  const movement = conditioningMovementSchema(keys);
+  const duration = { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max };
+  const branches = WOD_FORMATS.map((format) => conditioningBranch(format, { type: "array", items: movement }, duration));
+  return { anyOf: branches };
 }
 
 /** Conditioning response for one day. Equipment is not a model field. */
@@ -608,19 +624,15 @@ export function responseFormatFor(agent: CoachAgentName): ResponseFormat {
           day: stringEnum(DAY_ORDER),
           warmup_ko: TEXT,
           notes_ko: TEXT,
-          conditioning: strictObject(
-            {
-              format: stringEnum(WOD_FORMATS),
-              duration_min: { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max },
-              stimulus: stringEnum(STIMULI),
-              movements: { type: "array", items: movement },
-              volume: stringEnum(VOLUME_BANDS),
-              intensity: stringEnum(INTENSITY_BANDS),
-              interval_work_sec: { type: ["integer", "null"] },
-              interval_rest_sec: { type: ["integer", "null"] },
-            },
-            ["format", "duration_min", "stimulus", "movements", "volume", "intensity", "interval_work_sec", "interval_rest_sec"],
-          ),
+          conditioning: {
+            anyOf: WOD_FORMATS.map((format) =>
+              conditioningBranch(
+                format,
+                { type: "array", items: movement },
+                { type: "integer", minimum: NON_LONG_CONDITIONING.min, maximum: LONG_CONDITIONING.max },
+              ),
+            ),
+          },
         },
         ["day", "warmup_ko", "notes_ko", "conditioning"],
       ),
@@ -902,15 +914,23 @@ export function monthlyPlanErrors(value: unknown, month: MonthDirection): string
   return errors;
 }
 
+/** 존 2 블록만 분 단위다. 메트콘 칼로리·미터 검사는 그대로다. */
+function zone2MinuteClock(key: string, unit: unknown, amount: unknown, durationMin: unknown): boolean {
+  if (unit !== "min") return false;
+  if (key !== "row_erg" && key !== "bike_erg" && key !== "run") return false;
+  if (durationMin !== 30 && durationMin !== 40 && durationMin !== 45) return false;
+  const value = typeof amount === "number" ? amount : typeof amount === "string" ? Number(String(amount).replace(/min$/i, "")) : Number.NaN;
+  return value === durationMin;
+}
+
 function durationErrors(intent: DayIntent, minutes: unknown): string[] {
   const longPiece = intent.secondary_training === "long_conditioning";
-  const range = longPiece ? LONG_CONDITIONING : NON_LONG_CONDITIONING;
-  if (typeof minutes !== "number" || !Number.isInteger(minutes)) {
-    return [`conditioning.duration_min: received ${received(minutes)}; allowed: integer ${range.min}–${range.max}`];
-  }
-  if (minutes < range.min || minutes > range.max) {
+  const zone2 = intent.zone2 === "day";
+  const ranges = longPiece ? [LONG_CONDITIONING] : zone2 ? [NON_LONG_CONDITIONING, { min: 30, max: 45 }] : [NON_LONG_CONDITIONING];
+  const label = ranges.map((range) => `${range.min}–${range.max}`).join(" or ");
+  if (typeof minutes !== "number" || !Number.isInteger(minutes) || !ranges.some((range) => minutes >= range.min && minutes <= range.max)) {
     return [
-      `conditioning.duration_min: received ${minutes}; allowed: ${range.min}–${range.max} because this day is ${longPiece ? "long_conditioning" : "not long_conditioning"}. class_minutes is not the piece length.`,
+      `conditioning.duration_min: received ${received(minutes)}; allowed: integer ${label} because this day is ${longPiece ? "long_conditioning" : zone2 ? "zone2" : "not long_conditioning"}. class_minutes is not the piece length.`,
     ];
   }
   return [];
@@ -950,7 +970,12 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
     return errors;
   }
   const piece = value.conditioning;
-  const format = enumError("conditioning.format", piece.format, WOD_FORMATS);
+  const zone2Piece = piece.format === "zone2";
+  const format = enumError(
+    "conditioning.format",
+    piece.format,
+    intent.zone2 === "day" ? (["zone2", ...WOD_FORMATS] as const) : WOD_FORMATS,
+  );
   const stimulus = enumError("conditioning.stimulus", piece.stimulus, STIMULI);
   const volume = enumError("conditioning.volume", piece.volume, VOLUME_BANDS);
   const intensity = enumError("conditioning.intensity", piece.intensity, INTENSITY_BANDS);
@@ -960,11 +985,12 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
   if (intensity) errors.push(intensity);
   errors.push(...durationErrors(intent, piece.duration_min));
   const aerobicMono = intent.primary_training === "aerobic" && intent.secondary_training !== "long_conditioning";
-  const minMoves = aerobicMono ? 1 : 2;
+  const minMoves = zone2Piece ? 1 : aerobicMono ? 1 : 2;
+  const maxMoves = zone2Piece ? 1 : 5;
   if (!Array.isArray(piece.movements)) {
     errors.push("conditioning.movements: expected an array of {key, amount, name_ko}");
-  } else if (piece.movements.length < minMoves || piece.movements.length > 5) {
-    errors.push(`conditioning.movements: length ${piece.movements.length}; allowed: ${minMoves}–5`);
+  } else if (piece.movements.length < minMoves || piece.movements.length > maxMoves) {
+    errors.push(`conditioning.movements: length ${piece.movements.length}; allowed: ${minMoves}–${maxMoves}`);
   } else {
     const catalog = new Map(movementCatalog().map((row) => [row.key, row.name_ko]));
     piece.movements.forEach((row, index) => {
@@ -978,7 +1004,7 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
         if (cellKey === "squat" || cellKey === "pause_squat" || cellKey === "pin_squat") {
           errors.push(`${prefix}.key: received ${cellKey}; use back_squat or front_squat`);
         }
-        errors.push(...cellMovementErrors(prefix, row, catalog));
+        if (!zone2MinuteClock(cellKey, row.unit, row.amount, piece.duration_min)) errors.push(...cellMovementErrors(prefix, row, catalog));
         return;
       }
       const keyText = typeof row.key === "string" ? row.key : typeof row.movement === "string" ? row.movement : "";
@@ -994,7 +1020,7 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
       }
       if (typeof row.amount !== "string" || !row.amount.trim() || /kg/i.test(row.amount)) {
         errors.push(`${prefix}.amount: received ${received(row.amount)}; reps are 12 or 12 reps, calories are 12cal or 12/10cal, distance is 500m. Never kilograms.`);
-      } else if (typeof row.amount_value === "number" && typeof row.unit === "string") {
+      } else if (typeof row.amount_value === "number" && typeof row.unit === "string" && !zone2MinuteClock(keyText, row.unit, row.amount_value, piece.duration_min)) {
         const suffix = row.unit === "reps" ? "" : String(row.unit);
         const verdict = checkCellEdit({ catalog_key: keyText, field: "amount", value: `${row.amount_value}${suffix}` });
         if (!verdict.ok) errors.push(`${prefix}: ${verdict.reason}`);
@@ -1002,6 +1028,13 @@ export function sessionCoachErrors(value: unknown, intent: DayIntent): string[] 
         if (!unitVerdict.ok) errors.push(`${prefix}: ${unitVerdict.reason}`);
       }
     });
+    const ropeKeys = piece.movements
+      .map((row) => (isRecord(row) ? (typeof row.key === "string" ? row.key : typeof row.movement === "string" ? row.movement : "") : ""))
+      .filter((key) => key === "double_under" || key === "single_under");
+    if (new Set(ropeKeys).size > 1) errors.push("conditioning.movements: double_under and single_under are both in this metcon");
+    if ((piece.format === "intervals" || piece.format === "emom") && piece.stimulus === "heavy") {
+      errors.push(`conditioning.stimulus heavy does not match format ${piece.format}`);
+    }
     const seenKeys = new Set<string>();
     piece.movements.forEach((row, index) => {
       if (!isRecord(row)) return;

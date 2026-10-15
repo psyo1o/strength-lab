@@ -224,6 +224,9 @@ export function fetchFor(script: Script) {
         full.conditioning.duration_min = slot.time_domain === "long" ? 32 : slot.time_domain === "medium" ? 16 : 10;
         full.conditioning.stimulus = slot.stimulus ?? full.conditioning.stimulus;
         if (full.conditioning.stimulus === "heavy" && full.conditioning.intensity === "light") full.conditioning.intensity = "moderate";
+        if ((full.conditioning.format === "emom" || full.conditioning.format === "intervals") && full.conditioning.stimulus === "heavy") {
+          full.conditioning.stimulus = "technical";
+        }
       }
       return chat({ day, notes_ko: full.notes_ko, conditioning: full.conditioning });
     }

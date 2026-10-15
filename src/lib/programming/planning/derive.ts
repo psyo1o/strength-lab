@@ -138,8 +138,9 @@ export function skeletonFromIntent(intent: WeeklyIntentPlan, thesis: WeeklyThesi
     }
     const rest = day.primary_training === "rest" || day.recovery_role === "rest";
     if (rest) return restDay(key, thesis);
-    const duration = durationClass(day);
-    const planned = intensityOf(day, ceiling);
+    const steady = day.zone2 === "day";
+    const duration = steady ? "long" : durationClass(day);
+    const planned = steady ? "light" : intensityOf(day, ceiling);
     const intensity = thesis.week_phase === "DELOAD" && planned === "heavy" ? "moderate" : planned;
     const stimulus: CoachingStimulus = day.stimulus;
     return {
@@ -150,13 +151,14 @@ export function skeletonFromIntent(intent: WeeklyIntentPlan, thesis: WeeklyThesi
       conditioning: {
         duration_class: duration,
         intensity_class: intensity,
-        intensity_ceiling: thesis.week_phase === "DELOAD" ? "moderate" : intensity,
+        intensity_ceiling: steady || thesis.week_phase === "DELOAD" ? (steady ? "light" : "moderate") : intensity,
         stimulus,
       },
       benchmark: day.benchmark,
-      long_day: duration === "long",
+      long_day: steady ? false : duration === "long",
+      steady_zone2: steady,
       recovery_demand: day.fatigue_target,
-      volume_profile: capVolume(day.volume_profile, thesis.volume_ceiling),
+      volume_profile: steady ? "low" : capVolume(day.volume_profile, thesis.volume_ceiling),
       preferred_format: null,
       prohibited_patterns: thesis.week_phase === "DELOAD" ? ["heavy_conditioning"] : [],
     };

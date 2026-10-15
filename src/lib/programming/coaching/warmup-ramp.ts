@@ -201,7 +201,7 @@ function forJoint(
 
 /** 코드가 그날 세션 동작에서 관절과 슬롯을 만든다. 정적 유지는 모빌라이즈 선택지에 남는다. */
 export function rampSlots(
-  lock: Pick<DaySessionLock, "lift" | "patterns"> & Partial<Pick<DaySessionLock, "metcon" | "skill" | "extra">>,
+  lock: Pick<DaySessionLock, "lift" | "patterns"> & Partial<Pick<DaySessionLock, "metcon" | "skill" | "extra" | "blocks">>,
 ): RampSlot[] {
   const joints = sessionJoints(lock);
   const primary = joints[0] ?? "hip";
@@ -222,7 +222,15 @@ export function rampSlots(
     joints,
   ).map((choice) => ({
     ...choice,
-    amount: 45,
+    amount: 75,
+  }));
+  const coolMinutes = lock.blocks?.find((block) => block.role === "cooldown")?.minutes ?? 8;
+  const coolCount = cooldownMovementBounds(coolMinutes).min;
+  const coolSlots = Array.from({ length: coolCount }, (_, index) => ({
+    id: `c${index}`,
+    phase: "cooldown" as const,
+    choices: cooldown,
+    holdMax: null,
   }));
   return [
     { id: "s0", phase: "raise", choices: choices(RAISE, false, null), holdMax: null },
@@ -231,8 +239,16 @@ export function rampSlots(
     { id: "s3", phase: "mobilise", choices: third, holdMax: 5 },
     { id: "s4", phase: "activate", choices: activate, holdMax: null },
     { id: "s5", phase: "potentiate", choices: potentiate, holdMax: null },
-    { id: "s6", phase: "cooldown", choices: cooldown, holdMax: null },
+    ...coolSlots,
   ];
+}
+
+/** 8분이면 동작 5–6개, 각 60–90초. 더 짧은 블록은 그 분에 맞춰 줄인다. */
+export function cooldownMovementBounds(minutes: number): { min: number; max: number } {
+  if (minutes >= 8) return { min: 5, max: 6 };
+  if (minutes >= 6) return { min: 4, max: 5 };
+  if (minutes >= 5) return { min: 3, max: 4 };
+  return { min: 2, max: 3 };
 }
 
 export function potentiatePercents(first: number): string[] {
@@ -285,5 +301,13 @@ export function warmupIssues(input: {
   }
   const mobilise = input.picks.filter((pick) => pick.phase === "mobilise");
   if (mobilise.length < 3 || mobilise.length > 4) reject.push(`mobilise has ${mobilise.length} movements; allowed 3–4`);
+  const cool = input.picks.filter((pick) => pick.phase === "cooldown");
+  const bounds = cooldownMovementBounds(input.cooldownMinutes);
+  if (cool.length < bounds.min || cool.length > bounds.max) {
+    reject.push(`cooldown has ${cool.length} movements; ${input.cooldownMinutes} min allows ${bounds.min}-${bounds.max}`);
+  }
+  for (const pick of cool) {
+    if (pick.amount < 60 || pick.amount > 90) reject.push(`${pick.key} cooldown is ${pick.amount}s; allowed 60-90`);
+  }
   return { reject, warn };
 }

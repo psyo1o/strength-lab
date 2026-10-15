@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { DayKey, WeekIndex } from "../../month-plan/types";
 import { exampleSets } from "../strength-methods";
+import { rangeFor } from "./movement-catalog";
 import { STIMULI, type MainLift, type Stimulus, type WodFormat } from "../types";
 
 /** 수업 창. 설정이 없으면 100이고, 그 사실을 한 번 남긴다. */
@@ -20,15 +21,17 @@ export const BLOCK_RANGES = {
 
 export type ContractRole = keyof typeof BLOCK_RANGES;
 
-export const CONTRACT_FORMATS = ["for_time", "amrap", "emom", "chipper", "intervals", "partner"] as const;
+export const CONTRACT_FORMATS = ["for_time", "amrap", "emom", "chipper", "intervals", "partner", "zone2"] as const;
 export type ContractFormat = (typeof CONTRACT_FORMATS)[number];
 
 export type MetconBand = "short" | "medium" | "long";
 
 export type DoseMovement = {
   key: string;
-  unit: "reps" | "cal" | "m" | "sec";
+  unit: "reps" | "cal" | "m" | "sec" | "min";
   amount: number;
+  /** 추가 컨디셔닝처럼 시간·강도가 있는 프로토콜. */
+  intensity?: "light" | "moderate" | "heavy";
 };
 
 export type ContractBlock = {
@@ -44,6 +47,12 @@ export function intensityBandsAtMost(ceiling: string | null | undefined): Intens
   if (ceiling === "light") return ["light"];
   if (ceiling === "moderate") return ["light", "moderate"];
   return ["light", "moderate", "heavy"];
+}
+
+/** Clock formats do not offer heavy. Other formats keep the stimulus list they were given. */
+export function stimuliMatchingFormat(format: string | null | undefined, stimuli: readonly Stimulus[] = STIMULI): Stimulus[] {
+  if (format === "emom" || format === "intervals") return stimuli.filter((item) => item !== "heavy");
+  return [...stimuli];
 }
 
 /**
@@ -92,6 +101,8 @@ export type DaySessionLock = {
   stimulus: string | null;
   /** 뼈대가 잠근 강도 칸. 상한 안이면 그 값만 연다. */
   intensity_class: IntensityCeiling | null;
+  /** 존 2 지속 유산소. 맨몸 메인을 요구하지 않는다. */
+  steady?: boolean;
 };
 
 type Pace = {
@@ -186,7 +197,7 @@ const TEMPLATES: readonly Template[] = [
       { key: "burpee", unit: "reps", amount: 12 },
     ],
     skill: { key: "walking_lunge", unit: "reps", amount: 12 },
-    extra: { key: "easy_jog", unit: "sec", amount: 150 },
+    extra: { key: "easy_jog", unit: "sec", amount: 150, intensity: "light" },
   },
   {
     format: "amrap",
@@ -199,7 +210,7 @@ const TEMPLATES: readonly Template[] = [
       { key: "box_jump", unit: "reps", amount: 15 },
     ],
     skill: { key: "strict_pull_up", unit: "reps", amount: 6 },
-    extra: { key: "easy_bike", unit: "sec", amount: 150 },
+    extra: { key: "easy_bike", unit: "sec", amount: 150, intensity: "light" },
   },
   {
     format: "emom",
@@ -209,10 +220,10 @@ const TEMPLATES: readonly Template[] = [
     metcon: [
       { key: "double_under", unit: "reps", amount: 10 },
       { key: "power_clean", unit: "reps", amount: 3 },
-      { key: "single_under", unit: "reps", amount: 10 },
+      { key: "barbell_thruster", unit: "reps", amount: 3 },
     ],
     skill: { key: "push_press", unit: "reps", amount: 8 },
-    extra: { key: "easy_row", unit: "sec", amount: 150 },
+    extra: { key: "easy_row", unit: "sec", amount: 150, intensity: "light" },
   },
   {
     format: "chipper",
@@ -226,7 +237,7 @@ const TEMPLATES: readonly Template[] = [
       { key: "sit_up", unit: "reps", amount: 15 },
     ],
     skill: { key: "ring_row", unit: "reps", amount: 8 },
-    extra: { key: "easy_ski", unit: "sec", amount: 150 },
+    extra: { key: "easy_ski", unit: "sec", amount: 150, intensity: "light" },
   },
   {
     format: "intervals",
@@ -238,7 +249,7 @@ const TEMPLATES: readonly Template[] = [
       { key: "single_under", unit: "reps", amount: 15 },
     ],
     skill: { key: "air_squat", unit: "reps", amount: 20 },
-    extra: { key: "easy_jog", unit: "sec", amount: 180 },
+    extra: { key: "easy_jog", unit: "sec", amount: 180, intensity: "light" },
   },
   {
     format: "partner",
@@ -251,7 +262,7 @@ const TEMPLATES: readonly Template[] = [
       { key: "sumo_deadlift_high_pull", unit: "reps", amount: 10 },
     ],
     skill: { key: "walking_lunge", unit: "reps", amount: 16 },
-    extra: { key: "easy_bike", unit: "sec", amount: 180 },
+    extra: { key: "easy_bike", unit: "sec", amount: 180, intensity: "light" },
   },
 ];
 
@@ -266,6 +277,13 @@ export type ContractDayInput = {
   intensity_ceiling?: IntensityCeiling;
   stimulus?: string | null;
   intensity_class?: IntensityCeiling | null;
+  /** 존 2 날은 고강도 메트콘과 바벨 메인을 두지 않는다. */
+  zone2?: boolean;
+  zone2_modality?: string | null;
+  zone2_minutes?: number | null;
+  /** 올림픽처럼 strength_lift enum 밖의 바벨 메인. */
+  main_key?: string | null;
+  companion_key?: string | null;
 };
 
 function bandFor(day: ContractDayInput, index: number): MetconBand {
@@ -375,7 +393,7 @@ export function planWeekContract(
         first_working_percent: firstWorkingPercent(method, weekIndex),
         metcon: [],
         skill: { key: "walking_lunge", unit: "reps", amount: 12 },
-        extra: { key: "easy_jog", unit: "sec", amount: 150 },
+        extra: { key: "easy_jog", unit: "sec", amount: 150, intensity: "light" },
         patterns: [],
         intensity_ceiling: day.intensity_ceiling ?? "heavy",
         stimulus: day.stimulus ?? null,
@@ -387,34 +405,53 @@ export function planWeekContract(
     const band = bandFor(day, index);
     const minutes = metconMinutes(band);
     const lift = liftOf(day.lift);
+    const zone2 = day.zone2 === true;
+    const zone2Minutes = zone2 ? (day.zone2_minutes === 30 || day.zone2_minutes === 45 ? day.zone2_minutes : 40) : 0;
     // 리프트가 없는 짧은·중간 날은 스킬만으로 90분에 닿지 않는다. 메인 분량은 패턴 연습이다.
-    const patternMain = lift == null && band !== "long";
-    const hasMain = day.has_main ?? (lift != null || patternMain);
-    const fitted = fitBlocks({ hasMain, metcon: minutes, setting });
+    // 존 2와 코드가 정한 바벨 메인은 그 예외다. 맨몸 한 줄 메인은 만들지 않는다.
+    const patternMain = lift == null && !zone2 && !day.main_key && band !== "long";
+    const hasMain = zone2 ? false : (day.has_main ?? (lift != null || day.main_key != null || patternMain));
+    const fitted = fitBlocks({ hasMain, metcon: zone2 ? zone2Minutes : minutes, setting });
     const roles: ContractRole[] = hasMain
       ? ["warmup", "main_lift", "skill_or_accessory", "metcon", "extra_conditioning", "cooldown"]
       : ["warmup", "skill_or_accessory", "metcon", "extra_conditioning", "cooldown"];
+    const modality = day.zone2_modality === "bike_erg" || day.zone2_modality === "run" ? day.zone2_modality : "row_erg";
+    const zone2Dose: DoseMovement[] | null = zone2
+      ? [{ key: modality, unit: "min", amount: zone2Minutes, intensity: "light" }]
+      : null;
+    const pieceMinutes = zone2Dose ? zone2Minutes : minutes;
+    const format = zone2 ? "zone2" : template.format;
+    const metcon = zone2Dose ?? scaleDose(format, pieceMinutes, template.metcon);
+    const clocked = format === "emom" || format === "intervals";
+    const stimulus = zone2 ? "technical" : clocked && day.stimulus === "heavy" ? "technical" : (day.stimulus ?? null);
+    const skill = day.companion_key
+      ? { key: day.companion_key, unit: "reps" as const, amount: 5 }
+      : zone2
+        ? { key: "ring_row", unit: "reps" as const, amount: 8 }
+        : template.skill;
     const blocks: ContractBlock[] = roles.map((role) => ({
       role,
       minutes: fitted.blocks[role],
       movements:
         role === "metcon"
-          ? template.metcon
+          ? metcon
           : role === "skill_or_accessory"
-            ? [template.skill]
+            ? [skill]
             : role === "extra_conditioning"
               ? [template.extra]
-              : [],
+              : role === "main_lift" && day.main_key
+                ? [{ key: day.main_key, unit: "reps" as const, amount: 3 }]
+                : [],
     }));
     return {
       day: day.day,
       rest: false,
       blocks,
-      format: template.format,
+      format,
       band,
-      metcon_minutes: minutes,
-      movement_count: template.metcon.length,
-      exception: template.exception,
+      metcon_minutes: pieceMinutes,
+      movement_count: metcon.length,
+      exception: zone2 ? null : template.exception,
       lift,
       machine: template.machine,
       main_sets: fitted.mainSets.sets,
@@ -422,13 +459,14 @@ export function planWeekContract(
       skill_sets: fitted.skillSets.sets,
       skill_set_minutes: fitted.skillSets.minutes,
       first_working_percent: firstWorkingPercent(method, weekIndex),
-      metcon: template.metcon,
-      skill: template.skill,
+      metcon,
+      skill,
       extra: template.extra,
-      patterns: template.patterns,
-      intensity_ceiling: day.intensity_ceiling ?? "heavy",
-      stimulus: day.stimulus ?? null,
-      intensity_class: day.intensity_class ?? null,
+      patterns: zone2 ? ["engine"] : template.patterns,
+      intensity_ceiling: zone2 ? "light" : (day.intensity_ceiling ?? "heavy"),
+      stimulus,
+      intensity_class: zone2 ? "light" : (day.intensity_class ?? null),
+      steady: zone2,
     };
   });
 }
@@ -481,8 +519,14 @@ export function doseIssues(input: { format: string; minutes: number; movements: 
     const limit = cap * 0.4;
     if (round > limit) errors.push(`AMRAP round ${Math.round(round)}s is over 40% of ${input.minutes} min`);
     if (cap / round < 2.5) errors.push(`AMRAP allows fewer than 2.5 rounds in ${input.minutes} min`);
-  } else if (input.format === "for_time" || input.format === "partner") {
+  } else   if (input.format === "for_time" || input.format === "partner") {
     if (round > cap) errors.push(`${input.format} estimate ${Math.round(round)}s is over the ${input.minutes} min cap`);
+    const timed = input.movements.every((movement) => movement.unit === "sec");
+    const rounds = timed ? 1 : 3;
+    const estimate = rounds * round;
+    if (cap > 0 && Math.abs(estimate - cap) / cap > 0.25) {
+      errors.push(`${input.format} estimate ${Math.round(estimate)}s differs from the ${input.minutes} min cap by more than 25%`);
+    }
   } else if (input.format === "chipper") {
     if (round > cap * 0.9) errors.push(`chipper estimate ${Math.round(round)}s is over 90% of ${input.minutes} min`);
   } else if (input.format === "emom" || input.format === "intervals") {
@@ -494,6 +538,42 @@ export function doseIssues(input: { format: string; minutes: number; movements: 
     if (input.minutes * cycle !== cap) errors.push("intervals do not fill the block");
   }
   return errors;
+}
+
+function clampDose(movement: DoseMovement): boolean {
+  if (movement.unit === "min") return false;
+  const range = rangeFor(movement.key, movement.unit);
+  if (!range) return false;
+  const next = Math.min(range.max, Math.max(range.min, movement.amount));
+  if (next === movement.amount) return false;
+  movement.amount = next;
+  return true;
+}
+
+/** 코드가 잠그는 용량만 창 안으로 맞춘다. 카탈로그 범위 밖으로는 올리지 않는다. 모델이 낸 값은 바꾸지 않는다. */
+export function scaleDose(format: string, minutes: number, movements: readonly DoseMovement[]): DoseMovement[] {
+  const copy = movements.map((movement) => ({ ...movement }));
+  for (const movement of copy) clampDose(movement);
+  if (format !== "for_time" && format !== "partner" && format !== "chipper") return copy;
+  for (let step = 0; step < 8; step += 1) {
+    const issues = doseIssues({ format, minutes, movements: copy });
+    const window = issues.find((error) => error.includes("25%"));
+    if (!window) return copy;
+    const estimate = Number(window.match(/estimate (\d+)s/)?.[1] ?? 0);
+    const cap = minutes * 60;
+    if (!estimate || !cap) return copy;
+    const factor = cap / estimate;
+    let moved = false;
+    for (const movement of copy) {
+      if (movement.unit === "sec") continue;
+      const before = movement.amount;
+      movement.amount = Math.max(1, Math.round(movement.amount * factor));
+      clampDose(movement);
+      if (movement.amount !== before) moved = true;
+    }
+    if (!moved) return copy;
+  }
+  return copy;
 }
 
 export type DiversityDay = {
@@ -559,7 +639,7 @@ export function lockIssues(lock: DaySessionLock, setting = resolveSessionMinutes
   for (const role of ["warmup", "skill_or_accessory", "metcon", "cooldown"] as const) {
     if (!roles.includes(role)) errors.push(`${lock.day} is missing ${role}`);
   }
-  const patternMain = !lock.lift && lock.band !== "long";
+  const patternMain = !lock.lift && lock.band !== "long" && !lock.steady;
   if ((lock.lift || patternMain) && !roles.includes("main_lift")) errors.push(`${lock.day} is missing main_lift`);
   if (!lock.lift && !patternMain && roles.includes("main_lift")) errors.push(`${lock.day} has main_lift without a lift`);
   for (const block of lock.blocks) {
@@ -579,8 +659,14 @@ export function lockIssues(lock: DaySessionLock, setting = resolveSessionMinutes
   }
   const metcon = lock.blocks.find((block) => block.role === "metcon");
   if (metcon && metcon.minutes !== lock.metcon_minutes) errors.push(`${lock.day} metcon minutes do not match the lock`);
-  if (lock.band === "long" && lock.metcon_minutes < 30) errors.push(`${lock.day} long metcon is under 30`);
-  errors.push(...doseIssues({ format: lock.format, minutes: lock.metcon_minutes, movements: lock.metcon }));
+  if (lock.band === "long" && lock.metcon_minutes < 30 && lock.format !== "zone2") errors.push(`${lock.day} long metcon is under 30`);
+  if (lock.format === "zone2" || lock.steady) {
+    if (lock.metcon.length !== 1) errors.push(`${lock.day} zone2 has ${lock.metcon.length} movements; allowed 1`);
+    const minutes = lock.metcon[0]?.unit === "min" ? lock.metcon[0].amount : null;
+    if (minutes !== 30 && minutes !== 40 && minutes !== 45) errors.push(`${lock.day} zone2 minutes ${minutes ?? "missing"} are outside 30–45`);
+  } else {
+    errors.push(...doseIssues({ format: lock.format, minutes: lock.metcon_minutes, movements: lock.metcon }));
+  }
   return errors;
 }
 
@@ -589,6 +675,7 @@ type RawSession = {
   rest?: boolean;
   strength?: { lift?: string; sets?: unknown[] } | null;
   conditioning?: { format?: string; duration_min?: number; time_domain?: string; movements?: { key?: string; unit?: string; amount_value?: number; amount?: string }[] } | null;
+  zone2?: { form?: string; modality?: string; duration_min?: number } | null;
   session_blocks?: ContractBlock[];
   warmup_phases?: { phase?: string; key?: string; unit?: string; amount?: number; static_hold?: boolean }[];
 };
@@ -601,14 +688,14 @@ function readSessions(raw: unknown): RawSession[] {
 
 function doseFrom(row: { key?: string; unit?: string; amount_value?: number; amount?: string | number } | undefined): DoseMovement | null {
   if (!row?.key) return null;
-  const unit = row.unit === "cal" || row.unit === "m" || row.unit === "sec" || row.unit === "reps" ? row.unit : null;
+  const unit = row.unit === "cal" || row.unit === "m" || row.unit === "sec" || row.unit === "reps" || row.unit === "min" ? row.unit : null;
   const amount = typeof row.amount_value === "number" ? row.amount_value : Number(String(row.amount ?? "").replace(/[^\d]/g, ""));
   if (!unit || !Number.isInteger(amount)) return null;
   return { key: row.key, unit, amount };
 }
 
 /** 세션 스키마, 헤드 패치, final_validator가 같이 쓰는 잠금 필드. */
-export const LOCK_FIELDS = ["format", "metcon_dose", "block_minutes", "intensity_ceiling", "stimulus"] as const;
+export const LOCK_FIELDS = ["format", "metcon_dose", "block_minutes", "intensity_ceiling", "stimulus", "main_lift"] as const;
 export type LockField = (typeof LOCK_FIELDS)[number];
 
 export type SlotCause = {
@@ -626,6 +713,7 @@ const LOCK_PATCH_FIELDS = new Set([
   "block_minutes",
   "intensity_ceiling",
   "stimulus",
+  "main_lift",
 ]);
 
 /** 잠금 필드 이름은 헤드 패치 대상이 아니다. 동작 수량은 적용 뒤 잠금으로 다시 본다. */
@@ -636,7 +724,8 @@ export function isLockPatchField(field: string): boolean {
 export function lockSnapshot(lock: DaySessionLock): string {
   const blocks = lock.blocks.map((block) => `${block.role}:${block.minutes}`).join(",");
   const dose = lock.metcon.map((move) => `${move.key}:${move.unit}:${move.amount}`).join("|");
-  return [lock.format, dose, blocks, lock.intensity_ceiling, lock.stimulus ?? "", lock.intensity_class ?? ""].join("~");
+  const main = lock.blocks.find((block) => block.role === "main_lift")?.movements[0]?.key ?? "";
+  return [lock.format, dose, blocks, lock.intensity_ceiling, lock.stimulus ?? "", lock.intensity_class ?? "", main].join("~");
 }
 
 export function sameLockSnapshot(left: DaySessionLock, right: DaySessionLock): boolean {
@@ -645,12 +734,15 @@ export function sameLockSnapshot(left: DaySessionLock, right: DaySessionLock): b
 
 /** 뼈대 자극이 있으면 그 값만. 상한과 같이 있을 수 없으면 빈 목록이다. light 칸은 heavy 자극을 열지 않는다. */
 export function stimulusLockEnum(
-  lock: Pick<DaySessionLock, "intensity_ceiling" | "stimulus" | "intensity_class">,
+  lock: Pick<DaySessionLock, "intensity_ceiling" | "stimulus" | "intensity_class" | "format">,
   current: string | null | undefined,
 ): Stimulus[] {
   const stimuli = stimuliForCeiling(lock.intensity_ceiling, lock.stimulus ?? current);
-  if (lock.intensity_class !== "light") return stimuli;
-  const withoutHeavy = stimuli.filter((item) => item !== "heavy");
+  const clocked = lock.format === "emom" || lock.format === "intervals";
+  const legal = stimuliMatchingFormat(lock.format, stimuli);
+  const opened = legal.length ? legal : clocked ? stimuliForCeiling(lock.intensity_ceiling, "technical").filter((item) => item !== "heavy") : legal;
+  if (lock.intensity_class !== "light") return opened;
+  const withoutHeavy = opened.filter((item) => item !== "heavy");
   return withoutHeavy.length ? withoutHeavy : [];
 }
 
@@ -690,6 +782,11 @@ export function lockMismatchMessages(session: LockSession, lock: DaySessionLock)
   if (blockMoves.length !== lock.metcon.length || blockMoves.some((move, index) => !sameDose(move, lock.metcon[index]!))) {
     errors.push(`${day} metcon does not match the locked dose`);
   }
+  const lockedMain = lock.blocks.find((block) => block.role === "main_lift")?.movements[0];
+  if (lockedMain) {
+    const actual = blocks.find((block) => block.role === "main_lift")?.movements?.[0]?.key;
+    if (actual !== lockedMain.key) errors.push(`${day} main ${actual ?? "missing"} does not match lock ${lockedMain.key}`);
+  }
   if (session.conditioning?.format && session.conditioning.format !== lock.format) {
     errors.push(`${day} format ${session.conditioning.format} does not match lock ${lock.format}`);
   }
@@ -710,6 +807,7 @@ export function slotCauseFromMessage(message: string): SlotCause {
   if (message.includes("locked dose")) return { day, code: "lock.metcon_dose", field: "metcon_dose", message };
   if (message.includes("format") && message.includes("does not match lock")) return { day, code: "lock.format", field: "format", message };
   if (message.includes("minutes") && message.includes("do not match lock")) return { day, code: "lock.block_minutes", field: "block_minutes", message };
+  if (message.includes(" main ") && message.includes("does not match lock")) return { day, code: "lock.main_lift", field: "main_lift", message };
   if (message.includes("stimulus") && message.includes("does not match lock")) return { day, code: "lock.stimulus", field: "stimulus", message };
   if (message.includes("locked ceiling") || (message.includes("intensity") && message.includes("does not match lock"))) {
     return { day, code: "lock.intensity_ceiling", field: "intensity_ceiling", message };
@@ -731,13 +829,17 @@ export function weekContractIssues(raw: unknown, weekIndex: WeekIndex = 1, metho
     const band: MetconBand | null = domain === "short" || domain === "medium" || domain === "long" ? domain : duration >= 30 ? "long" : duration <= 12 ? "short" : duration ? "medium" : null;
     const lift = session.strength?.lift;
     const hasMainBlock = (session.session_blocks ?? []).some((block) => block.role === "main_lift" && (block.minutes ?? 0) > 0);
+    const steady = session.zone2?.form === "day";
     return {
       day: session.day as DayKey,
       rest: session.rest === true,
-      long: band === "long",
+      long: steady ? false : band === "long",
       domain: band,
       lift: lift === "squat" || lift === "bench" || lift === "ohp" || lift === "deadlift" ? lift : "none",
-      has_main: hasMainBlock,
+      has_main: steady ? false : hasMainBlock,
+      zone2: steady,
+      zone2_modality: steady ? session.zone2?.modality ?? null : null,
+      zone2_minutes: steady ? session.zone2?.duration_min ?? null : null,
     };
   });
   const locks = planWeekContract(inputs, weekIndex, method);
@@ -760,13 +862,15 @@ export function weekContractIssues(raw: unknown, weekIndex: WeekIndex = 1, metho
     if (new Set(actualRoles).size !== actualRoles.length) errors.push(`${session.day} repeats a block role`);
     const total = session.session_blocks.reduce((sum, block) => sum + (block.minutes ?? 0), 0);
     if (total < SESSION_MINUTES_MIN || total > SESSION_MINUTES_MAX) errors.push(`${session.day} blocks sum to ${total}; allowed ${SESSION_MINUTES_MIN}–${SESSION_MINUTES_MAX}`);
-    diversity.push({
-      day: lock.day,
-      format: lock.format,
-      band: lock.band,
-      movements: lock.metcon.map((move) => move.key),
-      exception: lock.exception,
-    });
+    if (!(lock.steady || lock.format === "zone2")) {
+      diversity.push({
+        day: lock.day,
+        format: lock.format,
+        band: lock.band,
+        movements: lock.metcon.map((move) => move.key),
+        exception: lock.exception,
+      });
+    }
     const sets = session.strength?.sets;
     if ((method === "531" || method.toLowerCase() === "531") && lock.lift && Array.isArray(sets) && sets.length !== 3) {
       errors.push(`${session.day} ${lock.lift} has ${sets.length} sets`);

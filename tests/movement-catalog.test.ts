@@ -217,11 +217,14 @@ describe("movement catalog", () => {
     expect(squat.length).toBeGreaterThan(0);
     expect(squat.length).toBeLessThan(138);
     const format = conditioningDayFormat(["row_erg", "run", "burpee", "assault_bike"]);
-    const items = (
+    const branch = (
       format.json_schema.schema as {
-        properties: { conditioning: { properties: { movements: { items: { anyOf: Array<{ properties: { movement: { enum: string[] }; unit: { enum: string[] } } }> } } } } };
+        properties: {
+          conditioning: { anyOf: Array<{ properties: { movements: { items: { anyOf: Array<{ properties: { movement: { enum: string[] }; unit: { enum: string[] } } }> } } } }> };
+        };
       }
-    ).properties.conditioning.properties.movements.items.anyOf;
+    ).properties.conditioning.anyOf[0]!;
+    const items = branch.properties.movements.items.anyOf;
     const unitsFor = (key: string) => items.find((branch) => branch.properties.movement.enum.includes(key))?.properties.unit.enum;
     expect(unitsFor("row_erg")).toEqual(["cal", "m"]);
     expect(unitsFor("run")).toEqual(["m"]);

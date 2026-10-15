@@ -1,7 +1,7 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../../month-plan/types";
 import { classMetconPurpose } from "../../wod/purpose";
 import { fillSessionFields } from "../session-fields";
-import { exampleSets } from "../strength-methods";
+import { exampleSets, secondLowerVolumeSets } from "../strength-methods";
 import { evaluateWeek } from "../evaluate-week";
 import { similarityScore, toStructure, type WeekCheckContext } from "../rules";
 import { strengthIsHeavy } from "../schemes";
@@ -157,23 +157,34 @@ function fatigueMode(actual: WeekActual | null | undefined): "high" | "low" | "u
   return "unknown";
 }
 
-function strengthFor(lift: MainLift, month: MonthDirection, weekIndex: WeekIndex, actual: WeekActual | null | undefined) {
+function strengthFor(
+  lift: MainLift,
+  month: MonthDirection,
+  weekIndex: WeekIndex,
+  actual: WeekActual | null | undefined,
+  exposure?: "heavy" | "volume",
+) {
   const mode = lift === "squat" || lift === "deadlift" ? fatigueMode(actual) : "unknown";
+  if (exposure === "volume" && mode === "high" && (lift === "squat" || lift === "deadlift")) {
+    const volume = secondLowerVolumeSets(month.strength_method || month.scheme, weekIndex);
+    if (volume) return { lift, sets: volume, movement_key: exactStrengthKey(lift, weekIndex) };
+  }
   const sets = exampleSets(month.strength_method || month.scheme, weekIndex, mode, lift);
   if (!sets) return null;
   return { lift, sets, movement_key: exactStrengthKey(lift, weekIndex) };
 }
 
-const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner"] as const;
+const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner", "zone2"] as const;
+type StoredUnit = CatalogUnit | "min";
 
-function splitStoredAmount(amount: string, unit: CatalogUnit | undefined): { amount: string; unit?: CatalogUnit; amount_value?: number } {
+function splitStoredAmount(amount: string, unit: StoredUnit | undefined): { amount: string; unit?: StoredUnit; amount_value?: number } {
   const text = amount.replace(/\s/g, "");
-  const paired = text.match(/^(\d+)(cal|sec|m)$/i);
+  const paired = text.match(/^(\d+)(min|cal|sec|m)$/i);
   if (!paired) {
     if (/^\d+$/.test(text) && unit) return { amount: text, unit, amount_value: Number(text) };
     return unit ? { amount, unit } : { amount };
   }
-  const parsed = paired[2]!.toLowerCase() as CatalogUnit;
+  const parsed = paired[2]!.toLowerCase() as StoredUnit;
   const chosen = unit ?? parsed;
   return { amount: paired[1]!, unit: chosen, amount_value: Number(paired[1]) };
 }
@@ -186,6 +197,27 @@ function hangul(text: string): boolean {
  * Accepts one day's coaching JSON. time_domain in the payload is ignored.
  * Sets come from the method table. The server stamps the clock from duration_min.
  */
+/** 코드가 정한 존 2. 모델이 옵션을 비우면 이 값을 쓰고, 잘못된 옵션을 내면 거절한다. */
+function zone2OwnedByIntent(intent: DayIntent): SessionDraft["zone2"] | null {
+  if (intent.zone2 !== "day") return null;
+  const modality = intent.zone2_modality;
+  const duration = intent.zone2_duration;
+  if (modality !== "row_erg" && modality !== "bike_erg" && modality !== "run") return null;
+  if (duration !== 30 && duration !== 40 && duration !== 45) return null;
+  return {
+    form: "day",
+    modality,
+    duration_min: duration,
+    effort: intent.zone2_effort || "conversational",
+    hr: intent.zone2_hr || "unspecified",
+    alternate: null,
+    performed_option: null,
+    completion_status: null,
+    actual_duration_min: null,
+    actual_rpe: null,
+  };
+}
+
 function zone2FromOption(value: unknown, required: boolean): SessionDraft["zone2"] | null {
   if (!required) return null;
   if (!value || typeof value !== "object") return null;
@@ -237,10 +269,13 @@ export function sessionFromCoachJson(input: {
   if (!conditioning || typeof conditioning !== "object") return null;
   const piece = conditioning as Record<string, unknown>;
   const format = piece.format;
+  const zone2Day = input.intent.zone2 === "day";
   if (typeof format !== "string" || !(FORMATS as readonly string[]).includes(format)) return null;
+  if (!zone2Day && format === "zone2") return null;
   const minutes = piece.duration_min;
   const longPiece = input.intent.secondary_training === "long_conditioning";
-  const range = longPiece ? LONG_CONDITIONING : NON_LONG_CONDITIONING;
+  const steadyZone2 = input.intent.zone2 === "day" && typeof minutes === "number" && minutes >= 30 && minutes <= 45;
+  const range = longPiece ? LONG_CONDITIONING : steadyZone2 ? { min: 30, max: 45 } : NON_LONG_CONDITIONING;
   if (typeof minutes !== "number" || !Number.isInteger(minutes) || minutes < range.min || minutes > range.max) return null;
   const stimulus = piece.stimulus;
   if (typeof stimulus !== "string" || !(STIMULI as readonly string[]).includes(stimulus)) return null;
@@ -249,7 +284,7 @@ export function sessionFromCoachJson(input: {
   if (volume !== "low" && volume !== "moderate" && volume !== "high") return null;
   if (intensity !== "light" && intensity !== "moderate" && intensity !== "heavy") return null;
   const aerobicMono = input.intent.primary_training === "aerobic" && input.intent.secondary_training !== "long_conditioning";
-  const minMoves = input.preview || aerobicMono ? 1 : 2;
+  const minMoves = input.preview || aerobicMono || format === "zone2" ? 1 : 2;
   if (!Array.isArray(piece.movements) || piece.movements.length < minMoves || piece.movements.length > 5) return null;
   const catalog = new Map(movementCatalog().map((row) => [row.key, row.name_ko]));
   const movements = [];
@@ -262,7 +297,10 @@ export function sessionFromCoachJson(input: {
     const standardName = catalogMovement(movement.key)?.name_ko ?? null;
     if (!piecesName && !standardName) return null;
     if (movement.name_ko !== piecesName && movement.name_ko !== standardName) return null;
-    const declared = movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" ? (movement.unit as CatalogUnit) : undefined;
+    const declared =
+      movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" || movement.unit === "min"
+        ? movement.unit
+        : undefined;
     const stored = splitStoredAmount(movement.amount, declared);
     const load = storedLoad(movement.load);
     movements.push({
@@ -277,7 +315,7 @@ export function sessionFromCoachJson(input: {
   }
   const equipment = equipmentForKeys(movements.map((movement) => movement.key));
   if (longPiece && timeDomainFromMinutes(minutes) !== "long") return null;
-  if (!longPiece && timeDomainFromMinutes(minutes) === "long") return null;
+  if (!longPiece && !steadyZone2 && timeDomainFromMinutes(minutes) === "long") return null;
   const recipe: Recipe = {
     id: "model",
     roles: [],
@@ -293,10 +331,15 @@ export function sessionFromCoachJson(input: {
   };
   const namedLift = input.intent.strength_lift;
   const lift = namedLift && namedLift !== "none" ? namedLift : null;
-  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual) : null;
+  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual, input.intent.lower_exposure) : null;
   const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
   const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark);
-  const zone2 = zone2FromOption(body.zone2_option, input.intent.zone2 === "day");
+  const zone2 =
+    input.intent.zone2 === "day"
+      ? body.zone2_option == null
+        ? zone2OwnedByIntent(input.intent)
+        : zone2FromOption(body.zone2_option, true)
+      : null;
   if (input.intent.zone2 === "day" && !zone2) return null;
   if (
     format === "intervals" &&
@@ -333,7 +376,48 @@ export function sessionFromCoachJson(input: {
     });
     if (verdict.reject.length) return null;
   }
+  if (input.intent.zone2 === "day") applySteadyZone2(session, input.intent);
   return session;
+}
+
+function applySteadyZone2(session: SessionDraft, intent: DayIntent) {
+  const zone = session.zone2;
+  if (!zone || zone.form !== "day") return;
+  const minutes = zone.duration_min === 30 || zone.duration_min === 45 ? zone.duration_min : 40;
+  const key = zone.modality === "bike_erg" || zone.modality === "run" || zone.modality === "row_erg" ? zone.modality : "row_erg";
+  const name = catalogMovement(key)?.name_ko;
+  const piece = session.conditioning;
+  if (!name || !piece) return;
+  const stimulus = piece.stimulus === "high_rep" ? "high_rep" : "technical";
+  const patterns: Array<"engine" | "pull"> = intent.companion_movement && /row|pull|core/i.test(intent.companion_movement) ? ["engine", "pull"] : ["engine"];
+  const conditioning: NonNullable<SessionDraft["conditioning"]> = {
+    ...piece,
+    format: "zone2",
+    time_domain: "long",
+    stimulus,
+    movement_patterns: patterns,
+    movements: [{ key, amount: `${minutes}분`, name_ko: name, amount_value: minutes, unit: "min" }],
+    equipment: equipmentForKeys([key]),
+    rep_structure: `${minutes}분 지속, RPE 2–3. ${name}.`,
+    work_rest_structure: `${minutes}분 동안 대화가 가능한 페이스로 이어 갑니다.`,
+    duration_min: minutes,
+    volume: "low",
+    intensity: "light",
+    long_conditioning: false,
+    purpose: `${name} ${minutes}분, RPE 2–3. 고강도 메트콘은 두지 않습니다.`,
+  };
+  session.conditioning = conditioning;
+  session.metcon_format = "zone2";
+  session.time_domain = "long";
+  session.volume = "low";
+  session.intensity = "light";
+  session.expected_duration = minutes;
+  session.metcon_purpose = conditioning.purpose;
+  const metcon = session.session_blocks?.find((block) => block.role === "metcon");
+  if (metcon) {
+    metcon.minutes = minutes;
+    metcon.movements = [{ key, unit: "min", amount: minutes }];
+  }
 }
 
 export function buildSession(input: {
@@ -375,7 +459,7 @@ export function buildSession(input: {
   const scaled = longPiece ? recipe : { ...recipe, minutes: input.shortClock ? Math.min(recipe.minutes, 12) : recipe.minutes };
   if (!longPiece && timeDomainFromMinutes(scaled.minutes) === "long") return null;
   const conditioning = conditioningFrom(day.day, scaled, day.benchmark);
-  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual) : null;
+  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual, day.lower_exposure) : null;
   return fillSessionFields(
     {
       day: day.day,
