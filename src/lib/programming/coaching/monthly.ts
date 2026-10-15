@@ -2,6 +2,7 @@ import { MONTHLY_DIRECTION_SCHEMA_VERSION, type ReuseReason } from "../direction
 import type { FetchLike } from "../model";
 import type { WeekActual } from "../summary";
 import type { MonthDirection, MonthGoalTable, MonthlyCoachPlan, StoredStructure, WeekIndex } from "../types";
+import { classCompletionForCoach } from "../weekly-intent";
 import { monthlyPlanErrors } from "./contract";
 import {
   buildMonthFrame,
@@ -123,9 +124,7 @@ export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual |
     ...(monthCellUser(month, framed.frame) as Record<string, unknown>),
     reported_fatigue: actual?.class_summary?.fatigue_signal ?? null,
     planned_volume: actual?.class_summary?.actual_volume ?? null,
-    completion: actual?.class_summary
-      ? { completed_days: actual.class_summary.completed_days, missed_days: actual.class_summary.missed_days }
-      : null,
+    completion: classCompletionForCoach(actual),
   };
 }
 

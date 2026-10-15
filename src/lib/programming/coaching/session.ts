@@ -360,7 +360,8 @@ export function buildSession(input: {
     });
   }
   const longPiece = day.secondary_training === "long_conditioning";
-  const lift = longPiece || day.strength_lift === "none" ? null : day.strength_lift;
+  const namedLift = day.strength_lift;
+  const lift = namedLift && namedLift !== "none" ? namedLift : null;
   const recipe = pickRecipe({
     intent: day,
     salt: input.salt,

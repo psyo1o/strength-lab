@@ -11,7 +11,7 @@ import { coachModel } from "../src/lib/programming/coaching/models";
 import { coachSystemPrompt } from "../src/lib/programming/coaching/prompts";
 import { fatigueReport } from "../src/lib/programming/coaching/fatigue";
 import { simulateFourWeeks } from "../src/lib/programming/coaching/score";
-import { sessionFromCoachJson } from "../src/lib/programming/coaching/session";
+import { buildSession, sessionFromCoachJson } from "../src/lib/programming/coaching/session";
 import { variationReport } from "../src/lib/programming/coaching/variation";
 import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
 import { ensureProgrammingWeek } from "../src/lib/programming/engine";
@@ -243,6 +243,17 @@ describe("coaching pipeline", () => {
       weekIndex: 1,
     });
     expect(session?.strength?.lift).toBe("ohp");
+    const fallback = buildSession({
+      intent: day,
+      month: month531(),
+      weekIndex: 1,
+      salt: 0,
+      previousStimulus: null,
+      chosen: [],
+      recent: [],
+      shortClock: false,
+    });
+    expect(fallback?.strength?.lift).toBe("ohp");
   });
 
   it("refuses the live class week as a probe", () => {

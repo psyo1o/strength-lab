@@ -4,7 +4,7 @@ import { evaluateWeek } from "../evaluate-week";
 import { adoptionCollisionErrors, hardConstraints, overlapRetryErrors, overlapSessionsFor, parseWeekDraft, recentOverlapDays, recentOverlapPayload, similarityDiagnostics, TIME_DOMAIN_RANGES, type OverlapSession } from "../rules";
 import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
-import { parseWeeklyIntent } from "../weekly-intent";
+import { classCompletionForCoach, classSummaryForCoach, omitAbsenceSummary, parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
 import { fatigueReport } from "./fatigue";
@@ -275,12 +275,7 @@ function sessionUser(
     class_minutes: resolveSessionMinutes().minutes,
     reported_fatigue: input.previousActual?.class_summary?.fatigue_signal ?? null,
     planned_volume: input.previousActual?.class_summary?.actual_volume ?? null,
-    completion: input.previousActual?.class_summary
-      ? {
-          completed_days: input.previousActual.class_summary.completed_days,
-          missed_days: input.previousActual.class_summary.missed_days,
-        }
-      : null,
+    completion: classCompletionForCoach(input.previousActual),
     avoid_structures: (input.recentStructures ?? []).slice(-8).map((row) => ({
       format: row.format,
       stimulus: row.stimulus,
@@ -329,8 +324,9 @@ function skeletonComboFor(week: CoachWeekInput, rules: WeekRules, day: DayKey) {
 }
 
 function judgeContext(input: CoachWeekInput) {
+  const previous = input.previousActual ?? null;
   return {
-    previousActual: input.previousActual ?? null,
+    previousActual: previous ? omitAbsenceSummary(previous) : null,
     recentLiftMaps: input.recentLiftMaps ?? [],
     monthlyDirection: input.monthlyDirection ?? null,
     weekSkeleton: input.weekSkeleton ?? null,
@@ -1200,7 +1196,7 @@ function headUser(input: CoachWeekInput, plan: WeeklyIntentPlan, draft: WeekDraf
     load,
     fatigue,
     variation,
-    previous_actual: input.previousActual?.class_summary ?? null,
+    previous_actual: classSummaryForCoach(input.previousActual),
     movement_catalog: movementsForWeek(
       plan.days
         .filter((day) => day.primary_training !== "rest" && day.recovery_role !== "rest")
@@ -1473,9 +1469,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         week_index: input.weekIndex,
         monthly_goal: monthly.plan.block_goal,
         reported_fatigue: input.previousActual?.class_summary?.fatigue_signal ?? null,
-        completion: input.previousActual?.class_summary
-          ? { completed: input.previousActual.class_summary.completed_days, missed: input.previousActual.class_summary.missed_days }
-          : null,
+        completion: classCompletionForCoach(input.previousActual),
       },
       output: weeklyFromModel ? { block_phase: plan.block_phase, days: plan.days.map((day) => day.primary_training) } : weekly.json,
       raw_output: weekly.raw,
@@ -1929,9 +1923,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     block_phase: plan.block_phase,
     reported_fatigue: input.previousActual?.class_summary?.fatigue_signal ?? null,
     planned_volume: input.previousActual?.class_summary?.actual_volume ?? null,
-    completion: input.previousActual?.class_summary
-      ? { completed_days: input.previousActual.class_summary.completed_days, missed_days: input.previousActual.class_summary.missed_days }
-      : null,
+    completion: classCompletionForCoach(input.previousActual),
     days: plan.days
       .filter((day) => loadDays.includes(day.day))
       .map((day) => ({
@@ -2471,7 +2463,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       block_phase: plan.block_phase,
       weekly_rules: rules,
       athlete_fatigue: fatigue,
-      recent_completion: input.previousActual?.class_summary ?? null,
+      recent_completion: classSummaryForCoach(input.previousActual),
       recent_history_count: input.recentStructures?.length ?? 0,
       specialists: bundle.specialists.map((row) => ({
         name: row.name,

@@ -21,6 +21,7 @@ import { fallbackMonth } from "../src/lib/programming/fallback";
 import type { WeekActual } from "../src/lib/programming/summary";
 import type { MonthDirection, SessionDraft, WeekIndex, WeeklyIntentPlan } from "../src/lib/programming/types";
 import { WEEKLY_PROMPT_VERSION } from "../src/lib/programming/types";
+import { recordedManyMissed } from "../src/lib/programming/weekly-intent";
 import { COACHING_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
 
 const NOW = Date.parse("2099-07-06T01:00:00.000Z");
@@ -416,13 +417,20 @@ describe("active coaching contracts", () => {
     expect(deterministic.days.filter((day) => day.strength_lift === "squat" || day.strength_lift === "deadlift")).toHaveLength(1);
   });
 
-  it("case 4 and 13 show absence and a half-complete week in the weekly input", () => {
+  it("case 4 and 13 keep the class week on the attended rules when the record has absences", () => {
     const absent = reported({ fatigue: "moderate", volume: "moderate", completed: 3, missed: 3 });
-    const payload = weeklyCoachPayload({ month: month531(), weekIndex: 2, previousActual: absent });
-    expect(payload).toMatchObject({ completion: { completed_days: 3, missed_days: 3 } });
+    const present = reported({ fatigue: "moderate", volume: "moderate", completed: 3, missed: 0 });
+    const payload = weeklyCoachPayload({ month: month531(), weekIndex: 2, previousActual: absent }) as {
+      completion: { completed_days: number; missed_days?: number };
+    };
+    expect(recordedManyMissed(absent)).toBe(true);
+    expect(payload.completion).toEqual({ completed_days: 3 });
     const plan = planCoachedWeek({ month: month531(), weekIndex: 2, previousActual: absent });
-    expect(plan.adjustment_ko).toContain("미완료");
-    expect(plan.days.some((day) => day.progression_required)).toBe(false);
+    const same = planCoachedWeek({ month: month531(), weekIndex: 2, previousActual: present });
+    expect(plan.adjustment_ko).toBe(same.adjustment_ko);
+    expect(plan.days.map((day) => [day.day, day.strength_lift, day.volume_profile, day.progression_required])).toEqual(
+      same.days.map((day) => [day.day, day.strength_lift, day.volume_profile, day.progression_required]),
+    );
   });
 
   it("case 5 and 6 mark benchmark and deload weeks", () => {

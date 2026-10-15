@@ -18,6 +18,7 @@ import {
   intentSignature,
   performanceRead,
   planWeeklyIntent,
+  recordedManyMissed,
   weeklyIntentFrom,
 } from "../src/lib/programming/weekly-intent";
 
@@ -166,16 +167,18 @@ describe("stage 10 weekly intent", () => {
     expect(kept).toBeTruthy();
   });
 
-  it("D several missed sessions lower the volume and do not progress", () => {
-    const result = runCase({
-      month: month531(),
-      weekIndex: 2,
-      previous: actual({ fatigue: "moderate", missed: 4, completed_days: 1, actual_volume: "moderate" }),
-    });
+  it("D recorded absences stay out of the class week", () => {
+    const missed = actual({ fatigue: "moderate", missed: 4, completed_days: 1, actual_volume: "moderate" });
+    const present = actual({ fatigue: "moderate", missed: 0, completed_days: 1, actual_volume: "moderate" });
+    const result = runCase({ month: month531(), weekIndex: 2, previous: missed });
+    const open = runCase({ month: month531(), weekIndex: 2, previous: present });
     expectCoachWeek(result, 2);
-    expect(result.plan.adjustment_ko).toContain("미완료");
-    expect(result.plan.days.filter((day) => day.primary_training !== "rest").every((day) => day.progression_required === false)).toBe(true);
-    expect(result.plan.days.some((day) => day.volume_profile === "low")).toBe(true);
+    expect(recordedManyMissed(missed)).toBe(true);
+    expect(performanceRead(missed).many_missed).toBe(false);
+    expect(result.plan.adjustment_ko).toBe(open.plan.adjustment_ko);
+    expect(result.plan.days.map((day) => [day.strength_lift, day.volume_profile, day.intensity_profile, day.progression_required])).toEqual(
+      open.plan.days.map((day) => [day.strength_lift, day.volume_profile, day.intensity_profile, day.progression_required]),
+    );
   });
 
   it("E deload week keeps the method and drops the load", () => {

@@ -23,6 +23,7 @@ import { getSqlite, resetDbConnection } from "../src/lib/db/client";
 import { recordPipelineFailure } from "../src/lib/programming/store";
 import type { ConditioningDraft, DayIntent, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../src/lib/programming/types";
 import type { WeekActual } from "../src/lib/programming/summary";
+import { performanceRead, recordedManyMissed } from "../src/lib/programming/weekly-intent";
 
 const PROD_QUANTITIES = [
   { key: "run", value: "m:905" },
@@ -296,15 +297,18 @@ describe("prod week 146 lock failure", () => {
     expect(body.slots.every((slot) => slot.day === "mon")).toBe(true);
   });
 
-  it("reflects fatigue and absences in the weekly skeleton and leaves an illegal intensity enum empty", () => {
+  it("keeps high fatigue on the weekly skeleton and leaves absences for personalization", () => {
     const month = fallbackMonth({ summary_ko: "5/3/1 블록을 네 주 유지합니다.", next_scheme: "531", strength_method: "531" });
     const monthly = deriveMonthlyThesis(month);
     const scenarios = [
       { name: "normal", fatigue: "low" as const, missed: 0, lowers: 2, ceiling: "heavy", volume: "high" },
       { name: "fatigue", fatigue: "high" as const, missed: 0, lowers: 1, ceiling: "moderate", volume: "low" },
-      { name: "absent", fatigue: "low" as const, missed: 6, lowers: 1, ceiling: "moderate", volume: "low" },
+      { name: "absent", fatigue: "low" as const, missed: 6, lowers: 2, ceiling: "heavy", volume: "high" },
       { name: "both", fatigue: "high" as const, missed: 6, lowers: 1, ceiling: "moderate", volume: "low" },
     ];
+    const absentRecord = actual("low", 6);
+    expect(recordedManyMissed(absentRecord)).toBe(true);
+    expect(performanceRead(absentRecord).many_missed).toBe(false);
     for (const scenario of scenarios) {
       const previous = scenario.name === "normal" ? null : actual(scenario.fatigue, scenario.missed);
       const layout = weekTrainingLayout({ month, weekIndex: 2, previousActual: previous });

@@ -1,4 +1,5 @@
 import { previousLowerFatigue } from "../rules";
+import { classCompletionForCoach } from "../weekly-intent";
 import type { WeekActual } from "../summary";
 import type { SessionDraft, VolumeBand } from "../types";
 import { FATIGUE_ENGINE_VERSION } from "./prompts";
@@ -24,7 +25,7 @@ export type FatigueReport = {
   reported_lower_body: ReturnType<typeof previousLowerFatigue>;
   regions: Record<RegionKey, FatigueLevel>;
   recovery_need: FatigueLevel;
-  completion: { completed_days: number; missed_days: number } | null;
+  completion: { completed_days: number; missed_days?: number } | null;
   note_ko: string;
 };
 
@@ -112,12 +113,7 @@ export function fatigueReport(input: { sessions: readonly SessionDraft[]; actual
     reported_lower_body: reported,
     regions,
     recovery_need: recovery,
-    completion: input.actual?.class_summary
-      ? {
-          completed_days: input.actual.class_summary.completed_days,
-          missed_days: input.actual.class_summary.missed_days,
-        }
-      : null,
+    completion: classCompletionForCoach(input.actual),
     note_ko: note,
   };
 }
