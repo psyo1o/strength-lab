@@ -1,7 +1,9 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import type { SkeletonDay, WeeklySkeleton } from "../planning/types";
 import { orderViolations, similarityViolations } from "../rules";
+import { planWeekContract, sameLockSnapshot, type ContractDayInput } from "./session-contract";
 import type { DayIntent, SessionDraft, StoredStructure, WeekDraft, WeeklyIntentPlan } from "../types";
+import type { WeekIndex } from "../types";
 
 /** 요일 고정은 잠긴 스켈레톤일 때만이다. goal_table만으로는 고정하지 않는다. */
 export function lockWeekdaysForPlacement(skeletonLocked: boolean): boolean {
@@ -84,6 +86,8 @@ export function placeTrainingDays(input: {
   recent?: readonly StoredStructure[];
   /** Monthly day goals already named the weekday. Do not move rest or the session. */
   lockWeekdays?: boolean;
+  /** 잠금 스냅샷이 달라지는 교환은 두지 않는다. 세션을 잠금 밖으로 옮기지 않는다. */
+  lockGuard?: { weekIndex: WeekIndex; method: string };
 }): DayPlacement {
   if (input.lockWeekdays) return identity(input, [], true);
   const recent = input.recent ?? [];
@@ -108,8 +112,12 @@ export function placeTrainingDays(input: {
     return identity(input, judged.all, judged.order.length === 0);
   }
 
+  const originLocks = input.lockGuard ? locksFor(input.plan, input.lockGuard.weekIndex, input.lockGuard.method) : null;
   let best: { perm: number[]; violations: string[]; orderCount: number; similarityCount: number; moves: number } | null = null;
   for (const perm of permutations(bundles.length)) {
+    if (originLocks && input.lockGuard && !permKeepsLocks(input.plan, slots, bundles, perm, originLocks, input.lockGuard.weekIndex, input.lockGuard.method)) {
+      continue;
+    }
     const sessions = sessionsFor(input.draft, slots, bundles, perm);
     const judged = placementViolations({ ...input.draft, sessions }, recent);
     const moves = perm.reduce((count, bundleIndex, slotIndex) => count + (bundles[bundleIndex]!.origin === slots[slotIndex] ? 0 : 1), 0);
@@ -153,6 +161,47 @@ export function placeTrainingDays(input: {
     legal: best.orderCount === 0,
     violations: best.violations,
   };
+}
+
+function contractInputs(plan: WeeklyIntentPlan): ContractDayInput[] {
+  return plan.days.map((row) => ({
+    day: row.day,
+    rest: row.primary_training === "rest" || row.recovery_role === "rest",
+    long: row.secondary_training === "long_conditioning",
+    domain: row.secondary_training === "long_conditioning" ? "long" : "short",
+    lift: row.strength_lift === "squat" || row.strength_lift === "bench" || row.strength_lift === "ohp" || row.strength_lift === "deadlift" ? row.strength_lift : "none",
+    intensity_ceiling: row.intensity_profile === "light" || row.intensity_profile === "moderate" || row.intensity_profile === "heavy" ? row.intensity_profile : "heavy",
+    intensity_class: row.intensity_profile === "light" || row.intensity_profile === "moderate" || row.intensity_profile === "heavy" ? row.intensity_profile : null,
+  }));
+}
+
+function locksFor(plan: WeeklyIntentPlan, weekIndex: WeekIndex, method: string) {
+  return planWeekContract(contractInputs(plan), weekIndex, method);
+}
+
+function permKeepsLocks(
+  plan: WeeklyIntentPlan,
+  slots: readonly DayKey[],
+  bundles: readonly Bundle[],
+  perm: readonly number[],
+  originLocks: ReturnType<typeof locksFor>,
+  weekIndex: WeekIndex,
+  method: string,
+): boolean {
+  const intentByDay = new Map(plan.days.map((day) => [day.day, day]));
+  perm.forEach((bundleIndex, slotIndex) => {
+    const slot = slots[slotIndex]!;
+    const bundle = bundles[bundleIndex]!;
+    intentByDay.set(slot, { ...bundle.intent, day: slot });
+  });
+  const trial = locksFor({ ...plan, days: plan.days.map((day) => intentByDay.get(day.day) ?? day) }, weekIndex, method);
+  return perm.every((bundleIndex, slotIndex) => {
+    const slot = slots[slotIndex]!;
+    const origin = bundles[bundleIndex]!.origin;
+    const dest = trial.find((row) => row.day === slot);
+    const src = originLocks.find((row) => row.day === origin);
+    return Boolean(dest && src && sameLockSnapshot(dest, src));
+  });
 }
 
 function sessionsFor(draft: WeekDraft, slots: readonly DayKey[], bundles: readonly Bundle[], perm: readonly number[]): SessionDraft[] {

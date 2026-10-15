@@ -144,9 +144,10 @@ function slot(
 
 export function performanceRead(actual: WeekActual | null | undefined): PerformanceRead {
   const lower = previousLowerFatigue(actual);
-  const missed = actual?.class_summary?.missed_days ?? actual?.days.filter((day) => !day.rest && day.completed === false).length ?? 0;
-  const completed = actual?.class_summary?.completed_days ?? actual?.days.filter((day) => day.completed).length ?? 0;
-  const manyMissed = missed >= 3 || (actual != null && completed > 0 && completed <= 2 && missed >= 2);
+  const summary = actual?.class_summary;
+  const missed = summary?.missed_days ?? actual?.days.filter((day) => !day.rest && day.completed === false).length ?? 0;
+  const completed = summary?.completed_days ?? actual?.days.filter((day) => day.completed).length ?? 0;
+  const manyMissed = summary != null && (missed >= 3 || (completed > 0 && completed <= 2 && missed >= 2));
   const strengthSucceeded = actual != null && !manyMissed && lower !== "high" && lower !== "unknown" && completed >= 4;
   return {
     lower_fatigue: lower,
@@ -305,7 +306,7 @@ function applyPhase(days: Slot[], phase: BlockPhase): void {
 }
 
 function applyPerformance(days: Slot[], read: PerformanceRead, recent: readonly WeeklyIntentPlan[]): string {
-  if (read.lower_fatigue === "high") {
+  if (read.lower_fatigue === "high" || read.many_missed) {
     const lowers = days.filter(
       (day) => day.strength_lift === "squat" || day.strength_lift === "deadlift" || day.primary_training === "lower_strength" || day.primary_training === "posterior_chain",
     );
@@ -329,17 +330,17 @@ function applyPerformance(days: Slot[], read: PerformanceRead, recent: readonly 
       keep.progression_required = false;
       keep.intensity_profile = "moderate";
     }
-    return "지난주 하체 피로가 높아 하체 노출을 한 번으로 줄이고 볼륨을 낮춥니다.";
-  }
-  if (read.many_missed) {
-    for (const day of days) {
-      if (day.primary_training === "rest") continue;
-      day.progression_required = false;
-      if (day.volume_profile === "high") day.volume_profile = "moderate";
-      else if (day.duration_profile !== "60-75") day.volume_profile = "low";
-      day.fatigue_target = "low";
+    if (read.many_missed) {
+      for (const day of days) {
+        if (day.primary_training === "rest") continue;
+        day.progression_required = false;
+        day.volume_profile = "low";
+        day.fatigue_target = "low";
+      }
     }
-    return "지난주 미완료가 많아 같은 훈련 목적을 더 낮은 볼륨으로 이어 갑니다.";
+    return read.lower_fatigue === "high"
+      ? "지난주 하체 피로가 높아 하체 노출을 한 번으로 줄이고 볼륨을 낮춥니다."
+      : "지난주 미완료가 많아 같은 훈련 목적을 더 낮은 볼륨으로 이어 갑니다.";
   }
   if (read.strength_succeeded) {
     for (const day of days) {

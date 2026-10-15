@@ -217,6 +217,34 @@ describe("coaching pipeline", () => {
     expect(session?.expected_duration).toBe(14);
   });
 
+  it("keeps a locked lift on a long conditioning day", () => {
+    const plan = planCoachedWeek({ month: month531(), weekIndex: 1 });
+    const base = plan.days.find((row) => row.primary_training !== "rest")!;
+    const day = { ...base, secondary_training: "long_conditioning" as const, strength_lift: "ohp" as const };
+    const session = sessionFromCoachJson({
+      json: {
+        day: day.day,
+        warmup_ko: "관절을 먼저 풀어 줍니다.",
+        conditioning: {
+          format: "amrap",
+          duration_min: 36,
+          stimulus: "high_rep",
+          movements: [
+            { key: "burpee", amount: "8", name_ko: "버피" },
+            { key: "sit_up", amount: "10", name_ko: "싯업" },
+          ],
+          equipment: ["bodyweight"],
+          volume: "low",
+          intensity: "moderate",
+        },
+      },
+      intent: day,
+      month: month531(),
+      weekIndex: 1,
+    });
+    expect(session?.strength?.lift).toBe("ohp");
+  });
+
   it("refuses the live class week as a probe", () => {
     expect(() => assertProbeWeek("2026-10-05")).toThrow(/2026-10-05/);
     expect(() => assertProbeWeek("2099-07-06")).not.toThrow();

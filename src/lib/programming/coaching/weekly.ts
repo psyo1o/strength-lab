@@ -250,7 +250,7 @@ function daySlot(input: {
       pattern: hinge ? "hinge" : "squat",
       lift: input.lower,
       volume,
-      intensity: input.phase === "deload" ? "light" : "heavy",
+      intensity: input.phase === "deload" ? "light" : input.fatigued || input.missed ? "moderate" : "heavy",
       fatigue: input.fatigued ? "low" : "high",
       recovery: "train",
       progression: input.succeeded && !input.fatigued && input.phase !== "deload",

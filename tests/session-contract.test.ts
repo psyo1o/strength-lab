@@ -85,6 +85,18 @@ describe("session contract", () => {
     expect(weekContractIssues({ sessions: [stored] }, 1, "531").join(" ")).toContain("do not match lock");
   });
 
+  it("keeps the main-block minute lock when the stored lift name is missing", () => {
+    const days = weekDays().map((day) => (day.day === "mon" ? { ...day, long: true, domain: "long" as const, lift: "squat" as const } : day));
+    const lock = planWeekContract(days, 1, "531", 100).find((row) => row.day === "mon");
+    const stored = sessionFromLock(lock!);
+    stored.strength = null;
+    const intact = weekContractIssues({ sessions: [stored] }, 1, "531");
+    expect(intact.some((issue) => issue.includes("minutes") && issue.includes("do not match lock"))).toBe(false);
+    const warmup = stored.session_blocks.find((block) => block.role === "warmup");
+    warmup!.minutes -= 1;
+    expect(weekContractIssues({ sessions: [stored] }, 1, "531").join(" ")).toContain("do not match lock");
+  });
+
   it("rejects a repeated combo, a format used three times, and a machine used four times", () => {
     const combo = diversityIssues([
       { day: "mon", format: "amrap", band: "short", movements: ["row_erg", "burpee", "push_up"], exception: null },

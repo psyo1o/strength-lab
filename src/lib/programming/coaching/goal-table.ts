@@ -164,7 +164,7 @@ export function weekTrainingLayout(input: {
   const pair = choosePair(liftHosts, shift);
   const lowerLifts: MainLift[] = shift % 2 === 0 ? ["squat", "deadlift"] : ["deadlift", "squat"];
   const lowers = new Map<DayKey, MainLift>();
-  if (fatigued) lowers.set(pair[0]!, lowerLifts[0]!);
+  if (fatigued || missed) lowers.set(pair[0]!, lowerLifts[0]!);
   else {
     lowers.set(pair[0]!, lowerLifts[0]!);
     if (pair[1]) lowers.set(pair[1], lowerLifts[1]!);

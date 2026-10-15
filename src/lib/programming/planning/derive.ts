@@ -1,8 +1,8 @@
 import { DAY_ORDER, type DayKey } from "../../month-plan/types";
 import { deterministicMonthlyPlan } from "../coaching/monthly";
 import { extractWeekRules } from "../coaching/stage13/rules";
+import { performanceRead } from "../weekly-intent";
 import { planCoachedWeek } from "../coaching/weekly";
-import { previousLowerFatigue } from "../rules";
 import type { WeekActual } from "../summary";
 import type {
   BlockPhase,
@@ -93,7 +93,8 @@ export function deriveWeeklyThesis(input: {
   const rules = extractWeekRules({ month: input.month, weekIndex: input.weekIndex, actual: input.previousActual });
   const phase = weekPhase(input.intent.block_phase);
   const deload = phase === "DELOAD";
-  const highFatigue = !deload && previousLowerFatigue(input.previousActual) === "high";
+  const read = performanceRead(input.previousActual);
+  const strained = !deload && (read.lower_fatigue === "high" || read.many_missed);
   const counts = { short: 0, medium: 0, long: 0 };
   const lifts: string[] = [];
   const rest: DayKey[] = [];
@@ -122,8 +123,8 @@ export function deriveWeeklyThesis(input: {
     week_phase: phase,
     block_phase: input.intent.block_phase,
     strength_intensity_ceiling: deload ? "light" : "heavy",
-    conditioning_intensity_ceiling: deload || highFatigue ? "moderate" : "heavy",
-    volume_ceiling: deload ? "moderate" : highFatigue ? "low" : "high",
+    conditioning_intensity_ceiling: deload || strained ? "moderate" : "heavy",
+    volume_ceiling: deload ? "moderate" : strained ? "low" : "high",
     recovery_demand: role,
   };
 }

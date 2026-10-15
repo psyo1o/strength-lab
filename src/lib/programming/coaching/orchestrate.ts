@@ -6,7 +6,7 @@ import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
-import { intensityBandsForStimulus, planWeekContract, resolveSessionMinutes, stimuliForCeiling, type ContractDayInput, type DaySessionLock } from "./session-contract";
+import { intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -74,7 +74,7 @@ import type { AdjustmentRequest } from "./stage16/types";
 import { compareEditList } from "./revision-compliance";
 import { parseHeadReview, type HeadCoachReview, type SessionRevision } from "./review";
 import { lockWeekdaysForPlacement, placeTrainingDays } from "./day-place";
-import { applyHeadCells, intensityRevisionCells, pieceCells } from "./head-cells";
+import { applyHeadCells, clearingValues, intensityRevisionCells, pieceCells } from "./head-cells";
 import { classifyHeadRevise, is_heavy_lower_metcon, sessionHasHeavyLowerMetcon, type HeadReviseGap } from "./heavy-lower-metcon";
 import { assembleLegalWeek, replaceDays, sessionFromCoachJson } from "./session";
 import { skeletonFeasibility, skeletonFitsGoal, type CellCause } from "../planning/feasibility";
@@ -366,6 +366,22 @@ function stampSlotAxes(json: unknown, slot: ConditioningSlot, ceiling?: string |
   return clone;
 }
 
+function bandOf(value: string | null | undefined): IntensityCeiling | null {
+  return value === "light" || value === "moderate" || value === "heavy" ? value : null;
+}
+
+/** 세션 자극만 잠근다. 코칭 자극 이름은 세션 enum에 넣지 않는다. */
+function sessionStimulus(value: string | null | undefined): string | null {
+  return value && (STIMULI as readonly string[]).includes(value) ? value : null;
+}
+
+/** light 칸과 heavy 자극은 같이 잠그지 않는다. 강도 칸을 다른 밴드로 바꾸지 않는다. */
+function lockableStimulus(stimulus: string | null, intensityClass: IntensityCeiling | null): string | null {
+  if (!stimulus) return null;
+  if (intensityClass === "light" && stimulus === "heavy") return null;
+  return stimulus;
+}
+
 function sessionLockFor(week: CoachWeekInput, plan: WeeklyIntentPlan, day: DayKey): DaySessionLock | null {
   const days: ContractDayInput[] = plan.days.map((row) => {
     const skeleton = lockedSkeletonDay(week, row.day);
@@ -386,6 +402,8 @@ function sessionLockFor(week: CoachWeekInput, plan: WeeklyIntentPlan, day: DayKe
       domain,
       lift: lift === "squat" || lift === "bench" || lift === "ohp" || lift === "deadlift" ? lift : "none",
       intensity_ceiling: ceiling === "light" || ceiling === "moderate" || ceiling === "heavy" ? ceiling : "heavy",
+      intensity_class: bandOf(skeleton?.conditioning.intensity_class) ?? bandOf(row.intensity_profile),
+      stimulus: lockableStimulus(sessionStimulus(plan.conditioning_slots?.[row.day]?.stimulus), bandOf(skeleton?.conditioning.intensity_class) ?? bandOf(row.intensity_profile)),
     };
   });
   return planWeekContract(days, week.weekIndex, week.month.strength_method || week.month.scheme || "531").find((row) => row.day === day) ?? null;
@@ -1792,18 +1810,28 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         const stimulus = raw && (STIMULI as readonly string[]).includes(raw) ? raw : null;
         const ceiling = locked?.conditioning.intensity_ceiling ?? lock?.intensity_ceiling ?? null;
         const warmup = lock && !lock.rest ? rampSlots(lock) : [];
+        const stimuli = lock ? stimulusLockEnum(lock, lock.stimulus) : [];
+        const bands = lock ? intensityLockEnum(lock, stimuli) : [];
         return {
           day: day.day,
           rest: false,
           intensity_ceiling: ceiling,
           stimulus,
           format: lock?.format ?? null,
-          enums: warmup
-            .filter((slot) => slot.phase === "mobilise" || slot.phase === "activate" || slot.phase === "cooldown")
-            .map((slot) => ({
-              path: `${day.day}.warmup.${slot.id}`,
-              values: slot.choices.map((choice) => choice.key),
-            })),
+          enums: [
+            ...warmup
+              .filter((slot) => slot.phase === "mobilise" || slot.phase === "activate" || slot.phase === "cooldown")
+              .map((slot) => ({
+                path: `${day.day}.warmup.${slot.id}`,
+                values: slot.choices.map((choice) => choice.key),
+              })),
+            ...(lock && !lock.rest
+              ? [
+                  { path: `${day.day}.conditioning.stimulus`, values: stimuli },
+                  { path: `${day.day}.conditioning.intensity`, values: bands },
+                ]
+              : []),
+          ],
         };
       }),
     ),
@@ -2027,6 +2055,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     skeleton: skeletonLocked ? (longitudinal?.skeleton ?? null) : null,
     recent: input.recentStructures ?? [],
     lockWeekdays: lockWeekdaysForPlacement(skeletonLocked),
+    lockGuard: { weekIndex: input.weekIndex, method: month.strength_method || month.scheme || "531" },
   });
   const sourceSnap = { ...daySources };
   const whySnap = { ...dayOriginWhy };
@@ -2327,6 +2356,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     const preHeadSimilarity = similarityDiagnostics(draft, input.recentStructures ?? []);
     const dayLimits = hardConstraints(input.previousActual);
     const avoidHeavyLower = dayLimits.heavy_lower_metcon === "avoid";
+    const headViolates = (sessions: SessionDraft[]) => {
+      const judged = evaluateWeek(bare({ ...draft, sessions }), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+      return judged.ok ? false : judged.errors.some((error) => !isCoachingSignal(error));
+    };
     const headPieceSpecs = pieceCells(draft.sessions).map((cell) => {
       const intent = plan.days.find((day) => day.day === cell.day);
       const session = draft.sessions.find((row) => row.day === cell.day);
@@ -2344,7 +2377,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       const stimulus = session?.conditioning?.stimulus ?? frame?.piece?.stimulus ?? null;
       const intensity = session?.conditioning?.intensity ?? frame?.piece?.intensity ?? null;
       const listed = home?.movements.find((movement) => movement.key === cell.catalog_key);
-      const quantity_ids = (listed?.options ?? quantityOptions(cell.catalog_key))
+      const quantityValues = (listed?.options ?? quantityOptions(cell.catalog_key))
         .filter(
           (option) =>
             !avoidHeavyLower ||
@@ -2358,7 +2391,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
             }),
         )
         .map((option) => option.id);
-      const movement_ids = (home?.movements ?? [])
+      const movementValues = (home?.movements ?? [])
         .filter((movement) =>
           movement.options.some(
             (option) =>
@@ -2374,9 +2407,21 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           ),
         )
         .map((movement) => movement.key);
+      const quantity_ids = clearingValues(
+        draft.sessions,
+        { day: cell.day as DayKey, catalog_key: cell.catalog_key, field: "quantity_option", values: quantityValues },
+        headViolates,
+        { avoidHeavyLower },
+      );
+      const movement_ids = clearingValues(
+        draft.sessions,
+        { day: cell.day as DayKey, catalog_key: cell.catalog_key, field: "movement_id", values: movementValues },
+        headViolates,
+        { avoidHeavyLower },
+      );
       return {
         ...cell,
-        movement_ids: movement_ids.length ? movement_ids : [cell.catalog_key],
+        movement_ids,
         quantity_ids,
       };
     });
@@ -2617,7 +2662,29 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   );
   const avoidHeavyLower = hardConstraints(input.previousActual).heavy_lower_metcon === "avoid";
   const violatingBeforeHead = draft.sessions.filter((session) => sessionHasHeavyLowerMetcon(session)).map((session) => session.day);
-  const headCells = applyHeadCells(draft.sessions, modelRevisions, { avoidHeavyLower });
+  const beforeHeadSessions = JSON.parse(JSON.stringify(draft.sessions)) as SessionDraft[];
+  const headStillHard = (sessions: readonly SessionDraft[]) => {
+    const judged = evaluateWeek(bare({ ...draft, sessions: [...sessions] }), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+    return judged.ok ? [] : judged.errors.filter((error) => !isCoachingSignal(error));
+  };
+  const lockStillBroken = (sessions: readonly SessionDraft[]) =>
+    weekContractIssues({ sessions: [...sessions] }, input.weekIndex, month.strength_method || month.scheme || "531").some((message) =>
+      /locked dose|locked ceiling|does not match lock|do not match lock/.test(message),
+    );
+  const headCells = applyHeadCells(draft.sessions, modelRevisions, {
+    avoidHeavyLower,
+    accept: (sessions) => !lockStillBroken(sessions),
+  });
+  if (headCells.applied > 0 && lockStillBroken(draft.sessions)) {
+    draft.sessions.splice(0, draft.sessions.length, ...beforeHeadSessions);
+    for (const row of headCells.rows) {
+      if (row.result !== "applied") continue;
+      row.result = "reverted";
+      row.reason = "not an allowed candidate";
+    }
+    headCells.applied = 0;
+    headCells.reverted = headCells.rows.length;
+  }
   const afterMoves = JSON.stringify(
     draft.sessions.map((session) => ({ moves: session.conditioning?.movements ?? null, intensity: session.conditioning?.intensity ?? null })),
   );
@@ -3274,6 +3341,15 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   );
   const originLog = DAY_ORDER.map((day) => `${day}:${daySources[day]}:${dayOriginWhy[day]}`).join(" ");
   if (process.env.PHASE4_STAGE) console.log(`origin ${originLog}`);
+  if (finalErrors.length > 0) {
+    recordPipelineFailure({
+      weekStart: input.weekStart,
+      stage: feasibilityBlocked ? "skeleton_feasibility" : "final_validator",
+      reason: feasibilityBlocked ? "empty_enum" : "final_validation_failed",
+      message: finalErrors.slice(0, 8).join("; "),
+      slots: finalErrors.map((error) => slotCauseFromMessage(error)),
+    });
+  }
   return {
     draft,
     plan,
