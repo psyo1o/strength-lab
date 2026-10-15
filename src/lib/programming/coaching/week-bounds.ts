@@ -305,6 +305,42 @@ function daySchema(bound: DayBound): Record<string, unknown> {
   );
 }
 
+/**
+ * 기본 6일 수업은 일요일만 휴식이고 월~토는 훈련이다.
+ * 목표 표가 다른 휴식일을 적어도 주간 응답 enum은 이 요일로 닫는다.
+ */
+export function lockClassRestBounds(bounds: readonly DayBound[], rest: DayKey = "sun"): DayBound[] {
+  const trainingPrimary = PRIMARY_TRAININGS.filter((value) => value !== "rest");
+  const trainingRecovery = RECOVERY_ROLES.filter((value) => value !== "rest");
+  const withoutLong = SECONDARY_TRAININGS.filter((value) => value !== "long_conditioning");
+  const withoutLongStimulus = COACHING_STIMULI.filter((value) => value !== "long_mixed");
+  return bounds.map((bound) => {
+    if (bound.day === rest) {
+      return {
+        ...bound,
+        heavy: false,
+        intensity_band: "1-3",
+        intensity_profile: bound.intensity_profile.length ? bound.intensity_profile : ["light"],
+        strength_lift: ["none"],
+        combinations: ["none:light"],
+        deadliftConditioning: false,
+        lower_lift_cap: 0,
+        primary_training: ["rest"],
+        recovery_role: ["rest"],
+        secondary_training: withoutLong,
+        stimulus: withoutLongStimulus,
+      };
+    }
+    const primary = (bound.primary_training ?? trainingPrimary).filter((value) => value !== "rest");
+    const recovery = (bound.recovery_role ?? trainingRecovery).filter((value) => value !== "rest");
+    return {
+      ...bound,
+      primary_training: primary.length ? primary : [...trainingPrimary],
+      recovery_role: recovery.length ? recovery : [...trainingRecovery],
+    };
+  });
+}
+
 /** 뼈대가 없어도 목표 표가 있으면 주간 응답 스키마를 연다. 강도·리프트는 닫지 않는다. */
 export function boundsFromWeekGoal(goal: WeekGoal): DayBound[] {
   const open: DayBound[] = DAY_ORDER.map((day) => ({

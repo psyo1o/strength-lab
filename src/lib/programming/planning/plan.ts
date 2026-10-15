@@ -1,7 +1,7 @@
 import { DAY_ORDER } from "../../month-plan/types";
 import type { ResponseFormat } from "../coaching/contract";
 import { intensityBandsAtMost, intensityBandsForStimulus } from "../coaching/session-contract";
-import { goalWeek } from "../coaching/goal-table";
+import { classRestDay, goalWeek } from "../coaching/goal-table";
 import { askCoach } from "../coaching/llm";
 import { coachModel } from "../coaching/models";
 import type { FetchLike } from "../model";
@@ -27,7 +27,7 @@ const SKELETON_SYSTEM = [
   "OBJECTIVE",
   "Return seven days. Each day has status, primary goal, strength placement, conditioning duration class, conditioning intensity, stimulus, benchmark, and long-day.",
   "CONSTRAINTS",
-  "Use the project enums. duration_class is short, medium, long, or rest. intensity_class must be one of intensity_class_enum. Do not pick a band above conditioning_intensity_ceiling. A rest day cannot hold a benchmark. A deload week cannot use heavy conditioning. Do not copy the previous two weeks' strength placement.",
+  "Use the project enums. duration_class is short, medium, long, or rest. intensity_class must be one of intensity_class_enum. Do not pick a band above conditioning_intensity_ceiling. A rest day cannot hold a benchmark. A deload week cannot use heavy conditioning. Do not copy the previous two weeks' strength placement. On a six-day class week the schema closes Sunday as the only rest day. Do not move it.",
   "OUTPUT",
   "One JSON object with a days array. No sessions.",
 ].join("\n");
@@ -121,7 +121,7 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
   const check = checkFor(input, thesis, maps);
   const key = input.key?.trim() ? input.key.trim() : null;
   const stimuli = goalStimuli(input);
-  const format = skeletonFormat(thesis.conditioning_intensity_ceiling, stimuli);
+  const format = skeletonFormat(thesis.conditioning_intensity_ceiling, stimuli, classRestDay(input.month));
   const impossible = DAY_ORDER.filter((day) => dayIntensityEnum(thesis.conditioning_intensity_ceiling, stimuli[day]).length === 0);
   let skeleton = seed;
   if (key && format) {
@@ -323,17 +323,26 @@ function strengthSchema(): Record<string, unknown> {
   };
 }
 
-function skeletonDaySchema(day: (typeof DAY_ORDER)[number], ceiling: IntensityBand, stimulus: string | null | undefined): Record<string, unknown> | null {
+function skeletonDaySchema(
+  day: (typeof DAY_ORDER)[number],
+  ceiling: IntensityBand,
+  stimulus: string | null | undefined,
+  fixedRest: (typeof DAY_ORDER)[number] | null,
+): Record<string, unknown> | null {
   const bands = dayIntensityEnum(ceiling, stimulus);
   if (!bands.length) return null;
   const conditioning = bands.map((band) => conditioningBranch(band));
+  const rest = fixedRest != null && day === fixedRest;
+  const train = fixedRest != null && day !== fixedRest;
+  const status = rest ? ["rest"] : train ? ["training"] : ["rest", "training"];
+  const primary = rest ? ["rest"] : train ? PRIMARY_TRAININGS.filter((value) => value !== "rest") : [...PRIMARY_TRAININGS];
   return {
     type: "object",
     additionalProperties: false,
     properties: {
       day: { type: "string", enum: [day] },
-      status: { type: "string", enum: ["rest", "training"] },
-      primary_goal: { type: "string", enum: [...PRIMARY_TRAININGS] },
+      status: { type: "string", enum: status },
+      primary_goal: { type: "string", enum: [...primary] },
       strength: strengthSchema(),
       conditioning: conditioning.length === 1 ? conditioning[0] : { anyOf: conditioning },
       benchmark: { type: "boolean" },
@@ -344,10 +353,14 @@ function skeletonDaySchema(day: (typeof DAY_ORDER)[number], ceiling: IntensityBa
 }
 
 /** Null when any day has an empty intensity enum. The caller stops and does not fill a band. */
-export function skeletonFormat(ceiling: IntensityBand, stimuli: Partial<Record<(typeof DAY_ORDER)[number], string | null>> = {}): ResponseFormat | null {
+export function skeletonFormat(
+  ceiling: IntensityBand,
+  stimuli: Partial<Record<(typeof DAY_ORDER)[number], string | null>> = {},
+  fixedRest: (typeof DAY_ORDER)[number] | null = null,
+): ResponseFormat | null {
   const days: Record<string, unknown>[] = [];
   for (const day of DAY_ORDER) {
-    const schema = skeletonDaySchema(day, ceiling, stimuli[day]);
+    const schema = skeletonDaySchema(day, ceiling, stimuli[day], fixedRest);
     if (!schema) return null;
     days.push(schema);
   }

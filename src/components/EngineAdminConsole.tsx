@@ -11,6 +11,16 @@ import {
 } from "@/lib/programming/admin-actions";
 import { ENGINE_CASE_HELP, ENGINE_INTENSITY_HELP, engineHelp } from "@/lib/programming/admin-help";
 import { EngineHelpBlock } from "@/components/EngineHelpBlock";
+import { classWeekToTrain } from "@/lib/month-plan/calendar";
+
+function addDays(start: string, days: number): string {
+  return new Date(Date.parse(`${start}T00:00:00.000Z`) + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function classMondays(count = 4): string[] {
+  const first = classWeekToTrain(Date.now());
+  return Array.from({ length: count }, (_, index) => addDays(first, index * 7));
+}
 
 export function EngineAdminConsole({ classIntensity }: { classIntensity: number }) {
   const router = useRouter();
@@ -19,18 +29,26 @@ export function EngineAdminConsole({ classIntensity }: { classIntensity: number 
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState("");
+  const [weeks, setWeeks] = useState<string[]>([]);
+  const [chosenWeek, setChosenWeek] = useState("");
+
+  useEffect(() => {
+    const mondays = classMondays();
+    setWeeks(mondays);
+    setChosenWeek(mondays[0] ?? "");
+  }, []);
 
   useEffect(() => {
     setLevel(String(classIntensity));
   }, [classIntensity]);
 
-  async function run(action: string) {
-    setPending(action);
+  async function run(action: string, weekStart?: string) {
+    setPending(action + (weekStart ?? ""));
     setError("");
     const res = await fetch("/api/admin/engine", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(engineRequestBody(action, actualCase)),
+      body: JSON.stringify(weekStart ? engineRequestBody(action, actualCase, weekStart) : engineRequestBody(action, actualCase)),
     });
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
     setPending("");
@@ -80,6 +98,29 @@ export function EngineAdminConsole({ classIntensity }: { classIntensity: number 
           <button type="button" className="btn-primary tap w-full" disabled={pending !== ""} onClick={() => void run(action)}>
             {pending === action ? "실행 중…" : label}
           </button>
+          {action === "regenerate-week" ? (
+            <div className="mt-2">
+              <label className="block">
+                <span className="text-xs font-bold text-[var(--muted)]">다시 만들 주</span>
+                <select className="field mt-1" value={chosenWeek} onChange={(event) => setChosenWeek(event.target.value)}>
+                  {weeks.map((week) => (
+                    <option key={week} value={week}>
+                      {week}
+                      {week === weeks[0] ? " (이번 수업 주)" : week === weeks[1] ? " (다음 주)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="btn-ghost tap mt-2 w-full"
+                disabled={pending !== "" || chosenWeek.length === 0}
+                onClick={() => void run("regenerate-week", chosenWeek)}
+              >
+                {pending === `regenerate-week${chosenWeek}` ? "실행 중…" : "선택한 주 다시 만들기"}
+              </button>
+            </div>
+          ) : null}
           <EngineHelpBlock help={engineHelp(action)} />
         </div>
       ))}

@@ -118,7 +118,7 @@ export function planCoachedWeek(input: {
     previousActual: input.previousActual,
     recentSignatures: input.recentSignatures,
   });
-  const layout = lockedGoal ? layoutFromGoal(baseLayout, lockedGoal) : baseLayout;
+  const layout = lockedGoal ? layoutFromGoal(baseLayout, lockedGoal, month) : baseLayout;
   const fatigued = layout.fatigued;
   const missed = layout.missed;
   const succeeded = layout.succeeded;

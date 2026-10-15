@@ -21,11 +21,11 @@ import {
 } from "./prompts";
 import { extractWeekRules, weekPlanErrors, type WeekRules } from "./stage13/rules";
 import { applyIntensityPatch, intensityPatchFormat, intensityPatchUser } from "./intensity-patch";
-import { applyWeekGoalBounds, boundsFromWeekGoal, dayBoundsFromSkeleton, emptyIntensityCauses, weekBoundsNote, weeklyResponseFormat } from "./week-bounds";
+import { applyWeekGoalBounds, boundsFromWeekGoal, dayBoundsFromSkeleton, emptyIntensityCauses, lockClassRestBounds, weekBoundsNote, weeklyResponseFormat } from "./week-bounds";
 import { normalizeSessionPayload, revisionFromNormalizations, type SessionNormalization } from "./stage13/normalize";
 import { placeConditioningSlots, slotFitErrors } from "./conditioning-board";
 import { readStoredClassIntensity } from "../class-intensity";
-import { goalWeek, movementFrequency, profileTrainingDayCount, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
+import { classRestDay, goalWeek, movementFrequency, profileTrainingDayCount, slotsFromWeekGoal, weekGoalAlignmentErrors } from "./goal-table";
 import { pinZone2, previousZone2Modality, stampZone2Sessions, zone2RuleErrors, zone2SlotSpec } from "./zone2";
 import type { ConditioningSlot } from "../types";
 import { finalWeekReport, sessionSelfErrors } from "./stage13/validators";
@@ -913,6 +913,10 @@ async function writeSession(input: {
         continue;
       }
       const reason = areaReason.get(area) ?? failed?.reason ?? null;
+      if (reason === "output_limit") {
+        unresolvedErrors.push(...(areaErrors.get(area) ?? ["output_limit"]));
+        continue;
+      }
       if (isTransientCoachFailure(reason)) {
         await waitForTransientRetry();
         const again = await askSpecialist({
@@ -1292,7 +1296,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const goalStimuli: Partial<Record<DayKey, string | null>> = {};
   for (const day of goalWeek(month.coaching_plan?.goal_table, input.weekIndex)?.days ?? []) goalStimuli[day.day] = day.stimulus;
   let longitudinal: LongitudinalPlan | null = input.longitudinal ?? null;
-  if (longitudinalPlanningEnabled() && !skeletonFitsGoal(longitudinal?.skeleton.skeleton_locked ? longitudinal.skeleton.days : null, goalStimuli)) {
+  const planSkeleton = longitudinalPlanningEnabled() || input.lockSkeleton === true;
+  if (planSkeleton && !skeletonFitsGoal(longitudinal?.skeleton.skeleton_locked ? longitudinal.skeleton.days : null, goalStimuli)) {
     longitudinal = await planLongitudinal({
       month,
       weekIndex: input.weekIndex,
@@ -1302,6 +1307,29 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       fetchImpl: input.fetchImpl,
       timeoutMs,
     });
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "skeleton_planner",
+        agent_type: "coach",
+        model: longitudinal.skeleton.model,
+        prompt_version: "skeleton-v1",
+        input_hash: inputHash({ week_index: input.weekIndex, lock_skeleton: input.lockSkeleton === true }),
+        output: {
+          skeleton_locked: longitudinal.skeleton.skeleton_locked,
+          source: longitudinal.skeleton.source,
+          rest: longitudinal.skeleton.days.filter((day) => day.status === "rest").map((day) => day.day),
+        },
+        validation_result: longitudinal.skeleton.skeleton_locked ? "pass" : "fail",
+        validation_errors: longitudinal.skeleton.validation_errors,
+        retry_count: longitudinal.skeleton.rewrite_count,
+        failure_reason: longitudinal.skeleton.skeleton_locked ? null : "skeleton_unlocked",
+        deterministic: longitudinal.skeleton.source !== "model",
+        source: longitudinal.skeleton.source === "model" ? "model" : "fallback",
+        revision_number: 0,
+      }),
+    );
   }
   let week: CoachWeekInput = { ...input, month, longitudinal };
   let rules = extractWeekRules({ month, weekIndex: input.weekIndex, actual: input.previousActual });
@@ -1363,13 +1391,15 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     previousModality: previousZone2Modality(input.recentPlans),
   });
   const goalForSchema = goalWeek(month.coaching_plan?.goal_table, input.weekIndex);
-  const dayBounds = skeletonBounds
+  let dayBounds = skeletonBounds
     ? goalForSchema
       ? applyWeekGoalBounds(skeletonBounds, goalForSchema)
       : skeletonBounds
     : goalForSchema
       ? boundsFromWeekGoal(goalForSchema)
       : null;
+  const classRest = classRestDay(month);
+  if (dayBounds && classRest) dayBounds = lockClassRestBounds(dayBounds, classRest);
   const weeklyGate = (json: unknown) => {
     const errors = weeklyIntentErrors(json, dayBounds);
     if (errors.length) return { ok: false as const, errors };
@@ -1681,6 +1711,29 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     );
   }
   }
+  const weeklySchemaBlocked = !lockedLongitudinal && !weeklyFromModel;
+  if (weeklySchemaBlocked) {
+    noteFailure("weekly_schema");
+    traces.push(
+      finishTrace(Date.now(), {
+        run_id: runId,
+        week_id: input.weekStart,
+        agent_name: "weekly_validator",
+        agent_type: "validator",
+        model: null,
+        prompt_version: WEEKLY_COACH_PROMPT_VERSION,
+        input_hash: inputHash({ weekly_schema: "stop" }),
+        output: { stopped: true },
+        validation_result: "fail",
+        validation_errors: ["weekly schema failed; session coaches were not run on the rejected plan"],
+        retry_count: 0,
+        failure_reason: "weekly_schema",
+        deterministic: true,
+        decision: "STOP",
+        revision_number: 0,
+      }),
+    );
+  }
   const planRuleErrors = weekPlanErrors(plan, rules);
   const structure = analyzeWeekStructure(plan);
   traces.push(
@@ -1859,7 +1912,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }
   }
   stage = "session_coach";
-  for (let index = 0; index < queue.length && !feasibilityBlocked; index += 1) {
+  for (let index = 0; index < queue.length && !feasibilityBlocked && !weeklySchemaBlocked; index += 1) {
     const day = queue[index]!;
     const written = await writeSession({
       week,
@@ -1890,7 +1943,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       if (written.unresolved) unresolvedDays.set(day.day, written.unresolvedErrors.length ? written.unresolvedErrors : ["schema"]);
     }
   }
-  for (const day of plan.days) {
+  for (const day of weeklySchemaBlocked ? [] : plan.days) {
     if (day.primary_training !== "rest" && day.recovery_role !== "rest") continue;
     traces.push(
       finishTrace(Date.now(), {
@@ -1935,14 +1988,14 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   };
   stage = "load_coach";
   const loadStarted = Date.now();
-  const loadAsked = feasibilityBlocked
+  const loadAsked = feasibilityBlocked || weeklySchemaBlocked
     ? {
         ok: false,
         json: null,
         raw: null,
         model: "",
         latencyMs: 0,
-        reason: "empty_enum",
+        reason: weeklySchemaBlocked ? "weekly_schema" : "empty_enum",
         retryCount: 0,
         validationErrors: feasibilityCauses.map((cause) => `${cause.code}:${cause.path}`),
         firstValidationErrors: feasibilityCauses.map((cause) => `${cause.code}:${cause.path}`),
@@ -2083,7 +2136,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       rewriteDays.add(hit.candidate_day as DayKey);
     }
   }
-  for (const dayKey of DAY_ORDER.filter((day) => rewriteDays.has(day) && !feasibilityBlocked)) {
+  for (const dayKey of DAY_ORDER.filter((day) => rewriteDays.has(day) && !feasibilityBlocked && !weeklySchemaBlocked)) {
     const intent = plan.days.find((row) => row.day === dayKey);
     const session = draft.sessions.find((row) => row.day === dayKey);
     if (!intent || !session?.conditioning) continue;
@@ -3062,6 +3115,12 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     for (const day of queue) failedDays.add(day.day);
     modelAdopted = false;
   }
+  if (weeklySchemaBlocked) {
+    const line = "weekly schema failed; session coaches were not run on the rejected plan";
+    if (!finalErrors.includes(line)) finalErrors.push(line);
+    for (const day of queue) failedDays.add(day.day);
+    modelAdopted = false;
+  }
   if (unresolvedDays.size > 0) {
     for (const [day, errors] of unresolvedDays) {
       failedDays.add(day);
@@ -3336,8 +3395,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   if (finalErrors.length > 0) {
     recordPipelineFailure({
       weekStart: input.weekStart,
-      stage: feasibilityBlocked ? "skeleton_feasibility" : "final_validator",
-      reason: feasibilityBlocked ? "empty_enum" : "final_validation_failed",
+      stage: weeklySchemaBlocked ? "weekly_coach" : feasibilityBlocked ? "skeleton_feasibility" : "final_validator",
+      reason: weeklySchemaBlocked ? "weekly_schema" : feasibilityBlocked ? "empty_enum" : "final_validation_failed",
       message: finalErrors.slice(0, 8).join("; "),
       slots: finalErrors.map((error) => slotCauseFromMessage(error)),
     });

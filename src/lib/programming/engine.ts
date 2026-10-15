@@ -488,6 +488,7 @@ async function writeProgrammingWeek(
     recentPlans: intentContext.recentPlans,
     recentLiftMaps,
     longitudinal,
+    lockSkeleton: mode === "regenerate",
     inputSummary: summary,
     key,
     fetchImpl: options.fetchImpl,

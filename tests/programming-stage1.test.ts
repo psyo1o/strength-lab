@@ -179,7 +179,7 @@ describe("stage 1 generation guard", () => {
     expect(failed.mock.calls.length).toBeLessThanOrEqual(56);
     expect(fallback).toMatchObject({
       generationSource: "fallback",
-      fallbackReason: "http_error",
+      fallbackReason: "http_error;final_validation_failed",
       modelName: MONTH_PLAN_OPENAI_MODEL,
       promptVersion: "coaching-pipeline-v6",
       rulesVersion: RULES_VERSION,

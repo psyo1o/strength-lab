@@ -5,18 +5,21 @@ import { month531, runCoach, trainingDaysOf } from "./support";
 
 describe("특성화 P4 P5 P6", () => {
   /**
-   * P4. 근거 orchestrate.ts:1102, orchestrate.ts:2176-2177.
-   * 목표 동작: 주간 계획이 모델이 아니면 그 주를 model로 기록하지 않는다.
+   * P4. 주간 schema가 실패하면 그 골격으로 세션 코치를 돌리지 않는다.
+   * 목표 동작: 훈련일을 model로 채우지 않고, 주 출처는 fallback이다.
    */
-  it("P4: 주간 코치가 실패하면 훈련일이 model이어도 generation_source는 fallback이다", async () => {
+  it("P4: 주간 코치가 실패하면 세션 코치를 돌리지 않고 generation_source는 fallback이다", async () => {
     const { result } = await runCoach({ weekly: "seven_days" });
     const weekly = result.traces.find((row) => row.agent_name === "weekly_coach");
+    const stopped = result.traces.find((row) => row.agent_name === "weekly_validator");
     expect(weekly?.validation_result).toBe("fail");
     expect(weekly?.retry_count).toBe(1);
+    expect(stopped?.decision).toBe("STOP");
     expect(result.plan.intent_source).toBe("fallback");
     const training = trainingDaysOf(result.plan);
     expect(training.length).toBeGreaterThan(0);
-    expect(training.every((day) => result.day_sources[day.day] === "model")).toBe(true);
+    expect(training.every((day) => result.day_sources[day.day] === "model")).toBe(false);
+    expect(result.traces.some((row) => row.agent_name === "session_coach")).toBe(false);
     expect(result.generation_source).toBe("fallback");
     expect(result.adoption?.origin).toBe("fallback");
     expect(result.adoption?.verdict.modelSuccess).toBe(false);

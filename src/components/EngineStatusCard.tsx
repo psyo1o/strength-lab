@@ -7,7 +7,7 @@ function PlanBlock({ title, stamp }: { title: string; stamp: EnginePlanStamp }) 
       <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">기간 {stamp.start}</p>
       {stamp.generated ? (
         <p className="mt-1 text-sm leading-relaxed">
-          생성됨. 시각 {stamp.generatedAt}. 생성기 {stamp.engineVersion}. 프롬프트 {stamp.promptVersion}. 출처 {stamp.origin}.
+          최신 행 {stamp.rowId ?? "없음"}. 상태 {stamp.rowStatus ?? "없음"}. 시각 {stamp.generatedAt}. 생성기 {stamp.engineVersion}. 프롬프트 {stamp.promptVersion}. 출처 {stamp.origin}.
         </p>
       ) : stamp.origin === "기존 시드" ? (
         <p className="mt-1 text-sm leading-relaxed">

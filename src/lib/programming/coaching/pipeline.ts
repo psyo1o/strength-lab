@@ -44,6 +44,11 @@ export type CoachWeekInput = {
    * from that call's goal table. Session fill uses it only when the skeleton is locked.
    */
   longitudinal?: LongitudinalPlan | null;
+  /**
+   * regenerate-week turns this on. The longitudinal flag can stay off.
+   * A keyed week then still plans the skeleton inside coachWeekActive.
+   */
+  lockSkeleton?: boolean;
   /** Phase 3 direction. evaluateWeek checks conformance when the week skeleton is also set. */
   monthlyDirection?: MonthlyDirection | null;
   /** Locked week skeleton. evaluateWeek rejects a hash drift. */

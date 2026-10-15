@@ -192,7 +192,17 @@ create 모드에서 활성 주가 이미 있으면 새 행은 failed로 남고, 
 
 Phase 4 D는 프로필 실행마다 `coachMonthly`를 한 번 부르고, 그 계획의 `reuse_key`로 4주를 잇는다. 주는 `monthId`와 `profileId`를 월간 호출에 넘긴다. 잠긴 뼈대는 `generateWeekSkeleton`과 `lockWeekSkeleton`으로 만들고, `monthlyDirection`과 `weekSkeleton`이 있으면 `evaluateWeek`가 정합과 `lockedSkeletonDrift`를 본다. 이전 주의 세션 구조, 의도, `WeekActual`은 다음 주 입력이다. 뼈대 해시를 `amendLockedSkeleton` 없이 바꾸면 그 주는 몰래 변경이다.
 
-`longitudinalPlanningEnabled()`가 true이고 키가 있으면 `coachWeekActive`가 `coachMonthly` 직후에 `planLongitudinal`을 돈다. 그 입력의 `coaching_plan`은 방금 받은 목표 표다. 버전에 적힌 값은 `longitudinal-v1`이다. `askCoach`가 `skeleton-v1`로 스켈레톤만 묻는다. 검증을 통과하면 `skeleton_locked`는 true다. 키가 없으면 오케스트레이터는 `no-model`이고, 엔진이 시드 `settle`만 한다. 잠긴 스켈레톤이면 주간 코치 호출을 건너뛰고 `planFromLockedSkeleton`을 쓴다. 저장하는 뼈대는 그 호출이 돌려준 계획이다. 플래그가 꺼지면 이 호출은 없고 인자는 null이다.
+`longitudinalPlanningEnabled()`가 true이고 키가 있으면 `coachWeekActive`가 `coachMonthly` 직후에 `planLongitudinal`을 돈다. 그 입력의 `coaching_plan`은 방금 받은 목표 표다. 버전에 적힌 값은 `longitudinal-v1`이다. `askCoach`가 `skeleton-v1`로 스켈레톤만 묻는다. 검증을 통과하면 `skeleton_locked`는 true다. 키가 없으면 오케스트레이터는 `no-model`이고, 엔진이 시드 `settle`만 한다. 잠긴 스켈레톤이면 주간 코치 호출을 건너뛰고 `planFromLockedSkeleton`을 쓴다. 저장하는 뼈대는 그 호출이 돌려준 계획이다.
+
+운영 `regenerate-week`(`admin-tools.ts`의 `runAdminAction`)는 `regenerateProgrammingWeek`로 들어가고 `writeProgrammingWeek`의 mode가 `"regenerate"`다. 그 호출은 `lockSkeleton: true`를 오케스트레이터에 넘긴다. `coachWeekActive`는 `longitudinalPlanningEnabled()`가 거짓이어도 `input.lockSkeleton === true`이면 `planLongitudinal`을 돈다. 키가 있어도 탄다. 플래그 환경 변수는 바꾸지 않는다. `generate-next-week`와 `ensureProgrammingWeek`는 mode가 `"create"`라 이 잠금을 켜지 않는다. 플래그가 꺼진 생성은 예전처럼 뼈대 호출이 없다.
+
+2099 plan-lab 기본값은 프로세스 안에서 `LONGITUDINAL_PLANNING=1`을 넣는다. 그래서 예전의 2099 측정은 뼈대가 잠겼다. 운영 `이 주 다시 만들기`는 그 변수를 넣지 않는다. 키가 있으면 `writeProgrammingWeek`의 플래그 분기는 `planLongitudinal`을 건너뛰고, 오케스트레이터도 플래그가 꺼지면 뼈대를 만들지 않았다. 두 실행 모두 `lockedLongitudinal`이 없어서 `orchestrate.ts`의 `if (!lockedLongitudinal)`으로 주간 코치가 돌았고, 골격 단계 로그가 없었다.
+
+기본 6일 수업의 휴식일은 `restDayFor`가 일요일만 반환한다. `classRestDay`가 일요일인 주는 `lockClassRestBounds`가 dayBounds를 닫고 `weeklyResponseFormat`의 일요일 `primary_training`·`recovery_role`은 `rest`만, 월~토는 `rest`가 빠진다. 뼈대 스키마 `skeletonFormat`도 같은 요일을 닫는다. `weekPlanErrors`의 `fixed_rest_day`는 다른 휴식일을 거절한다. 휴식일 수 검사는 그대로다. 주간 코치가 스키마를 통과하지 못하고 뼈대도 잠기지 않으면 `weeklySchemaBlocked`가 세션 코치를 부르지 않고 `weekly_schema`로 실패를 남긴다. 겹침 재작성과 휴식일 `session_coach` 기록도 그 계획에서는 만들지 않는다. 거절된 계획을 이어서 채우지 않는다.
+
+`askCoach`는 `truncated`이거나 본문에 `max_tokens` / `model output limit`이 있으면 같은 상한으로 다시 보내지 않는다. `raisedOutputLimit`으로 한 번만 올리고 다시 부른다. 그래도 막히면 이유는 `output_limit`이고, 세션의 전송 재시도와 날짜 복구는 그 이유를 같은 상한으로 다시 부르지 않는다. 컨디셔닝 전문 코치의 처음 상한은 4000이다. 스트렝스·워밍업은 1800이다.
+
+2099 측정은 `PROBE_ENTRY=regenerate-week`로 `runAdminAction("regenerate-week")`를 부른다. 그 프로세스는 `COACHING_PIPELINE`과 `LONGITUDINAL_PLANNING`을 넣지 않는다. 결과는 `docs/sunday-rest-skeleton-results.md`다.
 
 ## 검증과 재시도
 

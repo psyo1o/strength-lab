@@ -1,6 +1,6 @@
 import { classWeekToTrain, kstParts } from "../month-plan/calendar";
 import { getClassPlanByStart } from "../month-plan/class-week";
-import { getProgrammingMonth, getProgrammingWeek } from "./store";
+import { getLatestProgrammingWeek, getProgrammingMonth, getProgrammingWeek } from "./store";
 import { shadowGeneratorEnabled } from "./shadow";
 
 export type EngineOrigin = "model" | "fallback" | "기존 시드" | "없음";
@@ -12,6 +12,8 @@ export type EnginePlanStamp = {
   engineVersion: string | null;
   promptVersion: string | null;
   origin: EngineOrigin;
+  rowId: number | null;
+  rowStatus: "active" | "failed" | "superseded" | null;
 };
 
 export type EngineAdminStatus = {
@@ -71,6 +73,8 @@ function emptyStamp(start: string): EnginePlanStamp {
     engineVersion: null,
     promptVersion: null,
     origin: "없음",
+    rowId: null,
+    rowStatus: null,
   };
 }
 
@@ -79,7 +83,9 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
   const monthStart = `${kstParts(nowMs).date.slice(0, 7)}-01`;
   const weekStart = classWeekToTrain(nowMs);
   const month = getProgrammingMonth(monthStart);
-  const week = getProgrammingWeek(weekStart);
+  const activeWeek = getProgrammingWeek(weekStart);
+  const latestWeek = getLatestProgrammingWeek(weekStart);
+  const week = latestWeek ?? activeWeek;
   const classPlan = getClassPlanByStart(weekStart);
   const monthStamp: EnginePlanStamp = month
     ? {
@@ -89,6 +95,8 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
         engineVersion: month.engineVersion,
         promptVersion: month.promptVersion,
         origin: month.generationSource,
+        rowId: month.id,
+        rowStatus: month.status,
       }
     : emptyStamp(monthStart);
   const weekStamp: EnginePlanStamp = week
@@ -99,6 +107,8 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
         engineVersion: week.engineVersion,
         promptVersion: week.promptVersion,
         origin: week.generationSource,
+        rowId: week.id,
+        rowStatus: week.status,
       }
     : classPlan
       ? {
@@ -108,6 +118,8 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
           engineVersion: null,
           promptVersion: null,
           origin: "기존 시드",
+          rowId: null,
+          rowStatus: null,
         }
       : emptyStamp(weekStart);
   return {
@@ -115,17 +127,17 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
     week: weekStamp,
     memberWod: memberWodSentence({
       weekStart,
-      programming: week
+      programming: activeWeek
         ? {
-            id: week.id,
-            classWeekId: week.classWeekId,
-            origin: week.generationSource,
-            promptVersion: week.promptVersion,
+            id: activeWeek.id,
+            classWeekId: activeWeek.classWeekId,
+            origin: activeWeek.generationSource,
+            promptVersion: activeWeek.promptVersion,
           }
         : null,
       classWeekId: classPlan?.id ?? null,
     }),
     copyNote: engineCopyNote(shadowGeneratorEnabled()),
-    nextAction: engineNextAction({ monthGenerated: Boolean(month), weekGenerated: Boolean(week) }),
+    nextAction: engineNextAction({ monthGenerated: Boolean(month), weekGenerated: Boolean(activeWeek) }),
   };
 }

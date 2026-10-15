@@ -2,7 +2,7 @@ import type { DayKey } from "../../../month-plan/types";
 import { performanceRead } from "../../weekly-intent";
 import type { MonthDirection, WeekIndex, WeeklyIntentPlan } from "../../types";
 import type { WeekActual } from "../../summary";
-import { absoluteWeekCaps, expectedRestDays, profileTrainingDayCount } from "../goal-table";
+import { absoluteWeekCaps, classRestDay, expectedRestDays, profileTrainingDayCount } from "../goal-table";
 import { benchmarkCountAllowed, longConditioningCountAllowed } from "../stage15/week-policy";
 import { benchmarkOnRestErrors } from "../stage15/week-structure";
 
@@ -20,6 +20,8 @@ export type WeekRules = {
   max_lower_lifts: number;
   max_olympic_days: number;
   min_rest_days: number;
+  /** 기본 6일 수업은 일요일. 다른 프로필은 null이라 휴식일 수만 본다. */
+  fixed_rest_day: DayKey | null;
 };
 
 export function extractWeekRules(input: {
@@ -43,6 +45,7 @@ export function extractWeekRules(input: {
     max_lower_lifts: caps.maxLowerLifts,
     max_olympic_days: caps.maxOlympicDays,
     min_rest_days: expectedRestDays(input.month),
+    fixed_rest_day: classRestDay(input.month),
   };
 }
 
@@ -86,8 +89,23 @@ export function weekPlanErrors(plan: WeeklyIntentPlan, rules: WeekRules): string
         : "this week is not a long-conditioning week",
     );
   }
-  const rests = count(plan, (day) => day.primary_training === "rest" || day.recovery_role === "rest");
+  const restDays = plan.days.filter((day) => day.primary_training === "rest" || day.recovery_role === "rest");
+  const rests = restDays.length;
   if (rests < rules.min_rest_days) errors.push(`weekly plan needs at least ${rules.min_rest_days} rest day`);
+  if (rules.fixed_rest_day) {
+    const names = restDays.map((day) => day.day);
+    if (names.length !== 1 || names[0] !== rules.fixed_rest_day) {
+      errors.push(`rest day must be ${rules.fixed_rest_day}; current=${names.join(",") || "none"}`);
+    }
+    for (const day of plan.days) {
+      if (day.day === rules.fixed_rest_day && day.primary_training !== "rest") {
+        errors.push(`${rules.fixed_rest_day} must be the rest day`);
+      }
+      if (day.day !== rules.fixed_rest_day && (day.primary_training === "rest" || day.recovery_role === "rest")) {
+        errors.push(`${day.day} is rest; only ${rules.fixed_rest_day} may rest`);
+      }
+    }
+  }
   const heavy = count(plan, (day) => day.intensity_profile === "heavy");
   if (heavy > rules.max_high_intensity_days) {
     errors.push(`high intensity days ${heavy} exceed the week rule ${rules.max_high_intensity_days}`);

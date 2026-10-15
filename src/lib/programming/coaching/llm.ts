@@ -67,6 +67,18 @@ function jsonFromText(text: string | null): unknown {
   }
 }
 
+/** 잘린 종료이거나, 본문이 출력 한도를 말한다. 같은 상한으로 다시 보내지 않는다. */
+export function isOutputLimitFailure(reason: string | null, raw: unknown): boolean {
+  if (reason === "truncated" || reason === "output_limit") return true;
+  const detail = typeof raw === "string" ? raw : JSON.stringify(raw ?? "");
+  return /max_tokens|max_completion_tokens|model output limit|output limit was reached/i.test(detail);
+}
+
+/** 출력 한도 재시도 한 번의 상한. 기존 값보다 반드시 크다. */
+export function raisedOutputLimit(maxTokens: number): number {
+  return Math.max(maxTokens * 2, maxTokens + 2000);
+}
+
 function addUsage(left: TokenUsage | null, right: TokenUsage | null): TokenUsage | null {
   if (!left) return right;
   if (!right) return left;
@@ -203,7 +215,9 @@ export async function askCoach(input: {
     promptVersion: input.promptVersion,
   });
 
-  const limit = input.maxAttempts ?? 2;
+  let limit = input.maxAttempts ?? 2;
+  let tokens = input.maxTokens;
+  let outputRaised = false;
   for (let attempt = 1; attempt <= limit; attempt += 1) {
     const overlap = retryExtra?.overlap_sessions;
     const user =
@@ -228,7 +242,7 @@ export async function askCoach(input: {
       model,
       agent: input.agent,
       user,
-      maxTokens: input.maxTokens,
+      maxTokens: tokens,
       format,
       temperature,
       seed,
@@ -242,7 +256,7 @@ export async function askCoach(input: {
         model,
         agent: input.agent,
         user,
-        maxTokens: input.maxTokens,
+        maxTokens: tokens,
         format,
         temperature: null,
         seed,
@@ -257,7 +271,7 @@ export async function askCoach(input: {
         model,
         agent: input.agent,
         user,
-        maxTokens: input.maxTokens,
+        maxTokens: tokens,
         format,
         temperature,
         seed: null,
@@ -273,7 +287,7 @@ export async function askCoach(input: {
         model,
         agent: input.agent,
         user,
-        maxTokens: input.maxTokens,
+        maxTokens: tokens,
         format,
         temperature: null,
         systemPrompt: input.systemPrompt,
@@ -296,10 +310,48 @@ export async function askCoach(input: {
     const loggedResult = attemptResult.status === 429 ? "rate_limit" : (attemptResult.reason ?? "http_error");
     if (!attemptResult.ok) {
       const detail = typeof attemptResult.raw === "string" ? attemptResult.raw : JSON.stringify(attemptResult.raw ?? "");
+      if (isOutputLimitFailure(attemptResult.reason, attemptResult.raw)) {
+        if (outputRaised) {
+          attempts.push({
+            attempt,
+            raw: attemptResult.raw,
+            json: null,
+            validation_errors: [`output_limit: max_tokens ${tokens} still stopped the response`],
+            reason: "output_limit",
+          });
+          settle("output_limit", `output_limit: max_tokens ${tokens}`);
+          return finish({
+            ok: false,
+            json: null,
+            raw: lastRaw,
+            model,
+            latencyMs: Date.now() - started,
+            reason: "output_limit",
+            retryCount: attempt - 1,
+            validationErrors: [`output_limit: max_tokens ${tokens} still stopped the response`],
+            usage,
+          });
+        }
+        tokens = raisedOutputLimit(tokens);
+        outputRaised = true;
+        errors = [`output_limit: retry once at max_tokens ${tokens}`];
+        remember(errors);
+        lastJson = attemptResult.raw;
+        attempts.push({
+          attempt,
+          raw: attemptResult.raw,
+          json: null,
+          validation_errors: errors,
+          reason: "output_limit",
+        });
+        settle("output_limit", errors[0] ?? "output_limit");
+        if (attempt === limit) limit += 1;
+        continue;
+      }
       const transport =
         input.retryTransport === true &&
         (attemptResult.reason === "timeout" || (attemptResult.reason === "http_error" && attemptResult.status !== 429));
-      const shape = attemptResult.reason === "bad_json" || attemptResult.reason === "truncated";
+      const shape = attemptResult.reason === "bad_json";
       if (attempt < limit && (transport || shape)) {
         errors = transport
           ? [`${attemptResult.reason}: ${detail.slice(0, 400) || "no body"}`]

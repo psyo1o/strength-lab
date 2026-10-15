@@ -66,10 +66,24 @@ function phaseFor(month: MonthDirection, weekIndex: WeekIndex, fatigued: boolean
   return "accumulation";
 }
 
-export function restDayFor(weekIndex: WeekIndex, phase: BlockPhase): DayKey {
-  if (phase === "deload") return "sun";
-  const cycle: DayKey[] = ["sun", "wed", "fri"];
-  return cycle[(weekIndex - 1) % cycle.length]!;
+/** 기본 6일 수업의 휴식일. 모델이 고르지 않는다. */
+export const CLASS_REST_DAY: DayKey = "sun";
+
+/**
+ * 프로필 요일이 없는 6일 수업, 또는 월~토만 훈련인 프로필은 일요일만 휴식이다.
+ * 다른 가용 요일은 null이라 그 표의 휴식일을 유지한다.
+ */
+export function classRestDay(month: { available_days?: readonly DayKey[] | null }): DayKey | null {
+  const listed = month.available_days?.filter((day) => DAY_ORDER.includes(day));
+  if (!listed?.length) return CLASS_REST_DAY;
+  const training = new Set(listed);
+  const rest = DAY_ORDER.filter((day) => !training.has(day));
+  if (training.size === 6 && rest.length === 1 && rest[0] === CLASS_REST_DAY) return CLASS_REST_DAY;
+  return null;
+}
+
+export function restDayFor(_weekIndex: WeekIndex, _phase: BlockPhase): DayKey {
+  return CLASS_REST_DAY;
 }
 
 function calendarGap(left: DayKey, right: DayKey): number {
@@ -190,12 +204,22 @@ export function weekTrainingLayout(input: {
   };
 }
 
-export function layoutFromGoal(layout: WeekTrainingLayout, goal: WeekGoal): WeekTrainingLayout {
-  const restDays = new Set(goal.days.filter((day) => day.rest).map((day) => day.day));
-  const rest = goal.days.find((day) => day.rest)?.day ?? layout.rest;
-  const longDay = goal.days.find((day) => !day.rest && day.time_domain === "long")?.day ?? null;
+export function layoutFromGoal(
+  layout: WeekTrainingLayout,
+  goal: WeekGoal,
+  month?: { available_days?: readonly DayKey[] | null },
+): WeekTrainingLayout {
+  const fixed = month ? classRestDay(month) : null;
+  const goalRestDays = new Set(goal.days.filter((day) => day.rest).map((day) => day.day));
+  const rest = fixed ?? goal.days.find((day) => day.rest)?.day ?? layout.rest;
+  const restDays = fixed ? new Set<DayKey>([fixed]) : goalRestDays;
+  const longDay = goal.days.find((day) => !restDays.has(day.day) && day.time_domain === "long")?.day ?? null;
   const lowers = new Map([...layout.lowers].filter(([day]) => !restDays.has(day)));
-  const uppers = new Map([...layout.uppers].filter(([day]) => !restDays.has(day) && layout.phase !== "deload"));
+  if (longDay && layout.phase !== "deload") {
+    const previous = DAY_ORDER[DAY_ORDER.indexOf(longDay) - 1];
+    if (previous) lowers.delete(previous);
+  }
+  const uppers = new Map([...layout.uppers].filter(([day]) => !restDays.has(day) && day !== longDay && layout.phase !== "deload"));
   return { ...layout, rest, lowers, uppers, longDay };
 }
 
@@ -728,6 +752,13 @@ export function goalTableErrors(table: MonthGoalTable | null, month: MonthDirect
     const expectedRest = expectedRestDays(month);
     const restLabel = expectedRest === 1 ? "exactly one rest day" : `exactly ${expectedRest} rest days`;
     if (rests !== expectedRest) errors.push(`goal_table week ${week.week_index} needs ${restLabel}; current=${rests}`);
+    const fixedRest = classRestDay(month);
+    if (fixedRest) {
+      const restDays = week.days.filter((day) => day.rest).map((day) => day.day);
+      if (restDays.length !== 1 || restDays[0] !== fixedRest) {
+        errors.push(`goal_table week ${week.week_index} rest must be ${fixedRest}; current=${restDays.join(",") || "none"}`);
+      }
+    }
     const method = month.strength_method || month.scheme;
     const deload = week.week_index === 4 || method === "DELOAD_RECOVERY" || method === "deload" || month.scheme === "deload";
     const caps = absoluteWeekCaps({ trainingDays: profileTrainingDayCount(month), deload, fatigued: false });

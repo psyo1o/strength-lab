@@ -30,6 +30,9 @@
  *   PROBE_MODE=db PROBE_LABEL=lock-member-fatigue PROBE_MEMBER=high_fatigue PROBE_TOKEN_CAP=2500000 npx tsx scripts/plan-lab.ts
  *   PROBE_MODE=db PROBE_LABEL=lock-member-absence PROBE_MEMBER=absence PROBE_TOKEN_CAP=2500000 npx tsx scripts/plan-lab.ts
  *   PROBE_MODE=db PROBE_LABEL=lock-member-both PROBE_MEMBER=both PROBE_TOKEN_CAP=2500000 npx tsx scripts/plan-lab.ts
+ * Production regenerate-week, with LONGITUDINAL_PLANNING left unset:
+ *   PROBE_MODE=db PROBE_LABEL=sunday-rest-normal PROBE_MEMBER=normal PROBE_ENTRY=regenerate-week PROBE_TOKEN_CAP=2500000 npx tsx scripts/plan-lab.ts
+ *   PROBE_MODE=db PROBE_LABEL=sunday-rest-fatigue PROBE_MEMBER=high_fatigue PROBE_ENTRY=regenerate-week PROBE_TOKEN_CAP=2500000 npx tsx scripts/plan-lab.ts
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The default model stays gpt-5.4-nano. PROBE_PROVIDER and PROBE_MODEL select another
@@ -367,7 +370,20 @@ async function databasePass(pass: string) {
     }
     const started = Date.now();
     console.error(`pass ${pass} ${scenario.id} start`);
-    const saved = await regenerateProgrammingWeek(scenario.weekStart, { key });
+    const useAdmin = process.env.PROBE_ENTRY === "regenerate-week";
+    const saved = useAdmin
+      ? await (async () => {
+          const { runAdminAction } = await import("../src/lib/programming/admin-tools");
+          const nowMs = Date.parse(`${scenario.weekStart}T03:00:00.000Z`);
+          const result = await runAdminAction("regenerate-week", { nowMs, key });
+          if (result.week_start !== scenario.weekStart) {
+            throw new ProbeSafetyError(`regenerate-week wrote ${String(result.week_start)} instead of ${scenario.weekStart}`);
+          }
+          const row = getProgrammingWeek(scenario.weekStart) ?? listProgrammingWeekAttempts(scenario.weekStart).at(-1) ?? null;
+          if (!row) throw new ProbeSafetyError(`regenerate-week left no row for ${scenario.weekStart}`);
+          return row;
+        })()
+      : await regenerateProgrammingWeek(scenario.weekStart, { key });
     if (saved.weekStart === LIVE_CLASS_WEEK || !saved.weekStart.startsWith("2099-")) {
       throw new ProbeSafetyError(`refusing stored week ${saved.weekStart}`);
     }
@@ -408,6 +424,8 @@ async function databasePass(pass: string) {
       fallback_reason: saved.fallbackReason,
       week_status: saved.intent.plan?.week_status ?? null,
       skeleton_locked: saved.intent.plan?.longitudinal?.skeleton.skeleton_locked ?? false,
+      rest_days: (saved.intent.plan?.days ?? []).filter((day) => day.primary_training === "rest" || day.recovery_role === "rest").map((day) => day.day),
+      skeleton_log: logs.some((log) => /skeleton-v1|locked_skeleton|skeleton_planner/.test(log.raw_json)),
       skeleton_source: saved.intent.plan?.longitudinal?.skeleton.source ?? null,
       skeleton_rewrites: saved.intent.plan?.longitudinal?.skeleton.rewrite_count ?? null,
       thesis: {
@@ -877,7 +895,7 @@ async function main() {
   }
   process.env.DATABASE_PATH = `/tmp/${probeLabel}-phaseb.db`;
   process.env.STRENGTH_LAB_PROBE = "1";
-  if (process.env.PROBE_FLAGS === "off") {
+  if (process.env.PROBE_ENTRY === "regenerate-week" || process.env.PROBE_FLAGS === "off") {
     delete process.env.COACHING_PIPELINE;
     delete process.env.LONGITUDINAL_PLANNING;
   } else {

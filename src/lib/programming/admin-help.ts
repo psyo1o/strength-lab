@@ -28,7 +28,7 @@ export const ENGINE_HELP: Record<string, EngineHelp> = {
   },
   "regenerate-week": {
     short: "이번 수업 주를 활성 행이 있어도 다시 씁니다.",
-    does: "regenerateProgrammingWeek가 이번 수업 주를 writeProgrammingWeek로 다시 만듭니다. 경로는 runCoachingOrchestrator입니다.",
+    does: "regenerateProgrammingWeek가 이번 수업 주를 writeProgrammingWeek로 다시 만듭니다. 경로는 runCoachingOrchestrator입니다. 이 경로는 LONGITUDINAL_PLANNING이 꺼져 있어도 lockSkeleton으로 뼈대를 잠급니다. 주를 고르면 그 월요일을 같은 함수로 다시 만듭니다. 고르지 않으면 classWeekToTrain입니다.",
     when: "이번 주 계획을 새 결과로 바꿀 때 누릅니다.",
     effect: "이번 주 programming_weeks 활성 행이 바뀌고 이전 행은 superseded입니다. syncClassWeek는 아직 지나지 않고, 점수가 없고, 관리자가 고치지 않은 날만 회원 class_weeks에 복사합니다. 검증에 실패하면 기존 활성 주가 남을 수 있습니다. SHADOW_GENERATOR가 1이면 회원 화면은 그대로입니다. 중간에 예외가 나면 새 주는 채택되지 않고 programming_generation_logs에 pipeline-failure-v1 행이 남습니다. raw_json에 단계와 이유가 있습니다.",
     cost: "모델을 부릅니다. 비용이 있습니다. 키가 없으면 fallback이고 모델 호출은 없습니다.",

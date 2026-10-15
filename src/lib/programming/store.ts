@@ -547,6 +547,14 @@ export function getProgrammingWeek(weekStart: string): WeekRow | null {
   return row ? toWeek(row) : null;
 }
 
+/** Highest id for the week, including a failed regenerate that did not replace the active row. */
+export function getLatestProgrammingWeek(weekStart: string): WeekRow | null {
+  const row = getSqlite()
+    .prepare(`SELECT ${WEEK_SELECT} FROM programming_weeks WHERE week_start = ? ORDER BY id DESC LIMIT 1`)
+    .get(weekStart) as WeekSql | undefined;
+  return row ? toWeek(row) : null;
+}
+
 /** Active row wins. Otherwise the latest failed row. Does not create a week. */
 export function getProgrammingWeekForView(weekStart: string): WeekRow | null {
   const row = getSqlite()
