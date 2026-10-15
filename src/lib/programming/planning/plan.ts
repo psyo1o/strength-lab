@@ -1,7 +1,7 @@
 import { DAY_ORDER } from "../../month-plan/types";
 import type { ResponseFormat } from "../coaching/contract";
 import { intensityBandsAtMost, intensityBandsForStimulus } from "../coaching/session-contract";
-import { goalWeek } from "../coaching/goal-table";
+import { classRestDay, goalWeek } from "../coaching/goal-table";
 import { askCoach } from "../coaching/llm";
 import { coachModel } from "../coaching/models";
 import type { FetchLike } from "../model";
@@ -27,7 +27,7 @@ const SKELETON_SYSTEM = [
   "OBJECTIVE",
   "Return seven days. Each day has status, primary goal, strength placement, conditioning duration class, conditioning intensity, stimulus, benchmark, and long-day.",
   "CONSTRAINTS",
-  "Use the project enums. duration_class is short, medium, long, or rest. intensity_class must be one of intensity_class_enum. Do not pick a band above conditioning_intensity_ceiling. A rest day cannot hold a benchmark. A deload week cannot use heavy conditioning. Do not copy the previous two weeks' strength placement.",
+  "Use the project enums. duration_class is short, medium, long, or rest. intensity_class must be one of intensity_class_enum. Do not pick a band above conditioning_intensity_ceiling. A rest day cannot hold a benchmark. A deload week cannot use heavy conditioning. Do not copy the previous two weeks' strength placement. On a six-day class week the schema closes Sunday as the only rest day. Do not move it.",
   "OUTPUT",
   "One JSON object with a days array. No sessions.",
 ].join("\n");
@@ -121,7 +121,7 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
   const check = checkFor(input, thesis, maps);
   const key = input.key?.trim() ? input.key.trim() : null;
   const stimuli = goalStimuli(input);
-  const format = skeletonFormat(thesis.conditioning_intensity_ceiling, stimuli);
+  const format = skeletonFormat(thesis.conditioning_intensity_ceiling, stimuli, classRestDay(input.month));
   const impossible = DAY_ORDER.filter((day) => dayIntensityEnum(thesis.conditioning_intensity_ceiling, stimuli[day]).length === 0);
   let skeleton = seed;
   if (key && format) {
@@ -163,6 +163,17 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
       skeleton.source = "model";
       skeleton.model = modelName;
       skeleton.rewrite_count = asked.retryCount > 0 ? 1 : 0;
+    } else if (!parsed && (asked.reason === "schema" || asked.reason === "bad_json")) {
+      skeleton = settle(seed, check, thesis);
+      skeleton.model = modelName;
+      skeleton.rewrite_count = 1;
+      if (skeleton.skeleton_locked) {
+        skeleton.skeleton_locked = false;
+        skeleton.feedback = validationFeedback(["model skeleton format failed; code frame kept"]);
+      } else {
+        skeleton.validation_errors = [SKELETON_FORMAT_FAILED, ...skeleton.validation_errors];
+        skeleton.feedback = validationFeedback(["weekly skeleton format failed"]);
+      }
     } else {
       const repaired = parsed ? settle(parsed, check, thesis) : null;
       if (repaired?.skeleton_locked) {
@@ -170,7 +181,12 @@ export async function planLongitudinal(input: PlanLongitudinalInput): Promise<Lo
       } else {
         const rejected = parsed ? validateSkeleton(parsed, check) : ["weekly skeleton must contain seven days"];
         skeleton = settle(seed, check, thesis);
-        if (skeleton.skeleton_locked) skeleton.feedback = validationFeedback(rejected);
+        if (skeleton.skeleton_locked) {
+          skeleton.skeleton_locked = false;
+          skeleton.feedback = validationFeedback(rejected);
+        } else {
+          skeleton.validation_errors = [SKELETON_FORMAT_FAILED, ...skeleton.validation_errors];
+        }
       }
       skeleton.model = modelName;
       skeleton.rewrite_count = 1;
@@ -204,6 +220,30 @@ function dayIntensityEnum(weekCeiling: IntensityBand, stimulus: string | null | 
   return intensityBandsAtMost(weekCeiling);
 }
 
+export const SKELETON_FORMAT_FAILED = "skeleton_format_failed";
+
+/**
+ * 기본 6일 수업은 일요일 휴식, 월~토 훈련이다.
+ * 모델이 평일을 휴식으로 두면 그 요일은 코드 시드의 훈련일로 바꾼다.
+ * 둘 다 훈련이면 모델의 목표·강도·리프트를 남긴다.
+ */
+export function applyClassSkeletonFrame(days: SkeletonDay[], seed: WeeklySkeleton): SkeletonDay[] {
+  const seedRest = seed.days.filter((day) => day.status === "rest");
+  if (seedRest.length !== 1 || seedRest[0]?.day !== "sun") return days;
+  const seedBy = new Map(seed.days.map((day) => [day.day, day]));
+  return DAY_ORDER.map((key) => {
+    const model = days.find((day) => day.day === key);
+    const code = seedBy.get(key);
+    if (!code) return model ?? days[0]!;
+    if (key === "sun" || !model || model.status === "rest") return structuredClone(code);
+    return model;
+  });
+}
+
+export function skeletonFormatFailed(plan: LongitudinalPlan | null | undefined): boolean {
+  return Boolean(plan?.skeleton.validation_errors.includes(SKELETON_FORMAT_FAILED));
+}
+
 function parseModelSkeleton(
   json: unknown,
   seed: WeeklySkeleton,
@@ -223,9 +263,10 @@ function parseModelSkeleton(
     if (!parsed) return null;
     days.push(parsed);
   }
+  const framed = applyClassSkeletonFrame(days, seed);
   return {
     ...structuredClone(seed),
-    days,
+    days: framed,
     source: "model",
     skeleton_locked: false,
     validation_errors: [],
@@ -323,17 +364,26 @@ function strengthSchema(): Record<string, unknown> {
   };
 }
 
-function skeletonDaySchema(day: (typeof DAY_ORDER)[number], ceiling: IntensityBand, stimulus: string | null | undefined): Record<string, unknown> | null {
+function skeletonDaySchema(
+  day: (typeof DAY_ORDER)[number],
+  ceiling: IntensityBand,
+  stimulus: string | null | undefined,
+  fixedRest: (typeof DAY_ORDER)[number] | null,
+): Record<string, unknown> | null {
   const bands = dayIntensityEnum(ceiling, stimulus);
   if (!bands.length) return null;
   const conditioning = bands.map((band) => conditioningBranch(band));
+  const rest = fixedRest != null && day === fixedRest;
+  const train = fixedRest != null && day !== fixedRest;
+  const status = rest ? ["rest"] : train ? ["training"] : ["rest", "training"];
+  const primary = rest ? ["rest"] : train ? PRIMARY_TRAININGS.filter((value) => value !== "rest") : [...PRIMARY_TRAININGS];
   return {
     type: "object",
     additionalProperties: false,
     properties: {
       day: { type: "string", enum: [day] },
-      status: { type: "string", enum: ["rest", "training"] },
-      primary_goal: { type: "string", enum: [...PRIMARY_TRAININGS] },
+      status: { type: "string", enum: status },
+      primary_goal: { type: "string", enum: [...primary] },
       strength: strengthSchema(),
       conditioning: conditioning.length === 1 ? conditioning[0] : { anyOf: conditioning },
       benchmark: { type: "boolean" },
@@ -344,10 +394,14 @@ function skeletonDaySchema(day: (typeof DAY_ORDER)[number], ceiling: IntensityBa
 }
 
 /** Null when any day has an empty intensity enum. The caller stops and does not fill a band. */
-export function skeletonFormat(ceiling: IntensityBand, stimuli: Partial<Record<(typeof DAY_ORDER)[number], string | null>> = {}): ResponseFormat | null {
+export function skeletonFormat(
+  ceiling: IntensityBand,
+  stimuli: Partial<Record<(typeof DAY_ORDER)[number], string | null>> = {},
+  fixedRest: (typeof DAY_ORDER)[number] | null = null,
+): ResponseFormat | null {
   const days: Record<string, unknown>[] = [];
   for (const day of DAY_ORDER) {
-    const schema = skeletonDaySchema(day, ceiling, stimuli[day]);
+    const schema = skeletonDaySchema(day, ceiling, stimuli[day], fixedRest);
     if (!schema) return null;
     days.push(schema);
   }

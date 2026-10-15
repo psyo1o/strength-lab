@@ -454,15 +454,19 @@ describe("active coaching contracts", () => {
     expect(result.draft.sessions).toHaveLength(7);
   });
 
-  it("case 8 rejects seven_days and still saves the other stages", async () => {
+  it("case 8 rejects seven_days and does not run session coaches on that plan", async () => {
     const { result } = await run({ weekly: "seven_days" });
     const weekly = result.traces.find((trace) => trace.agent_name === "weekly_coach");
+    const stopped = result.traces.find((trace) => trace.agent_name === "weekly_validator");
     expect(weekly?.validation_errors?.join(" ")).toContain('"days"');
     expect(weekly?.retry_count).toBe(1);
+    expect(stopped?.decision).toBe("STOP");
     expect(result.plan.intent_source).toBe("fallback");
     expect(result.plan.fallback_used).toBe(true);
     const training = result.plan.days.filter((day) => day.primary_training !== "rest");
-    expect(training.every((day) => result.day_sources[day.day] === "model")).toBe(true);
+    expect(training.length).toBeGreaterThan(0);
+    expect(training.every((day) => result.day_sources[day.day] === "fallback")).toBe(true);
+    expect(result.traces.some((trace) => trace.agent_name === "session_coach")).toBe(false);
     expect(result.generation_source).toBe("fallback");
     expect(result.adoption?.origin).toBe("fallback");
     expect(result.fallback_reason).toContain("schema");

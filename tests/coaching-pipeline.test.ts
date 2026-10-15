@@ -270,7 +270,7 @@ describe("coaching pipeline", () => {
     expect(report.results.every((week) => week.plan.original_intent_source === "fallback")).toBe(true);
     expect(new Set(report.results.map((week) => intentSignature(week.plan))).size).toBeGreaterThan(1);
     const rests = report.results.map((week) => week.plan.days.find((day) => day.primary_training === "rest")?.day);
-    expect(new Set(rests).size).toBeGreaterThan(1);
+    expect(rests.every((day) => day === "sun")).toBe(true);
     expect(report.results[1]?.plan.adjustment_ko).toContain("진행");
     expect(report.results[2]?.plan.adjustment_ko).toContain("피로");
     expect(report.results[2]?.draft.sessions.filter((session) => session.strength?.lift === "squat" || session.strength?.lift === "deadlift")).toHaveLength(1);

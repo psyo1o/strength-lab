@@ -640,6 +640,7 @@ export async function runAdminAction(
     fetchImpl?: FetchLike;
     mode?: SaveWeekMode;
     level?: unknown;
+    weekStart?: string;
   } = {},
 ): Promise<Record<string, unknown>> {
   const nowMs = input.nowMs ?? Date.now();
@@ -667,8 +668,16 @@ export async function runAdminAction(
     return { wrote: true, week_start: week.weekStart, generation_source: week.generationSource, rules_version: week.rulesVersion };
   }
   if (action === "regenerate-week") {
-    const week = await regenerateProgrammingWeek(classWeekToTrain(nowMs), { nowMs, key: input.key, fetchImpl: input.fetchImpl });
-    return { wrote: true, week_start: week.weekStart, generation_source: week.generationSource, generation_version: week.generationVersion };
+    const chosen = input.weekStart && /^\d{4}-\d{2}-\d{2}$/.test(input.weekStart) ? input.weekStart : classWeekToTrain(nowMs);
+    const week = await regenerateProgrammingWeek(chosen, { nowMs, key: input.key, fetchImpl: input.fetchImpl });
+    return {
+      wrote: true,
+      week_start: week.weekStart,
+      generation_source: week.generationSource,
+      generation_version: week.generationVersion,
+      prompt_version: week.promptVersion,
+      status: week.status,
+    };
   }
   if (action === "evaluate-month") {
     const evaluation = evaluateProgrammingMonth(monthKey(nowMs), nowMs);

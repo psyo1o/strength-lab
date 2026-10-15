@@ -165,9 +165,9 @@ describe("long-term programming engine", () => {
       return user.agent_name ?? "";
     });
     expect(agents.indexOf("weekly_coach")).toBeGreaterThanOrEqual(0);
-    expect(agents.indexOf("conditioning_coach")).toBeGreaterThan(agents.indexOf("weekly_coach"));
-    expect(agents.indexOf("strength_coach")).toBeGreaterThan(agents.indexOf("weekly_coach"));
-    expect(agents.indexOf("warmup_coach")).toBeGreaterThan(agents.indexOf("weekly_coach"));
+    expect(agents).not.toContain("conditioning_coach");
+    expect(agents).not.toContain("strength_coach");
+    expect(agents).not.toContain("warmup_coach");
   });
 
   it("treats several matching structural axes as a near-copy, and lets the same movement through", () => {
@@ -225,7 +225,7 @@ describe("long-term programming engine", () => {
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
     expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(56);
     expect(week.generationSource).toBe("fallback");
-    expect(week.fallbackReason).toBe("http_error");
+    expect(week.fallbackReason).toBe("http_error;final_validation_failed");
     expect(week.status).toBe("failed");
     expect(week.generatedAt).toBe(NOW);
     expect(week.engineVersion).toBe(ENGINE_VERSION);

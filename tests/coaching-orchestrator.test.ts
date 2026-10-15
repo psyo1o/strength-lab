@@ -51,7 +51,7 @@ describe("coaching orchestrator entry", () => {
     expect(week.promptVersion).not.toBe("wod-from-intent-v1");
     expect(week.generationSource).toBe("fallback");
     expect(week.generationSource).not.toBe("model");
-    expect(week.fallbackReason).toBe("http_error");
+    expect(week.fallbackReason).toBe("http_error;final_validation_failed");
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
     expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(56);
     expect(String(fetchImpl.mock.calls[0]?.[1]?.body)).not.toContain("sk-orchestrator-test");

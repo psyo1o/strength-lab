@@ -145,7 +145,7 @@ describe("stage 5B fallback quality and admin probes", () => {
       fetchImpl: async () => new Response("no", { status: 500 }),
     });
     expect(failed.generationSource).toBe("fallback");
-    expect(failed.fallbackReason).toBe("http_error");
+    expect(failed.fallbackReason).toBe("http_error;final_validation_failed");
     const stored = getSqlite().prepare("SELECT direction_json FROM programming_months WHERE status = 'active'").get() as {
       direction_json: string;
     };

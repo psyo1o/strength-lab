@@ -231,7 +231,7 @@ describe("stage 3 fallback, similarity, and dry run", () => {
     expect(header.Authorization).not.toContain(LIVE_KEY);
     expect(week).toMatchObject({
       generationSource: "fallback",
-      fallbackReason: "http_error",
+      fallbackReason: "http_error;final_validation_failed",
       rulesVersion: RULES_VERSION,
       promptVersion: "coaching-pipeline-v6",
       generationAttempt: 1,

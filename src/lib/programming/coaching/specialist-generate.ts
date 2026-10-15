@@ -61,7 +61,7 @@ export async function askSpecialist(input: {
     key: input.key,
     fetchImpl: input.fetchImpl,
     timeoutMs: input.timeoutMs,
-    maxTokens: 1800,
+    maxTokens: input.area === "conditioning" ? 4000 : 1800,
     promptVersion: AREA_PROMPT[input.area],
     runId: input.runId,
     retryContext: { agent, day: input.day, revision_number: input.revisionNumber, owns: input.area },

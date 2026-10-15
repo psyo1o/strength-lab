@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resetDbConnection } from "../src/lib/db/client";
+import { getSqlite, resetDbConnection } from "../src/lib/db/client";
 import { DAY_ORDER } from "../src/lib/month-plan/types";
 import { ensureProgrammingMonth, ensureProgrammingWeek, readOnlyWeekSummary } from "../src/lib/programming/engine";
 import { getProgrammingWeek } from "../src/lib/programming/store";
@@ -273,7 +273,7 @@ describe("stage 10 weekly intent", () => {
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
     expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(56);
     expect(week.generationSource).toBe("fallback");
-    expect(week.fallbackReason).toBe("http_error");
+    expect(week.fallbackReason).toBe("http_error;final_validation_failed");
     expect(week.weekStart).toBe("2099-01-05");
     expect(week.intent.plan?.intent_source === "model").toBe(false);
   });
@@ -286,12 +286,12 @@ describe("stage 10 weekly intent", () => {
         headers: { "Content-Type": "application/json" },
       }),
     );
-    const week = await ensureProgrammingWeek("2099-02-02", { nowMs: NOW, key: KEY, fetchImpl });
-    expect(week.generationSource).toBe("fallback");
-    expect(week.status).toBe("failed");
-    expect(week.fallbackReason).toContain("schema");
+    await expect(ensureProgrammingWeek("2099-02-02", { nowMs: NOW, key: KEY, fetchImpl })).rejects.toThrow(
+      /weekly skeleton format failed and the week was not saved/,
+    );
     expect(getProgrammingWeek("2099-02-02")).toBeNull();
-    expect(week.weekStart).toBe("2099-02-02");
+    const attempts = getSqlite().prepare(`SELECT COUNT(*) AS n FROM programming_weeks WHERE week_start = ?`).get("2099-02-02") as { n: number };
+    expect(attempts.n).toBe(0);
   });
 
   it("N the retry names the violation and does not repeat the long constitution", async () => {

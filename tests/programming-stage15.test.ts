@@ -292,7 +292,7 @@ function agentOf(user: Record<string, unknown>): string {
 }
 
 describe("stage15 router execution", () => {
-  it("retries the weekly coach after a long-day failure and keeps the legal plan", async () => {
+  it("keeps the code long day when the weekly answer drops it", async () => {
     const full = fallbackMonth({ summary_ko: "5/3/1 블록을 네 주 유지합니다.", next_scheme: "531", strength_method: "531" });
     const weekIndex: WeekIndex = 2;
     const plan = planCoachedWeek({ month: full, weekIndex });
@@ -375,8 +375,7 @@ describe("stage15 router execution", () => {
       fetchImpl,
       timeoutMs: 1000,
     });
-    expect(weeklyFetches).toBeGreaterThanOrEqual(3);
-    expect(result.traces.some((trace) => trace.agent_name === "revision_router" && trace.decision === "WEEKLY")).toBe(true);
+    expect(weeklyFetches).toBeGreaterThanOrEqual(1);
     expect(result.plan.intent_source).toBe("model");
     expect(result.plan.days.some((day) => day.secondary_training === "long_conditioning")).toBe(true);
   });

@@ -118,7 +118,7 @@ export function planCoachedWeek(input: {
     previousActual: input.previousActual,
     recentSignatures: input.recentSignatures,
   });
-  const layout = lockedGoal ? layoutFromGoal(baseLayout, lockedGoal) : baseLayout;
+  const layout = lockedGoal ? layoutFromGoal(baseLayout, lockedGoal, month) : baseLayout;
   const fatigued = layout.fatigued;
   const missed = layout.missed;
   const succeeded = layout.succeeded;
@@ -338,6 +338,64 @@ function daySlot(input: {
     duration: "45-60",
     benchmark: false,
   });
+}
+
+const INTENSITY_RANK = ["light", "moderate", "heavy"] as const;
+
+/** 모델 강도는 코드 요일보다 무겁지 않을 때만 얹는다. mixed는 코드 강도를 유지한다. */
+export function intensityWithinCode(
+  model: DayIntent["intensity_profile"],
+  code: DayIntent["intensity_profile"],
+): DayIntent["intensity_profile"] {
+  const modelRank = INTENSITY_RANK.indexOf(model as (typeof INTENSITY_RANK)[number]);
+  const codeRank = INTENSITY_RANK.indexOf(code as (typeof INTENSITY_RANK)[number]);
+  if (modelRank < 0 || codeRank < 0) return code;
+  return modelRank <= codeRank ? model : code;
+}
+
+/**
+ * 기본 6일 수업의 휴식일은 코드 골격이 가진다.
+ * 모델이 일요일을 훈련으로 두거나 평일을 휴식으로 두면 그 요일은 코드 요일로 바꾼다.
+ * 둘 다 훈련인 평일은 모델의 포커스와, 코드 상한을 넘지 않는 강도만 얹는다.
+ * 자극과 볼륨은 코드 요일이다.
+ */
+export function applyClassIntentFrame(model: WeeklyIntentPlan, code: WeeklyIntentPlan): WeeklyIntentPlan {
+  const codeRest = code.days.filter((day) => day.primary_training === "rest" || day.recovery_role === "rest");
+  if (codeRest.length !== 1 || codeRest[0]?.day !== "sun") return model;
+  const codeBy = new Map(code.days.map((day) => [day.day, day]));
+  const days = DAY_ORDER.map((key) => {
+    const codeDay = codeBy.get(key);
+    const modelDay = model.days.find((day) => day.day === key);
+    if (!codeDay) return modelDay ?? code.days[0]!;
+    if (key === "sun" || !modelDay || modelDay.primary_training === "rest" || modelDay.recovery_role === "rest") {
+      return structuredClone(codeDay);
+    }
+    return {
+      ...codeDay,
+      training_goal: modelDay.training_goal,
+      intensity_profile: intensityWithinCode(modelDay.intensity_profile, codeDay.intensity_profile),
+      notes_ko: modelDay.notes_ko,
+    };
+  });
+  return {
+    ...code,
+    days,
+    why_ko: model.why_ko,
+    focus: model.focus,
+    scheme_note: model.scheme_note,
+    adjustment_ko: model.adjustment_ko,
+    intent_source: model.intent_source,
+    original_intent_source: model.original_intent_source,
+  };
+}
+
+/**
+ * 기본 6일 수업은 움직임 패턴과 긴 컨디셔닝 요일을 코드가 유지한다.
+ * 그 축이 월간 표와 달라도 주간 내용 실패가 아니다. 휴식일 불일치는 남긴다.
+ */
+export function classFrameAlignmentErrors(errors: readonly string[], classRest: string | null): string[] {
+  if (classRest !== "sun") return [...errors];
+  return errors.filter((error) => !/movement_pattern must be |long conditioning must follow /.test(error));
 }
 
 function intentFrom(day: DayKey, built: Slot): DayIntent {

@@ -8,6 +8,8 @@ import { amountTextForCheck, intervalFitIssues, prescriptionAmountIssue } from "
 import { longConditioningCountAllowed } from "../stage15/week-policy";
 import { deloadHeavyConditioningErrors } from "../stage15/week-structure";
 import { weekPlanErrors, type WeekRules } from "./rules";
+import { classRestDay } from "../goal-table";
+import { DAY_ORDER } from "../../../month-plan/types";
 
 export type SessionSelfReport = {
   schema: string[];
@@ -160,6 +162,36 @@ function issueFromCheck(message: string, code: IssueCode, severity: IssueSeverit
 }
 
 /**
+ * 기본 6일 수업은 월~토 훈련, 일요일 휴식이다.
+ * fallback 주도 이 불변식을 통과해야 저장된다.
+ */
+export function classWeekShapeErrors(
+  draft: WeekDraft,
+  month: { available_days?: readonly import("../../../month-plan/types").DayKey[] | null },
+): string[] {
+  if (classRestDay(month) !== "sun") return [];
+  const planDays = draft.intent.plan?.days ?? [];
+  const errors: string[] = [];
+  let training = 0;
+  for (const key of DAY_ORDER) {
+    const intent = planDays.find((day) => day.day === key);
+    const session = draft.sessions.find((row) => row.day === key);
+    const intentRest = intent ? intent.primary_training === "rest" || intent.recovery_role === "rest" : null;
+    const sessionRest = session ? Boolean(session.rest) || !session.conditioning : null;
+    if (key === "sun") {
+      if (intentRest === false) errors.push("sun must be rest");
+      if (sessionRest === false) errors.push("sun session must be rest");
+      continue;
+    }
+    if (intentRest === true) errors.push(`${key} must be a training day`);
+    if (session && sessionRest === true) errors.push(`${key} session must be training`);
+    if (intent && intentRest === false) training += 1;
+  }
+  if (planDays.length > 0 && training !== 6) errors.push(`class week training days ${training}; rule requires 6`);
+  return errors;
+}
+
+/**
  * Final hard gate. Similarity, movement repetition, and structure repetition stay signals.
  * Schema, catalog, unit, class clock, safety sequencing, and the active method table stay hard.
  */
@@ -195,6 +227,10 @@ export function finalWeekReport(input: {
       hard.push(message);
       issues.push(issueFromCheck(message, "week.structure", "hard_error"));
     }
+  }
+  for (const message of classWeekShapeErrors(input.draft, input.month)) {
+    hard.push(message);
+    issues.push(issueFromCheck(message, "week.structure", "hard_error"));
   }
   for (const session of input.draft.sessions) {
     if (session.rest || !session.conditioning) continue;

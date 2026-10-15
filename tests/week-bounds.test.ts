@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { weeklyIntentErrors } from "../src/lib/programming/coaching/contract";
 import { applyIntensityPatch } from "../src/lib/programming/coaching/intensity-patch";
 import { extractWeekRules } from "../src/lib/programming/coaching/stage13/rules";
-import { applyWeekGoalBounds, boundsFromWeekGoal, dayBoundsFromSkeleton, lowerLiftCapSum, weeklyResponseFormat } from "../src/lib/programming/coaching/week-bounds";
+import { applyWeekGoalBounds, boundsFromWeekGoal, dayBoundsFromSkeleton, lockClassRestBounds, lowerLiftCapSum, weeklyResponseFormat } from "../src/lib/programming/coaching/week-bounds";
 import type { WeekGoal } from "../src/lib/programming/types";
 import type { WeekSkeleton } from "../src/lib/programming/direction/contract";
 import { month531 } from "./characterization/support";
@@ -168,5 +168,34 @@ describe("week bounds", () => {
     expect(open).toHaveLength(7);
     expect(open.find((day) => day.day === "sat")?.secondary_training).toEqual(["long_conditioning"]);
     expect(open.find((day) => day.day === "mon")?.movement_pattern).toEqual(["hinge"]);
+  });
+
+  it("closes Sunday as the only rest day even when the goal rests on Wednesday", () => {
+    const bounds = boundsFromWeekGoal({
+      week_index: 2,
+      goal: "수요일 휴식",
+      days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((day) => ({
+        day: day as "wed",
+        rest: day === "wed",
+        purpose: "목적",
+        focus: null,
+        intensity: null,
+        target: null,
+        stimulus: null,
+        time_domain: null,
+      })),
+    });
+    const locked = lockClassRestBounds(bounds, "sun");
+    const format = weeklyResponseFormat(locked);
+    if (format.type !== "json_schema") throw new Error("expected json_schema");
+    const days = format.json_schema.schema.properties as {
+      days: { items: { anyOf: Array<{ properties: { day: { enum: string[] }; primary_training: { enum: string[] }; recovery_role: { enum: string[] } } }> } };
+    };
+    const sun = days.days.items.anyOf.find((row) => row.properties.day.enum[0] === "sun");
+    const wed = days.days.items.anyOf.find((row) => row.properties.day.enum[0] === "wed");
+    expect(sun?.properties.primary_training.enum).toEqual(["rest"]);
+    expect(sun?.properties.recovery_role.enum).toEqual(["rest"]);
+    expect(wed?.properties.primary_training.enum).not.toContain("rest");
+    expect(wed?.properties.recovery_role.enum).not.toContain("rest");
   });
 });

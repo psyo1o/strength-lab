@@ -25,15 +25,22 @@ export const ENGINE_WRITE_ACTIONS = [
 
 export const ENGINE_BUTTONS = [...ENGINE_LIVE_ACTIONS, ...ENGINE_DRY_ACTIONS, ...ENGINE_WRITE_ACTIONS] as const;
 
-/** Body the engine buttons POST. Only the week dry-run receives the case switch. */
-export function engineRequestBody(action: string, actualCase: "" | "a" | "b" = ""): {
+/** Body the engine buttons POST. Only the week dry-run receives the case switch. A chosen Monday is only sent for regenerate-week. */
+export function engineRequestBody(
+  action: string,
+  actualCase: "" | "a" | "b" = "",
+  weekStart?: string,
+): {
   action: string;
   actualCase: "a" | "b" | null;
+  weekStart?: string;
 } {
-  return {
+  const body: { action: string; actualCase: "a" | "b" | null; weekStart?: string } = {
     action,
     actualCase: action === "dry-run-week" && (actualCase === "a" || actualCase === "b") ? actualCase : null,
   };
+  if (action === "regenerate-week" && weekStart && /^\d{4}-\d{2}-\d{2}$/.test(weekStart)) body.weekStart = weekStart;
+  return body;
 }
 
 /** Text the engine result pane shows. A returned error and an HTTP error both stay on screen. */
