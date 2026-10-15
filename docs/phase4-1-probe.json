@@ -1,0 +1,210 @@
+{
+  "live_model": true,
+  "db": "/tmp/strength-lab-phase4-2099.db",
+  "model": "gpt-5.4-nano",
+  "cause": {
+    "week": "2099-11-02",
+    "monthly_intensity_gte_4": ["tue", "thu", "sat"],
+    "monthly_heavy_count": 3,
+    "locked_skeleton_heavy_slots": 3,
+    "weekly_plan_heavy_count": 5,
+    "location": "weekly plan intensity_profile",
+    "monthly_cap_added": false
+  },
+  "before": {
+    "finished_weeks": 21,
+    "adopted": 20,
+    "not_run": ["2099-02-09", "2099-02-16", "2099-02-23"],
+    "tokens": 5004132,
+    "failures": [{"run": "531-b", "week": "2099-11-02", "point": "high intensity days 5 exceed the week rule 3"}]
+  },
+  "after_d": {
+    "pass": true,
+    "combined_adopted": 23,
+    "combined_weeks": 24,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "unclassified": 0,
+    "tokens": 1132543,
+    "token_cap": 2000000,
+    "week_average": 238292,
+    "max_starts": 8,
+    "scheduled": 5,
+    "note": "original monthly JSON and intensity-b week 1 draft were not stored",
+    "runs": [
+      {"id": "531-b", "week": "2099-11-02", "adopted": true},
+      {"id": "intensity-b", "week": "2099-02-02", "adopted": false, "role": "chain reconstruction"},
+      {"id": "intensity-b", "week": "2099-02-09", "adopted": false},
+      {"id": "intensity-b", "week": "2099-02-16", "adopted": true},
+      {"id": "intensity-b", "week": "2099-02-23", "adopted": true}
+    ],
+    "failures": [
+      {"week": "2099-02-02", "point": "high intensity days 5 exceed the week rule 3", "after_patch": "lower lifts 4 exceed the week rule 2"},
+      {"week": "2099-02-09", "point": "high intensity days 4 exceed the week rule 3", "after_patch": "lower lifts 3 exceed the week rule 2"}
+    ]
+  },
+  "config_hash": "893bbee3c1418feade1349ba277bb17ff0b5980f5467864c549058df3f16caa3",
+  "previous_config_hash": "63ee5f4d1e7a86c2b6ee089b869a5b3e512604dad0ee4452d2a270d08f28e383",
+  "regression": {
+    "pass": false,
+    "finished_weeks": 10,
+    "adopted": 10,
+    "required": "11/12",
+    "fallback_adopted": 0,
+    "drift": 0,
+    "unclassified": 0,
+    "tokens": 2504762,
+    "token_cap": 2500000,
+    "max_starts": 10,
+    "stopped": "token cap 2500000 reached at 2504762 during 2099-05-18",
+    "odd_profiles": "not started"
+  },
+  "shadow": {"flag": "SHADOW_GENERATOR", "default": "off", "live": false, "mock": true},
+  "struct": {
+    "pass": false,
+    "reason": "odd profiles were not both adopted",
+    "priority_1_adopted": "3/3",
+    "priority_2_adopted": "2/2",
+    "priority_3_adopted": "0/2",
+    "patches": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "unclassified": 0,
+    "tokens": 1134713,
+    "token_cap": 1500000,
+    "week_average": 238292,
+    "max_starts": 6,
+    "scheduled": 7,
+    "lower_lift_rule": "week total: lower lifts N exceed the week rule 2",
+    "runs": [
+      {"id": "531-b", "week": "2099-11-02", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "intensity-b", "week": "2099-02-02", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "intensity-b", "week": "2099-02-09", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "reg-intensity", "week": "2099-05-18", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "reg-intensity", "week": "2099-05-25", "adopted": true, "patches": 0, "source": "model"},
+      {"id": "two-a", "week": null, "adopted": false, "point": "goal_table week 1 needs exactly one rest day; current=5"},
+      {"id": "six-a", "week": "2099-07-06", "adopted": false, "source": "fallback", "fallback_adopted": false, "point": "heavy squat the day after deadlift (mon)"}
+    ]
+  },
+  "tests": {"files": 78, "passed": 491},
+  "profile": {
+    "pass": true,
+    "week_boundary_2099_07_06": false,
+    "boundary_note": "heavy squat the day after deadlift (mon) names Monday as the deadlift day",
+    "enum_compare_weeks": 15,
+    "enum_diffs": 0,
+    "enum_rerun": 0,
+    "evaluate_saved": "not run; programming_weeks was empty and no adopted draft was stored",
+    "adopted": "4/4",
+    "pre_model_reject": 0,
+    "head_block": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "tokens": 412123,
+    "token_cap": 1200000,
+    "week_average": 238292,
+    "max_starts": 5,
+    "scheduled": 4,
+    "runs": [
+      {"id": "two-a", "week": "2099-08-03", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "two-run", "week": "2099-09-07", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "six-a", "week": "2099-07-06", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1},
+      {"id": "six-sun", "week": "2099-01-19", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"}
+    ]
+  },
+  "zone2": {
+    "pass": true,
+    "adopted": "5/5",
+    "zone2_fail": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "tokens": 674928,
+    "token_cap": 1200000,
+    "week_average": 238292,
+    "max_starts": 5,
+    "scheduled": 5,
+    "stopped": null,
+    "http_429": false,
+    "runs": [
+      {"id": "z3", "week": "2099-03-02", "days": 3, "zone2_day": "mon", "form": "addon", "modality": "row_erg", "duration_min": 25, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "z4", "week": "2099-04-06", "days": 4, "zone2_day": "tue", "form": "addon", "modality": "row_erg", "duration_min": 20, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "z5", "week": "2099-05-04", "days": 5, "zone2_day": "wed", "form": "day", "modality": "row_erg", "duration_min": 35, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "z6", "week": "2099-06-01", "days": 6, "zone2_day": "tue", "form": "day", "modality": "row_erg", "duration_min": 40, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE"},
+      {"id": "z-deload", "week": "2099-08-24", "days": 6, "deload": true, "zone2_day": "mon", "form": "day", "modality": "row_erg", "duration_min": 30, "effort": "1", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1}
+    ]
+  },
+  "tests_zone2": {"files": 79, "passed": 500},
+  "zone2_six": {
+    "pass": true,
+    "scope": "6-day only. 2-day and 3-5 day live runs cancelled",
+    "adopted": "3/3",
+    "zone2_fail": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "tokens": 463132,
+    "token_cap": 800000,
+    "week_average": 238292,
+    "max_starts": 3,
+    "scheduled": 3,
+    "stopped": null,
+    "http_429": false,
+    "runs": [
+      {"id": "six-a", "week": "2099-07-06", "days": 6, "zone2_day": "wed", "form": "day", "modality": "bike_erg", "duration_min": 40, "effort": "conversational", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1, "goal_breaks": 6},
+      {"id": "six-normal", "week": "2099-01-05", "days": 6, "zone2_day": "wed", "form": "day", "modality": "row_erg", "duration_min": 45, "effort": "conversational", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE", "goal_breaks": 10},
+      {"id": "z-deload", "week": "2099-08-24", "days": 6, "deload": true, "zone2_day": "mon", "form": "day", "modality": "row_erg", "duration_min": 30, "effort": "conversational", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1, "deload_conflicts": 2, "goal_breaks": 6}
+    ]
+  },
+  "tests_zone2_six": {"files": 79, "passed": 500, "tsc": "pass", "live": false},
+  "zone2_short_metcon": {
+    "pass": true,
+    "live_model": true,
+    "note": "first live attempt before the load-session fix had zone2Fail 2 and is not a pass",
+    "adopted": "3/3",
+    "zone2_fail": 0,
+    "fallback_adopted": 0,
+    "drift": 0,
+    "tokens": 469475,
+    "token_cap": 1100000,
+    "week_average": 238292,
+    "max_starts": 4,
+    "scheduled": 3,
+    "stopped": null,
+    "http_429": false,
+    "runs": [
+      {"id": "six-a", "week": "2099-07-06", "zone2_day": "wed", "a": "row_erg 40 conversational", "b": "amrap 12 rpe4 i2 row_erg+push_up", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE", "goal_breaks": 8},
+      {"id": "six-normal", "week": "2099-01-05", "zone2_day": "wed", "a": "row_erg 40 conversational", "b": "amrap 12 rpe4 i2 row_erg+push_up", "adopted": true, "source": "model", "review": "APPROVE_WITH_NOTE", "goal_breaks": 6},
+      {"id": "z-deload", "week": "2099-08-24", "deload": true, "zone2_day": "mon", "a": "row_erg 30 conversational", "b": "amrap 10 rpe4 i2 row_erg+ring_row", "adopted": true, "source": "model", "review": "REVISE", "head_applied": 1, "deload_conflicts": 4, "goal_breaks": 6}
+    ]
+  },
+  "tests_zone2_short_metcon": {"files": 80, "passed": 507, "tsc": "pass", "live": false},
+  "zone2_modality_rotation": {
+    "live_model": false,
+    "model_calls": 0,
+    "weeks": 4,
+    "host": "tue",
+    "heavy_lower_next_keeps_run": true,
+    "previous_modality_removed": true,
+    "empty_remainder_keeps_last": true,
+    "picks": ["row_erg", "bike_erg", "row_erg", "bike_erg"],
+    "tests": {"files": 80, "passed": 508, "tsc": "pass", "build": "pass", "live": false},
+    "main_conflicts": []
+  },
+  "zone2_lower_adjacent_drops_run": {
+    "live_model": false,
+    "model_calls": 0,
+    "corrects": "zone2_modality_rotation.heavy_lower_next_keeps_run",
+    "weeks": 4,
+    "host": "tue",
+    "drop_run_before_rotation": true,
+    "never_restore_run": true,
+    "b_rejects_run": true,
+    "evaluate_week_blocks_run": true,
+    "picks": {
+      "run": ["row_erg", "bike_erg", "row_erg", "bike_erg"],
+      "row_erg": ["bike_erg", "row_erg", "bike_erg", "row_erg"],
+      "bike_erg": ["row_erg", "bike_erg", "row_erg", "bike_erg"]
+    },
+    "tests": {"files": 80, "passed": 510, "tsc": "pass", "build": "pass", "live": false},
+    "screen_smoke": "not_run"
+  }
+}

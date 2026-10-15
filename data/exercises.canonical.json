@@ -1,0 +1,438 @@
+{
+  "version": "0.1.0",
+  "owner": "seed",
+  "note": "Canonical exercise ids owned by seed. Aligned with tip/UX: back_squat, bench_press, deadlift, ohp, front_squat, power_clean, squat_clean, power_snatch, squat_snatch, split_jerk.",
+  "exercises": {
+    "back_squat": {
+      "id": "back_squat",
+      "name": "스쿼트",
+      "aliases": [
+        "로우바 스쿼트",
+        "백 스쿼트",
+        "로우바스쿼트"
+      ],
+      "oneRmField": "squat",
+      "category": "main",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "bench_press": {
+      "id": "bench_press",
+      "name": "벤치프레스",
+      "aliases": [
+        "벤치",
+        "벤치 프레스"
+      ],
+      "oneRmField": "bench",
+      "category": "main",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "deadlift": {
+      "id": "deadlift",
+      "name": "데드리프트",
+      "aliases": [
+        "데드",
+        "컨벤셔널 데드리프트",
+        "컨벤데드리프트"
+      ],
+      "oneRmField": "deadlift",
+      "category": "main",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "ohp": {
+      "id": "ohp",
+      "name": "오버헤드프레스",
+      "aliases": [
+        "오버헤드 프레스",
+        "프레스",
+        "밀리터리 프레스"
+      ],
+      "oneRmField": "ohp",
+      "category": "main",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "front_squat": {
+      "id": "front_squat",
+      "name": "프론트 스쿼트",
+      "aliases": [
+        "프론트스쿼트"
+      ],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "close_grip_bench": {
+      "id": "close_grip_bench",
+      "name": "클로즈 그립 벤치",
+      "aliases": [
+        "클로즈그립 벤치",
+        "클로즈그립 벤치프레스",
+        "클로즈그립벤치"
+      ],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "incline_bench": {
+      "id": "incline_bench",
+      "name": "인클라인 벤치 프레스",
+      "aliases": [
+        "인클라인 벤치프레스",
+        "바벨 인클라인 벤치 프레스"
+      ],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "stiff_leg_deadlift": {
+      "id": "stiff_leg_deadlift",
+      "name": "스티프레그 데드리프트",
+      "aliases": [
+        "스티프 레그 데드리프트",
+        "루마니안 데드리프트"
+      ],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "barbell_row": {
+      "id": "barbell_row",
+      "name": "벤트오버 바벨로우",
+      "aliases": [
+        "바벨 로우",
+        "벤트오버 로우"
+      ],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "chin_up": {
+      "id": "chin_up",
+      "name": "친업",
+      "aliases": [
+        "친 업"
+      ],
+      "category": "accessory",
+      "bodyweight": true,
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "pull_up": {
+      "id": "pull_up",
+      "name": "풀업",
+      "aliases": [
+        "풀 업"
+      ],
+      "category": "accessory",
+      "bodyweight": true,
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "power_clean": {
+      "id": "power_clean",
+      "name": "파워클린",
+      "aliases": [
+        "파워 클린"
+      ],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "abs": {
+      "id": "abs",
+      "name": "복근 운동",
+      "aliases": [
+        "복근"
+      ],
+      "category": "accessory",
+      "optional": true,
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "free_accessory": {
+      "id": "free_accessory",
+      "name": "자유 보조운동",
+      "aliases": [],
+      "category": "accessory",
+      "optional": true,
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "squat_clean": {
+      "id": "squat_clean",
+      "name": "스쿼트 클린",
+      "aliases": [],
+      "category": "olympic",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "power_snatch": {
+      "id": "power_snatch",
+      "name": "파워 스네치",
+      "aliases": [],
+      "category": "olympic",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "squat_snatch": {
+      "id": "squat_snatch",
+      "name": "스쿼트 스네치",
+      "aliases": [],
+      "category": "olympic",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "split_jerk": {
+      "id": "split_jerk",
+      "name": "스플릿 저크",
+      "aliases": [],
+      "category": "olympic",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "pause_squat": {
+      "id": "pause_squat",
+      "name": "퍼즈 스쿼트",
+      "aliases": ["포즈 스쿼트", "pause squat"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "pin_squat": {
+      "id": "pin_squat",
+      "name": "핀 스쿼트",
+      "aliases": ["pin squat"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "deficit_deadlift": {
+      "id": "deficit_deadlift",
+      "name": "데피짓 데드리프트",
+      "aliases": ["디피싯 데드리프트", "deficit deadlift"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "spoto_press": {
+      "id": "spoto_press",
+      "name": "스포토 프레스",
+      "aliases": ["spoto press"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "floor_press": {
+      "id": "floor_press",
+      "name": "플로어 프레스",
+      "aliases": ["floor press"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    },
+    "face_pull": {
+      "id": "face_pull",
+      "name": "페이스풀",
+      "aliases": ["face pull"],
+      "category": "accessory",
+      "media": {
+        "imageUrl": null,
+        "videoUrl": null,
+        "credit": "",
+        "license": "",
+        "licenseUrl": "",
+        "sourcePage": "",
+        "alt": "",
+        "origin": ""
+      }
+    }
+  },
+  "aliases_to_id": {}
+}

@@ -1,0 +1,190 @@
+import { describe, expect, it } from "vitest";
+import { deterministicGoalTable, goalWeek } from "../../src/lib/programming/coaching/goal-table";
+import { lockWeekdaysForPlacement, placeTrainingDays } from "../../src/lib/programming/coaching/day-place";
+import { planLongitudinal } from "../../src/lib/programming/planning/plan";
+import { lockedSessionFieldErrors, prescriptionLockErrors } from "../../src/lib/programming/planning/prescribe";
+import type { WeeklySkeleton } from "../../src/lib/programming/planning/types";
+import type { ConditioningDraft, DayIntent, SessionDraft, WeekDraft, WeeklyIntentPlan } from "../../src/lib/programming/types";
+import type { DayKey } from "../../src/lib/month-plan/types";
+import { month531, runCoach } from "./support";
+
+function piece(stimulus: "heavy" | "technical"): ConditioningDraft {
+  return {
+    benchmark: false,
+    format: "amrap",
+    time_domain: "short",
+    stimulus,
+    movement_patterns: ["squat"],
+    movements: [{ key: "air_squat", amount: "10", name_ko: "동작" }],
+    equipment: ["bodyweight"],
+    rep_structure: "10",
+    work_rest_structure: "none",
+    duration_min: 12,
+    volume: "moderate",
+    intensity: "moderate",
+    long_conditioning: false,
+    purpose: "Practice the movement.",
+  };
+}
+
+function clash() {
+  const stimuli: Partial<Record<DayKey, "heavy" | "technical">> = { mon: "technical", tue: "technical", wed: "heavy" };
+  const days: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const session = (day: DayKey): SessionDraft => {
+    const stimulus = stimuli[day] ?? null;
+    return {
+      day,
+      rest: stimulus == null,
+      optional: false,
+      warmup_min: stimulus ? 10 : 0,
+      warmup_ko: stimulus ? `${day} ${stimulus}` : "",
+      strength: null,
+      conditioning: stimulus ? piece(stimulus) : null,
+      strength_purpose: null,
+      strength_volume: null,
+      strength_intensity: null,
+      metcon_purpose: stimulus ? "Practice the movement." : null,
+      metcon_format: "amrap",
+      time_domain: stimulus ? "short" : null,
+      stimulus,
+      movement_combination: stimulus,
+      equipment: [],
+      volume: stimulus ? "moderate" : null,
+      intensity: stimulus ? "moderate" : null,
+      expected_duration: stimulus ? 12 : null,
+    };
+  };
+  const intent = (day: DayKey): DayIntent => {
+    const rest = stimuli[day] == null;
+    return {
+      day,
+      primary_training: rest ? "rest" : "mixed_modal",
+      secondary_training: rest ? "none" : "moderate_conditioning",
+      training_goal: day,
+      stimulus: "threshold",
+      intensity_profile: "moderate",
+      volume_profile: "moderate",
+      duration_profile: rest ? "rest" : "45-60",
+      fatigue_target: "moderate",
+      movement_pattern: "mixed",
+      progression_required: false,
+      recovery_role: rest ? "rest" : "train",
+      strength_lift: "none",
+      benchmark: false,
+      notes_ko: day,
+    };
+  };
+  const draft: WeekDraft = { intent: { why_ko: "why", focus: "focus", scheme_note: "scheme" }, sessions: days.map(session) };
+  const plan = {
+    version: "intent-v1",
+    week_index: 1,
+    block_phase: "accumulation",
+    emphasis: "strength",
+    why_ko: "why",
+    focus: "focus",
+    scheme_note: "scheme",
+    adjustment_ko: "adjust",
+    days: days.map(intent),
+    fallback_used: false,
+  } as WeeklyIntentPlan;
+  return { draft, plan, days };
+}
+
+describe("특성화 P10", () => {
+  /**
+   * P10a. 근거 orchestrate.ts:329-335.
+   * 목표 동작: goal 칸도 잠긴 스켈레톤 필드 검사를 통과해야 한다.
+   */
+  it("P10a: goal 칸이어도 잠긴 스켈레톤과 다른 세션을 model로 채택하지 않는다", async () => {
+    const month = month531();
+    const goal = goalWeek(deterministicGoalTable(month), 1);
+    const target = goal?.days.find((day) => !day.rest && day.time_domain === "short");
+    expect(target).toBeTruthy();
+    const longitudinal = await planLongitudinal({ month, weekIndex: 1, key: null });
+    const skeletonDay = longitudinal.skeleton.days.find((day) => day.day === target!.day);
+    expect(skeletonDay?.status).toBe("training");
+    skeletonDay!.conditioning.duration_class = "medium";
+    skeletonDay!.long_day = false;
+    const payload = { conditioning: { duration_min: 10, volume: "moderate" } };
+    expect(lockedSessionFieldErrors(payload, skeletonDay!).join(" ")).toContain("medium");
+    const { result } = await runCoach({ month, longitudinal });
+    const quietlyAdopted =
+      result.day_sources[target!.day] === "model" && result.adoption?.weekStatus === "VALIDATED" && result.generation_source === "model";
+    expect(quietlyAdopted).toBe(false);
+  });
+
+  /**
+   * P10b. 근거 orchestrate.ts:2306, orchestrate.ts:2322-2326.
+   * 목표 동작: goal 날의 스켈레톤 위반이 최종 채택을 막는다.
+   */
+  it("P10b: goal 날의 스켈레톤 위반이 채택을 막는다", async () => {
+    const month = month531();
+    const goal = goalWeek(deterministicGoalTable(month), 1);
+    const target = goal?.days.find((day) => !day.rest && day.time_domain === "short");
+    expect(target).toBeTruthy();
+    const longitudinal = await planLongitudinal({ month, weekIndex: 1, key: null });
+    const skeletonDay = longitudinal.skeleton.days.find((day) => day.day === target!.day);
+    skeletonDay!.conditioning.duration_class = "medium";
+    skeletonDay!.long_day = false;
+    const { result } = await runCoach({ month, longitudinal });
+    const lockErrors = prescriptionLockErrors(longitudinal.skeleton, result.draft);
+    const named = lockErrors.some((error) => error.startsWith(`${target!.day} `) && error.includes("duration class"));
+    if (named) {
+      expect(result.final_validation?.errors ?? []).toEqual(
+        expect.arrayContaining([expect.stringContaining(`${target!.day} duration class`)]),
+      );
+      expect(result.adoption?.weekStatus).toBe("FAILED");
+    }
+    expect(result.generation_source).toBe("fallback");
+    expect(result.adoption?.persistActive).toBe(false);
+  });
+
+  /**
+   * P10c. 근거 orchestrate.ts:1546, day-place.ts:126-141.
+   * 목표 동작: 교환 결과는 새 객체이고, 호출자가 넘긴 스켈레톤은 그대로다.
+   */
+  it("P10c: 요일 교환이 입력 스켈레톤 객체를 바꾸지 않는다", () => {
+    const built = clash();
+    const skeleton = {
+      skeleton_locked: true,
+      days: built.days.map((day) => ({
+        day,
+        status: built.plan.days.find((row) => row.day === day)?.primary_training === "rest" ? "rest" : "training",
+        mark: day,
+      })),
+    } as WeeklySkeleton & { days: Array<{ day: DayKey; status: string; mark: DayKey }> };
+    const before = JSON.stringify(skeleton.days);
+    const holder: { skeleton: WeeklySkeleton } = { skeleton };
+    const placed = placeTrainingDays({
+      draft: built.draft,
+      plan: built.plan,
+      skeleton: holder.skeleton,
+      lockWeekdays: lockWeekdaysForPlacement(false),
+    });
+    expect(placed.moves.length).toBeGreaterThan(0);
+    expect(placed.skeleton).not.toBe(skeleton);
+    expect(holder.skeleton).toBe(skeleton);
+    expect(JSON.stringify(skeleton.days)).toBe(before);
+    const held = placeTrainingDays({
+      draft: built.draft,
+      plan: built.plan,
+      skeleton: holder.skeleton,
+      lockWeekdays: lockWeekdaysForPlacement(true),
+    });
+    expect(held.moves).toEqual([]);
+    expect(held.skeleton).toBe(skeleton);
+  });
+
+  /**
+   * P10d. 근거 orchestrate.ts:1261-1319.
+   * 구조 우려는 경고다. 하드 weekPlanErrors만 채택을 막는다. 경고는 채택 입력에 남는다.
+   */
+  it("P10d: 구조 우려는 경고로 채택 입력에 남고, 그 경고만으로 주를 실패로 만들지 않는다", async () => {
+    const { result } = await runCoach();
+    const structure = result.traces.find((row) => row.agent_name === "week_structure_analyzer");
+    expect(structure?.validation_result).toBe("pass");
+    expect(structure?.failure_reason).toBeNull();
+    expect(result.draft.sessions).toHaveLength(7);
+    expect(result.adoption?.weekStatus).toBe("VALIDATED");
+  });
+});

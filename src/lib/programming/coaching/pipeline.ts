@@ -1,0 +1,440 @@
+import type { FetchLike } from "../model";
+import { weeklyTimeoutMs } from "../timeouts";
+import { realizeWeekFromIntent } from "../realize-intent";
+import { evaluateWeek } from "../evaluate-week";
+import { toStructure } from "../rules";
+import type { WeekActual } from "../summary";
+import { DAY_ORDER, type DayKey } from "../../month-plan/types";
+import type { DayPrescriptionRecord, MonthDirection, MonthlyCoachPlan, StoredStructure, WeekDraft, WeekIndex, WeekLifecycle, WeeklyIntentPlan } from "../types";
+import { fatigueReport, type FatigueReport } from "./fatigue";
+import { deterministicLoadDecisions, type LoadDecision } from "./load";
+import { coachMonthly } from "./monthly";
+import { finishTrace, inputHash, newRunId, type AgentTrace, type TokenUsage } from "./trace";
+import { carryClassLiftDays, planCoachedWeek } from "./weekly";
+import type { MonthlyDirection, WeekSkeleton } from "../direction";
+import type { LongitudinalPlan } from "../planning/types";
+import type { WeekAdoption } from "../v2";
+import { enforceLockedSkeleton, planFromLockedSkeleton, rebuildLockedDay, skeletonLockRecord } from "../planning/prescribe";
+import { assembleLegalWeek } from "./session";
+import { reviewWeek, type HeadCoachReview } from "./review";
+import { variationReport, type VariationReport } from "./variation";
+import { coachWeekActive } from "./orchestrate";
+import {
+  COACHING_PIPELINE_VERSION,
+  HEAD_COACH_PROMPT_VERSION,
+  SESSION_COACH_PROMPT_VERSION,
+  WEEKLY_COACH_PROMPT_VERSION,
+} from "./prompts";
+
+export const LIVE_CLASS_WEEK = "2026-10-05";
+
+export type CoachWeekInput = {
+  month: MonthDirection;
+  weekIndex: WeekIndex;
+  weekStart: string;
+  previousActual?: WeekActual | null;
+  recentStructures?: readonly StoredStructure[];
+  recentSignatures?: readonly string[];
+  recentLiftMaps?: readonly string[];
+  recentPlans?: readonly WeeklyIntentPlan[];
+  /** Engine summary. The weekly coach sees it. It is not a second generator. */
+  inputSummary?: unknown;
+  /**
+   * Locked week from planLongitudinal. On a keyed week this is planned after coachMonthly,
+   * from that call's goal table. Session fill uses it only when the skeleton is locked.
+   */
+  longitudinal?: LongitudinalPlan | null;
+  /**
+   * Kept for callers. The class path always plans the skeleton inside coachWeekActive.
+   * The longitudinal flag does not turn that lock off.
+   */
+  lockSkeleton?: boolean;
+  /** Phase 3 direction. evaluateWeek checks conformance when the week skeleton is also set. */
+  monthlyDirection?: MonthlyDirection | null;
+  /** Locked week skeleton. evaluateWeek rejects a hash drift. */
+  weekSkeleton?: WeekSkeleton | null;
+  /** 지난주 잠긴 뼈대. 월요일 조합은 그 일요일을 본다. */
+  previousWeekSkeleton?: WeekSkeleton | null;
+  /** Monthly reuse identity. Defaults stay 2099-07 and class. */
+  monthId?: string;
+  profileId?: string;
+  key?: string | null;
+  fetchImpl?: FetchLike;
+  timeoutMs?: number;
+  nowMs?: number;
+};
+
+export type CoachWeekResult = {
+  draft: WeekDraft;
+  plan: WeeklyIntentPlan;
+  fatigue: FatigueReport;
+  variation: VariationReport;
+  review: HeadCoachReview;
+  revision_count: number;
+  generation_source: "model" | "fallback";
+  fallback_reason: string | null;
+  model_name: string | null;
+  prompt_version: string;
+  traces: AgentTrace[];
+  judge_ok: boolean;
+  day_sources: Record<DayKey, "model" | "fallback">;
+  /** 훈련일별 출처와 이유. 카탈로그가 채운 단위·Rx는 여기 들어가지 않는다. */
+  origin_log?: string;
+  /** 헤드 REVISE의 칸 수정. none은 카탈로그 칸 REVISE가 아니다. */
+  head_revise?: "none" | "applied" | "unresolved";
+  /** 고강도 patch 재요청을 부른 횟수. 코드가 강도를 넣으면 0이어도 이 수는 오르지 않는다. */
+  intensity_patch_count?: number;
+  final_status: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING";
+  coach_notes: string[];
+  monthly_plan: MonthlyCoachPlan;
+  /** Skeleton used for this week. Present when longitudinal planning ran inside the keyed path. */
+  longitudinal?: LongitudinalPlan | null;
+  load_decisions: LoadDecision[];
+  token_usage: TokenUsage;
+  latency_ms: number;
+  final_validation?: {
+    ok: boolean;
+    errors: string[];
+    signals?: string[];
+    rejected?: boolean;
+    rejected_errors?: string[];
+    late_discovered_hard_rule?: boolean;
+  };
+  pipeline?: "stage12" | "stage13" | "stage14" | "stage15" | "stage16";
+  rejected_draft?: WeekDraft | null;
+  prescription_source?: "model" | "model_revised" | "fallback" | "fallback_after_model_failure" | "legacy";
+  day_records?: Partial<Record<DayKey, DayPrescriptionRecord>>;
+  week_status?: WeekLifecycle;
+  adoption?: WeekAdoption;
+  /** weekly_schema면 잘못된 골격을 저장하지 않고 파이프라인을 멈춘다. */
+  halted?: "weekly_schema" | null;
+};
+
+export function assertProbeWeek(weekStart: string) {
+  if (weekStart === LIVE_CLASS_WEEK) {
+    throw new Error("operational week 2026-10-05 is off limits for coaching probes");
+  }
+}
+
+function bare(draft: WeekDraft): WeekDraft {
+  return {
+    intent: { why_ko: draft.intent.why_ko, focus: draft.intent.focus, scheme_note: draft.intent.scheme_note },
+    sessions: draft.sessions,
+  };
+}
+
+function stamp(draft: WeekDraft, plan: WeeklyIntentPlan): WeekDraft {
+  return {
+    ...draft,
+    intent: {
+      why_ko: plan.why_ko,
+      focus: plan.focus,
+      scheme_note: plan.scheme_note,
+      plan,
+    },
+  };
+}
+
+/**
+ * Monthly plan to weekly intent to one session at a time, then load, fatigue, variation, and head coach.
+ * Derived clocks and scores are computed here. The model is not asked for them.
+ * At most two head-coach revisions, and only the named days are rebuilt.
+ */
+export async function coachWeek(input: CoachWeekInput): Promise<CoachWeekResult> {
+  if (process.env.STRENGTH_LAB_PROBE === "1") assertProbeWeek(input.weekStart);
+  if (input.key) return coachWeekActive(input);
+  return coachWeekKeyless(input);
+}
+
+async function coachWeekKeyless(input: CoachWeekInput): Promise<CoachWeekResult> {
+  const runId = newRunId();
+  const traces: AgentTrace[] = [];
+  const timeoutMs = input.timeoutMs ?? weeklyTimeoutMs();
+  const monthly = await coachMonthly({
+    month: input.month,
+    actual: input.previousActual,
+    key: null,
+    timeoutMs,
+    runId,
+    weekId: input.weekStart,
+  });
+  traces.push(monthly.trace);
+  let modelName: string | null = null;
+  let weeklyFromModel = false;
+  let sessionsFromModel = false;
+  let failure: string | null = input.key ? null : "no_model";
+
+  const deterministic = planCoachedWeek({
+    month: input.month,
+    weekIndex: input.weekIndex,
+    previousActual: input.previousActual,
+    recentSignatures: input.recentSignatures,
+  });
+  let plan = input.longitudinal?.skeleton.skeleton_locked
+    ? carryClassLiftDays(planFromLockedSkeleton(input.longitudinal, input.month), deterministic)
+    : deterministic;
+  const weeklyStarted = Date.now();
+  traces.push(
+    finishTrace(weeklyStarted, {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "weekly_coach",
+      model: null,
+      prompt_version: WEEKLY_COACH_PROMPT_VERSION,
+      input_hash: inputHash({ week: input.weekIndex, fatigue: input.previousActual?.class_summary?.fatigue_signal ?? null }),
+      output: { block_phase: plan.block_phase, days: plan.days.map((day) => day.primary_training) },
+      validation_result: "pass",
+      retry_count: 0,
+      failure_reason: null,
+      deterministic: true,
+      source: "fallback",
+      fallback_reason: "no_model",
+      revision_number: 0,
+    }),
+  );
+
+  const assembleStarted = Date.now();
+  let built = assembleLegalWeek({
+    month: input.month,
+    weekIndex: input.weekIndex,
+    plan,
+    actual: input.previousActual,
+    recent: input.recentStructures,
+    recentLiftMaps: input.recentLiftMaps,
+  });
+  if (!built.judgeOk && weeklyFromModel) {
+    plan = { ...deterministic, original_intent_source: "model", intent_source: "model", fallback_used: true };
+    built = assembleLegalWeek({
+      month: input.month,
+      weekIndex: input.weekIndex,
+      plan,
+      actual: input.previousActual,
+      recent: input.recentStructures,
+      recentLiftMaps: input.recentLiftMaps,
+    });
+    failure = failure ?? "schema";
+  }
+  let usedLegacy = false;
+  if (!built.judgeOk) {
+    const legacyPlan = { ...plan, fallback_used: true, realization: "legacy_fallback" as const };
+    const legacy = realizeWeekFromIntent({
+      month: input.month,
+      weekIndex: input.weekIndex,
+      plan: legacyPlan,
+      recent: input.recentStructures,
+      previousActual: input.previousActual,
+      recentLiftMaps: input.recentLiftMaps,
+    });
+    const judged = evaluateWeek(bare(legacy), input.month, input.weekIndex, input.recentStructures ?? [], {
+      previousActual: input.previousActual ?? null,
+      recentLiftMaps: input.recentLiftMaps ?? [],
+    });
+    built = { draft: stamp(legacy, legacyPlan), judgeOk: judged.ok, errors: judged.ok ? [] : judged.errors, salt: built.salt };
+    plan = legacyPlan;
+    usedLegacy = true;
+    failure = failure ?? "rule_break";
+  }
+
+  traces.push(
+    finishTrace(assembleStarted, {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "session_coach",
+      model: null,
+      prompt_version: SESSION_COACH_PROMPT_VERSION,
+      input_hash: inputHash(plan.days.map((day) => day.primary_training)),
+      output: { days: built.draft.sessions.length },
+      validation_result: built.judgeOk ? "pass" : "fail",
+      retry_count: built.salt,
+      failure_reason: built.judgeOk ? null : built.errors[0] ?? null,
+      deterministic: true,
+      source: "fallback",
+      fallback_reason: "no_model",
+      revision_number: 0,
+    }),
+  );
+
+  const loadStarted = Date.now();
+  traces.push(
+    finishTrace(loadStarted, {
+      run_id: runId,
+      agent_name: "load_coach",
+      model: null,
+      prompt_version: "load-coach-v1",
+      input_hash: inputHash({ method: input.month.strength_method, week: input.weekIndex, fatigue: input.previousActual?.class_summary?.fatigue_signal ?? null }),
+      output: {
+        action: input.previousActual?.class_summary?.fatigue_signal === "high" ? "cut" : "method_table",
+        note: "Percentages come from the method table. Reported fatigue chooses the row. Planned volume does not.",
+      },
+      validation_result: "pass",
+      retry_count: 0,
+      failure_reason: null,
+      deterministic: true,
+    }),
+  );
+
+  let draft = stamp(built.draft, plan);
+  const analysisStarted = Date.now();
+  let fatigue = fatigueReport({ sessions: draft.sessions, actual: input.previousActual });
+  let variation = variationReport({
+    sessions: draft.sessions,
+    recent: input.recentStructures,
+    progressingLifts: plan.days.filter((day) => day.progression_required).map((day) => day.strength_lift),
+  });
+  traces.push(
+    finishTrace(analysisStarted, {
+      run_id: runId,
+      agent_name: "fatigue_engine",
+      model: null,
+      prompt_version: fatigue.version,
+      input_hash: inputHash({ reported: fatigue.reported_fatigue, planned: fatigue.planned_volume }),
+      output: { reported_fatigue: fatigue.reported_fatigue, planned_volume: fatigue.planned_volume, recovery_need: fatigue.recovery_need },
+      validation_result: "pass",
+      retry_count: 0,
+      failure_reason: null,
+      deterministic: true,
+    }),
+  );
+  traces.push(
+    finishTrace(analysisStarted, {
+      run_id: runId,
+      agent_name: "variation_engine",
+      model: null,
+      prompt_version: variation.version,
+      input_hash: inputHash({ same: variation.same_week_similarity, recent: variation.recent_similarity }),
+      output: variation,
+      validation_result: variation.structural_repetition ? "fail" : "pass",
+      retry_count: 0,
+      failure_reason: variation.structural_repetition ? "structural_repetition" : null,
+      deterministic: true,
+    }),
+  );
+
+  let review = reviewWeek({ draft, fatigue, variation });
+  const revisions = 0;
+  if (review.status === "REVISE") {
+    review = {
+      status: "APPROVE_WITH_NOTE",
+      revisions: [],
+      note_ko: `${review.note_ko} 코칭 지적은 기록만 남기고 날을 다시 만들지 않습니다.`,
+    };
+  }
+
+  const headStarted = Date.now();
+  traces.push(
+    finishTrace(headStarted, {
+      run_id: runId,
+      week_id: input.weekStart,
+      agent_name: "head_coach",
+      model: null,
+      prompt_version: HEAD_COACH_PROMPT_VERSION,
+      input_hash: inputHash({ status: review.status, days: review.revisions.map((row) => row.day) }),
+      output: review,
+      validation_result: review.status === "REVISE" ? "fail" : "pass",
+      retry_count: revisions,
+      failure_reason: null,
+      deterministic: true,
+      source: "fallback",
+      fallback_reason: null,
+      revision_number: revisions,
+    }),
+  );
+
+  const approved = review.status === "APPROVE" && built.judgeOk && !usedLegacy;
+  const modelWeek = Boolean(input.key) && weeklyFromModel && sessionsFromModel && approved && revisions === 0;
+  if (!modelWeek) {
+    plan = {
+      ...plan,
+      original_intent_source: plan.original_intent_source ?? plan.intent_source,
+      fallback_used: true,
+      intent_source: plan.original_intent_source === "model" || weeklyFromModel ? "model" : "fallback",
+    };
+    draft = stamp(draft, plan);
+  }
+  const judge = evaluateWeek(bare(draft), input.month, input.weekIndex, input.recentStructures ?? [], {
+    previousActual: input.previousActual ?? null,
+    recentLiftMaps: input.recentLiftMaps ?? [],
+  });
+  const daySources = Object.fromEntries(DAY_ORDER.map((day) => [day, "fallback"])) as Record<DayKey, "model" | "fallback">;
+  let finalStatus: "APPROVE" | "APPROVE_WITH_NOTE" | "ADJUST" | "FINALIZE_WITH_WARNING" =
+    review.status === "APPROVE" || review.status === "APPROVE_WITH_NOTE" ? review.status : "FINALIZE_WITH_WARNING";
+  const coachNotes = [
+    `월간 목표: ${monthly.plan.block_goal}`,
+    `주간 전략: ${plan.adjustment_ko}`,
+    `헤드: ${review.status}`,
+    fatigue.note_ko,
+    variation.note_ko,
+  ];
+  plan = { ...plan, day_sources: daySources, coach_notes: coachNotes, final_status: finalStatus };
+  draft = stamp(draft, plan);
+  const locked = input.longitudinal?.skeleton.skeleton_locked ? input.longitudinal : null;
+  let lockOk = true;
+  if (locked) {
+    const enforced = enforceLockedSkeleton({
+      skeleton: locked.skeleton,
+      draft,
+      rebuildDay: (day) =>
+        rebuildLockedDay({
+          day,
+          skeleton: locked.skeleton,
+          month: input.month,
+          weekIndex: input.weekIndex,
+          thesis: locked.weekly_thesis,
+          actual: input.previousActual,
+          recent: input.recentStructures,
+          salt: built.salt + 3,
+        }),
+    });
+    draft = stamp(enforced.draft, plan);
+    plan = { ...plan, skeleton_lock: skeletonLockRecord(enforced) };
+    draft = stamp(draft, plan);
+    lockOk = enforced.ok;
+    if (!lockOk) {
+      finalStatus = "FINALIZE_WITH_WARNING";
+      plan = { ...plan, final_status: finalStatus };
+      draft = stamp(draft, plan);
+    }
+  }
+  return {
+    draft,
+    plan,
+    fatigue,
+    variation,
+    review,
+    revision_count: revisions,
+    generation_source: modelWeek ? "model" : "fallback",
+    fallback_reason: modelWeek ? null : failure ?? (approved ? "no_model" : "schema"),
+    model_name: modelName,
+    prompt_version: COACHING_PIPELINE_VERSION,
+    traces,
+    judge_ok: judge.ok && lockOk,
+    final_validation: locked
+      ? { ok: lockOk, errors: plan.skeleton_lock?.after ?? [], rejected: !lockOk }
+      : undefined,
+    day_sources: daySources,
+    final_status: finalStatus,
+    coach_notes: coachNotes,
+    monthly_plan: monthly.plan,
+    load_decisions: deterministicLoadDecisions({ plan, actual: input.previousActual }),
+    token_usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+    latency_ms: traces.reduce((sum, trace) => sum + trace.duration_ms, 0),
+  };
+}
+
+export function affectedDays(review: HeadCoachReview): DayKey[] {
+  return review.revisions.map((row) => row.day);
+}
+
+export function unchangedDays(before: WeekDraft, after: WeekDraft, touched: readonly DayKey[]): DayKey[] {
+  return before.sessions
+    .filter((session) => !touched.includes(session.day))
+    .filter((session) => {
+      const next = after.sessions.find((row) => row.day === session.day);
+      return JSON.stringify(session) === JSON.stringify(next);
+    })
+    .map((session) => session.day);
+}
+
+export function sessionStructures(draft: WeekDraft): StoredStructure[] {
+  return draft.sessions.map(toStructure).filter((row): row is StoredStructure => row != null);
+}

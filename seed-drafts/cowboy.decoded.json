@@ -1,0 +1,2844 @@
+{
+  "id": "cowboy",
+  "nameKo": "Cowboy Method",
+  "nameEn": "Cowboy Method",
+  "category": "파워리프팅",
+  "completeness": "working",
+  "descriptionKo": "13주 카우보이(Big Texas). 월 볼륨 스쿼트, 수 프론트, 금은 to_nRM 가이드. 화/목/토 휴식.",
+  "descriptionEn": "13 weeks × 6 days from parent weekRules. Mon squat / Wed FS / Fri guided RM.",
+  "usesTM": false,
+  "coverage": "w1-13_full_sets",
+  "extraOneRmFields": {
+    "front_squat": {
+      "label": "프론트 스쿼트"
+    }
+  },
+  "copy": {
+    "help": "13주 카우보이(Big Texas). 월 볼륨 스쿼트, 수 프론트, 금은 to_nRM 가이드. 화/목/토 휴식."
+  },
+  "weekRules": [
+    "W1: 월 60% 10×5 · 수 FS 55/60/65/70/75 · 금 to_10RM",
+    "W2: 월 67.5% 10×4 · 수 FS 60/65/70/75/80 · 금 to_8RM",
+    "W3: 월 75% 10×3 · 수 FS 65/70/75/80/85 · 금 to_5RM",
+    "W4 deload: 월 60% 딜로드 마커 · 수 FS 60 · 금 squat_walkout_hold",
+    "W5: 월 65% 8×4 · 수 FS 60/67.5/75/82.5 · 금 to_8RM",
+    "W6: 월 72.5% 8×3 · 수 FS 65/72.5/80/87.5 · 금 to_5RM",
+    "W7: 월 80% 8×2 · 수 FS 70/77.5/85/92.5 · 금 to_3RM",
+    "W8 deload: 월 65% 딜로드 마커 · 수 FS 65 · 금 squat_walkout_105pct",
+    "W9: 월 70% 5×3 · 수 FS 65/75/85 · 금 to_5RM",
+    "W10: 월 77.5% 5×2 · 수 FS 70/80/90 · 금 to_3RM",
+    "W11: 월 85% 5×1 · 수 FS 75/85/95 · 금 to_2RM",
+    "W12 deload: 월 70% 딜로드 마커 · 수 FS 70 · 금 squat_walkout_105pct",
+    "W13 test: 월 휴식 · 수 휴식 · 금 1RM_test"
+  ],
+  "weeks": [
+    {
+      "week": 1,
+      "nameKo": "1주차",
+      "notesKo": "W1: 월 60% 10×5 · 수 FS 55/60/65/70/75 · 금 to_10RM",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 30,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 36,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 48,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 54,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 27.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 33,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 38.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 44,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 49.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 55,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 75,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 → 10RM",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 10,
+                  "percent": 50,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 10,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 10,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 10,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 10,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 10,
+                  "percent": 90,
+                  "of": "1RM",
+                  "amrap": true,
+                  "noteKo": "guided toward 10RM"
+                }
+              ],
+              "notesKo": "work: to_10RM"
+            }
+          ],
+          "notesKo": "work: to_10RM"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "nameKo": "2주차",
+      "notesKo": "W2: 월 67.5% 10×4 · 수 FS 60/65/70/75/80 · 금 to_8RM",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 33.75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 40.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 47.25,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 54,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 60.75,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 67.5,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 30,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 36,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 48,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 54,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 80,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 → 8RM",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 50,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 90,
+                  "of": "1RM",
+                  "amrap": true,
+                  "noteKo": "guided toward 8RM"
+                }
+              ],
+              "notesKo": "work: to_8RM"
+            }
+          ],
+          "notesKo": "work: to_8RM"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "nameKo": "3주차",
+      "notesKo": "W3: 월 75% 10×3 · 수 FS 65/70/75/80/85 · 금 to_5RM",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 37.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 45,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 52.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 67.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 32.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 39,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 45.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 52,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 58.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 85,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 → 5RM",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 50,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 90,
+                  "of": "1RM",
+                  "amrap": true,
+                  "noteKo": "guided toward 5RM"
+                }
+              ],
+              "notesKo": "work: to_5RM"
+            }
+          ],
+          "notesKo": "work: to_5RM"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "nameKo": "4주차 — deload",
+      "notesKo": "W4 deload: 월 60% 딜로드 마커 · 수 FS 60 · 금 squat_walkout_hold",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 30,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 36,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 48,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 54,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 60,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 30,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 36,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 48,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 54,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 60,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 워크아웃/홀드",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 1,
+                  "percent": 100,
+                  "of": "1RM"
+                }
+              ],
+              "notesKo": "work: squat_walkout_hold"
+            }
+          ],
+          "notesKo": "work: squat_walkout_hold"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 5,
+      "nameKo": "5주차",
+      "notesKo": "W5: 월 65% 8×4 · 수 FS 60/67.5/75/82.5 · 금 to_8RM",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 32.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 39,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 45.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 52,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 58.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 4,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 4,
+                  "percent": 65,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 30,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 36,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 48,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 54,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 67.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 82.5,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 → 8RM",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 50,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 8,
+                  "percent": 90,
+                  "of": "1RM",
+                  "amrap": true,
+                  "noteKo": "guided toward 8RM"
+                }
+              ],
+              "notesKo": "work: to_8RM"
+            }
+          ],
+          "notesKo": "work: to_8RM"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 6,
+      "nameKo": "6주차",
+      "notesKo": "W6: 월 72.5% 8×3 · 수 FS 65/72.5/80/87.5 · 금 to_5RM",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 36.25,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 43.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 50.75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 58,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 65.25,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 72.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 72.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 72.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 72.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 72.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 72.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 72.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 72.5,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 32.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 39,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 45.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 52,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 58.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 72.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 87.5,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 → 5RM",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 50,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 90,
+                  "of": "1RM",
+                  "amrap": true,
+                  "noteKo": "guided toward 5RM"
+                }
+              ],
+              "notesKo": "work: to_5RM"
+            }
+          ],
+          "notesKo": "work: to_5RM"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 7,
+      "nameKo": "7주차",
+      "notesKo": "W7: 월 80% 8×2 · 수 FS 70/77.5/85/92.5 · 금 to_3RM",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 40,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 48,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 64,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 72,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 2,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 80,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 77.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 92.5,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 → 3RM",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 50,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 90,
+                  "of": "1RM",
+                  "amrap": true,
+                  "noteKo": "guided toward 3RM"
+                }
+              ],
+              "notesKo": "work: to_3RM"
+            }
+          ],
+          "notesKo": "work: to_3RM"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 8,
+      "nameKo": "8주차 — deload",
+      "notesKo": "W8 deload: 월 65% 딜로드 마커 · 수 FS 65 · 금 squat_walkout_105pct",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 32.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 39,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 45.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 52,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 58.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 65,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 32.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 39,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 45.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 52,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 58.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 65,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 워크아웃/홀드",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 1,
+                  "percent": 105,
+                  "of": "1RM"
+                }
+              ],
+              "notesKo": "work: squat_walkout_105pct"
+            }
+          ],
+          "notesKo": "work: squat_walkout_105pct"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 9,
+      "nameKo": "9주차",
+      "notesKo": "W9: 월 70% 5×3 · 수 FS 65/75/85 · 금 to_5RM",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 32.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 39,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 45.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 52,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 58.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 65,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 85,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 → 5RM",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 50,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 90,
+                  "of": "1RM",
+                  "amrap": true,
+                  "noteKo": "guided toward 5RM"
+                }
+              ],
+              "notesKo": "work: to_5RM"
+            }
+          ],
+          "notesKo": "work: to_5RM"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 10,
+      "nameKo": "10주차",
+      "notesKo": "W10: 월 77.5% 5×2 · 수 FS 70/80/90 · 금 to_3RM",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 38.75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 46.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 54.25,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 62,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 69.75,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 2,
+                  "percent": 77.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 77.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 77.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 77.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 77.5,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 90,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 → 3RM",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 50,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 90,
+                  "of": "1RM",
+                  "amrap": true,
+                  "noteKo": "guided toward 3RM"
+                }
+              ],
+              "notesKo": "work: to_3RM"
+            }
+          ],
+          "notesKo": "work: to_3RM"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 11,
+      "nameKo": "11주차",
+      "notesKo": "W11: 월 85% 5×1 · 수 FS 75/85/95 · 금 to_2RM",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 42.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 51,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 59.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 68,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 76.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 1,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 85,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 37.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 45,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 52.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 67.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 5,
+                  "percent": 75,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 95,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 → 2RM",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 2,
+                  "percent": 50,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 60,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 85,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 2,
+                  "percent": 90,
+                  "of": "1RM",
+                  "amrap": true,
+                  "noteKo": "guided toward 2RM"
+                }
+              ],
+              "notesKo": "work: to_2RM"
+            }
+          ],
+          "notesKo": "work: to_2RM"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 12,
+      "nameKo": "12주차 — deload",
+      "notesKo": "W12 deload: 월 70% 딜로드 마커 · 수 FS 70 · 금 squat_walkout_105pct",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 스쿼트 볼륨",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 프론트스쿼트",
+          "exercises": [
+            {
+              "exerciseId": "front_squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 35,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 42,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 49,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 56,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 63,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "front_squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 3,
+                  "percent": 70,
+                  "of": "1RM"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 스쿼트 워크아웃/홀드",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 1,
+                  "percent": 105,
+                  "of": "1RM"
+                }
+              ],
+              "notesKo": "work: squat_walkout_105pct"
+            }
+          ],
+          "notesKo": "work: squat_walkout_105pct"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    },
+    {
+      "week": 13,
+      "nameKo": "13주차 — test",
+      "notesKo": "W13 test: 월 휴식 · 수 휴식 · 금 1RM_test",
+      "days": [
+        {
+          "day": 1,
+          "nameKo": "월요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 2,
+          "nameKo": "화요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 3,
+          "nameKo": "수요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 4,
+          "nameKo": "목요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        },
+        {
+          "day": 5,
+          "nameKo": "금요일 — 1RM 테스트",
+          "exercises": [
+            {
+              "exerciseId": "squat",
+              "role": "warmup",
+              "notesKo": "워밍업 사다리 — 작업중량의 50/60/70/80/90% × 8/5/3/1/1",
+              "sets": [
+                {
+                  "reps": 8,
+                  "percent": 42.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 5,
+                  "percent": 51,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 3,
+                  "percent": 59.5,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 68,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 76.5,
+                  "of": "1RM"
+                }
+              ]
+            },
+            {
+              "exerciseId": "squat",
+              "role": "main",
+              "sets": [
+                {
+                  "reps": 1,
+                  "percent": 70,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 80,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 90,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 95,
+                  "of": "1RM"
+                },
+                {
+                  "reps": 1,
+                  "percent": 100,
+                  "of": "1RM"
+                }
+              ],
+              "notesKo": "work: 1RM_test"
+            }
+          ],
+          "notesKo": "work: 1RM_test"
+        },
+        {
+          "day": 6,
+          "nameKo": "토요일 — 휴식",
+          "exercises": [],
+          "notesKo": "휴식"
+        }
+      ]
+    }
+  ]
+}

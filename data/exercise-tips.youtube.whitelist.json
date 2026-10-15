@@ -1,0 +1,397 @@
+{
+  "version": "0.2.1",
+  "owner": "tips",
+  "policyRef": "TIPS.youtube-links.md",
+  "note": "Public watch links only. No download/rehost. No TJ. oEmbed-verified. Full set 0.2.0 (44) + gap fill 0.2.1 (+7 benchmark WOD movements = 51).",
+  "disclaimer": "참고 영상일 뿐. 찌릿·저림은 이 팁·영상으로 버티지 말고 전문가 봐.",
+  "byExerciseId": {
+    "abs": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=p7j02V1fIzU",
+      "credit": "CrossFit",
+      "title": "The Hollow Rock",
+      "kind": "technique"
+    },
+    "back_squat": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=nhoikoUEI8U",
+      "credit": "Starting Strength",
+      "title": "Learning to Squat | The Starting Strength Method"
+    },
+    "barbell_row": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=G8l_8chR5BE",
+      "credit": "Alan Thrall (Untamed Strength)",
+      "title": "\"How To\" Barbell Row",
+      "kind": "technique"
+    },
+    "bench_press": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=rxD321l2svE",
+      "credit": "Starting Strength",
+      "title": "Learning to Bench Press | The Starting Strength Method"
+    },
+    "box_jump": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=52r_Ul5k03g",
+      "credit": "CrossFit",
+      "title": "The Box Jump"
+    },
+    "burpee": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=TU8QYVW0gDU",
+      "credit": "CrossFit",
+      "title": "The Burpee"
+    },
+    "butterfly_pull_up": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=OenVG15QMj8",
+      "credit": "CrossFit",
+      "title": "The Butterfly Pull-Up"
+    },
+    "chin_up": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=u5h9TM9KAh0",
+      "credit": "Barbell Logic",
+      "title": "Gym Shorts (How To): The Chin Up",
+      "kind": "technique"
+    },
+    "clean_jerk": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=bNCXgyosXlc",
+      "credit": "Catalyst Athletics",
+      "title": "Clean & Jerk | Olympic Weightlifting Exercise Library",
+      "kind": "technique"
+    },
+    "close_grip_bench": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=hWEpF7lFR9Q",
+      "credit": "Barbell Logic",
+      "title": "Close Grip Bench Press: Gym Shorts (How To)",
+      "kind": "technique"
+    },
+    "deadlift": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=p2OPUi4xGrM",
+      "credit": "Starting Strength",
+      "title": "Learning to Deadlift | The Starting Strength Method"
+    },
+    "deficit_deadlift": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=3KQP-CNKr9U",
+      "credit": "Barbell Logic",
+      "title": "Deficit Deadlift: Gym Shorts (How To)",
+      "kind": "technique"
+    },
+    "double_under": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=-tF3hUsPZAI",
+      "credit": "CrossFit",
+      "title": "The Double-under"
+    },
+    "face_pull": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=ljgqer1ZpXg",
+      "credit": "ATHLEAN-X™",
+      "title": "STOP F*cking Up Face Pulls (PROPER FORM!)",
+      "kind": "technique"
+    },
+    "fan_bike": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=9xfUu652CMg",
+      "credit": "Rogue Fitness",
+      "title": "The New Rogue Echo Bike",
+      "kind": "overview",
+      "note": "Rogue 공식 Echo Bike 소개. Assault/Rogue 순수 테크닉 데모는 제품·조립 영상만 확인됨."
+    },
+    "floor_press": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=aM1TYdZaXMk",
+      "credit": "CrossFit",
+      "title": "The Floor Press",
+      "kind": "technique"
+    },
+    "free_accessory": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=HZ4xWvMtxy4",
+      "credit": "Barbell Logic",
+      "title": "Complete Guide to Supplemental Lifts for Strength",
+      "kind": "overview",
+      "note": "자유 보조 — 고른 동작 영상이 있으면 그걸 우선"
+    },
+    "front_squat": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=Cnc0qKLAgcU",
+      "credit": "Juggernaut Training Systems",
+      "title": "Front Squat Tutorial | JTSstrength.com"
+    },
+    "handstand": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=8Fdyew622mg",
+      "credit": "CrossFit",
+      "title": "Handstand Hold Progression | CrossFit Movement Demo",
+      "kind": "technique"
+    },
+    "incline_bench": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=5k_enq6vXGM",
+      "credit": "Barbell Logic",
+      "title": "Incline Bench Press: Gym Shorts (How To)",
+      "kind": "technique"
+    },
+    "kb_swing": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=PAhDt_0PjP4",
+      "credit": "StrongFirst",
+      "title": "Improve Your Kettlebell Swing | StrongFirst",
+      "kind": "technique",
+      "note": "러시안(어깨 높이) — tip cue 기준. CrossFit 공식은 아메리칸 경향."
+    },
+    "kipping_pull_up": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=r45xLlH7r_M",
+      "credit": "CrossFit",
+      "title": "The Kipping Pull-Up"
+    },
+    "knee_raise": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=_DUlB4YpZRw",
+      "credit": "CrossFit",
+      "title": "The Strict Knees to Elbows",
+      "kind": "technique"
+    },
+    "lunge": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=DlhojghkaQ0",
+      "credit": "CrossFit",
+      "title": "The Walking Lunge",
+      "kind": "technique"
+    },
+    "ohp": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=8dacy5hjaE8",
+      "credit": "Starting Strength",
+      "title": "Learning to Press | The Starting Strength Method"
+    },
+    "pause_squat": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=nknf16JJTZo",
+      "credit": "Barbell Logic",
+      "title": "The Paused Squat: Gym Shorts (How To)",
+      "kind": "technique"
+    },
+    "pin_squat": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=ot1rrHWETsc",
+      "credit": "Barbell Logic",
+      "title": "The Pin Squat - Gym Shorts (How To)",
+      "kind": "technique"
+    },
+    "power_clean": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=YG8M_-11C2A",
+      "credit": "Catalyst Athletics",
+      "title": "Power Clean | Olympic Weightlifting Exercise Library"
+    },
+    "power_snatch": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=ydHHsju1-Nc",
+      "credit": "Catalyst Athletics",
+      "title": "Power Snatch | Olympic Weightlifting Exercise Library"
+    },
+    "pull_up": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=HRV5YKKaeVw",
+      "credit": "CrossFit",
+      "title": "The Strict Pull-Up",
+      "kind": "technique"
+    },
+    "push_up": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=_l3ySVKYVJ8",
+      "credit": "CrossFit",
+      "title": "The Push-Up",
+      "kind": "technique"
+    },
+    "ring_row": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=sEAOZc77wk8",
+      "credit": "CrossFit",
+      "title": "The Ring Row",
+      "kind": "technique"
+    },
+    "row": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=4zWu1yuJ0_g",
+      "credit": "concept2usa",
+      "title": "Correct Rowing Machine Technique, Improve Your Rowing  | Concept2",
+      "kind": "technique"
+    },
+    "run": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=4aJC13SYNfw",
+      "credit": "CrossFit",
+      "title": "CrossFit - Coaching Tools for Running: Part 1 (Journal Preview)",
+      "kind": "technique"
+    },
+    "sit_up": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=VIZX2Ru9qU8",
+      "credit": "CrossFit",
+      "title": "The AbMat Sit-Up",
+      "kind": "technique"
+    },
+    "ski": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=B0lIgT5PHc8",
+      "credit": "concept2usa",
+      "title": "SkiErgTechnique | Learn How to Use the SkiErg | Concept2",
+      "kind": "technique"
+    },
+    "split_jerk": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=2GPA-cjUFnA",
+      "credit": "Catalyst Athletics",
+      "title": "Split Jerk | Olympic Weightlifting Exercise Library"
+    },
+    "spoto_press": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=CoQSqnn5GME",
+      "credit": "Mark Bell - Super Training Gym",
+      "title": "Spoto Press Your Way To A MASSIVE Bench Press!",
+      "kind": "technique"
+    },
+    "squat_clean": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=oQIaWLrB318",
+      "credit": "Catalyst Athletics",
+      "title": "Clean | Olympic Weightlifting Exercise Library"
+    },
+    "squat_snatch": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=1Lv1IyigIUY",
+      "credit": "Catalyst Athletics",
+      "title": "Snatch | Olympic Weightlifting Exercise Library"
+    },
+    "stiff_leg_deadlift": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=k6cUaJasD5U",
+      "credit": "Starting Strength",
+      "title": "How to do the RDL (Romanian Deadlift) with Mark Rippetoe",
+      "kind": "technique"
+    },
+    "thruster": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=L219ltL15zk",
+      "credit": "CrossFit",
+      "title": "The Thruster"
+    },
+    "toes_to_bar": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=_03pCKOv4l4",
+      "credit": "CrossFit",
+      "title": "The Kipping Toes-to-bar"
+    },
+    "wall_ball": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=EqjGKsiIMCE",
+      "credit": "CrossFit",
+      "title": "The Wall-Ball Shot"
+    },
+    "air_squat": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=C_VtOYc6j5c",
+      "credit": "CrossFit",
+      "title": "The Air Squat: CrossFit Foundational Movement",
+      "kind": "technique"
+    },
+    "handstand_push_up": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=0wDEO6shVjc",
+      "credit": "CrossFit",
+      "title": "The Strict Handstand Push-Up",
+      "kind": "technique"
+    },
+    "ring_dip": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=Vt0lO4jpIDo",
+      "credit": "CrossFit",
+      "title": "The Ring Dip",
+      "kind": "technique"
+    },
+    "pistol": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=qDcniqddTeE",
+      "credit": "CrossFit",
+      "title": "The Pistol",
+      "kind": "technique"
+    },
+    "overhead_squat": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=RD_vUnqwqqI",
+      "credit": "CrossFit",
+      "title": "The Overhead Squat: CrossFit Foundational Movement",
+      "kind": "technique"
+    },
+    "push_press": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=X6-DMh-t4nQ",
+      "credit": "CrossFit",
+      "title": "The Push Press: CrossFit Foundational Movement",
+      "kind": "technique"
+    },
+    "sumo_deadlift_high_pull": {
+      "youtubeUrl": "https://www.youtube.com/watch?v=gh55vVlwlQg",
+      "credit": "CrossFit",
+      "title": "The Sumo Deadlift High Pull",
+      "kind": "technique"
+    }
+  },
+  "alternates": [
+    {
+      "for": "bench_press",
+      "youtubeUrl": "https://www.youtube.com/watch?v=-J4P-XOEtFY",
+      "credit": "Starting Strength",
+      "title": "How To Bench Press | The Starting Strength Method"
+    },
+    {
+      "for": "olympic_pull",
+      "youtubeUrl": "https://www.youtube.com/watch?v=p9leQSzWpuI",
+      "credit": "Catalyst Athletics",
+      "title": "Always Start with Leg Push in the Snatch & Clean"
+    },
+    {
+      "for": "olympic_posture",
+      "youtubeUrl": "https://www.youtube.com/watch?v=LNTzOMhcGz8",
+      "credit": "Catalyst Athletics",
+      "title": "Stop Overcomplicating It - Staying Over The Bar in the Snatch & Clean"
+    },
+    {
+      "for": "split_jerk",
+      "youtubeUrl": "https://www.youtube.com/watch?v=PTvv1wHl1Nk",
+      "credit": "Catalyst Athletics",
+      "title": "How to Dip Correctly for the Jerk"
+    },
+    {
+      "for": "kipping_pull_up",
+      "youtubeUrl": "https://www.youtube.com/watch?v=p9Stan68FYM",
+      "credit": "CrossFit",
+      "title": "Kipping Chest-To-Bar PullUp"
+    },
+    {
+      "for": "thruster",
+      "youtubeUrl": "https://www.youtube.com/watch?v=aea5BGj9a8Y",
+      "credit": "CrossFit",
+      "title": "The Thruster: CrossFit Foundational Movement"
+    },
+    {
+      "for": "box_jump",
+      "youtubeUrl": "https://www.youtube.com/watch?v=4o2duvMXo1Y",
+      "credit": "CrossFit",
+      "title": "Box Jump-Over Variations | CrossFit Movement Demo"
+    }
+  ],
+  "crossfitP0": [
+    "thruster",
+    "kipping_pull_up",
+    "butterfly_pull_up",
+    "toes_to_bar",
+    "double_under",
+    "burpee",
+    "wall_ball",
+    "box_jump",
+    "air_squat",
+    "handstand_push_up",
+    "ring_dip",
+    "pistol",
+    "overhead_squat",
+    "push_press",
+    "sumo_deadlift_high_pull"
+  ],
+  "channelTypes": {
+    "strength_barbell": [
+      "Starting Strength",
+      "Juggernaut Training Systems",
+      "Barbell Logic",
+      "Alan Thrall (Untamed Strength)",
+      "Mark Bell - Super Training Gym"
+    ],
+    "olympic": [
+      "Catalyst Athletics"
+    ],
+    "crossfit": [
+      "CrossFit"
+    ],
+    "machines": [
+      "concept2usa",
+      "Rogue Fitness"
+    ],
+    "kettlebell": [
+      "StrongFirst"
+    ],
+    "other_reputable": [
+      "ATHLEAN-X™"
+    ]
+  },
+  "aliasesResolve": {
+    "squat": "back_squat",
+    "bench": "bench_press",
+    "rdl": "stiff_leg_deadlift",
+    "clean": "squat_clean",
+    "jerk": "split_jerk",
+    "snatch": "squat_snatch",
+    "ttb": "toes_to_bar",
+    "du": "double_under"
+  },
+  "aliasNote": "tips.ts also maps clean_jerk→split_jerk, but tips file has a dedicated clean_jerk sheet so whitelist keeps clean_jerk as its own id."
+}

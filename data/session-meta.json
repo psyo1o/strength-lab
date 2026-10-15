@@ -1,0 +1,603 @@
+{
+  "pace": {
+    "row_erg": {
+      "seconds_per_cal": [
+        3.5,
+        5
+      ],
+      "seconds_per_m": [
+        0.22,
+        0.35
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "ski_erg": {
+      "seconds_per_cal": [
+        4.5,
+        6
+      ],
+      "seconds_per_m": [
+        0.25,
+        0.4
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "bike_erg": {
+      "seconds_per_cal": [
+        3,
+        5
+      ],
+      "seconds_per_m": [
+        0.2,
+        0.35
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "assault_bike": {
+      "seconds_per_cal": [
+        3,
+        5
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "run": {
+      "seconds_per_m": [
+        0.25,
+        0.45
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "double_under": {
+      "seconds_per_rep": [
+        0.4,
+        0.8
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "single_under": {
+      "seconds_per_rep": [
+        0.35,
+        0.6
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "barbell_thruster": {
+      "seconds_per_rep": [
+        3,
+        4
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "burpee": {
+      "seconds_per_rep": [
+        3.5,
+        5
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "wall_ball": {
+      "seconds_per_rep": [
+        2.5,
+        4
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "box_jump": {
+      "seconds_per_rep": [
+        2,
+        3
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "power_clean": {
+      "seconds_per_rep": [
+        3,
+        5
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "dumbbell_snatch": {
+      "seconds_per_rep": [
+        2,
+        4
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "toes_to_bar": {
+      "seconds_per_rep": [
+        2,
+        4
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "sit_up": {
+      "seconds_per_rep": [
+        1.5,
+        2.5
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "american_kettlebell_swing": {
+      "seconds_per_rep": [
+        2,
+        2.5
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "sumo_deadlift_high_pull": {
+      "seconds_per_rep": [
+        2,
+        3.5
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "push_up": {
+      "seconds_per_rep": [
+        1.5,
+        2.5
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "kipping_pull_up": {
+      "seconds_per_rep": [
+        2,
+        4
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    },
+    "air_squat": {
+      "seconds_per_rep": [
+        1.5,
+        2.5
+      ],
+      "transition_seconds": [
+        5,
+        8
+      ]
+    }
+  },
+  "warmup": {
+    "worlds_greatest_stretch": {
+      "roles": [
+        "mobilise"
+      ],
+      "joints": [
+        "hip",
+        "thoracic",
+        "ankle"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "leg_swing": {
+      "roles": [
+        "mobilise"
+      ],
+      "joints": [
+        "hip"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "hip_opener": {
+      "roles": [
+        "mobilise"
+      ],
+      "joints": [
+        "hip"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "thoracic_rotation": {
+      "roles": [
+        "mobilise"
+      ],
+      "joints": [
+        "thoracic"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "band_pass_through": {
+      "roles": [
+        "mobilise"
+      ],
+      "joints": [
+        "shoulder"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "cossack_squat": {
+      "roles": [
+        "mobilise"
+      ],
+      "joints": [
+        "hip",
+        "ankle"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "inchworm": {
+      "roles": [
+        "mobilise"
+      ],
+      "joints": [
+        "hamstring",
+        "shoulder"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "ankle_rock": {
+      "roles": [
+        "mobilise"
+      ],
+      "joints": [
+        "ankle"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "wrist_rock": {
+      "roles": [
+        "mobilise"
+      ],
+      "joints": [
+        "wrist"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "glute_bridge": {
+      "roles": [
+        "activate"
+      ],
+      "joints": [
+        "hip"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "scap_push_up": {
+      "roles": [
+        "activate"
+      ],
+      "joints": [
+        "shoulder"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "scap_pull_up": {
+      "roles": [
+        "activate"
+      ],
+      "joints": [
+        "shoulder"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "band_pull_apart": {
+      "roles": [
+        "activate"
+      ],
+      "joints": [
+        "shoulder",
+        "thoracic"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "bird_dog": {
+      "roles": [
+        "activate"
+      ],
+      "joints": [
+        "hip",
+        "thoracic"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "hollow_hold": {
+      "roles": [
+        "activate"
+      ],
+      "joints": [
+        "hip"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "banded_lateral_walk": {
+      "roles": [
+        "activate"
+      ],
+      "joints": [
+        "hip"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "calf_raise": {
+      "roles": [
+        "activate"
+      ],
+      "joints": [
+        "ankle"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "hip_hinge_drill": {
+      "roles": [
+        "potentiate"
+      ],
+      "joints": [
+        "hip",
+        "hamstring"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "wall_slide": {
+      "roles": [
+        "mobilise",
+        "activate"
+      ],
+      "joints": [
+        "shoulder",
+        "thoracic"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "active_hang": {
+      "roles": [
+        "activate"
+      ],
+      "joints": [
+        "shoulder"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "a_skip": {
+      "roles": [
+        "potentiate"
+      ],
+      "joints": [
+        "ankle",
+        "hip"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    },
+    "easy_row": {
+      "roles": [
+        "raise"
+      ],
+      "joints": [
+        "hip",
+        "thoracic"
+      ],
+      "modes": [
+        "easy_cardio"
+      ],
+      "static_hold": false
+    },
+    "easy_bike": {
+      "roles": [
+        "raise"
+      ],
+      "joints": [
+        "hip",
+        "ankle"
+      ],
+      "modes": [
+        "easy_cardio"
+      ],
+      "static_hold": false
+    },
+    "easy_ski": {
+      "roles": [
+        "raise"
+      ],
+      "joints": [
+        "shoulder",
+        "hip"
+      ],
+      "modes": [
+        "easy_cardio"
+      ],
+      "static_hold": false
+    },
+    "easy_jog": {
+      "roles": [
+        "raise"
+      ],
+      "joints": [
+        "ankle",
+        "hip"
+      ],
+      "modes": [
+        "easy_cardio"
+      ],
+      "static_hold": false
+    },
+    "standing_hamstring_stretch": {
+      "roles": [
+        "mobilise",
+        "cooldown"
+      ],
+      "joints": [
+        "hamstring"
+      ],
+      "modes": [
+        "short_hold",
+        "long_hold"
+      ],
+      "static_hold": true
+    },
+    "couch_stretch": {
+      "roles": [
+        "mobilise",
+        "cooldown"
+      ],
+      "joints": [
+        "hip",
+        "ankle"
+      ],
+      "modes": [
+        "short_hold",
+        "long_hold"
+      ],
+      "static_hold": true
+    },
+    "pigeon_stretch": {
+      "roles": [
+        "mobilise",
+        "cooldown"
+      ],
+      "joints": [
+        "hip"
+      ],
+      "modes": [
+        "short_hold",
+        "long_hold"
+      ],
+      "static_hold": true
+    },
+    "doorway_pec_stretch": {
+      "roles": [
+        "mobilise",
+        "cooldown"
+      ],
+      "joints": [
+        "shoulder",
+        "thoracic"
+      ],
+      "modes": [
+        "short_hold",
+        "long_hold"
+      ],
+      "static_hold": true
+    },
+    "goblet_squat": {
+      "roles": [
+        "potentiate"
+      ],
+      "joints": [
+        "hip",
+        "ankle"
+      ],
+      "modes": [
+        "reps"
+      ],
+      "static_hold": false
+    }
+  }
+}

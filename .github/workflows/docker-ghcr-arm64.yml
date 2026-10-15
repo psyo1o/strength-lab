@@ -1,0 +1,76 @@
+name: Build and push arm64 image
+
+on:
+  push:
+    branches: [main, cursor/strength-lab-mvp-4f20]
+  workflow_dispatch:
+
+# One publisher for :latest. A newer push cancels a stale queued/running build
+# so an older job cannot finish later and move :latest backwards.
+concurrency:
+  group: ghcr-linux-arm64-latest
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/psyo1o/strength-lab
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up BuildKit
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=sha,prefix=
+            type=sha,prefix=,format=long
+
+      - name: Build and push (linux/arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # :latest only from the live tip of mvp or main — never from a stale SHA.
+      - name: Promote :latest only if this commit is still branch tip
+        run: |
+          set -eu
+          git fetch --depth=1 origin cursor/strength-lab-mvp-4f20
+          git fetch --depth=1 origin main || true
+          TIP_MVP=$(git rev-parse origin/cursor/strength-lab-mvp-4f20)
+          TIP_MAIN=$(git rev-parse origin/main 2>/dev/null || echo "")
+          SHORT="${GITHUB_SHA::7}"
+          echo "sha=$GITHUB_SHA short=$SHORT mvp=$TIP_MVP main=$TIP_MAIN"
+          if [ "$GITHUB_SHA" = "$TIP_MVP" ] || [ "$GITHUB_SHA" = "$TIP_MAIN" ]; then
+            docker buildx imagetools create -t "${IMAGE}:latest" "${IMAGE}:${GITHUB_SHA}"
+            echo "Promoted ${IMAGE}:${SHORT} (${GITHUB_SHA}) -> :latest"
+          else
+            echo "Skip :latest; ${GITHUB_SHA} is not tip of mvp/main"
+          fi

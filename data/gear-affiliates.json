@@ -1,0 +1,36 @@
+{
+  "disclosureKo": "이 화면은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.",
+  "coupangPartnerId": "AF4475360",
+  "categories": [
+    {
+      "id": "reference",
+      "nameKo": "참고",
+      "items": [
+        {
+          "id": "lifting-straps",
+          "nameKo": "리프팅 스트랩",
+          "whyKo": "바를 잡을 때 손에 감는 스트랩입니다.",
+          "imageUrl": "/gear/lifting-straps.jpg",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        },
+        {
+          "id": "knee-pads",
+          "nameKo": "무릎 패드",
+          "whyKo": "무릎 앞에 대는 하드 패드입니다.",
+          "imageUrl": "/gear/knee-pads.jpg",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        },
+        {
+          "id": "wrist-brace",
+          "nameKo": "손목 보호대",
+          "whyKo": "손목을 고정하는 보호대입니다.",
+          "imageUrl": "/gear/wrist-brace.jpg",
+          "affiliateUrl": "",
+          "merchant": "쿠팡"
+        }
+      ]
+    }
+  ]
+}

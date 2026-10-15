@@ -1,0 +1,148 @@
+import type { DayKey } from "../../../month-plan/types";
+import { performanceRead } from "../../weekly-intent";
+import type { MonthDirection, WeekIndex, WeeklyIntentPlan } from "../../types";
+import type { WeekActual } from "../../summary";
+import { absoluteWeekCaps, classRestDay, expectedRestDays, profileTrainingDayCount } from "../goal-table";
+import { benchmarkCountAllowed, longConditioningCountAllowed } from "../stage15/week-policy";
+import { benchmarkOnRestErrors } from "../stage15/week-structure";
+
+/**
+ * Immutable rules for one week, taken from the monthly plan.
+ * The weekly coach can place days inside these rules. It cannot rewrite them.
+ */
+export type WeekRules = {
+  week_index: WeekIndex;
+  strength_method: string;
+  benchmark_required: boolean;
+  long_conditioning_required: boolean;
+  deload_mode: boolean;
+  max_high_intensity_days: number;
+  max_lower_lifts: number;
+  max_olympic_days: number;
+  min_rest_days: number;
+  /** 기본 6일 수업은 일요일. 다른 프로필은 null이라 휴식일 수만 본다. */
+  fixed_rest_day: DayKey | null;
+};
+
+export function extractWeekRules(input: {
+  month: MonthDirection;
+  weekIndex: WeekIndex;
+  actual?: WeekActual | null;
+}): WeekRules {
+  const method = input.month.strength_method || input.month.scheme;
+  const deload =
+    method === "DELOAD_RECOVERY" || method === "deload" || input.month.scheme === "deload" || input.weekIndex === 4;
+  const read = performanceRead(input.actual);
+  const fatigued = read.lower_fatigue === "high" || read.many_missed;
+  const caps = absoluteWeekCaps({ trainingDays: profileTrainingDayCount(input.month), deload, fatigued });
+  return {
+    week_index: input.weekIndex,
+    strength_method: method,
+    benchmark_required: input.month.benchmark_week === input.weekIndex,
+    long_conditioning_required: input.month.long_conditioning_weeks.includes(input.weekIndex),
+    deload_mode: deload,
+    max_high_intensity_days: caps.maxHighIntensity,
+    max_lower_lifts: caps.maxLowerLifts,
+    max_olympic_days: caps.maxOlympicDays,
+    min_rest_days: expectedRestDays(input.month),
+    fixed_rest_day: classRestDay(input.month),
+  };
+}
+
+function count(plan: WeeklyIntentPlan, pred: (day: WeeklyIntentPlan["days"][number]) => boolean): number {
+  return plan.days.filter(pred).length;
+}
+
+/**
+ * Weekly plan checks only. Sessions are not an input.
+ * A failure sends the weekly coach back, not the session coach.
+ */
+export function weekPlanErrors(plan: WeeklyIntentPlan, rules: WeekRules): string[] {
+  const errors: string[] = [];
+  const days = new Set(plan.days.map((day) => day.day));
+  if (plan.days.length !== 7 || days.size !== 7) errors.push("weekly plan must contain seven distinct days");
+  if (plan.strength_method && plan.strength_method !== rules.strength_method) {
+    errors.push(`weekly plan changed the method to ${plan.strength_method}; this block is ${rules.strength_method}`);
+  }
+  errors.push(
+    ...benchmarkOnRestErrors(
+      plan.days.map((day) => ({
+        day: day.day,
+        benchmark: day.benchmark,
+        rest: day.primary_training === "rest" || day.recovery_role === "rest",
+      })),
+    ),
+  );
+  const benchmarks = count(plan, (day) => day.benchmark);
+  if (!benchmarkCountAllowed(rules.benchmark_required, benchmarks)) {
+    errors.push(
+      rules.benchmark_required
+        ? `benchmark week needs exactly one benchmark day; current=${benchmarks}`
+        : "benchmark day is only allowed on the benchmark week",
+    );
+  }
+  const longs = count(plan, (day) => day.secondary_training === "long_conditioning");
+  if (!longConditioningCountAllowed(rules.long_conditioning_required, longs)) {
+    errors.push(
+      rules.long_conditioning_required
+        ? `this week needs exactly one long conditioning day; current=${longs}`
+        : "this week is not a long-conditioning week",
+    );
+  }
+  const restDays = plan.days.filter((day) => day.primary_training === "rest" || day.recovery_role === "rest");
+  const rests = restDays.length;
+  if (rests < rules.min_rest_days) errors.push(`weekly plan needs at least ${rules.min_rest_days} rest day`);
+  if (rules.fixed_rest_day) {
+    const names = restDays.map((day) => day.day);
+    if (names.length !== 1 || names[0] !== rules.fixed_rest_day) {
+      errors.push(`rest day must be ${rules.fixed_rest_day}; current=${names.join(",") || "none"}`);
+    }
+    for (const day of plan.days) {
+      if (day.day === rules.fixed_rest_day && day.primary_training !== "rest") {
+        errors.push(`${rules.fixed_rest_day} must be the rest day`);
+      }
+      if (day.day !== rules.fixed_rest_day && (day.primary_training === "rest" || day.recovery_role === "rest")) {
+        errors.push(`${day.day} is rest; only ${rules.fixed_rest_day} may rest`);
+      }
+    }
+  }
+  const heavy = count(plan, (day) => day.intensity_profile === "heavy");
+  if (heavy > rules.max_high_intensity_days) {
+    errors.push(`high intensity days ${heavy} exceed the week rule ${rules.max_high_intensity_days}`);
+  }
+  const lowers = count(plan, (day) => day.strength_lift === "squat" || day.strength_lift === "deadlift");
+  if (lowers > rules.max_lower_lifts) {
+    errors.push(`lower lifts ${lowers} exceed the week rule ${rules.max_lower_lifts}`);
+  }
+  const olympic = count(plan, (day) => day.primary_training === "olympic_strength" || day.primary_training === "olympic_technique");
+  if (olympic > rules.max_olympic_days) errors.push(`olympic days ${olympic} exceed the week rule ${rules.max_olympic_days}`);
+  if (rules.deload_mode) {
+    if (plan.block_phase !== "deload") errors.push("deload week must keep block_phase deload");
+    const highVolume = count(plan, (day) => day.volume_profile === "high");
+    if (highVolume > 0) errors.push("deload week cannot assign a high volume day");
+  }
+  const seen = new Set<DayKey>();
+  for (const day of plan.days) {
+    if (seen.has(day.day)) errors.push(`duplicate day ${day.day}`);
+    seen.add(day.day);
+  }
+  return errors;
+}
+
+/** Monthly strategy checks that sit beside the field contract. No workouts. */
+export function monthlyStrategyErrors(
+  value: unknown,
+  month?: { scheme?: string; strength_method?: string },
+): string[] {
+  if (!value || typeof value !== "object") return ["monthly plan is missing"];
+  const body = value as { week_roles?: unknown };
+  if (!Array.isArray(body.week_roles)) return [];
+  const roles = body.week_roles.filter((row) => row && typeof row === "object") as Array<{ role?: unknown }>;
+  const deloads = roles.filter((row) => row.role === "deload").length;
+  const method = month?.strength_method || month?.scheme || "";
+  const recoveryMonth = method === "DELOAD_RECOVERY" || method === "deload" || month?.scheme === "deload";
+  if (roles.length === 4 && deloads !== 1 && !(recoveryMonth && deloads === 4)) {
+    return [`monthly plan needs exactly one deload week role; current=${deloads}`];
+  }
+  return [];
+}

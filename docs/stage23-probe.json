@@ -1,0 +1,1282 @@
+{
+  "plan_lab": {
+    "mode": "db",
+    "model": "gpt-5.4-nano",
+    "structure": "95a63b551c495b80",
+    "scenarios": [
+      "W1",
+      "W2",
+      "W3",
+      "W4",
+      "S1",
+      "S2"
+    ],
+    "passes": 2,
+    "summary": {
+      "weeks_attempted": 12,
+      "skeleton_saved": 12,
+      "skeleton_save_rate": 1,
+      "weeks_matching_after_repair": 12,
+      "lock_violations_before": 33,
+      "lock_violations_after": 0,
+      "lock_before_kinds": {
+        "duration": 10,
+        "volume": 23
+      },
+      "lock_after_kinds": {},
+      "regenerated_days": 24,
+      "fitted_days": 0,
+      "unresolved_days": 0,
+      "failed_weeks": 0,
+      "day_final_sources": {
+        "MODEL": 27,
+        "MODEL_REVISED": 19,
+        "MODEL_ADJUSTED": 0,
+        "HEAD_ADJUSTED": 0,
+        "DETERMINISTIC_ADJUSTMENT": 0,
+        "FALLBACK": 26,
+        "FAILED": 0
+      },
+      "model_weeks": 2,
+      "fallback_weeks": 10,
+      "session_failure_kinds": {
+        "prescription": 32,
+        "schema": 1
+      },
+      "normalizations": {
+        "unit_seen": 0,
+        "unit_converted": 0,
+        "unit_unconverted": 0,
+        "display_rewrites": 31
+      },
+      "session_rewrite": {
+        "retried_pass": 7,
+        "retried_fail": 26,
+        "retained_first_error": 7,
+        "retry_without_first_error": 0
+      },
+      "unit_quality": {
+        "sessions": 72,
+        "first_attempt_clean": 72,
+        "double_under_errors": 0,
+        "row_errors": 0,
+        "other_unit_errors": 0,
+        "adopted_pass": 46,
+        "not_success": 26,
+        "time_based_accepted": 62,
+        "prescription_revise": 0,
+        "prescription_unclear": 0
+      },
+      "consistency": {
+        "mismatches": [],
+        "mismatch_count": 0
+      },
+      "model_calls": 81,
+      "tokens": 590772,
+      "elapsed_ms": 613720,
+      "flags": {
+        "COACHING_PIPELINE": "1",
+        "LONGITUDINAL_PLANNING": "1"
+      }
+    },
+    "archive": {
+      "run_id": "stage23-244ee039-d2f6-4f7f-9d77-f03e803b244e",
+      "root": "docs/stage23-runs",
+      "raw_saved": true,
+      "summary_is_not_raw": true,
+      "a1_intact_after_a2": true,
+      "missing": [],
+      "passes": [
+        {
+          "pass": "A1",
+          "dir": "docs/stage23-runs/stage23-244ee039-d2f6-4f7f-9d77-f03e803b244e/A1",
+          "files": [
+            "generation-logs.json",
+            "weeks.json",
+            "months.json",
+            "evaluations.json",
+            "usage.json"
+          ]
+        },
+        {
+          "pass": "A2",
+          "dir": "docs/stage23-runs/stage23-244ee039-d2f6-4f7f-9d77-f03e803b244e/A2",
+          "files": [
+            "generation-logs.json",
+            "weeks.json",
+            "months.json",
+            "evaluations.json",
+            "usage.json"
+          ]
+        }
+      ]
+    },
+    "months": [
+      {
+        "pass": "A1",
+        "months": [
+          {
+            "month_start": "2099-06-01",
+            "scheme": "531",
+            "strength_method": "531",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_previous_month",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-07-01",
+            "scheme": "deload",
+            "strength_method": "DELOAD_RECOVERY",
+            "generation_source": "fallback",
+            "fallback_reason": "language",
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-08-01",
+            "scheme": "volume",
+            "strength_method": "ACCUMULATION",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          }
+        ]
+      },
+      {
+        "pass": "A2",
+        "months": [
+          {
+            "month_start": "2099-06-01",
+            "scheme": "531",
+            "strength_method": "531",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_previous_month",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-07-01",
+            "scheme": "volume",
+            "strength_method": "ACCUMULATION",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          },
+          {
+            "month_start": "2099-08-01",
+            "scheme": "volume",
+            "strength_method": "ACCUMULATION",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "evaluation_status": "no_evaluation",
+            "next_scheme": null,
+            "followed_next_scheme": null
+          }
+        ]
+      }
+    ],
+    "runs": [
+      {
+        "pass": "A1",
+        "weeks": [
+          {
+            "id": "W1",
+            "week": "2099-07-06",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 61361,
+            "log_count": 92,
+            "model_calls": 9,
+            "tokens": 30272,
+            "log_latency_ms": 32980,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 6,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 6,
+                "not_success": 0,
+                "time_based_accepted": 6,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 4,
+              "rules": {
+                "catalog_name_ko": 4
+              }
+            },
+            "previous_actual": {
+              "week": "2099-06-29",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            }
+          },
+          {
+            "id": "W2",
+            "week": "2099-07-13",
+            "status": "model",
+            "generation_source": "model",
+            "fallback_reason": null,
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [],
+            "lock_after": [],
+            "lock_before_kinds": {},
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 34670,
+            "log_count": 92,
+            "model_calls": 9,
+            "tokens": 31484,
+            "log_latency_ms": 29928,
+            "session_failures": {
+              "failed_days": 0,
+              "passed_days": 6,
+              "retried_pass": 0,
+              "retried_fail": 0,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 6,
+                "not_success": 0,
+                "time_based_accepted": 4,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {},
+              "examples": []
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 1,
+              "rules": {
+                "catalog_name_ko": 1
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-06",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "low",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            }
+          },
+          {
+            "id": "W3",
+            "week": "2099-07-20",
+            "status": "fallback_after_model_failure:2/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:2/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "wed duration class is locked",
+              "wed volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 3
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "wed",
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 40609,
+            "log_count": 92,
+            "model_calls": 5,
+            "tokens": 50200,
+            "log_latency_ms": 31247,
+            "session_failures": {
+              "failed_days": 4,
+              "passed_days": 2,
+              "retried_pass": 0,
+              "retried_fail": 4,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 2,
+                "not_success": 4,
+                "time_based_accepted": 5,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "prescription": 5
+              },
+              "examples": [
+                "wed field conditioning.movements.amount: prescription: row amount 15sec fills the 15 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do not inve",
+                "thu field conditioning.movements.amount: prescription: double_under amount 15sec fills the 15 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "fri field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "sat field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "sat field conditioning.movements.amount: prescription: row amount 250m does not fit a 30 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories."
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 1,
+              "rules": {
+                "catalog_name_ko": 1
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-13",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 3,
+              "completed_days": 3,
+              "record": "summary"
+            }
+          },
+          {
+            "id": "W4",
+            "week": "2099-07-27",
+            "status": "fallback_after_model_failure:5/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:5/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "wed duration class is locked",
+              "wed volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 1
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "wed"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL",
+              "FALLBACK",
+              "MODEL",
+              "MODEL",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 40604,
+            "log_count": 93,
+            "model_calls": 9,
+            "tokens": 41143,
+            "log_latency_ms": 34827,
+            "session_failures": {
+              "failed_days": 1,
+              "passed_days": 5,
+              "retried_pass": 1,
+              "retried_fail": 1,
+              "retained_first_error": 1,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 5,
+                "not_success": 1,
+                "time_based_accepted": 4,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "schema": 1,
+                "prescription": 1
+              },
+              "examples": [
+                "interval_rest_sec: received 0; allowed: integer 10–90 when format is intervals",
+                "wed field conditioning.movements.amount: prescription: row amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do not inve"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 1,
+              "rules": {
+                "catalog_name_ko": 1
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-20",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            }
+          },
+          {
+            "id": "S1",
+            "week": "2099-08-03",
+            "status": "fallback_after_model_failure:5/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:5/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "accumulation",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "tue volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 1
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "tue"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "FALLBACK",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 53890,
+            "log_count": 92,
+            "model_calls": 8,
+            "tokens": 42827,
+            "log_latency_ms": 39091,
+            "session_failures": {
+              "failed_days": 1,
+              "passed_days": 5,
+              "retried_pass": 0,
+              "retried_fail": 1,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 5,
+                "not_success": 1,
+                "time_based_accepted": 5,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "prescription": 2
+              },
+              "examples": [
+                "tue field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "tue field conditioning.movements.amount: prescription: row amount 200m does not fit a 30 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories."
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 2,
+              "rules": {
+                "catalog_name_ko": 2
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-27",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            }
+          },
+          {
+            "id": "S2",
+            "week": "2099-08-10",
+            "status": "fallback_after_model_failure:1/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:1/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "emphasis",
+              "volume_ceiling": "low",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "tue volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low",
+              "sun volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 5
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "tue",
+              "thu",
+              "sat",
+              "sun"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "MODEL",
+              "FALLBACK",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 53808,
+            "log_count": 92,
+            "model_calls": 3,
+            "tokens": 63545,
+            "log_latency_ms": 43823,
+            "session_failures": {
+              "failed_days": 5,
+              "passed_days": 1,
+              "retried_pass": 0,
+              "retried_fail": 5,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 1,
+                "not_success": 5,
+                "time_based_accepted": 7,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "prescription": 7
+              },
+              "examples": [
+                "mon field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "mon field conditioning.movements.amount: prescription: row amount 400m does not fit a 30 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories.",
+                "tue field conditioning.movements.amount: prescription: row amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do not inve",
+                "thu field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "thu field conditioning.movements.amount: prescription: row amount 400m does not fit a 30 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories.",
+                "sat field conditioning.movements.amount: prescription: row amount 500m does not fit a 60 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories.",
+                "sun field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 5,
+              "rules": {
+                "catalog_name_ko": 3,
+                "display_term": 2
+              }
+            },
+            "previous_actual": {
+              "week": "2099-08-03",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            }
+          }
+        ]
+      },
+      {
+        "pass": "A2",
+        "weeks": [
+          {
+            "id": "W1",
+            "week": "2099-07-06",
+            "status": "fallback_after_model_failure:3/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:3/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "accumulation",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "thu duration class is locked",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low",
+              "fri volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 3
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "wed",
+              "thu",
+              "fri"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 61760,
+            "log_count": 92,
+            "model_calls": 6,
+            "tokens": 55779,
+            "log_latency_ms": 43359,
+            "session_failures": {
+              "failed_days": 3,
+              "passed_days": 3,
+              "retried_pass": 1,
+              "retried_fail": 3,
+              "retained_first_error": 1,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 3,
+                "not_success": 3,
+                "time_based_accepted": 7,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "prescription": 3
+              },
+              "examples": [
+                "wed field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "thu field conditioning.movements.amount: prescription: row amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do not inve",
+                "fri field conditioning.movements.amount: prescription: row amount 400m does not fit a 60 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories."
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 4,
+              "rules": {
+                "catalog_name_ko": 4
+              }
+            },
+            "previous_actual": {
+              "week": "2099-06-29",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            }
+          },
+          {
+            "id": "W2",
+            "week": "2099-07-13",
+            "status": "fallback_after_model_failure:4/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:4/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 0,
+            "thesis": {
+              "phase": "progression",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "fri volume exceeds the locked profile moderate"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 1
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "tue",
+              "fri"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL_REVISED",
+              "FALLBACK",
+              "MODEL_REVISED",
+              "FALLBACK",
+              "MODEL_REVISED",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 51139,
+            "log_count": 92,
+            "model_calls": 6,
+            "tokens": 64050,
+            "log_latency_ms": 44442,
+            "session_failures": {
+              "failed_days": 2,
+              "passed_days": 4,
+              "retried_pass": 3,
+              "retried_fail": 2,
+              "retained_first_error": 3,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 4,
+                "not_success": 2,
+                "time_based_accepted": 6,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "prescription": 3
+              },
+              "examples": [
+                "tue field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "tue field conditioning.movements.amount: prescription: row amount 200m does not fit a 30 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories.",
+                "fri field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 4,
+              "rules": {
+                "catalog_name_ko": 4
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-06",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "low",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            }
+          },
+          {
+            "id": "W3",
+            "week": "2099-07-20",
+            "status": "fallback_after_model_failure:2/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:2/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "emphasis",
+              "volume_ceiling": "low",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "wed duration class is locked",
+              "mon volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 3
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon",
+              "wed",
+              "thu"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "MODEL",
+              "FALLBACK",
+              "FALLBACK",
+              "MODEL_REVISED",
+              "FALLBACK"
+            ],
+            "elapsed_ms": 51579,
+            "log_count": 92,
+            "model_calls": 5,
+            "tokens": 59670,
+            "log_latency_ms": 42600,
+            "session_failures": {
+              "failed_days": 4,
+              "passed_days": 2,
+              "retried_pass": 0,
+              "retried_fail": 4,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 2,
+                "not_success": 4,
+                "time_based_accepted": 5,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "prescription": 4
+              },
+              "examples": [
+                "mon field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "wed field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "thu field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "sun field conditioning.movements.amount: prescription: row amount 400m does not fit a 60 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories."
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 3,
+              "rules": {
+                "catalog_name_ko": 3
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-13",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 3,
+              "completed_days": 3,
+              "record": "summary"
+            }
+          },
+          {
+            "id": "W4",
+            "week": "2099-07-27",
+            "status": "fallback_after_model_failure:5/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:5/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "DELOAD",
+              "volume_ceiling": "moderate",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "light"
+            },
+            "lock_before": [
+              "mon duration class is locked",
+              "mon volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 1,
+              "volume": 1
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "mon"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "FALLBACK",
+              "MODEL_REVISED",
+              "MODEL_REVISED",
+              "MODEL",
+              "MODEL",
+              "MODEL"
+            ],
+            "elapsed_ms": 42203,
+            "log_count": 92,
+            "model_calls": 8,
+            "tokens": 40114,
+            "log_latency_ms": 32753,
+            "session_failures": {
+              "failed_days": 1,
+              "passed_days": 5,
+              "retried_pass": 0,
+              "retried_fail": 1,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 5,
+                "not_success": 1,
+                "time_based_accepted": 4,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "prescription": 1
+              },
+              "examples": [
+                "mon field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 2,
+              "rules": {
+                "catalog_name_ko": 2
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-20",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "moderate",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            }
+          },
+          {
+            "id": "S1",
+            "week": "2099-08-03",
+            "status": "fallback_after_model_failure:3/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:3/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "accumulation",
+              "volume_ceiling": "high",
+              "conditioning_ceiling": "heavy",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "tue duration class is locked",
+              "thu duration class is locked",
+              "tue volume exceeds the locked profile low",
+              "wed volume exceeds the locked profile low",
+              "thu volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "duration": 2,
+              "volume": 3
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "tue",
+              "wed",
+              "thu"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "FALLBACK",
+              "FALLBACK",
+              "FALLBACK",
+              "MODEL_REVISED",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 71090,
+            "log_count": 92,
+            "model_calls": 6,
+            "tokens": 62943,
+            "log_latency_ms": 42214,
+            "session_failures": {
+              "failed_days": 3,
+              "passed_days": 3,
+              "retried_pass": 2,
+              "retried_fail": 3,
+              "retained_first_error": 2,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 3,
+                "not_success": 3,
+                "time_based_accepted": 5,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "prescription": 4
+              },
+              "examples": [
+                "tue field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "wed field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "thu field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do",
+                "thu field conditioning.movements.amount: prescription: row amount 200m does not fit a 30 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories."
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 2,
+              "rules": {
+                "catalog_name_ko": 2
+              }
+            },
+            "previous_actual": {
+              "week": "2099-07-27",
+              "note_ko": "기록 없음. 출석과 수행 데이터가 없어 결석과 피로를 추론하지 않습니다.",
+              "fatigue_signal": null,
+              "missed_days": null,
+              "completed_days": null,
+              "record": "no_record"
+            }
+          },
+          {
+            "id": "S2",
+            "week": "2099-08-10",
+            "status": "fallback_after_model_failure:4/6",
+            "generation_source": "fallback",
+            "fallback_reason": "fallback_after_model_failure:4/6",
+            "week_status": "VALIDATED",
+            "skeleton_locked": true,
+            "skeleton_source": "model",
+            "skeleton_rewrites": 1,
+            "thesis": {
+              "phase": "emphasis",
+              "volume_ceiling": "low",
+              "conditioning_ceiling": "moderate",
+              "strength_ceiling": "heavy"
+            },
+            "lock_before": [
+              "fri volume exceeds the locked profile low",
+              "sat volume exceeds the locked profile low"
+            ],
+            "lock_after": [],
+            "lock_before_kinds": {
+              "volume": 2
+            },
+            "lock_after_kinds": {},
+            "fitted_days": [],
+            "regenerated_days": [
+              "fri",
+              "sat"
+            ],
+            "unresolved_days": [],
+            "day_sources": [
+              "MODEL",
+              "MODEL",
+              "MODEL",
+              "FALLBACK",
+              "FALLBACK",
+              "MODEL_REVISED"
+            ],
+            "elapsed_ms": 51007,
+            "log_count": 92,
+            "model_calls": 7,
+            "tokens": 48745,
+            "log_latency_ms": 41632,
+            "session_failures": {
+              "failed_days": 2,
+              "passed_days": 4,
+              "retried_pass": 0,
+              "retried_fail": 2,
+              "retained_first_error": 0,
+              "retry_without_first_error": 0,
+              "unit_quality": {
+                "sessions": 6,
+                "first_attempt_clean": 6,
+                "double_under_errors": 0,
+                "row_errors": 0,
+                "other_unit_errors": 0,
+                "adopted_pass": 4,
+                "not_success": 2,
+                "time_based_accepted": 4,
+                "prescription_revise": 0,
+                "prescription_unclear": 0
+              },
+              "kinds": {
+                "prescription": 2
+              },
+              "examples": [
+                "fri field conditioning.movements.amount: prescription: row amount 400m does not fit a 60 second work interval. Shorten the distance or lengthen the work interval. Do not invent calories.",
+                "sat field conditioning.movements.amount: prescription: double_under amount 30sec fills the 30 second work interval, so the other movements do not fit. Shorten that bout or lengthen interval_work_sec, and keep the required movement count. Do"
+              ]
+            },
+            "normalizations": {
+              "unit_seen": 0,
+              "unit_converted": 0,
+              "unit_unconverted": 0,
+              "display_rewrites": 2,
+              "rules": {
+                "catalog_name_ko": 2
+              }
+            },
+            "previous_actual": {
+              "week": "2099-08-03",
+              "note_ko": "프로브 수행",
+              "fatigue_signal": "high",
+              "missed_days": 0,
+              "completed_days": 6,
+              "record": "summary"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
