@@ -923,7 +923,7 @@ function expandContract(
         interval_rest_sec: lock.format === "intervals" ? 20 : null,
         ...clockEcho(lock.clock),
       },
-      ...(lock.format !== "zone2" ? { prescription_levels: body.levels ?? null } : {}),
+      ...(lock.format !== "zone2" && body.levels != null ? { prescription_levels: body.levels } : {}),
       contract_part: {
         kind: "conditioning",
         metcon_minutes: lock.metcon_minutes,
