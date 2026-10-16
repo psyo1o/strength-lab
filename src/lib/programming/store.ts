@@ -144,7 +144,7 @@ const PRIVATE_KEYS = new Set([
   "phone",
 ]);
 
-const SECRET_ENV = ["MONTH_PLAN_MODEL_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY"] as const;
+const SECRET_ENV = ["MONTH_PLAN_MODEL_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "DASHSCOPE_API_KEY"] as const;
 
 /** Strips credential values from a log line. The variable names stay out of the text. */
 export function redactSecretText(text: string): string {

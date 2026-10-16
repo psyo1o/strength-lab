@@ -439,7 +439,7 @@ export function levelGuide(lock: DaySessionLock): string {
     "The server checks derived time, estimate at or under the cap, cap at or over the format minimum, the cap plus or minus 25 percent, Rx, the 90-110 block sum, the one-step limit, and monotonicity.",
     "The server does not rewrite your movement or your numbers.",
     "Level 3 must pass or the day is rejected. Another level that fails its own check is hidden and does not by itself fail the day.",
-    "An adjacent pair passes when at least one slot changes step or total work is at least 1.10 times the lower level. Work is reps times rep_cost times load factor. Levels 4 and 5 use that same rule. Weight or reps can raise the level. Do not force a high-skill movement. Otherwise that higher level is hidden.",
+    "Each level is compared with the nearest displayed level toward level 3. A hidden level is not a baseline. The pair passes when at least one slot changes step or total work is at least 1.10 times the lower level. Work is reps times rep_cost times load factor. Levels 4 and 5 use that same rule. Weight or reps can raise the level. Do not force a high-skill movement. The same prescription hides the outer level, the one farther from 3.",
     `Floors in seconds for this format: 1-2 ${floor(1) ?? "none"}, 3 ${floor(3) ?? "none"}, 4-5 ${floor(5) ?? "none"}.`,
     "Load and density must not fall as the level number rises. Equal values are allowed. A drop fails the whole day.",
     "Density is derived work divided by the cap for for_time, chipper, and partner. For AMRAP, EMOM, and intervals it is the round or station work.",
@@ -779,25 +779,65 @@ function hideLevel(level: LevelPrescription, reason: string): void {
   level.progress = null;
 }
 
-/** Adjacent step and work checks. A hidden lower level is not a baseline. */
+function loadSignature(load: { male: string | null; female: string | null } | null): string {
+  if (!load) return "";
+  return `${load.male ?? ""}/${load.female ?? ""}`;
+}
+
+function samePrescription(left: LevelPrescription, right: LevelPrescription): boolean {
+  if (left.cap_min !== right.cap_min || left.rounds !== right.rounds || left.sets !== right.sets) return false;
+  if (left.work_sec !== right.work_sec || left.rest_sec !== right.rest_sec) return false;
+  if (left.movements.length !== right.movements.length) return false;
+  return left.movements.every((movement, index) => {
+    const other = right.movements[index]!;
+    return movement.key === other.key && movement.amount === other.amount && loadSignature(movement.load) === loadSignature(other.load);
+  });
+}
+
+/** Nearest passing level walking from this level toward 3. A hidden level is not a baseline. */
+function displayedTowardCenter(levels: readonly LevelPrescription[], level: number): LevelPrescription | null {
+  const toward = level > 3 ? -1 : 1;
+  for (let cursor = level + toward; cursor >= 1 && cursor <= 5; cursor += toward) {
+    if ((level > 3 && cursor < 3) || (level < 3 && cursor > 3)) break;
+    const row = levels.find((item) => item.level === cursor);
+    if (row?.status === "pass") return row;
+    if (cursor === 3) break;
+  }
+  return null;
+}
+
+/**
+ * Compare each level with the nearest displayed level toward 3.
+ * The outer level, farther from 3, is hidden when the prescription matches or the step/work rule fails.
+ */
 function annotatePairs(format: string, skeletons: readonly string[], levels: LevelPrescription[]): void {
-  for (let index = 1; index < levels.length; index += 1) {
-    const previous = levels[index - 1]!;
-    const current = levels[index]!;
-    const left = previous.movements.map((movement) => movement.key);
-    const right = current.movements.map((movement) => movement.key);
-    const delta = maxStepDelta(skeletons, left, right);
-    if (delta != null && delta > 1) hideLevel(current, `level ${current.level} moves more than one ladder step`);
-    if (previous.status !== "pass" || current.status !== "pass") continue;
-    const before = levelWork(format, previous);
-    const after = levelWork(format, current);
-    const stepped = stepsDiffer(skeletons, left, right);
+  for (const levelNumber of [2, 1, 4, 5] as const) {
+    const current = levels.find((row) => row.level === levelNumber);
+    if (!current || current.status !== "pass") continue;
+    const baseline = displayedTowardCenter(levels, levelNumber);
+    if (!baseline) continue;
+    const baseKeys = baseline.movements.map((movement) => movement.key);
+    const currentKeys = current.movements.map((movement) => movement.key);
+    const delta = maxStepDelta(skeletons, baseKeys, currentKeys);
+    if (delta != null && delta > 1) {
+      hideLevel(current, `level ${current.level} moves more than one ladder step`);
+      continue;
+    }
+    const higher = current.level > baseline.level ? current : baseline;
+    const lower = current.level > baseline.level ? baseline : current;
+    const before = levelWork(format, lower);
+    const after = levelWork(format, higher);
+    const stepped = stepsDiffer(
+      skeletons,
+      lower.movements.map((movement) => movement.key),
+      higher.movements.map((movement) => movement.key),
+    );
     const worked = before > 0 && after >= before * 1.1;
-    if (!stepped && !worked) {
+    if (samePrescription(baseline, current) || (!stepped && !worked)) {
       hideLevel(current, `level ${current.level} does not change a ladder step or raise work by 10%`);
       continue;
     }
-    current.progress = stepped && worked ? "both" : stepped ? "step" : "work";
+    higher.progress = stepped && worked ? "both" : stepped ? "step" : "work";
   }
 }
 

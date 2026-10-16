@@ -125,10 +125,14 @@ function zeroUsage(): TokenUsage {
 
 function addUsage(total: TokenUsage, next: TokenUsage | null | undefined): TokenUsage {
   if (!next) return total;
+  const cacheRead = total.cache_read_tokens != null || next.cache_read_tokens != null ? (total.cache_read_tokens ?? 0) + (next.cache_read_tokens ?? 0) : undefined;
+  const cacheWrite = total.cache_write_tokens != null || next.cache_write_tokens != null ? (total.cache_write_tokens ?? 0) + (next.cache_write_tokens ?? 0) : undefined;
   return {
     prompt_tokens: total.prompt_tokens + next.prompt_tokens,
     completion_tokens: total.completion_tokens + next.completion_tokens,
     total_tokens: total.total_tokens + next.total_tokens,
+    ...(cacheRead != null ? { cache_read_tokens: cacheRead } : {}),
+    ...(cacheWrite != null ? { cache_write_tokens: cacheWrite } : {}),
   };
 }
 

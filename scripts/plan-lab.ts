@@ -36,7 +36,9 @@
  *
  * MONTH_PLAN_MODEL_KEY is read from the environment. This script does not print it.
  * The default model stays gpt-5.4-nano. PROBE_PROVIDER and PROBE_MODEL select another
- * provider. They are copied onto COACH_MODEL_PROVIDER and COACH_MODEL_NAME.
+ * provider for every coach. They are copied onto COACH_MODEL_PROVIDER and COACH_MODEL_NAME.
+ * PROBE_SESSION_MODEL copies onto SESSION_MODEL_KEY and leaves monthly and head on nano.
+ * PROBE_REASONING copies onto COACH_REASONING_EFFORT. Unset stays the provider default.
  * Prepared W1 commands, not run:
  *   PROBE_MODE=db PROBE_LABEL=provider-openai PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=openai PROBE_MODEL=gpt-5.4-nano npx tsx scripts/plan-lab.ts
  *   PROBE_MODE=db PROBE_LABEL=provider-anthropic PROBE_FLAGS=off PROBE_SCENARIOS=W1 PROBE_PASSES=A1 PROBE_PROVIDER=anthropic PROBE_MODEL=claude-sonnet-5 npx tsx scripts/plan-lab.ts
@@ -221,12 +223,15 @@ function applyProbeSelection(): void {
   if (provider) process.env.COACH_MODEL_PROVIDER = provider;
   const model = process.env.PROBE_MODEL?.trim();
   if (model) process.env.COACH_MODEL_NAME = model;
+  const sessionModel = process.env.PROBE_SESSION_MODEL?.trim();
+  if (sessionModel) process.env.SESSION_MODEL_KEY = sessionModel;
+  const reasoning = process.env.PROBE_REASONING?.trim();
+  if (reasoning) process.env.COACH_REASONING_EFFORT = reasoning;
 }
 
 function modelCallUrl(url: string): boolean {
-  const provider = coachProvider();
-  if (provider === "gemini") return url.startsWith(GEMINI_GENERATE_URL);
-  return url === coachEndpoint(provider);
+  if (url.startsWith(GEMINI_GENERATE_URL)) return true;
+  return url === coachEndpoint("openai") || url === coachEndpoint("anthropic") || url === coachEndpoint("xai") || url === coachEndpoint("dashscope");
 }
 
 function abortIfFirstModelCallIs429(): void {
@@ -245,7 +250,7 @@ function abortIfFirstModelCallIs429(): void {
 
 function scrub(text: string): string {
   let out = text;
-  for (const name of ["MONTH_PLAN_MODEL_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY"]) {
+  for (const name of ["MONTH_PLAN_MODEL_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "DASHSCOPE_API_KEY"]) {
     const key = process.env[name]?.trim();
     if (key) out = out.split(key).join("[redacted]");
   }

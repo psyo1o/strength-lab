@@ -133,10 +133,14 @@ export function monthlyCoachPayload(month: MonthDirection, actual?: WeekActual |
 function addUsage(left: TokenUsage | null, right: TokenUsage | null): TokenUsage | null {
   if (!left) return right;
   if (!right) return left;
+  const cacheRead = left.cache_read_tokens != null || right.cache_read_tokens != null ? (left.cache_read_tokens ?? 0) + (right.cache_read_tokens ?? 0) : undefined;
+  const cacheWrite = left.cache_write_tokens != null || right.cache_write_tokens != null ? (left.cache_write_tokens ?? 0) + (right.cache_write_tokens ?? 0) : undefined;
   return {
     prompt_tokens: left.prompt_tokens + right.prompt_tokens,
     completion_tokens: left.completion_tokens + right.completion_tokens,
     total_tokens: left.total_tokens + right.total_tokens,
+    ...(cacheRead != null ? { cache_read_tokens: cacheRead } : {}),
+    ...(cacheWrite != null ? { cache_write_tokens: cacheWrite } : {}),
   };
 }
 

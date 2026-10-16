@@ -66,6 +66,10 @@ export type TokenUsage = {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  /** Tokens served from a prompt cache. Absent when the provider omits the field. */
+  cache_read_tokens?: number;
+  /** Tokens written into a prompt cache. Absent when the provider omits the field. */
+  cache_write_tokens?: number;
 };
 
 export type AgentTrace = {

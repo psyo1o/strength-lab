@@ -58,6 +58,7 @@ describe("coach provider requests", () => {
       max_completion_tokens: 40,
       temperature: 0.2,
       response_format: schema,
+      prompt_cache_key: "strength-lab-coach",
     });
     expect(request.body.messages).toEqual([
       { role: "developer", content: "system" },
@@ -83,7 +84,7 @@ describe("coach provider requests", () => {
     expect(request.body).toMatchObject({
       model: "claude-sonnet-5",
       max_tokens: 40,
-      system: "system",
+      system: [{ type: "text", text: "system", cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: "{\"day\":\"mon\"}" }],
       output_config: { format: { type: "json_schema", schema: schema.json_schema.schema } },
     });

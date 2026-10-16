@@ -272,4 +272,60 @@ describe("intensity levels", () => {
     for (const row of high) expect(row.risk_level).toBe("high");
     expect(risky.levels.find((row) => row.level === 5)?.movements.some((move) => move.risk_level === "high") || high.length >= 0).toBe(true);
   });
+
+  it("compares each level with the nearest displayed level toward 3 and hides the outer copy", () => {
+    const lock = lockFor("short");
+    const fitted = fitLevelEnums(lock);
+    const raw: Record<string, Record<string, unknown>> = {};
+    for (const level of [1, 2, 3, 4, 5]) {
+      const spec = fitted[level as 1 | 2 | 3 | 4 | 5];
+      const row: Record<string, unknown> = {
+        cap_min: spec.caps[0],
+        rounds: spec.rounds ? spec.rounds[0] : null,
+        work_sec: lock.format === "intervals" ? 40 : null,
+        rest_sec: lock.format === "intervals" ? 20 : null,
+        sets: lock.format === "intervals" ? spec.caps[0] : null,
+      };
+      spec.amounts.forEach((amounts, index) => {
+        row[`m${index}`] = amounts[0];
+        row[`m${index}_move`] = spec.moves[index]![0];
+        row[`m${index}_load`] = spec.loads[index]?.[0] ?? "none";
+      });
+      raw[String(level)] = row;
+    }
+    const center = judgeLevels(raw, lock)!;
+    expect(center.levels.find((row) => row.level === 3)?.status).toBe("pass");
+
+    const upward = JSON.parse(JSON.stringify(raw)) as Record<string, Record<string, unknown>>;
+    upward["4"]!.m0_move = "air_squat";
+    upward["5"] = { ...upward["3"]! };
+    const comparedUp = judgeLevels(upward, lock)!;
+    expect(comparedUp.levels.find((row) => row.level === 4)?.status).toBe("hidden");
+    expect(comparedUp.levels.find((row) => row.level === 3)?.status).toBe("pass");
+    const level5 = comparedUp.levels.find((row) => row.level === 5)!;
+    expect(level5.status).toBe("hidden");
+    expect(level5.hidden_reason ?? "").toContain("10%");
+
+    const downward = JSON.parse(JSON.stringify(raw)) as Record<string, Record<string, unknown>>;
+    downward["2"]!.m0_move = "air_squat";
+    downward["1"] = { ...downward["3"]! };
+    const comparedDown = judgeLevels(downward, lock)!;
+    expect(comparedDown.levels.find((row) => row.level === 2)?.status).toBe("hidden");
+    expect(comparedDown.levels.find((row) => row.level === 3)?.status).toBe("pass");
+    const level1 = comparedDown.levels.find((row) => row.level === 1)!;
+    expect(level1.status).toBe("hidden");
+
+    const twins = JSON.parse(JSON.stringify(raw)) as Record<string, Record<string, unknown>>;
+    twins["2"] = { ...twins["1"]! };
+    const comparedTwins = judgeLevels(twins, lock)!;
+    const shown2 = comparedTwins.levels.find((row) => row.level === 2)!;
+    const outer1 = comparedTwins.levels.find((row) => row.level === 1)!;
+    if (shown2.status === "pass") {
+      expect(outer1.status).toBe("hidden");
+      expect(outer1.hidden_reason ?? "").toContain("10%");
+    } else {
+      expect(outer1.status).toBe("hidden");
+      expect(outer1.hidden_reason ?? "").toContain("10%");
+    }
+  });
 });
