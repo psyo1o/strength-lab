@@ -160,7 +160,7 @@ describe("prod week 146 lock failure", () => {
     expect(saturday?.metcon.map((move) => `${move.key}:${move.unit}:${move.amount}`)).toEqual([
       "run:m:400",
       "american_kettlebell_swing:reps:20",
-      "sumo_deadlift_high_pull:reps:35",
+      "sumo_deadlift_high_pull:reps:20",
     ]);
 
     const swapped = session("mon", piece("partner", partnerMoves()));

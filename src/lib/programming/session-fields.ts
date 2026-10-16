@@ -88,7 +88,11 @@ export function fillSessionFields(
     equipment: [...conditioning.equipment],
     volume: conditioning.volume,
     intensity: conditioning.intensity,
-    expected_duration: conditioning.duration_min,
+    expected_duration:
+      (conditioning.format === "for_time" || conditioning.format === "chipper" || conditioning.format === "partner") &&
+      conditioning.derived_sec != null
+        ? Math.max(1, Math.round(conditioning.derived_sec / 60))
+        : conditioning.duration_min,
   };
 }
 

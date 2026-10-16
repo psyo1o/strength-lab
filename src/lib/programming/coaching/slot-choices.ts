@@ -17,7 +17,7 @@ import {
   standardMovements,
   type CatalogUnit,
 } from "./movement-catalog";
-import { allowedAmounts, cleanDisplayName, intensityLockEnum, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { allowedAmounts, cleanDisplayName, clockEcho, clockPresent, intensityLockEnum, readClock, sameClock, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
@@ -497,6 +497,13 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
       properties.extra_minutes = { type: "integer", enum: [minutes("extra_conditioning")] };
       properties.stimulus = { type: "string", enum: stimuli };
       properties.intensity = { type: "string", enum: bands };
+      const echo = clockEcho(frame.contract.clock);
+      for (const [key, value] of Object.entries(echo)) {
+        required.push(key);
+        if (value == null) properties[key] = { type: "null" };
+        else if (typeof value === "number") properties[key] = { type: "integer", enum: [value] };
+        else properties[key] = { type: "string", enum: [value] };
+      }
     } else if (frame.area === "warmup") {
       for (const key of ["warmup_minutes", "cooldown_minutes"]) required.push(key);
       properties.warmup_minutes = { type: "integer", enum: [minutes("warmup")] };
@@ -773,6 +780,10 @@ function expandContract(
     if (!(stimuli as readonly string[]).includes(pickedStimulus)) errors.push("stimulus is outside the locked ceiling");
     const picked = echoed(body.intensity);
     if (!(bands as readonly string[]).includes(picked)) errors.push("intensity is outside the locked ceiling");
+    if (clockPresent(body)) {
+      const clock = readClock(body);
+      if (!clock || !sameClock(clock, lock.clock)) errors.push("metcon clock does not match the lock");
+    }
   } else if (frame.area === "warmup") {
     if (echoed(body.warmup_minutes) !== String(minutesOf("warmup"))) errors.push("warmup_minutes does not match the lock");
     if (echoed(body.cooldown_minutes) !== String(minutesOf("cooldown"))) errors.push("cooldown_minutes does not match the lock");
@@ -861,6 +872,7 @@ function expandContract(
         intensity: pickedIntensity,
         interval_work_sec: lock.format === "intervals" ? 40 : null,
         interval_rest_sec: lock.format === "intervals" ? 20 : null,
+        ...clockEcho(lock.clock),
       },
       contract_part: {
         kind: "conditioning",

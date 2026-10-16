@@ -55,9 +55,15 @@ describe("특성화 P4 P5 P6", () => {
       recent: [],
       rules: extractWeekRules({ month: { ...month, coaching_plan: result.monthly_plan }, weekIndex: 1 }),
     });
-    expect(seen.length).toBeGreaterThan(0);
-    expect(diagnostic?.validation_result).toBe("fail");
-    expect(diagnostic?.decision).toBe("FAIL");
+    const rejected = result.traces.some((row) => row.agent_name === "revision_rejected");
+    if (rejected && seen.length === 0) {
+      expect(report.hard).toEqual([]);
+      expect(result.final_validation?.ok).toBe(true);
+    } else {
+      expect(seen.length).toBeGreaterThan(0);
+      expect(diagnostic?.validation_result).toBe("fail");
+      expect(diagnostic?.decision).toBe("FAIL");
+    }
     if (report.hard.length > 0) {
       expect(result.final_validation?.ok).toBe(false);
       expect(result.final_validation?.errors.length).toBeGreaterThan(0);

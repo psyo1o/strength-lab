@@ -16,6 +16,7 @@ import {
   type WeekIndex,
 } from "../month-plan/types";
 import { catalogMovement, displayAmount, linkedCatalogKey, movementDisplayName } from "./coaching/movement-catalog";
+import { renderMetconLine } from "./coaching/session-contract";
 import { loadBasisForMethod } from "./strength-methods";
 import { tipFor } from "../tips";
 import type { ConditioningDraft, MovementDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
@@ -101,13 +102,25 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
     pattern,
     movements,
     signature: pieceSignature(conditioning.format, movements),
-    bodyKo: renderPiece({
-      format: conditioning.format,
-      minutes: conditioning.duration_min,
-      movements,
-      long: conditioning.long_conditioning,
-      noteKo: pieceNote(conditioning),
-    }),
+    bodyKo: conditioning.clock
+      ? renderMetconLine({
+          format: conditioning.format,
+          clock: conditioning.clock,
+          movements: conditioning.movements.map((movement) => ({
+            key: movement.key,
+            amount: movement.amount_value,
+            unit: movement.unit,
+            qty: movement.qty,
+            load: movement.load,
+          })),
+        })
+      : renderPiece({
+          format: conditioning.format,
+          minutes: conditioning.duration_min,
+          movements,
+          long: conditioning.long_conditioning,
+          noteKo: pieceNote(conditioning),
+        }),
     stimulus: conditioning.stimulus ? STIMULUS_KO[conditioning.stimulus] : null,
   };
 }
@@ -197,14 +210,26 @@ function contractBlocks(session: SessionDraft, strengthMethod: string): SessionB
     const rows = phases?.length
       ? phases.map((phase) => `${phase.phase === "raise" ? "레이즈" : phase.phase === "mobilise" ? "모빌라이즈" : phase.phase === "activate" ? "액티베이트" : phase.phase === "potentiate" ? "포텐시에이트" : "쿨다운"} · ${tipLines(phase.key, phase.unit, phase.amount)}`)
       : block.movements.map((movement) => tipLines(movement.key, movement.unit, movement.amount));
-    const head =
-      block.role === "metcon" && session.conditioning
-        ? `${session.conditioning.format === "partner" ? "파트너 형식 · 개인도 가능" : session.conditioning.format} ${block.minutes}분`
-        : "";
+    const metconLine =
+      block.role === "metcon" && session.conditioning?.clock
+        ? renderMetconLine({
+            format: session.conditioning.format,
+            clock: session.conditioning.clock,
+            movements: session.conditioning.movements.map((movement) => ({
+              key: movement.key,
+              amount: movement.amount_value,
+              unit: movement.unit,
+              qty: movement.qty,
+              load: movement.load,
+            })),
+          })
+        : block.role === "metcon" && session.conditioning
+          ? `${session.conditioning.format === "partner" ? "파트너 형식 · 개인도 가능" : session.conditioning.format} ${block.minutes}분`
+          : "";
     return {
       role,
       titleKo: BLOCK_TITLE[block.role] ?? block.role,
-      bodyKo: [head, block.role === "main_lift" && lift ? strengthBody(lift) : "", ...rows].filter(Boolean).join("\n"),
+      bodyKo: [metconLine, block.role === "main_lift" && lift ? strengthBody(lift) : "", ...rows].filter(Boolean).join("\n"),
       minutes: block.minutes,
       cuttable: false,
       kept: true,

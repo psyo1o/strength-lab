@@ -6,7 +6,7 @@ import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { classCompletionForCoach, classSummaryForCoach, omitAbsenceSummary, parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
-import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
+import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, sessionEstimateIssues, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -2795,9 +2795,10 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     weekContractIssues({ sessions: [...sessions] }, input.weekIndex, month.strength_method || month.scheme || "531", contractDaysFor(week, plan)).some((message) =>
       /locked dose|locked ceiling|does not match lock|do not match lock/.test(message),
     );
+  const estimateBroken = (sessions: readonly SessionDraft[]) => sessions.some((session) => sessionEstimateIssues(session).length > 0);
   const headCells = applyHeadCells(draft.sessions, modelRevisions, {
     avoidHeavyLower,
-    accept: (sessions) => !lockStillBroken(sessions),
+    accept: (sessions) => !lockStillBroken(sessions) && !estimateBroken(sessions),
   });
   if (headCells.applied > 0 && lockStillBroken(draft.sessions)) {
     draft.sessions.splice(0, draft.sessions.length, ...beforeHeadSessions);

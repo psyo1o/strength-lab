@@ -156,6 +156,25 @@ export type MonthGoalTable = {
   weeks: WeekGoal[];
 };
 
+export type ShareMode = "YGIG" | "split" | "sync";
+
+/** 형식별 메트콘 시계. 설명 문장에서 읽지 않는다. */
+export type MetconClock = {
+  rounds: number | null;
+  cap_sec: number | null;
+  duration_sec: number | null;
+  interval_sec: number | null;
+  work_sec: number | null;
+  rest_sec: number | null;
+  sets: number | null;
+  team_size: number | null;
+  share_mode: ShareMode | null;
+  /** 치퍼 순서. 스키마에서는 `>`로 잇는다. */
+  order: string[] | null;
+};
+
+export type RxLoad = { male: number; female: number; unit: "lb" | "kg" };
+
 export type MovementDraft = {
   key: string;
   amount: string;
@@ -163,8 +182,11 @@ export type MovementDraft = {
   /** Catalog key. The display string stays in amount. */
   movement?: string;
   amount_value?: number | null;
+  /** 라운드마다 같으면 숫자, 21-15-9처럼 다르면 길이 = rounds. */
+  qty?: number | number[] | null;
   unit?: "reps" | "cal" | "m" | "sec" | "min" | null;
   load?: { male: string | null; female: string | null } | null;
+  rx?: RxLoad | null;
 };
 
 /** Structural features of one conditioning piece. Movement names are not the identity. */
@@ -184,6 +206,12 @@ export type ConditioningDraft = {
   long_conditioning: boolean;
   /** Why this metcon is here. Required when the piece is generated. One or two Korean sentences. */
   purpose: string;
+  /** 모델이 맞춘 구조. 없으면 예전 세션이다. */
+  clock?: MetconClock | null;
+  /** 카탈로그 페이스로 계산한 초. 캡을 복사하지 않는다. */
+  derived_sec?: number | null;
+  derived_rounds?: number | null;
+  time_source?: "derived" | null;
 };
 
 export type SessionDraft = {
@@ -241,6 +269,8 @@ export type SessionDraft = {
       derived_minutes?: number;
       time_source?: "derived";
     }[];
+    derived_sec?: number;
+    time_source?: "derived";
   }[];
   warmup_phases?: {
     phase: "raise" | "mobilise" | "activate" | "potentiate" | "cooldown";

@@ -3,7 +3,8 @@ import path from "node:path";
 import type { DayKey, WeekIndex } from "../../month-plan/types";
 import { exampleSets } from "../strength-methods";
 import { rangeFor } from "./movement-catalog";
-import { STIMULI, type MainLift, type Stimulus, type WodFormat } from "../types";
+import { STIMULI, type MainLift, type MetconClock, type ShareMode, type Stimulus, type WodFormat } from "../types";
+import { catalogRxWeights, modalWodLb, movementDisplayName } from "./movement-catalog";
 
 /** 수업 창. 설정이 없으면 100이고, 그 사실을 한 번 남긴다. */
 export const SESSION_MINUTES_MIN = 90;
@@ -36,6 +37,8 @@ export type DoseMovement = {
   rest_sec?: number;
   derived_minutes?: number;
   time_source?: "derived";
+  /** 라운드별 수량. 없으면 amount가 매 라운드 수량이다. */
+  qty?: number | readonly number[];
 };
 
 /** 메트콘 수량은 이 격자만. 거리는 200·400·800, 횟수와 칼로리는 5의 배수, 초는 30의 배수. */
@@ -135,6 +138,8 @@ export type DaySessionLock = {
   intensity_class: IntensityCeiling | null;
   /** 존 2 지속 유산소. 맨몸 메인을 요구하지 않는다. */
   steady?: boolean;
+  /** 형식별 시계. 휴식일은 빈 시계다. */
+  clock: MetconClock;
 };
 
 type Pace = {
@@ -454,8 +459,9 @@ function minuteWindow(format: string, source: readonly DoseMovement[], preferred
   for (let value = minMinutes; value <= BLOCK_RANGES.metcon.max; value += 1) minutes.push(value);
   minutes.sort((left, right) => Math.abs(left - preferred) - Math.abs(right - preferred) || left - right);
   for (const value of minutes) {
-    const dose = scaleDose(format, value, source);
-    if (!doseIssues({ format, minutes: value, movements: dose }).length) return { minutes: value, dose };
+    const clock = clockForFormat(format, value, source.map((move) => move.key));
+    const dose = scaleDose(format, value, source, clock);
+    if (!doseIssues({ format, minutes: value, movements: dose, clock }).length) return { minutes: value, dose };
   }
   return null;
 }
@@ -477,21 +483,22 @@ export function planWeekContract(
   const training = sorted.filter((day) => !day.rest);
   const shift = (weekIndex - 1) % TEMPLATES.length;
   const chosen = new Map(training.map((day, index) => [day.day, TEMPLATES[(index + shift) % TEMPLATES.length]!]));
+  const zone2Day = (key: string) => training.some((row) => row.day === key && row.zone2);
   for (const day of training) {
-    if (!day.long) continue;
+    if (!day.long || day.zone2) continue;
     const current = chosen.get(day.day)!;
     if (minuteWindow(current.format, current.metcon, 36, 30)) continue;
     const replacement = TEMPLATES.find((row) => {
       const signature = row.metcon.map((move) => move.key).sort().join("|");
-      const taken = [...chosen.entries()].some(([key, template]) => key !== day.day && template.metcon.map((move) => move.key).sort().join("|") === signature);
+      const taken = [...chosen.entries()].some(([key, template]) => key !== day.day && !zone2Day(key) && template.metcon.map((move) => move.key).sort().join("|") === signature);
       if (taken) return false;
-      const formatCount = [...chosen.entries()].filter(([key, template]) => key !== day.day && template.format === row.format).length;
+      const formatCount = [...chosen.entries()].filter(([key, template]) => key !== day.day && !zone2Day(key) && template.format === row.format).length;
       if (formatCount >= 2) return false;
       return minuteWindow(row.format, row.metcon, 36, 30) != null;
     });
     const fallbackSignature = LONG_FALLBACK.metcon.map((move) => move.key).sort().join("|");
-    const fallbackTaken = [...chosen.values()].some((template) => template.metcon.map((move) => move.key).sort().join("|") === fallbackSignature);
-    const fallbackFormats = [...chosen.entries()].filter(([key, template]) => key !== day.day && template.format === LONG_FALLBACK.format).length;
+    const fallbackTaken = [...chosen.entries()].some(([key, template]) => !zone2Day(key) && template.metcon.map((move) => move.key).sort().join("|") === fallbackSignature);
+    const fallbackFormats = [...chosen.entries()].filter(([key, template]) => key !== day.day && !zone2Day(key) && template.format === LONG_FALLBACK.format).length;
     const fallbackOk = !fallbackTaken && fallbackFormats < 2 && minuteWindow(LONG_FALLBACK.format, LONG_FALLBACK.metcon, 36, 30);
     if (replacement) chosen.set(day.day, replacement);
     else if (fallbackOk) chosen.set(day.day, LONG_FALLBACK);
@@ -521,6 +528,7 @@ export function planWeekContract(
         intensity_ceiling: day.intensity_ceiling ?? "heavy",
         stimulus: day.stimulus ?? null,
         intensity_class: day.intensity_class ?? null,
+        clock: emptyClock(),
       };
     }
     const index = training.findIndex((row) => row.day === day.day);
@@ -652,6 +660,7 @@ export function planWeekContract(
       stimulus,
       intensity_class: zone2 ? "light" : (day.intensity_class ?? null),
       steady: zone2,
+      clock: clockForFormat(format, pieceMinutes, metcon.map((move) => move.key)),
     };
   });
 }
@@ -677,51 +686,293 @@ export function transitionSeconds(key: string): number | null {
   return pace.transition_seconds[1];
 }
 
-/** 양-시간. 느린 끝으로 보고, 값이 없으면 기본값을 넣지 않는다. */
-export function doseIssues(input: { format: string; minutes: number; movements: readonly DoseMovement[] }): string[] {
-  const errors: string[] = [];
-  const works: number[] = [];
-  let transitions = 0;
-  input.movements.forEach((movement, index) => {
-    if (!movementPace(movement.key)) {
-      errors.push(`${movement.key} has no pace. It is not a metcon candidate.`);
-      return;
-    }
-    const work = workSeconds(movement);
-    const gap = transitionSeconds(movement.key);
-    if (work == null || gap == null) {
-      errors.push(`${movement.key} ${movement.unit} has no pace for this unit`);
-      return;
-    }
-    works.push(work);
-    if (index < input.movements.length - 1) transitions += gap;
+export function emptyClock(): MetconClock {
+  return {
+    rounds: null,
+    cap_sec: null,
+    duration_sec: null,
+    interval_sec: null,
+    work_sec: null,
+    rest_sec: null,
+    sets: null,
+    team_size: null,
+    share_mode: null,
+    order: null,
+  };
+}
+
+/** 코드 잠금이 쓰는 시계. 모델이 다른 값을 내면 이 값으로 덮지 않고 거절한다. */
+export function clockForFormat(format: string, minutes: number, keys: readonly string[]): MetconClock {
+  const clock = emptyClock();
+  const span = minutes * 60;
+  if (format === "for_time") return { ...clock, rounds: 3, cap_sec: span };
+  if (format === "chipper") return { ...clock, rounds: 1, cap_sec: span, order: [...keys] };
+  if (format === "amrap") return { ...clock, duration_sec: span };
+  if (format === "emom") return { ...clock, duration_sec: span, interval_sec: 60 };
+  if (format === "intervals") return { ...clock, duration_sec: span, work_sec: 40, rest_sec: 20, sets: minutes };
+  if (format === "partner") return { ...clock, rounds: 3, cap_sec: span, team_size: 2, share_mode: "split" };
+  if (format === "zone2") return { ...clock, duration_sec: span };
+  return clock;
+}
+
+export function sameClock(left: MetconClock, right: MetconClock): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+export function clockEcho(clock: MetconClock): Record<string, number | string | null> {
+  return {
+    rounds: clock.rounds,
+    cap_sec: clock.cap_sec,
+    duration_sec: clock.duration_sec,
+    interval_sec: clock.interval_sec,
+    work_sec: clock.work_sec,
+    rest_sec: clock.rest_sec,
+    sets: clock.sets,
+    team_size: clock.team_size,
+    share_mode: clock.share_mode,
+    order: clock.order?.length ? clock.order.join(">") : null,
+  };
+}
+
+export function rxNumbers(load: { male?: string | null; female?: string | null } | null | undefined): { male: number; female: number; unit: "lb" | "kg" } | null {
+  const read = (text: string | null | undefined) => {
+    if (!text) return null;
+    const match = text.match(/(\d+(?:\.\d+)?)\s*(lb|kg)\b/i);
+    if (!match) return null;
+    return { amount: Number(match[1]), unit: match[2]!.toLowerCase() as "lb" | "kg" };
+  };
+  const male = read(load?.male);
+  const female = read(load?.female);
+  if (!male || !female || male.unit !== female.unit) return null;
+  return { male: male.amount, female: female.amount, unit: male.unit };
+}
+
+function qtyLabel(qty: number | readonly number[], unit: string): string {
+  const body = Array.isArray(qty) ? qty.join("-") : String(qty);
+  if (unit === "cal") return `${body}cal`;
+  if (unit === "m") return `${body}m`;
+  if (unit === "sec") return `${body}초`;
+  if (unit === "min") return `${body}분`;
+  return `${body}회`;
+}
+
+function clockHead(format: string, clock: MetconClock): string {
+  const minutes = (sec: number | null) => (sec == null ? "?" : String(Math.round(sec / 60)));
+  if (format === "for_time") return `${clock.rounds}라운드 For Time · 캡 ${minutes(clock.cap_sec)}분`;
+  if (format === "chipper") return `1라운드 치퍼 · 캡 ${minutes(clock.cap_sec)}분`;
+  if (format === "partner") return `${clock.rounds}라운드 파트너 · 캡 ${minutes(clock.cap_sec)}분 · ${clock.team_size}명 ${clock.share_mode}`;
+  if (format === "amrap") return `${minutes(clock.duration_sec)}분 AMRAP`;
+  if (format === "emom") return `${minutes(clock.duration_sec)}분 EMOM · ${clock.interval_sec}초`;
+  if (format === "intervals") return `${clock.sets}세트 인터벌 · ${clock.work_sec}초 일하고 ${clock.rest_sec}초 쉼`;
+  if (format === "zone2") return `${minutes(clock.duration_sec)}분 존 2 · RPE 2–3`;
+  return format;
+}
+
+/** 회원 화면 문장. 구조 필드만 쓴다. */
+export function renderMetconLine(input: {
+  format: string;
+  clock: MetconClock;
+  movements: readonly {
+    key: string;
+    amount?: number | null;
+    unit?: string | null;
+    qty?: number | readonly number[] | null;
+    load?: { male?: string | null; female?: string | null } | null;
+  }[];
+}): string {
+  const lines = input.movements.map((movement) => {
+    const qty = Array.isArray(movement.qty) ? [...movement.qty] : (movement.qty ?? movement.amount ?? 0);
+    const unit = movement.unit || "reps";
+    const rx = rxNumbers(movement.load);
+    const weight = rx ? ` (${rx.male}/${rx.female} ${rx.unit})` : "";
+    return `${movementDisplayName(movement.key)} ${qtyLabel(qty, unit)}${weight}`;
   });
-  if (errors.length || !works.length) return errors;
-  const work = works.reduce((sum, value) => sum + value, 0);
-  const partnerSplit = input.format === "partner" ? 0.5 : 1;
-  const round = work * partnerSplit + transitions;
-  const cap = input.minutes * 60;
-  if (input.format === "amrap") {
-    const limit = cap * 0.4;
-    if (round > limit) errors.push(`AMRAP round ${Math.round(round)}s is over 40% of ${input.minutes} min`);
-    if (cap / round < 2.5) errors.push(`AMRAP allows fewer than 2.5 rounds in ${input.minutes} min`);
-  } else   if (input.format === "for_time" || input.format === "partner") {
-    if (round > cap) errors.push(`${input.format} estimate ${Math.round(round)}s is over the ${input.minutes} min cap`);
-    const timed = input.movements.every((movement) => movement.unit === "sec");
-    const rounds = timed ? 1 : 3;
-    const estimate = rounds * round;
-    if (cap > 0 && Math.abs(estimate - cap) / cap > 0.25) {
-      errors.push(`${input.format} estimate ${Math.round(estimate)}s differs from the ${input.minutes} min cap by more than 25%`);
-    }
-  } else if (input.format === "chipper") {
-    if (round > cap * 0.9) errors.push(`chipper estimate ${Math.round(round)}s is over 90% of ${input.minutes} min`);
-  } else if (input.format === "emom" || input.format === "intervals") {
-    if (work > 40) errors.push(`${input.format} work ${Math.round(work)}s is over 40s`);
-    if (transitions > 20) errors.push(`${input.format} transitions ${Math.round(transitions)}s are over 20s`);
+  return [clockHead(input.format, input.clock), ...lines].join(" / ");
+}
+
+const CLOCK_KEYS = ["rounds", "cap_sec", "duration_sec", "interval_sec", "work_sec", "rest_sec", "sets", "team_size", "share_mode", "order"] as const;
+
+export function clockPresent(body: Record<string, unknown>): boolean {
+  return CLOCK_KEYS.some((key) => key in body);
+}
+
+export function readClock(body: Record<string, unknown>): MetconClock | null {
+  const keys = CLOCK_KEYS;
+  if (keys.some((key) => !(key in body))) return null;
+  const integer = (key: (typeof keys)[number]): number | null | undefined => {
+    const value = body[key];
+    if (value == null) return null;
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0) return undefined;
+    return value;
+  };
+  const rounds = integer("rounds");
+  const cap = integer("cap_sec");
+  const duration = integer("duration_sec");
+  const interval = integer("interval_sec");
+  const work = integer("work_sec");
+  const rest = integer("rest_sec");
+  const sets = integer("sets");
+  const team = integer("team_size");
+  if ([rounds, cap, duration, interval, work, rest, sets, team].some((value) => value === undefined)) return null;
+  const share = body.share_mode;
+  const shareMode: ShareMode | null = share == null ? null : share === "YGIG" || share === "split" || share === "sync" ? share : null;
+  if (share != null && !shareMode) return null;
+  const order = body.order;
+  const orderKeys = order == null ? null : typeof order === "string" ? order.split(">").filter(Boolean) : null;
+  if (order != null && !orderKeys?.length) return null;
+  return {
+    rounds: rounds ?? null,
+    cap_sec: cap ?? null,
+    duration_sec: duration ?? null,
+    interval_sec: interval ?? null,
+    work_sec: work ?? null,
+    rest_sec: rest ?? null,
+    sets: sets ?? null,
+    team_size: team ?? null,
+    share_mode: shareMode,
+    order: orderKeys,
+  };
+}
+
+function qtyAt(movement: DoseMovement, roundIndex: number, rounds: number): number | null {
+  if (Array.isArray(movement.qty)) {
+    if (movement.qty.length !== rounds) return null;
+    const value = movement.qty[roundIndex];
+    return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
   }
-  if (input.format === "intervals") {
-    const cycle = 60;
-    if (input.minutes * cycle !== cap) errors.push("intervals do not fill the block");
+  return Number.isInteger(movement.amount) && movement.amount > 0 ? movement.amount : null;
+}
+
+type RoundParts = { work: number; transitions: number; handoffs: number };
+
+/** 한 라운드. 파트너는 분담 방식마다 따로 센다. 작업량에 0.5를 곱하지 않는다. */
+function roundParts(movements: readonly DoseMovement[], clock: MetconClock, roundIndex: number, rounds: number): { parts: RoundParts } | { error: string } {
+  let work = 0;
+  let transitions = 0;
+  let handoffs = 0;
+  const partner = clock.share_mode != null;
+  if (partner && (clock.team_size == null || clock.team_size < 2)) return { error: "partner team_size must be at least 2" };
+  for (let index = 0; index < movements.length; index += 1) {
+    const movement = movements[index]!;
+    if (!movementPace(movement.key)) return { error: `${movement.key} has no pace. It is not a metcon candidate.` };
+    const gap = transitionSeconds(movement.key);
+    const qty = qtyAt(movement, roundIndex, rounds);
+    if (gap == null || qty == null) return { error: `${movement.key} ${movement.unit} has no pace for this unit` };
+    const solo = workSeconds({ ...movement, amount: qty });
+    if (solo == null) return { error: `${movement.key} ${movement.unit} has no pace for this unit` };
+    const team = clock.team_size ?? 1;
+    if (clock.share_mode === "YGIG") {
+      work += solo;
+      handoffs += (team - 1) * gap;
+    } else if (clock.share_mode === "split") {
+      const share = Math.ceil(qty / team);
+      const shared = workSeconds({ ...movement, amount: share });
+      if (shared == null) return { error: `${movement.key} ${movement.unit} has no pace for this unit` };
+      work += shared;
+      handoffs += gap;
+    } else {
+      work += solo;
+    }
+    if (index < movements.length - 1) transitions += gap;
+  }
+  return { parts: { work, transitions, handoffs } };
+}
+
+export type MetconDerived = { sec: number; rounds: number | null; time_source: "derived" };
+
+let lastDerived: MetconDerived | null = null;
+
+export function derivedFor(format: string, minutes: number, movements: readonly DoseMovement[], clock: MetconClock): MetconDerived | null {
+  const issues = doseIssues({ format, minutes, movements, clock });
+  if (issues.length || !lastDerived) return null;
+  return { ...lastDerived };
+}
+
+/** 양-시간. 느린 끝으로 보고, 값이 없으면 기본값을 넣지 않는다. 모델 숫자는 고치지 않는다. */
+export function doseIssues(input: { format: string; minutes: number; movements: readonly DoseMovement[]; clock?: MetconClock | null }): string[] {
+  lastDerived = null;
+  const clock = input.clock ?? clockForFormat(input.format, input.minutes, input.movements.map((move) => move.key));
+  const errors: string[] = [];
+  if (input.format === "zone2" || (clock.duration_sec != null && input.format === "zone2")) {
+    if (clock.duration_sec == null) errors.push("zone2 duration_sec is missing");
+    else lastDerived = { sec: clock.duration_sec, rounds: null, time_source: "derived" };
+    return errors;
+  }
+  if (input.format === "for_time" || input.format === "chipper" || input.format === "partner") {
+    if (clock.rounds == null || clock.rounds < 1) errors.push(`${input.format} rounds are missing`);
+    if (clock.cap_sec == null || clock.cap_sec < 1) errors.push(`${input.format} cap_sec is missing`);
+    if (input.format === "chipper" && clock.rounds !== 1) errors.push("chipper rounds must be 1");
+    if (input.format === "chipper") {
+      const order = clock.order ?? [];
+      const keys = input.movements.map((move) => move.key);
+      if (order.join(">") !== keys.join(">")) errors.push("chipper order does not match the movements");
+    }
+    if (input.format === "partner") {
+      if (clock.team_size == null || clock.team_size < 2) errors.push("partner team_size is missing");
+      if (clock.share_mode !== "YGIG" && clock.share_mode !== "split" && clock.share_mode !== "sync") errors.push("partner share_mode is missing");
+    }
+  } else if (input.format === "amrap") {
+    if (clock.duration_sec == null || clock.duration_sec < 1) errors.push("AMRAP duration_sec is missing");
+  } else if (input.format === "emom") {
+    if (clock.duration_sec == null || clock.interval_sec == null || clock.interval_sec < 1) errors.push("EMOM interval_sec is missing");
+  } else if (input.format === "intervals") {
+    if (clock.work_sec == null || clock.rest_sec == null || clock.sets == null) errors.push("intervals work_sec, rest_sec, and sets are missing");
+  }
+  if (errors.length) return errors;
+  const rounds = input.format === "for_time" || input.format === "chipper" || input.format === "partner" ? clock.rounds! : 1;
+  let work = 0;
+  let transitions = 0;
+  let handoffs = 0;
+  for (let round = 0; round < rounds; round += 1) {
+    const parts = roundParts(input.movements, clock, round, rounds);
+    if ("error" in parts) {
+      errors.push(parts.error);
+      return errors;
+    }
+    work += parts.parts.work;
+    transitions += parts.parts.transitions;
+    handoffs += parts.parts.handoffs;
+  }
+  const one = roundParts(input.movements, clock, 0, rounds);
+  if ("error" in one) return [one.error];
+  const oneSec = one.parts.work + one.parts.transitions + one.parts.handoffs;
+  const cap = clock.cap_sec ?? input.minutes * 60;
+  if (input.format === "amrap") {
+    const window = clock.duration_sec ?? cap;
+    if (oneSec > window * 0.4) errors.push(`AMRAP round ${Math.round(oneSec)}s is over 40% of ${input.minutes} min`);
+    const estimated = window / oneSec;
+    if (estimated < 2.5) errors.push(`AMRAP allows fewer than 2.5 rounds in ${input.minutes} min`);
+    if (estimated > 20) errors.push(`AMRAP estimate ${estimated.toFixed(1)} rounds is too many for ${input.minutes} min`);
+    lastDerived = { sec: Math.round(oneSec), rounds: Math.round(estimated * 10) / 10, time_source: "derived" };
+  } else if (input.format === "for_time" || input.format === "partner" || input.format === "chipper") {
+    const total = work + transitions + handoffs;
+    if (cap > 0 && Math.abs(total - cap) / cap > 0.25) {
+      errors.push(`${input.format} estimate ${Math.round(total)}s differs from the ${input.minutes} min cap by more than 25%`);
+    }
+    if (input.format === "chipper" && total > cap * 0.9) errors.push(`chipper estimate ${Math.round(total)}s is over 90% of ${input.minutes} min`);
+    lastDerived = { sec: Math.round(total), rounds, time_source: "derived" };
+  } else if (input.format === "emom" || input.format === "intervals") {
+    const stationWork = one.parts.work;
+    const stationGap = one.parts.transitions;
+    if (stationWork > 40) errors.push(`${input.format} work ${Math.round(stationWork)}s is over 40s`);
+    if (stationGap > 20) errors.push(`${input.format} transitions ${Math.round(stationGap)}s are over 20s`);
+    if (input.format === "emom") {
+      const interval = clock.interval_sec ?? 60;
+      if (stationWork + stationGap > interval) errors.push(`EMOM work ${Math.round(stationWork + stationGap)}s does not fit in ${interval}s`);
+      const cycles = (clock.duration_sec ?? input.minutes * 60) / interval;
+      if (cycles < 8) errors.push(`EMOM estimate ${cycles} rounds is too few`);
+      if (cycles > 40) errors.push(`EMOM estimate ${cycles} rounds is too many`);
+      lastDerived = { sec: Math.round(stationWork + stationGap), rounds: cycles, time_source: "derived" };
+    } else {
+      const workSec = clock.work_sec ?? 40;
+      const restSec = clock.rest_sec ?? 20;
+      const sets = clock.sets ?? input.minutes;
+      if (stationWork > workSec) errors.push(`intervals work ${Math.round(stationWork)}s does not fit in work_sec ${workSec}`);
+      if (stationGap > restSec) errors.push(`intervals transitions ${Math.round(stationGap)}s do not fit in rest_sec ${restSec}`);
+      const span = clock.duration_sec ?? input.minutes * 60;
+      if (sets * (workSec + restSec) !== span) errors.push("intervals do not fill the block");
+      lastDerived = { sec: Math.round(stationWork), rounds: sets, time_source: "derived" };
+    }
   }
   return errors;
 }
@@ -747,33 +998,35 @@ function lowerGridAmount(movement: DoseMovement): boolean {
 }
 
 /** 코드가 잠그는 용량만 창 안으로 맞춘다. 카탈로그 범위 밖으로는 올리지 않는다. 모델이 낸 값은 바꾸지 않는다. */
-export function scaleDose(format: string, minutes: number, movements: readonly DoseMovement[]): DoseMovement[] {
+export function scaleDose(format: string, minutes: number, movements: readonly DoseMovement[], clock?: MetconClock | null): DoseMovement[] {
   const copy = movements.map((movement) => ({ ...movement }));
+  const used = clock ?? clockForFormat(format, minutes, copy.map((move) => move.key));
   for (const movement of copy) {
     clampDose(movement);
     if (movement.unit !== "min") movement.amount = snapDoseAmount(movement.key, movement.unit, movement.amount);
   }
   if (format === "emom" || format === "intervals") {
     for (let step = 0; step < 8; step += 1) {
-      const issues = doseIssues({ format, minutes, movements: copy });
-      if (!issues.some((error) => error.includes("over 40s") || error.includes("over 20s"))) return copy;
+      const issues = doseIssues({ format, minutes, movements: copy, clock: used });
+      if (!issues.some((error) => error.includes("over 40s") || error.includes("over 20s") || error.includes("does not fit"))) return copy;
       const ranked = [...copy].sort((left, right) => (workSeconds(right) ?? 0) - (workSeconds(left) ?? 0));
       if (!ranked.some((movement) => lowerGridAmount(movement))) return copy;
     }
     return copy;
   }
   if (format !== "for_time" && format !== "partner" && format !== "chipper") return copy;
-  for (let step = 0; step < 8; step += 1) {
-    const issues = doseIssues({ format, minutes, movements: copy });
-    const window = issues.find((error) => error.includes("25%"));
+  for (let step = 0; step < 12; step += 1) {
+    const issues = doseIssues({ format, minutes, movements: copy, clock: used });
+    const window = issues.find((error) => error.includes("25%") || error.includes("90%"));
     if (!window) return copy;
     const estimate = Number(window.match(/estimate (\d+)s/)?.[1] ?? 0);
-    const cap = minutes * 60;
+    const cap = used.cap_sec ?? minutes * 60;
     if (!estimate || !cap) return copy;
-    const factor = cap / estimate;
+    const target = format === "chipper" ? cap * 0.82 : cap;
+    const factor = target / estimate;
     let moved = false;
     for (const movement of copy) {
-      if (movement.unit === "sec") continue;
+      if (movement.unit === "sec" || Array.isArray(movement.qty)) continue;
       const before = movement.amount;
       movement.amount = snapDoseAmount(movement.key, movement.unit, Math.max(1, Math.round(movement.amount * factor)));
       clampDose(movement);
@@ -875,16 +1128,33 @@ export function lockIssues(lock: DaySessionLock, setting = resolveSessionMinutes
     const minutes = lock.metcon[0]?.unit === "min" ? lock.metcon[0].amount : null;
     if (minutes !== 30 && minutes !== 40 && minutes !== 45) errors.push(`${lock.day} zone2 minutes ${minutes ?? "missing"} are outside 30–45`);
   } else {
-    errors.push(...doseIssues({ format: lock.format, minutes: lock.metcon_minutes, movements: lock.metcon }));
+    errors.push(...doseIssues({ format: lock.format, minutes: lock.metcon_minutes, movements: lock.metcon, clock: lock.clock }));
   }
   return errors;
 }
+
+type RawMovement = {
+  key?: string;
+  unit?: string | null;
+  amount_value?: number | null;
+  amount?: string | number;
+  qty?: unknown;
+  load?: { male?: string | null; female?: string | null } | null;
+};
 
 type RawSession = {
   day?: string;
   rest?: boolean;
   strength?: { lift?: string; sets?: unknown[] } | null;
-  conditioning?: { format?: string; duration_min?: number; time_domain?: string; movements?: { key?: string; unit?: string; amount_value?: number; amount?: string }[] } | null;
+  conditioning?: {
+    format?: string;
+    duration_min?: number;
+    time_domain?: string;
+    clock?: MetconClock | null;
+    derived_sec?: number | null;
+    time_source?: string | null;
+    movements?: RawMovement[];
+  } | null;
   zone2?: { form?: string; modality?: string; duration_min?: number } | null;
   session_blocks?: ContractBlock[];
   warmup_phases?: { phase?: string; key?: string; unit?: string; amount?: number; static_hold?: boolean }[];
@@ -896,12 +1166,61 @@ function readSessions(raw: unknown): RawSession[] {
   return body.filter((row): row is RawSession => Boolean(row) && typeof row === "object");
 }
 
-function doseFrom(row: { key?: string; unit?: string; amount_value?: number; amount?: string | number } | undefined): DoseMovement | null {
+function doseFrom(row: { key?: string; unit?: string | null; amount_value?: number | null; amount?: string | number; qty?: unknown } | undefined): DoseMovement | null {
   if (!row?.key) return null;
   const unit = row.unit === "cal" || row.unit === "m" || row.unit === "sec" || row.unit === "reps" || row.unit === "min" ? row.unit : null;
   const amount = typeof row.amount_value === "number" ? row.amount_value : Number(String(row.amount ?? "").replace(/[^\d]/g, ""));
   if (!unit || !Number.isInteger(amount)) return null;
-  return { key: row.key, unit, amount };
+  const qty = Array.isArray(row.qty) && row.qty.every((value) => typeof value === "number" && Number.isInteger(value)) ? (row.qty as number[]) : undefined;
+  return { key: row.key, unit, amount, ...(qty ? { qty } : {}) };
+}
+
+function paceAndRxIssues(session: RawSession): string[] {
+  const day = session.day ?? "day";
+  const piece = session.conditioning;
+  if (!piece?.format || !piece.clock) return [];
+  const clock = piece.clock;
+  if (piece.format === "zone2" || session.zone2?.form === "day") {
+    return clock.duration_sec == null ? [`${day} zone2 duration_sec is missing`] : [];
+  }
+  const movements = (piece.movements ?? []).map((row) => doseFrom(row)).filter((row): row is DoseMovement => row != null);
+  const minutes = piece.duration_min ?? Math.round((clock.cap_sec ?? clock.duration_sec ?? 0) / 60);
+  const errors = doseIssues({ format: piece.format, minutes, movements, clock }).map((issue) => `${day} ${issue}`);
+  for (const row of piece.movements ?? []) {
+    const key = row.key ?? "";
+    if (!key) continue;
+    if ((catalogRxWeights(key) || modalWodLb(key)) && !rxNumbers(row.load)) {
+      errors.push(`${day} ${key} Rx male/female number and unit are required`);
+    }
+  }
+  return errors;
+}
+
+/** 헤드 후보용. 저장된 derived와 비교하지 않는다. 어긋나면 그 후보를 되돌리고 다시 묻지 않는다. */
+export function sessionEstimateIssues(session: RawSession): string[] {
+  if (session.rest) return [];
+  return paceAndRxIssues(session);
+}
+
+function sessionClockIssues(session: RawSession): string[] {
+  if (session.rest) return [];
+  const day = session.day ?? "day";
+  const piece = session.conditioning;
+  if (!piece?.format || !piece.clock) return [`${day} metcon clock is missing`];
+  const errors = paceAndRxIssues(session);
+  if (piece.format === "zone2" || session.zone2?.form === "day") {
+    if (piece.derived_sec == null || piece.time_source !== "derived") errors.push(`${day} derived estimate is missing`);
+    else if (piece.clock.duration_sec != null && piece.derived_sec !== piece.clock.duration_sec) {
+      errors.push(`${day} derived estimate does not match the clock`);
+    }
+    return errors;
+  }
+  const derived = lastDerived;
+  if (piece.derived_sec == null || piece.time_source !== "derived") errors.push(`${day} derived estimate is missing`);
+  else if (derived && errors.length === 0 && piece.derived_sec !== derived.sec) {
+    errors.push(`${day} derived estimate ${piece.derived_sec}s does not match ${derived.sec}s`);
+  }
+  return errors;
 }
 
 /** 세션 스키마, 헤드 패치, final_validator가 같이 쓰는 잠금 필드. */
@@ -972,7 +1291,7 @@ type LockSession = {
     format?: string | null;
     stimulus?: string | null;
     intensity?: string | null;
-    movements?: { key?: string; unit?: string; amount?: string | number; amount_value?: number }[];
+    movements?: { key?: string; unit?: string | null; amount?: string | number; amount_value?: number | null }[];
   } | null;
   session_blocks?: { role?: string; minutes?: number; movements?: { key?: string; unit?: string; amount?: number; amount_value?: number }[] }[];
 };
@@ -1074,6 +1393,7 @@ export function weekContractIssues(
       continue;
     }
     errors.push(...lockIssues(lock));
+    errors.push(...sessionClockIssues(session));
     const actualRoles = session.session_blocks.map((block) => block.role);
     errors.push(...lockMismatchMessages(session, lock));
     if (new Set(actualRoles).size !== actualRoles.length) errors.push(`${session.day} repeats a block role`);

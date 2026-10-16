@@ -84,7 +84,9 @@ describe("stage23 prescription quality", () => {
       month: fallbackMonth({ summary_ko: "이번 달은 축적입니다.", next_scheme: "volume", strength_method: "ACCUMULATION" }),
       weekIndex: 1,
     });
-    expect(built?.conditioning?.work_rest_structure).toBe("30초 일하고 30초 쉽니다.");
+    expect(built?.conditioning?.work_rest_structure).toContain("30초 일하고 30초");
+    expect(built?.conditioning?.clock?.work_sec).toBe(30);
+    expect(built?.conditioning?.clock?.rest_sec).toBe(30);
     const oneMove = payload([{ key: "air_squat", amount: "20", name_ko: "에어 스쿼트" }]);
     expect(sessionFromCoachJson({ json: oneMove, intent: intent(), month: fallbackMonth({ summary_ko: "이번 달은 축적입니다.", next_scheme: "volume", strength_method: "ACCUMULATION" }), weekIndex: 1 })).toBeNull();
     expect(

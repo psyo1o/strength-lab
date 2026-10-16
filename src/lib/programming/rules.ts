@@ -22,6 +22,7 @@ import {
   type ConditioningDraft,
   type Equipment,
   type MonthDirection,
+  type MovementDraft,
   type MovementPattern,
   type SessionDraft,
   type SimilarityFeature,
@@ -282,7 +283,22 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     const amount = asString(row.amount);
     const name = asString(row.name_ko);
     if (!key || !amount || !name) return null;
-    movements.push({ key, amount, name_ko: name });
+    const qty = Array.isArray(row.qty) && row.qty.every((item) => typeof item === "number") ? (row.qty as number[]) : typeof row.qty === "number" ? row.qty : null;
+    const load = isRecord(row.load)
+      ? {
+          male: typeof row.load.male === "string" ? row.load.male : null,
+          female: typeof row.load.female === "string" ? row.load.female : null,
+        }
+      : null;
+    movements.push({
+      key,
+      amount,
+      name_ko: name,
+      ...(typeof row.amount_value === "number" ? { amount_value: row.amount_value } : {}),
+      ...(typeof row.unit === "string" ? { unit: row.unit as MovementDraft["unit"] } : {}),
+      ...(qty != null ? { qty } : {}),
+      ...(load ? { load } : {}),
+    });
   }
   const listed = parseStringList(value.equipment, EQUIPMENT);
   const equipment = listed ?? equipmentForKeys(movements.map((movement) => movement.key));
@@ -301,6 +317,9 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     intensity,
     long_conditioning: longPiece,
     purpose,
+    ...(isRecord(value.clock) ? { clock: value.clock as ConditioningDraft["clock"] } : {}),
+    ...(typeof value.derived_sec === "number" ? { derived_sec: value.derived_sec, time_source: "derived" as const } : {}),
+    ...(typeof value.derived_rounds === "number" ? { derived_rounds: value.derived_rounds } : {}),
   };
 }
 
@@ -904,7 +923,11 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if (session.intensity && session.intensity !== session.conditioning.intensity) {
       errors.push(`${session.day} intensity does not match`);
     }
-    if (session.expected_duration != null && session.expected_duration !== session.conditioning.duration_min) {
+    const completion = session.conditioning.format === "for_time" || session.conditioning.format === "chipper" || session.conditioning.format === "partner";
+    const derivedMinutes = completion && session.conditioning.derived_sec != null ? Math.max(1, Math.round(session.conditioning.derived_sec / 60)) : null;
+    if (derivedMinutes != null) {
+      if (session.expected_duration !== derivedMinutes) errors.push(`${session.day} expected duration is not the derived estimate`);
+    } else if (session.expected_duration != null && session.expected_duration !== session.conditioning.duration_min) {
       errors.push(`${session.day} expected duration does not match`);
     }
     if ((session.stimulus ?? null) !== (session.conditioning.stimulus ?? null)) {

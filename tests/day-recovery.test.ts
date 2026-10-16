@@ -636,13 +636,11 @@ describe("day recovery orchestrator", () => {
     const cell = repsCellFromKeys(goalMondayKeys());
     const diffs = (monday?.conditioning?.movements ?? []).filter((row) => row.amount !== sampleAmount(row.key));
     expect(cell?.value).toBeTruthy();
-    expect(diffs).toHaveLength(1);
-    expect(diffs[0]?.key).toBe(cell?.key);
-    expect(diffs[0]?.amount).toBe(cell?.value);
-    expect(diffs[0]?.amount_value).toBe(Number(cell?.value));
+    expect(diffs).toHaveLength(0);
+    expect(JSON.stringify(result.traces.find((trace) => trace.agent_name === "revision_rejected")?.output)).toContain("not an allowed candidate");
     expect(monday?.conditioning?.stimulus).toBe(slot?.stimulus);
     expect(calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon")).toHaveLength(1);
-    expect(result.traces.some((trace) => trace.agent_name === "revision_compliance" && trace.day === "mon" && trace.token_usage == null)).toBe(true);
+    expect(result.traces.some((trace) => trace.agent_name === "revision_rejected" && trace.day === "mon" && trace.token_usage == null)).toBe(true);
     expect(result.day_sources.mon).toBe("model");
   });
 
