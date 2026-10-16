@@ -4,11 +4,12 @@ import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
 import { cleanDisplayName, doseIssues } from "../src/lib/programming/coaching/session-contract";
 import { catalogMovement, prescribedLoad, rxLoadErrors } from "../src/lib/programming/coaching/movement-catalog";
 import { cooldownMovementBounds } from "../src/lib/programming/coaching/warmup-ramp";
-import { classQualityErrors } from "../src/lib/programming/coaching/class-quality";
+import { blockContentErrors, classQualityErrors } from "../src/lib/programming/coaching/class-quality";
+import { setsForMethodAction } from "../src/lib/programming/coaching/stage15/method-policy";
 import { fatigueExpired } from "../src/lib/programming/rules";
 import { fallbackMonth } from "../src/lib/programming/fallback";
 import type { WeekActual } from "../src/lib/programming/summary";
-import type { WeekDraft } from "../src/lib/programming/types";
+import type { SessionDraft, WeekDraft } from "../src/lib/programming/types";
 
 const month = fallbackMonth({ summary_ko: "5/3/1 블록을 네 주 유지합니다.", next_scheme: "531", strength_method: "531" });
 
@@ -122,10 +123,44 @@ describe("class quality rejects", () => {
   it("strips alias markers from catalog names and requires an Rx on a percentage barbell", () => {
     expect(cleanDisplayName("스키 에르그(별칭 키)")).toBe("스키 에르그");
     expect(catalogMovement("ski_erg")?.name_ko).not.toMatch(/별칭/);
-    expect(prescribedLoad("power_clean")).toEqual({ male: "1RM %", female: "1RM %" });
+    expect(prescribedLoad("power_clean")).toEqual({ male: "135 lb", female: "95 lb" });
     expect(rxLoadErrors("power_clean", null).join(" ")).toMatch(/load.male is required/);
-    expect(rxLoadErrors("power_clean", { male: "1RM %", female: "1RM %" })).toEqual([]);
+    expect(rxLoadErrors("power_clean", { male: "1RM %", female: "1RM %" }).join(" ")).toMatch(/135 lb/);
+    expect(rxLoadErrors("power_clean", { male: "135 lb", female: "95 lb" })).toEqual([]);
     expect(cooldownMovementBounds(8)).toEqual({ min: 5, max: 6 });
+  });
+
+  it("counts accessory content within a minute of the block as that minute", () => {
+    const draft = {
+      sessions: [
+        {
+          day: "wed",
+          rest: false,
+          session_blocks: [
+            { role: "warmup", minutes: 12, movements: [] },
+            { role: "skill_or_accessory", minutes: 19, movements: [{ key: "ring_row", unit: "reps", amount: 20, sets: 6, rest_sec: 105 }] },
+            { role: "metcon", minutes: 40, movements: [{ key: "row_erg", unit: "min", amount: 40 }] },
+            { role: "extra_conditioning", minutes: 15, movements: [{ key: "easy_jog", unit: "sec", amount: 150, sets: 6 }] },
+            { role: "cooldown", minutes: 4, movements: [] },
+          ],
+        },
+      ],
+    } as WeekDraft;
+    expect(blockContentErrors(draft)).toEqual([]);
+  });
+
+  it("keeps the bar id when the method table rewrites the sets", () => {
+    const session = {
+      strength: { lift: "ohp", movement_key: "strict_press", sets: [{ percent_of_tm: 65, reps: 5, amrap: false }] },
+    } as SessionDraft;
+    const rewritten = setsForMethodAction({
+      action: "progress",
+      month: { strength_method: "531", scheme: "531" },
+      weekIndex: 1,
+      session,
+    });
+    expect(rewritten.strength?.movement_key).toBe("strict_press");
+    expect(rewritten.strength?.lift).toBe("ohp");
   });
 
   it("ignores fatigue dated more than 14 days before the target week", () => {

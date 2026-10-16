@@ -10,7 +10,8 @@ describe("특성화 P2", () => {
    * 지금 표는 그 격자이면 안 되고, GOAL_TABLE_RULES를 통과해야 한다.
    */
   it("P2: 예전 shift는 lower_strength 독점이고, month531 표는 그 격자가 아니다", () => {
-    const band = MOVEMENT_PATTERNS.length * BODY_REGIONS.length * ENERGY_SYSTEMS.length * STIMULI.length;
+    const rotationStimuli = STIMULI.filter((stimulus) => stimulus !== "aerobic");
+    const band = MOVEMENT_PATTERNS.length * BODY_REGIONS.length * ENERGY_SYSTEMS.length * rotationStimuli.length;
     const cells = SESSION_FOCUSES.length * band;
     expect(band).toBe(252);
     expect(cells).toBe(1260);
@@ -18,7 +19,7 @@ describe("특성화 P2", () => {
       for (let dayIndex = 0; dayIndex <= 6; dayIndex += 1) {
         const shift = (weekIndex * 11 + dayIndex * 3) % cells;
         const focus = SESSION_FOCUSES[Math.floor(shift / band)];
-        const pattern = MOVEMENT_PATTERNS[Math.floor((shift % band) / (BODY_REGIONS.length * ENERGY_SYSTEMS.length * STIMULI.length))];
+        const pattern = MOVEMENT_PATTERNS[Math.floor((shift % band) / (BODY_REGIONS.length * ENERGY_SYSTEMS.length * rotationStimuli.length))];
         expect(shift).toBeLessThan(band);
         expect(focus).toBe("lower_strength");
         expect(pattern === "squat" || pattern === "hinge").toBe(true);

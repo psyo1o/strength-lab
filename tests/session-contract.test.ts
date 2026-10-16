@@ -6,18 +6,25 @@ import { projectWeek } from "../src/lib/programming/project";
 import { fatigueCutSets, schemeSets } from "../src/lib/programming/schemes";
 import {
   cleanDisplayName,
+  clockForFormat,
   diversityIssues,
+  derivedFor,
   doseIssues,
   lockIssues,
   lockMismatchMessages,
   planWeekContract,
+  renderMetconLine,
   scaleDose,
+  sessionEstimateIssues,
   weekContractIssues,
   type ContractDayInput,
   type DaySessionLock,
 } from "../src/lib/programming/coaching/session-contract";
-import { buildSessionFrame, quantityInsideRange, sessionSlotFormat, slotChoiceUser } from "../src/lib/programming/coaching/slot-choices";
-import { amountDecision, standardMovements } from "../src/lib/programming/coaching/movement-catalog";
+import { applyHeadCells } from "../src/lib/programming/coaching/head-cells";
+import { buildSessionFrame, quantityInsideRange, quantityOptions, sessionSlotFormat, slotChoiceUser } from "../src/lib/programming/coaching/slot-choices";
+import { amountDecision, catalogMovement, prescribedLoad, standardMovements } from "../src/lib/programming/coaching/movement-catalog";
+import { sessionFromCoachJson } from "../src/lib/programming/coaching/session";
+import { fallbackMonth } from "../src/lib/programming/fallback";
 import { tipFor } from "../src/lib/tips";
 import { jointsFor, rampSlots, sessionJoints, warmupIssues } from "../src/lib/programming/coaching/warmup-ramp";
 import type { SessionDraft, WeekDraft } from "../src/lib/programming/types";
@@ -25,6 +32,9 @@ import type { SessionDraft, WeekDraft } from "../src/lib/programming/types";
 const ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 function sessionFromLock(lock: DaySessionLock) {
+  const derived = lock.rest || lock.format === "zone2"
+    ? { sec: lock.clock.duration_sec ?? 0, rounds: null }
+    : derivedFor(lock.format, lock.metcon_minutes, lock.metcon, lock.clock, lock.intensity_class);
   return {
     day: lock.day,
     rest: lock.rest,
@@ -33,12 +43,22 @@ function sessionFromLock(lock: DaySessionLock) {
       format: lock.format,
       duration_min: lock.metcon_minutes,
       time_domain: lock.band,
-      movements: lock.metcon.map((move) => ({ key: move.key, unit: move.unit, amount_value: move.amount })),
+      clock: lock.clock,
+      derived_sec: derived?.sec ?? null,
+      time_source: "derived",
+      intensity: lock.intensity_class,
+      movements: lock.metcon.map((move) => ({
+        key: move.key,
+        unit: move.unit,
+        amount_value: move.amount,
+        load: prescribedLoad(move.key),
+      })),
     },
     session_blocks: lock.blocks.map((block) => ({
       role: block.role,
       minutes: block.minutes,
       movements: block.movements.map((move) => ({ ...move })),
+      ...(block.role === "metcon" && derived ? { derived_sec: derived.sec, time_source: "derived" as const } : {}),
     })),
   };
 }
@@ -71,6 +91,33 @@ describe("session contract", () => {
     expect(monday?.lift).toBeNull();
     expect(monday?.blocks.some((block) => block.role === "main_lift")).toBe(true);
     expect(lockIssues(monday!, 100)).toEqual([]);
+  });
+
+  it("locks a 30 minute zone2 request at 40 so the day reaches 90", () => {
+    const days = weekDays().map((day) =>
+      day.day === "wed"
+        ? { ...day, rest: false, lift: "none" as const, long: false, domain: "medium" as const, zone2: true, zone2_minutes: 30, zone2_modality: "row_erg" as const }
+        : day,
+    );
+    const wednesday = planWeekContract(days, 4, "531", 100).find((lock) => lock.day === "wed");
+    expect(wednesday?.format).toBe("zone2");
+    expect(wednesday?.metcon[0]?.amount).toBe(40);
+    expect(lockIssues(wednesday!, 100)).toEqual([]);
+  });
+
+  it("checks the saved week against the generation contract", () => {
+    const days = weekDays().map((day) =>
+      day.day === "mon" ? { ...day, stimulus: "technical", companion_key: "strict_pull_up", main_key: "back_squat" } : day,
+    );
+    const locks = planWeekContract(days, 1, "531", 100);
+    const stored = locks.map((lock) => {
+      const session = sessionFromLock(lock);
+      if (session.conditioning) session.conditioning = { ...session.conditioning, stimulus: lock.stimulus };
+      return session;
+    });
+    const same = weekContractIssues({ sessions: stored }, 1, "531", days);
+    expect(same.filter((issue) => issue.includes("does not match lock"))).toEqual([]);
+    expect(weekContractIssues({ sessions: stored }, 1, "531").join(" ")).toContain("stimulus");
   });
 
   it("rejects a block sum outside 90–110, a missing block, and a minute mismatch", () => {
@@ -130,6 +177,218 @@ describe("session contract", () => {
     expect(machines.join(" ")).toContain("machine row_erg is used 4 times");
   });
 
+  it("renders rounds and Rx from the clock and does not halve partner work", () => {
+    const clock = {
+      rounds: 3,
+      cap_sec: 12 * 60,
+      duration_sec: null,
+      interval_sec: null,
+      work_sec: null,
+      rest_sec: null,
+      sets: null,
+      team_size: null,
+      share_mode: null,
+      order: null,
+    };
+    const line = renderMetconLine({
+      format: "for_time",
+      clock,
+      movements: [
+        { key: "row_erg", amount: 15, unit: "cal" },
+        { key: "barbell_thruster", amount: 10, unit: "reps", load: { male: "95 lb", female: "65 lb" } },
+        { key: "burpee", amount: 10, unit: "reps" },
+      ],
+    });
+    expect(line).toBe("3라운드 For Time · 캡 12분 / Row Erg 15cal / Barbell Thruster 10회 (95/65 lb) (스케일 45/35 lb · 7회) / Burpee 10회");
+    const varying = doseIssues({
+      format: "for_time",
+      minutes: 12,
+      clock: { ...clock, rounds: 3 },
+      movements: [
+        { key: "burpee", unit: "reps", amount: 21, qty: [21, 15, 9] },
+      ],
+    });
+    expect(varying.join(" ")).toMatch(/25%/);
+    const partner = {
+      rounds: 1,
+      cap_sec: 600,
+      duration_sec: null,
+      interval_sec: null,
+      work_sec: null,
+      rest_sec: null,
+      sets: null,
+      team_size: 2,
+      share_mode: "split" as const,
+      order: null,
+    };
+    const moves = [{ key: "burpee", unit: "reps" as const, amount: 21 }];
+    const read = (issues: string[]) => Number(issues.join(" ").match(/estimate (\d+)s/)?.[1]);
+    const split = read(doseIssues({ format: "partner", minutes: 10, movements: moves, clock: partner }));
+    const ygig = read(doseIssues({ format: "partner", minutes: 10, movements: moves, clock: { ...partner, share_mode: "YGIG" } }));
+    const sync = read(doseIssues({ format: "partner", minutes: 10, movements: moves, clock: { ...partner, share_mode: "sync" } }));
+    expect(split).not.toBe(ygig);
+    expect(split).not.toBe(sync);
+    expect(split).not.toBe(Math.round(21 * 5 * 0.5));
+    const rope = doseIssues({
+      format: "for_time",
+      minutes: 12,
+      clock,
+      movements: [{ key: "single_under", unit: "reps", amount: 30 }],
+    });
+    expect(rope.join(" ")).toContain("single_under is a scale of double_under");
+    const short = doseIssues({
+      format: "for_time",
+      minutes: 12,
+      clock,
+      movements: [{ key: "row_erg", unit: "cal", amount: 42 }],
+    });
+    expect(short.join(" ")).toContain("under the 12 min minimum");
+    const heavy = doseIssues({
+      format: "for_time",
+      minutes: 12,
+      clock,
+      intensity: "heavy",
+      movements: [{ key: "row_erg", unit: "cal", amount: 42 }],
+    });
+    expect(heavy).toEqual([]);
+    const scaled = renderMetconLine({
+      format: "intervals",
+      clock: clockForFormat("intervals", 12, ["double_under", "push_up"]),
+      movements: [{ key: "double_under", amount: 30, unit: "reps" }],
+    });
+    expect(scaled).toContain("Double-under 30회 (스케일 Single-under 60회 2:1 · Single-under 90회 3:1)");
+  });
+
+  it("stamps a heavy chipper that is under 12 minutes and over the 10 minute floor", () => {
+    const rows = [
+      { key: "bike_erg", amount: "45cal", unit: "cal" },
+      { key: "dumbbell_snatch", amount: "20", unit: "reps" },
+      { key: "toes_to_bar", amount: "20", unit: "reps" },
+      { key: "wall_ball", amount: "30", unit: "reps" },
+      { key: "kipping_pull_up", amount: "20", unit: "reps" },
+    ] as const;
+    const intent: DayIntent = {
+      day: "tue",
+      primary_training: "mixed_modal",
+      secondary_training: "moderate_conditioning",
+      training_goal: "컨디셔닝을 진행합니다.",
+      stimulus: "threshold",
+      intensity_profile: "moderate",
+      volume_profile: "moderate",
+      duration_profile: "45-60",
+      fatigue_target: "moderate",
+      movement_pattern: "mixed",
+      progression_required: false,
+      recovery_role: "train",
+      strength_lift: "none",
+      benchmark: false,
+      notes_ko: "진행입니다.",
+    };
+    const built = sessionFromCoachJson({
+      json: {
+        day: "tue",
+        warmup_ko: "technical prep before the lift.",
+        notes_ko: "호흡을 유지합니다.",
+        conditioning: {
+          format: "chipper",
+          duration_min: 12,
+          stimulus: "high_rep",
+          volume: "moderate",
+          intensity: "heavy",
+          movements: rows.map((row) => ({ ...row, name_ko: catalogMovement(row.key)?.name_ko ?? row.key })),
+        },
+      },
+      intent,
+      month: fallbackMonth({ summary_ko: "이번 달은 축적입니다.", next_scheme: "volume", strength_method: "ACCUMULATION" }),
+      weekIndex: 1,
+    });
+    expect(built?.conditioning?.derived_sec).toBeGreaterThanOrEqual(10 * 60);
+    expect(built?.conditioning?.derived_sec).toBeLessThan(12 * 60);
+    expect(built?.conditioning?.time_source).toBe("derived");
+  });
+
+  it("keeps a short piece at 12 minutes and a medium light piece inside 13–20", () => {
+    const days = ORDER.map((day) => ({
+      day,
+      rest: day === "sun",
+      long: day === "fri",
+      domain: (day === "fri" ? "long" : day === "tue" || day === "sat" ? "short" : "medium") as "long" | "short" | "medium",
+      lift: "none" as const,
+      zone2: day === "wed",
+      intensity_class: (day === "sat" ? "light" : "moderate") as "light" | "moderate",
+    }));
+    for (const week of [1, 2, 3, 4] as const) {
+      const locks = planWeekContract(days, week, "531", 100);
+      for (const lock of locks) {
+        expect(lockIssues(lock, 100)).toEqual([]);
+        if (lock.rest || lock.format === "zone2") continue;
+        if (lock.band === "long") expect(lock.metcon_minutes).toBeGreaterThanOrEqual(30);
+        else if (lock.band === "short") expect(lock.metcon_minutes).toBe(12);
+        else {
+          expect(lock.metcon_minutes).toBeGreaterThanOrEqual(13);
+          expect(lock.metcon_minutes).toBeLessThanOrEqual(20);
+        }
+      }
+    }
+  });
+
+  it("reverts a head quantity that misses the derived cap window", () => {
+    const clock = clockForFormat("for_time", 12, ["row_erg"]);
+    const fitted = scaleDose("for_time", 12, [{ key: "row_erg", unit: "cal", amount: 15 }], clock);
+    expect(doseIssues({ format: "for_time", minutes: 12, movements: fitted, clock })).toEqual([]);
+    const derived = derivedFor("for_time", 12, fitted, clock);
+    expect(derived).not.toBeNull();
+    const sessions = [
+      {
+        day: "mon",
+        rest: false,
+        conditioning: {
+          format: "for_time",
+          duration_min: 12,
+          clock,
+          derived_sec: derived!.sec,
+          time_source: "derived",
+          movements: [
+            {
+              key: "row_erg",
+              amount: String(fitted[0]!.amount),
+              name_ko: "로우",
+              movement: "row_erg",
+              amount_value: fitted[0]!.amount,
+              unit: "cal",
+            },
+          ],
+        },
+      },
+    ] as unknown as SessionDraft[];
+    expect(sessionEstimateIssues(sessions[0]!).length).toBe(0);
+    const other = quantityOptions("row_erg").find((option) => {
+      if (option.unit !== "cal" || option.amount === fitted[0]!.amount) return false;
+      return doseIssues({
+        format: "for_time",
+        minutes: 12,
+        movements: [{ key: "row_erg", unit: "cal", amount: option.amount }],
+        clock,
+      }).some((error) => error.includes("25%"));
+    });
+    expect(other).toBeTruthy();
+    const report = applyHeadCells(
+      sessions,
+      [
+        {
+          day: "mon",
+          reason: "수량을 바꾼다.",
+          correction_instruction: "set quantity",
+          cell: { day: "mon", block: "conditioning", catalog_key: "row_erg", field: "quantity_option", value: other!.id, reason: "수량을 바꾼다." },
+        },
+      ],
+      { accept: (rows) => rows.every((row) => sessionEstimateIssues(row).length === 0) },
+    );
+    expect(report.reverted).toBe(1);
+    expect(sessions[0]?.conditioning?.movements[0]?.amount_value).toBe(fitted[0]!.amount);
+    expect(sessions[0]?.conditioning?.derived_sec).toBe(derived!.sec);
+  });
+
   it("rejects Row 46 cal in a 10 minute AMRAP, an EMOM over 40 seconds, and a movement with no pace", () => {
     const row = doseIssues({
       format: "amrap",
@@ -156,6 +415,30 @@ describe("session contract", () => {
       movements: [{ key: "walking_lunge", unit: "reps", amount: 12 }],
     });
     expect(missing.join(" ")).toContain("no pace");
+  });
+
+  it("does not give a long zone2 day the only metcon that fits the other long day", () => {
+    const order = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+    const days: ContractDayInput[] = order.map((day) => ({
+      day,
+      rest: day === "sun",
+      long: day === "wed" || day === "fri",
+      domain: day === "wed" || day === "fri" ? "long" : day === "mon" || day === "sat" ? "short" : "medium",
+      lift: day === "mon" ? "deadlift" : day === "fri" ? "bench" : day === "sat" ? "squat" : day === "tue" ? "ohp" : "none",
+      zone2: day === "wed",
+      zone2_modality: "bike_erg",
+      zone2_minutes: 40,
+      main_key: day === "mon" ? "deadlift" : day === "fri" ? "bench_press" : day === "sat" ? "front_squat" : day === "thu" ? "power_snatch" : null,
+      companion_key: day === "wed" ? "ring_row" : null,
+      heavy_hinge: day === "mon",
+      intensity_ceiling: day === "wed" ? "light" : "heavy",
+      intensity_class: day === "fri" || day === "wed" ? "light" : "moderate",
+    }));
+    const locks = planWeekContract(days, 2, "531");
+    const friday = locks.find((lock) => lock.day === "fri");
+    expect(friday?.format).not.toBe("partner");
+    expect(lockIssues(friday!, 100)).toEqual([]);
+    expect(locks.find((lock) => lock.day === "wed")?.format).toBe("zone2");
   });
 
   it("keeps a six-day class dose inside the catalog and off a heavy clock format", () => {
@@ -464,7 +747,8 @@ describe("warmup ramp", () => {
                   ? { phase: slot.phase, key: choice.key, unit: choice.unit, amount: choice.amount, reason: "준비 동작입니다", static_hold: choice.static_hold }
                   : pick,
               );
-              const verdict = warmupIssues({ picks, joints, warmupMinutes: 10, cooldownMinutes: 6 });
+              const cooldownMinutes = lock.blocks.find((block) => block.role === "cooldown")?.minutes ?? 6;
+              const verdict = warmupIssues({ picks, joints, warmupMinutes: 10, cooldownMinutes });
               expect(verdict.reject, `${week} ${lift} ${lock.day} ${slot.id} ${choice.key}`).toEqual([]);
             }
           }

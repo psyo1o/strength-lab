@@ -16,6 +16,7 @@ import {
   type WeekIndex,
 } from "../month-plan/types";
 import { catalogMovement, displayAmount, linkedCatalogKey, movementDisplayName } from "./coaching/movement-catalog";
+import { renderMetconLine } from "./coaching/session-contract";
 import { loadBasisForMethod } from "./strength-methods";
 import { tipFor } from "../tips";
 import type { ConditioningDraft, MovementDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
@@ -24,6 +25,7 @@ const STIMULUS_KO: Record<Stimulus, MetconStimulus> = {
   heavy: "고중량",
   high_rep: "고반복",
   technical: "기술",
+  aerobic: "유산소",
 };
 
 function asPattern(value: string): MetconPiece["pattern"] {
@@ -100,13 +102,25 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
     pattern,
     movements,
     signature: pieceSignature(conditioning.format, movements),
-    bodyKo: renderPiece({
-      format: conditioning.format,
-      minutes: conditioning.duration_min,
-      movements,
-      long: conditioning.long_conditioning,
-      noteKo: pieceNote(conditioning),
-    }),
+    bodyKo: conditioning.clock
+      ? renderMetconLine({
+          format: conditioning.format,
+          clock: conditioning.clock,
+          movements: conditioning.movements.map((movement) => ({
+            key: movement.key,
+            amount: movement.amount_value,
+            unit: movement.unit,
+            qty: movement.qty,
+            load: movement.load,
+          })),
+        })
+      : renderPiece({
+          format: conditioning.format,
+          minutes: conditioning.duration_min,
+          movements,
+          long: conditioning.long_conditioning,
+          noteKo: pieceNote(conditioning),
+        }),
     stimulus: conditioning.stimulus ? STIMULUS_KO[conditioning.stimulus] : null,
   };
 }
@@ -114,12 +128,13 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
 function strengthFrom(session: SessionDraft, strengthMethod: string): StrengthPrescription | null {
   if (!session.strength) return null;
   const specific = session.strength.movement_key;
+  const olympic = session.strength.lift === "olympic";
   return {
-    exerciseKey: session.strength.lift,
+    exerciseKey: olympic ? "olympic" : session.strength.lift,
     nameKo: movementDisplayName(specific || session.strength.lift),
     oneRmKg: null,
     trainingMaxKg: null,
-    loadBasis: loadBasisForMethod(strengthMethod),
+    loadBasis: olympic ? undefined : loadBasisForMethod(strengthMethod),
     missingOneRm: true,
     noteKo: "1RM이 없습니다. 무거운 단수를 1RM에 저장하세요. 무게는 만들지 않습니다.",
     sets: session.strength.sets.map((set, index) => ({
@@ -195,14 +210,26 @@ function contractBlocks(session: SessionDraft, strengthMethod: string): SessionB
     const rows = phases?.length
       ? phases.map((phase) => `${phase.phase === "raise" ? "레이즈" : phase.phase === "mobilise" ? "모빌라이즈" : phase.phase === "activate" ? "액티베이트" : phase.phase === "potentiate" ? "포텐시에이트" : "쿨다운"} · ${tipLines(phase.key, phase.unit, phase.amount)}`)
       : block.movements.map((movement) => tipLines(movement.key, movement.unit, movement.amount));
-    const head =
-      block.role === "metcon" && session.conditioning
-        ? `${session.conditioning.format === "partner" ? "파트너 형식 · 개인도 가능" : session.conditioning.format} ${block.minutes}분`
-        : "";
+    const metconLine =
+      block.role === "metcon" && session.conditioning?.clock
+        ? renderMetconLine({
+            format: session.conditioning.format,
+            clock: session.conditioning.clock,
+            movements: session.conditioning.movements.map((movement) => ({
+              key: movement.key,
+              amount: movement.amount_value,
+              unit: movement.unit,
+              qty: movement.qty,
+              load: movement.load,
+            })),
+          })
+        : block.role === "metcon" && session.conditioning
+          ? `${session.conditioning.format === "partner" ? "파트너 형식 · 개인도 가능" : session.conditioning.format} ${block.minutes}분`
+          : "";
     return {
       role,
       titleKo: BLOCK_TITLE[block.role] ?? block.role,
-      bodyKo: [head, block.role === "main_lift" && lift ? strengthBody(lift) : "", ...rows].filter(Boolean).join("\n"),
+      bodyKo: [metconLine, block.role === "main_lift" && lift ? strengthBody(lift) : "", ...rows].filter(Boolean).join("\n"),
       minutes: block.minutes,
       cuttable: false,
       kept: true,
@@ -307,6 +334,16 @@ export function applyStoredStrength(
   lift: StrengthPrescription,
   maxes: Record<string, number>,
 ): StrengthPrescription {
+  if (lift.exerciseKey === "olympic") {
+    return {
+      ...lift,
+      oneRmKg: null,
+      trainingMaxKg: null,
+      missingOneRm: true,
+      noteKo: "올림픽 리프트는 기술 퍼센트입니다. 가족 1RM으로 킬로그램을 만들지 않습니다.",
+      sets: lift.sets.map((set) => ({ ...set, weightKg: null })),
+    };
+  }
   const oneRm = readStoredOneRm(maxes, lift.exerciseKey);
   if (oneRm == null) {
     return {

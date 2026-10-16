@@ -352,6 +352,10 @@ describe("stage 5A week contract and strength methods", () => {
     expect(strength.length).toBeGreaterThan(0);
     for (const session of strength) {
       expect(session.strength?.sets.some((set) => set.reps === 5 && set.percent_of_tm >= 85)).toBe(false);
+      if (session.strength?.lift === "olympic") {
+        expect(session.strength.sets.length).toBeGreaterThan(0);
+        continue;
+      }
       expect(session.strength?.sets.every((set) => set.reps >= 6)).toBe(true);
     }
   });

@@ -12,7 +12,7 @@ import {
 } from "../src/lib/programming/class-intensity";
 import { applyHeadCells, intensityRevisionCells } from "../src/lib/programming/coaching/head-cells";
 import { movementDisplayName } from "../src/lib/programming/coaching/movement-catalog";
-import { planWeekContract } from "../src/lib/programming/coaching/session-contract";
+import { clockEcho, planWeekContract } from "../src/lib/programming/coaching/session-contract";
 import { intensityBandsForStimulus, stimuliForCeiling } from "../src/lib/programming/coaching/session-contract";
 import { expandSlotPayload, quantityOptions, sessionSlotFormat, type SessionFrame } from "../src/lib/programming/coaching/slot-choices";
 import { projectWeek } from "../src/lib/programming/project";
@@ -123,6 +123,7 @@ describe("screen names and class intensity", () => {
       metcon_minutes: lock.metcon_minutes,
       extra_minutes: extra,
       stimulus: "high_rep",
+      ...clockEcho(lock.clock),
     };
     expect(expandSlotPayload(frame, { ...base, intensity: "heavy" }).ok).toBe(false);
     const legal = expandSlotPayload(frame, { ...base, intensity: "moderate" });
@@ -147,9 +148,9 @@ describe("screen names and class intensity", () => {
     const heavySchema = JSON.stringify(sessionSlotFormat(heavyPiece));
     expect(stimuliForCeiling("moderate", "heavy")).toEqual(["heavy"]);
     expect(intensityBandsForStimulus("moderate", ["heavy"])).toEqual(["moderate"]);
-    expect(heavySchema).toContain('"heavy"');
+    expect(heavySchema).not.toContain('"heavy"');
+    expect(heavySchema).toContain('"high_rep"');
     expect(heavySchema).toContain('"moderate"');
-    expect(heavySchema).not.toContain('"light"');
     const light = planWeekContract(
       [{ day: "fri", rest: false, long: false, domain: "short", lift: "none", intensity_ceiling: "light" }],
       1,
@@ -168,6 +169,7 @@ describe("screen names and class intensity", () => {
       extra_minutes: light.blocks.find((block) => block.role === "extra_conditioning")?.minutes ?? 0,
       stimulus: "heavy",
       intensity: "light",
+      ...clockEcho(light.clock),
     }).ok).toBe(false);
   });
 

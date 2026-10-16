@@ -14,6 +14,7 @@ import { coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/
 import { HEAD_COACH_PROMPT_VERSION, STAGE16_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
 import { parseHeadReview } from "../src/lib/programming/coaching/review";
 import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
+import { stimuliMatchingFormat } from "../src/lib/programming/coaching/session-contract";
 import { headStanceOf } from "../src/lib/programming/coaching/stage16/pass";
 import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
 import { ensureProgrammingWeek } from "../src/lib/programming/engine";
@@ -147,7 +148,9 @@ function sessionJson(session: SessionDraft, user?: Record<string, unknown>) {
         load: row.load ?? prescribedLoad(row.key),
       }));
   const format = slot?.from_goal ? piece.format : (slot?.format ?? piece.format);
-  const stimulus = slot?.stimulus ?? piece.stimulus;
+  const legal = stimuliMatchingFormat(format);
+  const requested = slot?.stimulus ?? piece.stimulus;
+  const stimulus = requested && (legal as readonly string[]).includes(requested) ? requested : (legal[0] ?? requested);
   return {
     day: session.day,
     notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
@@ -633,13 +636,11 @@ describe("day recovery orchestrator", () => {
     const cell = repsCellFromKeys(goalMondayKeys());
     const diffs = (monday?.conditioning?.movements ?? []).filter((row) => row.amount !== sampleAmount(row.key));
     expect(cell?.value).toBeTruthy();
-    expect(diffs).toHaveLength(1);
-    expect(diffs[0]?.key).toBe(cell?.key);
-    expect(diffs[0]?.amount).toBe(cell?.value);
-    expect(diffs[0]?.amount_value).toBe(Number(cell?.value));
+    expect(diffs).toHaveLength(0);
+    expect(JSON.stringify(result.traces.find((trace) => trace.agent_name === "revision_rejected")?.output)).toContain("not an allowed candidate");
     expect(monday?.conditioning?.stimulus).toBe(slot?.stimulus);
     expect(calls.filter((call) => call.agent === "conditioning_coach" && call.day === "mon")).toHaveLength(1);
-    expect(result.traces.some((trace) => trace.agent_name === "revision_compliance" && trace.day === "mon" && trace.token_usage == null)).toBe(true);
+    expect(result.traces.some((trace) => trace.agent_name === "revision_rejected" && trace.day === "mon" && trace.token_usage == null)).toBe(true);
     expect(result.day_sources.mon).toBe("model");
   });
 

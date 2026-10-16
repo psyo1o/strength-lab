@@ -19,6 +19,7 @@ import {
   coachSystemPrompt,
 } from "../src/lib/programming/coaching/prompts";
 import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
+import { stimuliMatchingFormat } from "../src/lib/programming/coaching/session-contract";
 import { COACHING_POLICY } from "../src/lib/programming/coaching/stage13/policy";
 import { MOVEMENT_EQUIPMENT } from "../src/lib/programming/coaching/stage13/units";
 import { headStanceOf } from "../src/lib/programming/coaching/stage16/pass";
@@ -115,12 +116,15 @@ function sessionJson(session: SessionDraft, user?: Record<string, unknown>) {
   const movements = slot?.primary_keys?.length
     ? goalMovements(slot.primary_keys)
     : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
-  const stimulus = slot?.stimulus ?? piece.stimulus;
+  const format = slot?.from_goal ? piece.format : (slot?.format ?? piece.format);
+  const legal = stimuliMatchingFormat(format);
+  const requested = slot?.stimulus ?? piece.stimulus;
+  const stimulus = requested && (legal as readonly string[]).includes(requested) ? requested : (legal[0] ?? requested);
   return {
     day: session.day,
     notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
     conditioning: {
-      format: slot?.from_goal ? piece.format : (slot?.format ?? piece.format),
+      format,
       duration_min: slot?.from_goal ? durationForSlot(slot) : (slot?.duration_min ?? piece.duration_min),
       stimulus,
       movements,
@@ -378,21 +382,20 @@ describe("explicit edit list", () => {
     expect(result.adoption?.verdict.modelSuccess).toBe(false);
   });
 
-  it("adopts a change_amount that touches only the named movement", async () => {
+  it("rejects a head amount that misses the derived cap window and does not call the specialist", async () => {
     const { result, calls, target } = await run("amount_exact");
     const before = result.day_records?.[target.day]?.original_model_output;
     const after = result.draft.sessions.find((session) => session.day === target.day);
     const beforeMoves = before?.conditioning?.movements ?? [];
     const afterMoves = after?.conditioning?.movements ?? [];
-    expect(afterMoves.find((movement) => movement.key === target.key)?.amount).toBe("20");
+    expect(afterMoves.find((movement) => movement.key === target.key)?.amount).toBe(beforeMoves.find((movement) => movement.key === target.key)?.amount);
     expect(afterMoves.find((movement) => movement.key === target.other)?.amount).toBe(beforeMoves.find((movement) => movement.key === target.other)?.amount);
     expect(afterMoves.map((movement) => movement.key)).toEqual(beforeMoves.map((movement) => movement.key));
     expect(revisionCalls(calls, target.day)).toHaveLength(0);
-    const traces = complianceTraces(result);
-    expect(traces).toHaveLength(1);
-    expect(JSON.stringify(traces[0]?.output)).toContain("success");
-    expect(traces[0]?.token_usage).toBeNull();
-    expect(traces[0]?.retry_count).toBe(0);
+    const rejected = result.traces.find((trace) => trace.agent_name === "revision_rejected");
+    expect(JSON.stringify(rejected?.output)).toContain("not an allowed candidate");
+    expect(rejected?.token_usage).toBeNull();
+    expect(rejected?.retry_count).toBe(0);
     expect(result.final_validation?.ok).toBe(true);
     expect(result.final_status).toBe("ADJUST");
     expect(result.generation_source).toBe("fallback");
@@ -405,10 +408,10 @@ describe("explicit edit list", () => {
     const after = result.draft.sessions.find((session) => session.day === target.day);
     const beforeMoves = before?.conditioning?.movements ?? [];
     const afterMoves = after?.conditioning?.movements ?? [];
-    expect(afterMoves.find((movement) => movement.key === target.key)?.amount).toBe("20");
+    expect(afterMoves.find((movement) => movement.key === target.key)?.amount).toBe(beforeMoves.find((movement) => movement.key === target.key)?.amount);
     expect(afterMoves.find((movement) => movement.key === target.other)?.amount).toBe(beforeMoves.find((movement) => movement.key === target.other)?.amount);
     expect(revisionCalls(calls, target.day)).toHaveLength(0);
-    expect(JSON.stringify(complianceTraces(result)[0]?.output)).toContain("success");
+    expect(JSON.stringify(result.traces.find((trace) => trace.agent_name === "revision_rejected")?.output)).toContain("not an allowed candidate");
     expect(result.day_records?.[target.day]?.day_status).not.toBe("FAILED");
     expect(result.final_status).toBe("ADJUST");
     expect(result.generation_source).toBe("fallback");
@@ -421,14 +424,14 @@ describe("explicit edit list", () => {
     const after = result.draft.sessions.find((session) => session.day === target.day);
     const replacement = replacementFor(target.session).key;
     expect(movementsOf(before)).toContain(target.key);
-    expect(movementsOf(after)).not.toContain(`"${target.key}"`);
-    expect(movementsOf(after)).toContain(replacement);
+    expect(movementsOf(after)).toContain(`"${target.key}"`);
+    expect(after?.conditioning?.movements.some((movement) => movement.key === replacement)).toBe(false);
     expect(after?.conditioning?.movements.find((movement) => movement.key === target.other)?.amount).toBe(
       before?.conditioning?.movements.find((movement) => movement.key === target.other)?.amount,
     );
     expect(result.day_records?.[target.day]?.day_status).not.toBe("FAILED");
     expect(result.final_validation?.ok).toBe(true);
-    expect(complianceTraces(result).some((trace) => JSON.stringify(trace.output).includes("success"))).toBe(true);
+    expect(JSON.stringify(result.traces.find((trace) => trace.agent_name === "revision_rejected")?.output)).toContain("not an allowed candidate");
     expect(revisionCalls(calls, target.day)).toHaveLength(0);
     for (const day of result.plan.days.map((row) => row.day)) {
       if (day === target.day) continue;

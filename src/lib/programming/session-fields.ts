@@ -1,4 +1,5 @@
 import type { SessionDraft, VolumeBand } from "./types";
+import { catalogMovement } from "./coaching/movement-catalog";
 
 export type SessionCore = Omit<
   SessionDraft,
@@ -18,6 +19,7 @@ export type SessionCore = Omit<
 
 const LIFT_KO: Record<string, string> = {
   squat: "스쿼트",
+  olympic: "올림픽 리프트",
   ohp: "프레스",
   bench: "벤치",
   deadlift: "데드리프트",
@@ -73,7 +75,9 @@ export function fillSessionFields(
   const heavy = session.strength?.sets.some((set) => set.percent_of_tm >= 85) ?? false;
   return {
     ...session,
-    strength_purpose: lift ? `${LIFT_KO[lift] ?? lift}를 이 달 블록의 세트로 합니다.` : null,
+    strength_purpose: lift
+      ? `${catalogMovement(session.strength?.movement_key ?? "")?.name_ko ?? LIFT_KO[lift] ?? lift}를 이 달 블록의 세트로 합니다.`
+      : null,
     strength_volume: lift ? (strengthVolume ?? "moderate") : null,
     strength_intensity: lift ? (heavy ? "heavy" : "moderate") : null,
     metcon_purpose: conditioning.purpose || metconPurpose(session),
@@ -84,7 +88,11 @@ export function fillSessionFields(
     equipment: [...conditioning.equipment],
     volume: conditioning.volume,
     intensity: conditioning.intensity,
-    expected_duration: conditioning.duration_min,
+    expected_duration:
+      (conditioning.format === "for_time" || conditioning.format === "chipper" || conditioning.format === "partner") &&
+      conditioning.derived_sec != null
+        ? Math.max(1, Math.round(conditioning.derived_sec / 60))
+        : conditioning.duration_min,
   };
 }
 

@@ -214,6 +214,8 @@ export async function askCoach(input: {
   retryTransport?: boolean;
   /** 형식 재시도 횟수의 기준. 기본 2는 형식 재시도 한 번이다. */
   maxAttempts?: number;
+  /** 월간 계획처럼 json_schema를 JSON 객체로 내리지 않는다. */
+  keepSchema?: boolean;
 }): Promise<CoachCall> {
   const model = coachModelForCall(input.agent);
   const fetchImpl = input.fetchImpl ?? fetch;
@@ -293,7 +295,7 @@ export async function askCoach(input: {
         systemPrompt: input.systemPrompt,
       });
     }
-    if (attemptResult.reason === "schema_rejected" && format.type === "json_schema") {
+    if (attemptResult.reason === "schema_rejected" && format.type === "json_schema" && input.keepSchema !== true) {
       format = JSON_OBJECT;
       attemptResult = await postOnce({
         key: input.key,
@@ -387,7 +389,7 @@ export async function askCoach(input: {
         });
       }
       const transport = attemptResult.reason === "timeout" || attemptResult.reason === "http_error";
-      const shape = attemptResult.reason === "bad_json";
+      const shape = attemptResult.reason === "bad_json" || (input.keepSchema === true && attemptResult.reason === "schema_rejected");
       if (transport && httpRetries < maxHttpRetries) {
         httpRetries += 1;
         errors = [`${attemptResult.reason}: ${detail.slice(0, 400) || "no body"}`];
@@ -413,7 +415,8 @@ export async function askCoach(input: {
       }
       if (shape && formatRetries < maxFormatRetries) {
         formatRetries += 1;
-        errors = [`${attemptResult.reason}: return one JSON object that matches the schema`];
+        const cause = detail.replace(/\s+/g, " ").slice(0, 180);
+        errors = [`${attemptResult.reason}: ${cause || "response was not a JSON object"}`];
         remember(errors);
         lastJson = attemptResult.raw;
         user = formatRetryUser(input, errors, lastJson, retryExtra);

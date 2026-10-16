@@ -1,4 +1,4 @@
-import { weekContractIssues } from "./coaching/session-contract";
+import { weekContractIssues, type ContractDayInput } from "./coaching/session-contract";
 import { lowerAdjacentRunErrors } from "./coaching/zone2";
 import { lockedSkeletonDrift, validateSkeletonConformance, type MonthlyDirection, type WeekSkeleton } from "./direction";
 import { judgeWeek, type JudgeFailure, type WeekCheckContext } from "./rules";
@@ -24,6 +24,8 @@ const ADJUST_REASONS = new Set<JudgeFailure>(["too_similar", "language"]);
 export type EvaluateWeekContext = WeekCheckContext & {
   monthlyDirection?: MonthlyDirection | null;
   weekSkeleton?: WeekSkeleton | null;
+  /** 생성 잠금과 같은 계약 입력. 없으면 세션만으로 잠금을 다시 만든다. */
+  contractDays?: readonly ContractDayInput[] | null;
 };
 
 function issueCode(reason: JudgeFailure): IssueCode {
@@ -159,7 +161,7 @@ export function evaluateWeek(
   const extra = [
     ...skeletonIssues(month, context),
     ...lowerAdjacentIssues(raw, context),
-    ...weekContractIssues(raw, weekIndex, month.strength_method || month.scheme || "531").map((message) => {
+    ...weekContractIssues(raw, weekIndex, month.strength_method || month.scheme || "531", context.contractDays).map((message) => {
       const day = dayOf(message);
       if (day) {
         return makeIssue({

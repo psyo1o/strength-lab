@@ -2,7 +2,7 @@ import type { DayKey } from "../../month-plan/types";
 import type { SessionDraft } from "../types";
 import type { HeadPieceRef } from "./contract";
 import { patchStoredMovement, type MovementCellField } from "./movement-catalog";
-import { intensityBandsAtMost, intensityBandsForStimulus, intensityLockEnum, isLockPatchField } from "./session-contract";
+import { derivedFor, intensityBandsAtMost, intensityBandsForStimulus, intensityLockEnum, isLockPatchField, renderMetconLine } from "./session-contract";
 import { applyCatalogOption, peerMovementIds } from "./slot-choices";
 import type { SessionRevision } from "./review";
 
@@ -217,6 +217,7 @@ export function applyHeadCells(
         });
         continue;
       }
+      restampMetcon(session);
       rows.push({
         day: cell.day,
         catalog_key: cell.catalog_key,
@@ -240,6 +241,7 @@ export function applyHeadCells(
       });
       continue;
     }
+    restampMetcon(session);
     rows.push({
       day: cell.day,
       catalog_key: cell.catalog_key,
@@ -251,4 +253,43 @@ export function applyHeadCells(
   }
   const applied = rows.filter((row) => row.result === "applied").length;
   return { proposed: rows.length, applied, reverted: rows.length - applied, rows };
+}
+
+/** 헤드가 수량을 바꾼 뒤 예상 시간만 다시 계산한다. 수량과 캡은 그대로 둔다. */
+function restampMetcon(session: SessionDraft | undefined) {
+  const piece = session?.conditioning;
+  if (!piece?.clock || piece.format === "zone2") return;
+  const doses = piece.movements.flatMap((movement) => {
+    const unit = movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" || movement.unit === "min" || movement.unit === "reps" ? movement.unit : null;
+    const amount = movement.amount_value ?? Number(String(movement.amount).replace(/[^\d]/g, ""));
+    if (!unit || !Number.isInteger(amount)) return [];
+    return [{ key: movement.key, unit, amount, ...(Array.isArray(movement.qty) ? { qty: movement.qty } : {}) }];
+  });
+  const intensity = piece.intensity === "light" || piece.intensity === "moderate" || piece.intensity === "heavy" ? piece.intensity : null;
+  const derived = derivedFor(piece.format, piece.duration_min, doses, piece.clock, intensity);
+  if (!derived || !session) return;
+  piece.derived_sec = derived.sec;
+  piece.derived_rounds = derived.rounds;
+  piece.time_source = "derived";
+  const line = renderMetconLine({
+    format: piece.format,
+    clock: piece.clock,
+    movements: piece.movements.map((movement) => ({
+      key: movement.key,
+      amount: movement.amount_value,
+      unit: movement.unit,
+      qty: movement.qty,
+      load: movement.load,
+    })),
+  });
+  piece.rep_structure = line;
+  piece.work_rest_structure = line;
+  if (piece.format === "for_time" || piece.format === "chipper" || piece.format === "partner") {
+    session.expected_duration = Math.max(1, Math.round(derived.sec / 60));
+  }
+  const block = session.session_blocks?.find((row) => row.role === "metcon");
+  if (block) {
+    block.derived_sec = derived.sec;
+    block.time_source = "derived";
+  }
 }

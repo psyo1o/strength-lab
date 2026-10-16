@@ -8,6 +8,15 @@ export type CatalogUnit = "reps" | "cal" | "m" | "sec" | "min";
 
 export type CatalogLoad = { male: string | null; female: string | null };
 
+/** 변환 비율 또는 수량 축소. 부하는 같은 동작의 가벼운 Rx다. */
+export type ScaleVariant = {
+  key: string;
+  mode: "ratio" | "quantity";
+  factor: number;
+  load?: { male: string; female: string } | null;
+  unit?: CatalogUnit | null;
+};
+
 export type CatalogMovement = {
   key: string;
   proposed_key: string | null;
@@ -23,13 +32,21 @@ export type CatalogMovement = {
   ranges: Partial<Record<CatalogUnit, string | null>>;
   rx: { male: string | null; female: string | null };
   scale_to: string[];
+  /** 이 동작이 속한 Rx 키. 스케일 전용이면 Rx 키와 다르다. */
+  rx_variant: string | null;
+  scale_variants: ScaleVariant[];
+  /** Rx 칸에 두면 거절한다. Single-under가 이 경우다. */
+  scale_only: boolean;
   sources: string[];
   memo: string | null;
 };
 
+type ScaleFileEntry = ScaleVariant & { scale_only?: boolean };
+
 type CatalogFile = {
   version: string;
   movements: CatalogMovement[];
+  rx_scale?: { rx_key: string; scales: ScaleFileEntry[] }[];
 };
 
 export type MovementCellField = "movement" | "amount" | "unit" | "load" | "movement_id" | "quantity_option" | "intensity";
@@ -85,6 +102,65 @@ export function jointsForPattern(pattern: string): string[] {
 
 let cached: CatalogFile | null = null;
 
+function weightPairs(text: string | null | undefined): { amount: number; unit: string }[] {
+  if (!text) return [];
+  const found: { amount: number; unit: string }[] = [];
+  for (const match of text.matchAll(/(\d+(?:\.\d+)?)\s*(lb|kg)/gi)) {
+    found.push({ amount: Number(match[1]), unit: match[2]!.toLowerCase() });
+  }
+  return found;
+}
+
+/** 바벨은 두 번째 남/여 무게가 가벼운 스케일이고, 수량은 0.7이다. */
+function barbellScales(row: CatalogMovement): ScaleVariant[] {
+  const male = weightPairs(row.rx?.male);
+  const female = weightPairs(row.rx?.female);
+  const scales: ScaleVariant[] = [];
+  if (male[1] && female[1] && male[1].unit === female[1].unit) {
+    scales.push({
+      key: row.key,
+      mode: "ratio",
+      factor: 1,
+      load: { male: `${male[1].amount} ${male[1].unit}`, female: `${female[1].amount} ${female[1].unit}` },
+    });
+  }
+  scales.push({ key: row.key, mode: "quantity", factor: 0.7 });
+  return scales;
+}
+
+function stampScales(parsed: CatalogFile) {
+  for (const row of parsed.movements) {
+    row.rx_variant = row.key;
+    row.scale_variants = [];
+    row.scale_only = false;
+  }
+  for (const family of parsed.rx_scale ?? []) {
+    const rx = parsed.movements.find((row) => row.key === family.rx_key);
+    if (!rx) continue;
+    rx.rx_variant = family.rx_key;
+    rx.scale_only = false;
+    rx.scale_variants = family.scales.map((scale) => ({
+      key: scale.key,
+      mode: scale.mode,
+      factor: scale.factor,
+      load: scale.load ?? null,
+      unit: scale.unit ?? null,
+    }));
+    for (const scale of family.scales) {
+      if (!scale.scale_only) continue;
+      const row = parsed.movements.find((item) => item.key === scale.key);
+      if (!row || row.key === family.rx_key) continue;
+      row.scale_only = true;
+      row.rx_variant = family.rx_key;
+      row.scale_variants = [];
+    }
+  }
+  for (const row of parsed.movements) {
+    if (row.equipment !== "barbell" || row.scale_only || row.scale_variants.length) continue;
+    row.scale_variants = barbellScales(row);
+  }
+}
+
 function loadFile(): CatalogFile {
   if (cached) return cached;
   const file = path.join(process.cwd(), "data", "movement-catalog.json");
@@ -93,6 +169,7 @@ function loadFile(): CatalogFile {
     if (!row.primary_joints?.length) row.primary_joints = jointsForPattern(row.pattern);
     if (typeof row.name_ko === "string") row.name_ko = cleanDisplayName(row.name_ko);
   }
+  stampScales(parsed);
   cached = parsed;
   return cached;
 }
@@ -110,10 +187,30 @@ export function standardMovements(): readonly CatalogMovement[] {
   return loadFile().movements;
 }
 
-const byKey = (): Map<string, CatalogMovement> => new Map(standardMovements().map((row) => [row.key, row]));
+let keyMap: Map<string, CatalogMovement> | null = null;
+
+function byKey(): Map<string, CatalogMovement> {
+  if (!keyMap) keyMap = new Map(standardMovements().map((row) => [row.key, row]));
+  return keyMap;
+}
 
 export function catalogMovement(key: string): CatalogMovement | null {
   return byKey().get(key) ?? null;
+}
+
+/** Rx 칸에 두면 안 되는 스케일 전용 동작. */
+export function isScaleOnly(key: string): boolean {
+  return catalogMovement(key)?.scale_only === true;
+}
+
+export function rxVariantOf(key: string): string | null {
+  const row = catalogMovement(key) ?? catalogMovement(linkedCatalogKey(key).key);
+  return row?.rx_variant ?? null;
+}
+
+export function scaleVariants(key: string): readonly ScaleVariant[] {
+  const row = catalogMovement(key) ?? catalogMovement(linkedCatalogKey(key).key);
+  return row?.scale_variants ?? [];
 }
 
 /** Stored keys with no single movement. The model list and schema enum omit them. */
@@ -211,6 +308,19 @@ function loadMatches(text: string | null, options: readonly RxSide[]): boolean {
 /** When the catalog lists an Rx weight, that side's load is required and must be one of those weights. */
 export function rxLoadErrors(key: string, load: { male?: string | null; female?: string | null } | null | undefined): string[] {
   const weights = catalogRxWeights(key);
+  const modal = modalWodLb(key);
+  if (!weights && modal) {
+    const errors: string[] = [];
+    const male = Number(modal.male.match(/\d+/)?.[0]);
+    const female = Number(modal.female.match(/\d+/)?.[0]);
+    if (!loadMatches(load?.male ?? null, [{ amount: male, unit: "lb" }])) {
+      errors.push(`${key} load.male is required and must be ${modal.male}`);
+    }
+    if (!loadMatches(load?.female ?? null, [{ amount: female, unit: "lb" }])) {
+      errors.push(`${key} load.female is required and must be ${modal.female}`);
+    }
+    return errors;
+  }
   const text = catalogRxText(key);
   if (!weights && text) {
     const errors: string[] = [];
@@ -245,6 +355,16 @@ export function catalogRxText(key: string): { male: string | null; female: strin
   return { male, female };
 }
 
+/** 바벨 메모의 첫 남/여 최빈 WOD. rx가 1RM %여도 메트콘에는 이 숫자를 쓴다. 맨몸·로잉 메모의 무게는 Rx가 아니다. */
+export function modalWodLb(key: string): { male: string; female: string } | null {
+  const row = catalogMovement(key) ?? catalogMovement(linkedCatalogKey(key).key);
+  if (!row || row.equipment !== "barbell" || catalogRxWeights(key)) return null;
+  const memo = row.memo ?? "";
+  const match = memo.match(/최빈:\s*(\d+)\/(\d+)\s*lb/);
+  if (!match) return null;
+  return { male: `${match[1]} lb`, female: `${match[2]} lb` };
+}
+
 export function prescribedLoad(key: string): { male: string | null; female: string | null } | null {
   const weights = catalogRxWeights(key);
   if (weights) {
@@ -253,6 +373,8 @@ export function prescribedLoad(key: string): { male: string | null; female: stri
       female: weights.female[0] ? `${weights.female[0].amount} ${weights.female[0].unit}` : null,
     };
   }
+  const modal = modalWodLb(key);
+  if (modal) return modal;
   const text = catalogRxText(key);
   if (!text) return null;
   return { male: text.male, female: text.female };

@@ -176,11 +176,11 @@ export function planCoachedWeek(input: {
     if (assigned?.role === "zone2") {
       intent.zone2 = "day";
       intent.zone2_modality = assigned.movement;
-      intent.zone2_duration = phase === "deload" ? 30 : 40;
+      intent.zone2_duration = 40;
       intent.zone2_effort = "conversational";
       intent.zone2_hr = "unspecified";
       intent.companion_movement = assigned.companion;
-      intent.notes_ko = "존 2는 30–45분, RPE 2–3이다. 가벼운 상체 풀이나 코어를 포함한다.";
+      intent.notes_ko = "존 2는 40–45분, RPE 2–3이다. 가벼운 상체 풀이나 코어를 포함한다.";
     } else if (assigned) {
       intent.zone2 = "none";
       intent.main_movement = assigned.movement;

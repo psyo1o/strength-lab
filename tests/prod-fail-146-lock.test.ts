@@ -156,12 +156,8 @@ describe("prod week 146 lock failure", () => {
     const saturday = locks.find((row) => row.day === "sat");
     expect(monday?.format).toBe("amrap");
     expect(monday?.metcon.map((move) => move.key)).toEqual(["ski_erg", "wall_ball", "box_jump"]);
-    expect(saturday?.format).toBe("partner");
-    expect(saturday?.metcon.map((move) => `${move.key}:${move.unit}:${move.amount}`)).toEqual([
-      "run:m:200",
-      "american_kettlebell_swing:reps:18",
-      "sumo_deadlift_high_pull:reps:10",
-    ]);
+    expect(saturday?.format).toBe("emom");
+    expect(saturday?.metcon.map((move) => `${move.key}:${move.unit}:${move.amount}`)).toEqual(["double_under:reps:15", "sit_up:reps:10"]);
 
     const swapped = session("mon", piece("partner", partnerMoves()));
     const messages = lockMismatchMessages(

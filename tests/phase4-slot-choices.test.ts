@@ -67,12 +67,12 @@ describe("세션 칸 선택", () => {
       ],
     };
     const schema = JSON.stringify(sessionSlotFormat(frame));
-    expect(schema).toContain("m:250");
-    expect(schema).toContain("cal:12");
+    expect(schema).toContain("m:400");
+    expect(schema).toContain("cal:15");
     const missing = expandSlotPayload(frame, {});
     expect(missing.ok).toBe(false);
     const built = expandSlotPayload(frame, {
-      s0: { slot: "s0", movement_id: "row_erg", quantity_option: "m:250" },
+      s0: { slot: "s0", movement_id: "row_erg", quantity_option: "m:400" },
       s1: { slot: "s1", movement_id: "american_kettlebell_swing", quantity_option: options[0]!.id },
     });
     expect(built.ok).toBe(true);

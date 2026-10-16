@@ -4,7 +4,17 @@ import { catalogMovement, equipmentForKeys } from "../coaching/movement-catalog"
 import { intensityBandsAtMost } from "../coaching/session-contract";
 import { fillSessionFields } from "../session-fields";
 import type { WeekActual } from "../summary";
-import type { IntensityBand, MonthDirection, SessionDraft, StrengthLiftChoice, VolumeBand, WeekDraft, WeekIndex, WeeklyIntentPlan } from "../types";
+import {
+  percentFamily,
+  type IntensityBand,
+  type MonthDirection,
+  type SessionDraft,
+  type StrengthLiftChoice,
+  type VolumeBand,
+  type WeekDraft,
+  type WeekIndex,
+  type WeeklyIntentPlan,
+} from "../types";
 import { timeDomainFromMinutes } from "../coaching/canonical";
 import { koreanRatio, TIME_DOMAIN_RANGES } from "../rules";
 import { lockedSkeletonViolations, type LockedFieldChange } from "./lock";
@@ -78,7 +88,8 @@ export function changesFromPrescription(skeleton: WeeklySkeleton, draft: WeekDra
     }
     const rest = session.rest || !session.conditioning;
     const steady = session.zone2?.form === "day" || day.steady_zone2 === true;
-    const lift: StrengthLiftChoice = rest || !session.strength ? "none" : session.strength.lift;
+    const family = rest || !session.strength ? null : percentFamily(session.strength.lift);
+    const lift: StrengthLiftChoice = family ?? "none";
     const planDay = planDays.find((row) => row.day === key);
     const change: LockedFieldChange = {
       day: key,

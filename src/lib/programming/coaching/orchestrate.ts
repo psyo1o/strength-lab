@@ -6,7 +6,7 @@ import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { classCompletionForCoach, classSummaryForCoach, omitAbsenceSummary, parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
-import { intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
+import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, sessionEstimateIssues, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -324,13 +324,46 @@ function skeletonComboFor(week: CoachWeekInput, rules: WeekRules, day: DayKey) {
   return { strengthLifts: bound.strength_lift, deadliftConditioning: bound.deadliftConditioning };
 }
 
-function judgeContext(input: CoachWeekInput) {
+function contractDaysFor(week: CoachWeekInput, plan: WeeklyIntentPlan): ContractDayInput[] {
+  return plan.days.map((row) => {
+    const skeleton = lockedSkeletonDay(week, row.day);
+    const klass = skeleton?.conditioning.duration_class;
+    const slotDomain = plan.conditioning_slots?.[row.day]?.time_domain;
+    const domain =
+      klass === "short" || klass === "medium" || klass === "long"
+        ? klass
+        : slotDomain === "short" || slotDomain === "medium" || slotDomain === "long"
+          ? slotDomain
+          : null;
+    const lift = row.strength_lift;
+    const ceiling = skeleton?.conditioning.intensity_ceiling;
+    return {
+      day: row.day,
+      rest: row.primary_training === "rest" || row.recovery_role === "rest",
+      long: domain === "long" || (domain == null && row.secondary_training === "long_conditioning"),
+      domain,
+      lift: lift === "squat" || lift === "bench" || lift === "ohp" || lift === "deadlift" ? lift : "none",
+      main_key: row.main_movement ?? null,
+      companion_key: row.companion_movement ?? null,
+      heavy_hinge: row.main_movement === "deadlift" && row.lower_exposure === "heavy",
+      zone2: row.zone2 === "day",
+      zone2_modality: row.zone2 === "day" ? row.zone2_modality ?? null : null,
+      zone2_minutes: row.zone2 === "day" ? row.zone2_duration ?? null : null,
+      intensity_ceiling: ceiling === "light" || ceiling === "moderate" || ceiling === "heavy" ? ceiling : "heavy",
+      intensity_class: bandOf(skeleton?.conditioning.intensity_class) ?? bandOf(row.intensity_profile),
+      stimulus: lockableStimulus(sessionStimulus(plan.conditioning_slots?.[row.day]?.stimulus), bandOf(skeleton?.conditioning.intensity_class) ?? bandOf(row.intensity_profile)),
+    };
+  });
+}
+
+function judgeContext(input: CoachWeekInput, plan?: WeeklyIntentPlan) {
   const previous = input.previousActual ?? null;
   return {
     previousActual: previous ? omitAbsenceSummary(previous) : null,
     recentLiftMaps: input.recentLiftMaps ?? [],
     monthlyDirection: input.monthlyDirection ?? null,
     weekSkeleton: input.weekSkeleton ?? null,
+    ...(plan ? { contractDays: contractDaysFor(input, plan) } : {}),
   };
 }
 
@@ -351,9 +384,9 @@ function stampSlotAxes(json: unknown, slot: ConditioningSlot, ceiling?: string |
   if (!piece || typeof piece !== "object") return clone;
   piece.format = slot.format;
   piece.duration_min = slot.duration_min;
-  const clocked = slot.format === "emom" || slot.format === "intervals";
-  const stamped = clocked && slot.stimulus === "heavy" ? "technical" : slot.stimulus;
-  if ((stimuliForCeiling(ceiling, stamped) as readonly string[]).includes(stamped)) piece.stimulus = stamped;
+  const requested = slot.format === "zone2" ? "aerobic" : slot.stimulus;
+  const legal = stimuliMatchingFormat(slot.format, stimuliForCeiling(ceiling, requested));
+  if ((legal as readonly string[]).includes(requested)) piece.stimulus = requested;
   piece.volume = slot.volume;
   if (slot.format === "intervals") {
     if (typeof piece.interval_work_sec !== "number") piece.interval_work_sec = 40;
@@ -382,35 +415,7 @@ function lockableStimulus(stimulus: string | null, intensityClass: IntensityCeil
 }
 
 function sessionLockFor(week: CoachWeekInput, plan: WeeklyIntentPlan, day: DayKey): DaySessionLock | null {
-  const days: ContractDayInput[] = plan.days.map((row) => {
-    const skeleton = lockedSkeletonDay(week, row.day);
-    const klass = skeleton?.conditioning.duration_class;
-    const slotDomain = plan.conditioning_slots?.[row.day]?.time_domain;
-    const domain =
-      klass === "short" || klass === "medium" || klass === "long"
-        ? klass
-        : slotDomain === "short" || slotDomain === "medium" || slotDomain === "long"
-          ? slotDomain
-          : null;
-    const lift = row.strength_lift;
-    const ceiling = skeleton?.conditioning.intensity_ceiling;
-    return {
-      day: row.day,
-      rest: row.primary_training === "rest" || row.recovery_role === "rest",
-      long: domain === "long" || (domain == null && row.secondary_training === "long_conditioning"),
-      domain,
-      lift: lift === "squat" || lift === "bench" || lift === "ohp" || lift === "deadlift" ? lift : "none",
-      main_key: row.main_movement ?? null,
-      companion_key: row.companion_movement ?? null,
-      zone2: row.zone2 === "day",
-      zone2_modality: row.zone2 === "day" ? row.zone2_modality ?? null : null,
-      zone2_minutes: row.zone2 === "day" ? row.zone2_duration ?? null : null,
-      intensity_ceiling: ceiling === "light" || ceiling === "moderate" || ceiling === "heavy" ? ceiling : "heavy",
-      intensity_class: bandOf(skeleton?.conditioning.intensity_class) ?? bandOf(row.intensity_profile),
-      stimulus: lockableStimulus(sessionStimulus(plan.conditioning_slots?.[row.day]?.stimulus), bandOf(skeleton?.conditioning.intensity_class) ?? bandOf(row.intensity_profile)),
-    };
-  });
-  return planWeekContract(days, week.weekIndex, week.month.strength_method || week.month.scheme || "531").find((row) => row.day === day) ?? null;
+  return planWeekContract(contractDaysFor(week, plan), week.weekIndex, week.month.strength_method || week.month.scheme || "531").find((row) => row.day === day) ?? null;
 }
 
 function adoptDay(input: {
@@ -570,13 +575,31 @@ function mergeSpecialists(input: {
   };
 }
 
-function doseRow(value: unknown): { key: string; unit: "reps" | "cal" | "m" | "sec" | "min"; amount: number } | null {
+function doseRow(value: unknown): {
+  key: string;
+  unit: "reps" | "cal" | "m" | "sec" | "min";
+  amount: number;
+  sets?: number;
+  rest_sec?: number;
+  derived_minutes?: number;
+  time_source?: "derived";
+} | null {
   const row = asRecord(value);
   if (!row || typeof row.key !== "string") return null;
   const unit = row.unit === "reps" || row.unit === "cal" || row.unit === "m" || row.unit === "sec" || row.unit === "min" ? row.unit : null;
   const amount = typeof row.amount === "number" ? row.amount : typeof row.amount_value === "number" ? row.amount_value : null;
   if (!unit || amount == null) return null;
-  return { key: row.key, unit, amount };
+  const sets = typeof row.sets === "number" ? row.sets : undefined;
+  const rest = typeof row.rest_sec === "number" ? row.rest_sec : undefined;
+  const derived = typeof row.derived_minutes === "number" ? row.derived_minutes : undefined;
+  return {
+    key: row.key,
+    unit,
+    amount,
+    ...(sets != null ? { sets } : {}),
+    ...(rest != null ? { rest_sec: rest } : {}),
+    ...(derived != null ? { derived_minutes: derived, time_source: "derived" as const } : {}),
+  };
 }
 
 function assembleContract(
@@ -596,6 +619,17 @@ function assembleContract(
   const skill = doseRow(strong.skill);
   const mainPattern = doseRow(strong.main);
   const extra = doseRow(piece.extra);
+  if (skill && skill.unit === "reps" && skill.sets && skill.sets > 0) {
+    skill.rest_sec = skill.rest_sec ?? 90;
+    skill.derived_minutes = Math.round(accessoryContentMinutes(skill.sets, skill.amount, skill.rest_sec));
+    skill.time_source = "derived";
+  }
+  if (extra && extra.unit === "sec") {
+    const sets = extra.sets && extra.sets > 0 ? extra.sets : 1;
+    extra.sets = sets;
+    extra.derived_minutes = Math.round((sets * extra.amount) / 60);
+    extra.time_source = "derived";
+  }
   const blocks: { role: string; minutes: number; movements: unknown[] }[] = [
     { role: "warmup", minutes: Number(warm.warmup_minutes), movements: ramp.map(doseRow).filter((row) => row != null) },
   ];
@@ -1829,7 +1863,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       previousActual: input.previousActual,
       recentLiftMaps: input.recentLiftMaps,
     });
-    const judged = evaluateWeek(bare(legacy), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+    const judged = evaluateWeek(bare(legacy), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week, plan));
     if (legacy.sessions.length === DAY_ORDER.length) {
       built = { draft: stamp(legacy, plan), judgeOk: judged.ok, errors: judged.ok ? [] : judged.errors, salt: built.salt };
     }
@@ -2097,7 +2131,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }),
   );
 
-  const loadRuleErrors = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week)).errors.filter((error) =>
+  const loadRuleErrors = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week, plan)).errors.filter((error) =>
     error.includes("sets do not match"),
   );
   traces.push(
@@ -2278,7 +2312,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       month,
       weekIndex: input.weekIndex,
       recent: input.recentStructures ?? [],
-      context: judgeContext(week),
+      context: judgeContext(week, plan),
       rules,
     });
 
@@ -2439,12 +2473,12 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }
     const headIssues = currentReport().issues.filter((issue) => issue.severity === "hard_error");
     lastHeadHardCodes = [...new Set(headIssues.map((issue) => issue.code))];
-    const preHeadJudge = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+    const preHeadJudge = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week, plan));
     const preHeadSimilarity = similarityDiagnostics(draft, input.recentStructures ?? []);
     const dayLimits = hardConstraints(input.previousActual);
     const avoidHeavyLower = dayLimits.heavy_lower_metcon === "avoid";
     const headViolates = (sessions: SessionDraft[]) => {
-      const judged = evaluateWeek(bare({ ...draft, sessions }), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+      const judged = evaluateWeek(bare({ ...draft, sessions }), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week, plan));
       return judged.ok ? false : judged.errors.some((error) => !isCoachingSignal(error));
     };
     const headPieceSpecs = pieceCells(draft.sessions).map((cell) => {
@@ -2754,16 +2788,17 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
   const violatingBeforeHead = draft.sessions.filter((session) => sessionHasHeavyLowerMetcon(session)).map((session) => session.day);
   const beforeHeadSessions = JSON.parse(JSON.stringify(draft.sessions)) as SessionDraft[];
   const headStillHard = (sessions: readonly SessionDraft[]) => {
-    const judged = evaluateWeek(bare({ ...draft, sessions: [...sessions] }), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+    const judged = evaluateWeek(bare({ ...draft, sessions: [...sessions] }), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week, plan));
     return judged.ok ? [] : judged.errors.filter((error) => !isCoachingSignal(error));
   };
   const lockStillBroken = (sessions: readonly SessionDraft[]) =>
-    weekContractIssues({ sessions: [...sessions] }, input.weekIndex, month.strength_method || month.scheme || "531").some((message) =>
+    weekContractIssues({ sessions: [...sessions] }, input.weekIndex, month.strength_method || month.scheme || "531", contractDaysFor(week, plan)).some((message) =>
       /locked dose|locked ceiling|does not match lock|do not match lock/.test(message),
     );
+  const estimateBroken = (sessions: readonly SessionDraft[]) => sessions.some((session) => sessionEstimateIssues(session).length > 0);
   const headCells = applyHeadCells(draft.sessions, modelRevisions, {
     avoidHeavyLower,
-    accept: (sessions) => !lockStillBroken(sessions),
+    accept: (sessions) => !lockStillBroken(sessions) && !estimateBroken(sessions),
   });
   if (headCells.applied > 0 && lockStillBroken(draft.sessions)) {
     draft.sessions.splice(0, draft.sessions.length, ...beforeHeadSessions);
@@ -2791,7 +2826,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     } else if (catalog.length > 0) {
       const rows = headCells.rows.filter((row) => row.field === "movement_id" || row.field === "quantity_option" || row.field === "intensity");
       const applied = rows.length === catalog.length && rows.every((row) => row.result === "applied");
-      const judged = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+      const judged = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week, plan));
       const hard = judged.ok ? [] : judged.errors.filter((error) => !isCoachingSignal(error));
       if (applied && beforeMoves !== afterMoves && hard.length === 0) headCatalogOutcome = "applied";
       else {
@@ -2801,7 +2836,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     }
   }
   if (headParseFailed || headCatalogOutcome === "unresolved") {
-    const judgedNow = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week));
+    const judgedNow = evaluateWeek(bare(draft), month, input.weekIndex, input.recentStructures ?? [], judgeContext(week, plan));
     const hardNow = judgedNow.ok ? [] : judgedNow.errors.filter((error) => !isCoachingSignal(error));
     const catalogRows = headCells.rows.filter((row) => row.field === "movement_id" || row.field === "quantity_option" || row.field === "intensity");
     headReviseGap = classifyHeadRevise({
@@ -3019,7 +3054,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     month,
     weekIndex: input.weekIndex,
     recent: input.recentStructures ?? [],
-    context: judgeContext(week),
+    context: judgeContext(week, plan),
     rules,
   });
   const diagnosticJudgeErrors = finalReport.hard;
@@ -3078,7 +3113,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         month,
         weekIndex: input.weekIndex,
         recent: input.recentStructures ?? [],
-        context: judgeContext(week),
+        context: judgeContext(week, plan),
         rules,
       });
       const sessions = draft.sessions.map((session) => {
@@ -3099,7 +3134,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
         month,
         weekIndex: input.weekIndex,
         recent: input.recentStructures ?? [],
-        context: judgeContext(week),
+        context: judgeContext(week, plan),
         rules,
       }).hard;
       modelDayCount = trained.filter((day) => daySources[day.day] === "model").length;
@@ -3292,7 +3327,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     month,
     weekIndex: input.weekIndex,
     recent: input.recentStructures ?? [],
-    context: judgeContext(week),
+    context: judgeContext(week, plan),
     rules,
   });
   const repairRequests: RepairRequest[] = [];

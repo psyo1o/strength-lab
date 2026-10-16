@@ -5,6 +5,7 @@ import { catalogMovement, prescribedLoad, sampleAmount } from "../../src/lib/pro
 import { legalMonthlyCellJson } from "../../src/lib/programming/coaching/goal-candidates";
 import { deterministicMonthlyPlan } from "../../src/lib/programming/coaching/monthly";
 import { assembleLegalWeek } from "../../src/lib/programming/coaching/session";
+import { stimuliMatchingFormat } from "../../src/lib/programming/coaching/session-contract";
 import { planCoachedWeek } from "../../src/lib/programming/coaching/weekly";
 import { fallbackMonth } from "../../src/lib/programming/fallback";
 import type { WeekActual } from "../../src/lib/programming/summary";
@@ -222,11 +223,11 @@ export function fetchFor(script: Script) {
       const full = sessionJson(session, `모델 ${day}`, slot?.primary_keys);
       if (slot?.from_goal && full.conditioning) {
         full.conditioning.duration_min = slot.time_domain === "long" ? 32 : slot.time_domain === "medium" ? 16 : 10;
-        full.conditioning.stimulus = slot.stimulus ?? full.conditioning.stimulus;
+        const legal = stimuliMatchingFormat(full.conditioning.format);
+        const requested = slot.stimulus ?? full.conditioning.stimulus ?? legal[0];
+        const next = requested && (legal as readonly string[]).includes(requested) ? requested : legal[0];
+        if (next === "heavy" || next === "high_rep" || next === "technical" || next === "aerobic") full.conditioning.stimulus = next;
         if (full.conditioning.stimulus === "heavy" && full.conditioning.intensity === "light") full.conditioning.intensity = "moderate";
-        if ((full.conditioning.format === "emom" || full.conditioning.format === "intervals") && full.conditioning.stimulus === "heavy") {
-          full.conditioning.stimulus = "technical";
-        }
       }
       return chat({ day, notes_ko: full.notes_ko, conditioning: full.conditioning });
     }

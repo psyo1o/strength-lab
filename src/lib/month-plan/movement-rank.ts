@@ -81,6 +81,7 @@ const STIMULUS_KO: Record<Stimulus, MetconStimulus> = {
   heavy: "고중량",
   high_rep: "고반복",
   technical: "기술",
+  aerobic: "유산소",
 };
 
 export type WodIntent = {

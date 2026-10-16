@@ -9,6 +9,7 @@ import { deterministicMonthlyPlan } from "../src/lib/programming/coaching/monthl
 import { catalogMovement, prescribedLoad, sampleAmount } from "../src/lib/programming/coaching/movement-catalog";
 import { movementCatalog } from "../src/lib/programming/coaching/pieces";
 import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
+import { stimuliMatchingFormat } from "../src/lib/programming/coaching/session-contract";
 import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
 import { STAGE16_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
 import { ensureProgrammingWeek } from "../src/lib/programming/engine";
@@ -90,7 +91,8 @@ function specialistFetch(input: { alignDay?: { day: DayKey; format: string; dura
         : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
       const format = slot?.from_goal ? (aligned?.format ?? piece.format) : (slot?.format ?? aligned?.format ?? piece.format);
       const requested = aligned?.stimulus ?? piece.stimulus;
-      const legalStimulus = (format === "emom" || format === "intervals") && requested === "heavy" ? "technical" : requested;
+      const legalList = stimuliMatchingFormat(format);
+      const legalStimulus = (legalList as readonly string[]).includes(requested) ? requested : (legalList[0] ?? requested);
       return chat({
         day,
         notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",

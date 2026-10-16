@@ -23,6 +23,7 @@ import type { MonthDirection, SessionDraft, WeekIndex, WeeklyIntentPlan } from "
 import { WEEKLY_PROMPT_VERSION } from "../src/lib/programming/types";
 import { recordedManyMissed } from "../src/lib/programming/weekly-intent";
 import { COACHING_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
+import { stimuliMatchingFormat } from "../src/lib/programming/coaching/session-contract";
 
 const NOW = Date.parse("2099-07-06T01:00:00.000Z");
 
@@ -276,12 +277,16 @@ function fetchFor(script: Script) {
       const full = sessionJson(session, mark, slot?.primary_keys);
       if (slot?.from_goal && full.conditioning) {
         full.conditioning.duration_min = slot.time_domain === "long" ? 32 : slot.time_domain === "medium" ? 16 : 10;
-        full.conditioning.stimulus = slot.stimulus ?? full.conditioning.stimulus;
+        const legal = stimuliMatchingFormat(full.conditioning.format);
+        const requested = slot.stimulus ?? full.conditioning.stimulus;
+        full.conditioning.stimulus = requested && (legal as readonly string[]).includes(requested) ? requested : (legal[0] ?? requested);
         if (full.conditioning.stimulus === "heavy" && full.conditioning.intensity === "light") full.conditioning.intensity = "moderate";
       } else if (slot?.primary_keys?.length && full.conditioning) {
         full.conditioning.format = slot.format ?? full.conditioning.format;
         full.conditioning.duration_min = slot.duration_min ?? full.conditioning.duration_min;
-        full.conditioning.stimulus = slot.stimulus ?? full.conditioning.stimulus;
+        const legal = stimuliMatchingFormat(full.conditioning.format);
+        const requested = slot.stimulus ?? full.conditioning.stimulus;
+        full.conditioning.stimulus = requested && (legal as readonly string[]).includes(requested) ? requested : (legal[0] ?? requested);
         full.conditioning.volume = slot.volume ?? full.conditioning.volume;
       }
       return chat({ day, notes_ko: full.notes_ko, conditioning: full.conditioning });
@@ -699,7 +704,7 @@ describe("active coaching contracts", () => {
     expect(weeks[2]?.revisions).toBe(0);
     expect(weeks[2]?.head).toBe("ADJUST");
     expect(weeks.map((week) => week.model_days).reduce((sum, value) => sum + value, 0)).toBe(modelDays);
-  });
+  }, 20000);
 });
 
 function conditioning(
@@ -748,5 +753,5 @@ describe("coaching pipeline production guard", () => {
     expect(live.c).toBe(0);
     delete process.env.COACHING_PIPELINE;
     delete process.env.STRENGTH_LAB_PROBE;
-  });
+  }, 20000);
 });

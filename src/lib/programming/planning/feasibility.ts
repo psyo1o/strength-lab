@@ -22,7 +22,7 @@ export type CellCause = {
 /** Intensity ceiling to the session stimuli and formats that can be satisfied together. */
 export function ceilingAllowance(ceiling: string | null | undefined): { stimuli: Stimulus[]; formats: readonly ContractFormat[] } {
   return {
-    stimuli: ceiling === "light" ? ["high_rep", "technical"] : [...STIMULI],
+    stimuli: ceiling === "light" ? ["high_rep", "technical", "aerobic"] : [...STIMULI],
     formats: CONTRACT_FORMATS,
   };
 }

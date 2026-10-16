@@ -220,7 +220,7 @@ describe("coaching pipeline", () => {
   it("keeps a locked lift on a long conditioning day", () => {
     const plan = planCoachedWeek({ month: month531(), weekIndex: 1 });
     const base = plan.days.find((row) => row.primary_training !== "rest")!;
-    const day = { ...base, secondary_training: "long_conditioning" as const, strength_lift: "ohp" as const };
+    const day = { ...base, secondary_training: "long_conditioning" as const, strength_lift: "ohp" as const, main_movement: "strict_press" };
     const session = sessionFromCoachJson({
       json: {
         day: day.day,

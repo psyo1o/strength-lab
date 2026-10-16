@@ -99,7 +99,7 @@ describe("zone2 rules", () => {
     expect(GOAL_TABLE_RULES.zone2.form).toBe("day");
     expect(GOAL_TABLE_RULES.zone2.blocks.day).toBe(1);
     expect(GOAL_TABLE_RULES.zone2.duration.day).toEqual([40, 45]);
-    expect(GOAL_TABLE_RULES.zone2.duration.deload).toEqual([30]);
+    expect(GOAL_TABLE_RULES.zone2.duration.deload).toEqual([40]);
     expect(GOAL_TABLE_RULES.zone2.effort).toEqual(["conversational"]);
     expect(GOAL_TABLE_RULES.zone2.countsTowardHighIntensity).toBe(false);
   });
@@ -230,35 +230,35 @@ describe("zone2 rules", () => {
     expect(heavy).toBeLessThanOrEqual(rules.max_high_intensity_days);
   });
 
-  it("딜로드도 별도 하루이고 30분 대화 가능 페이스다", () => {
+  it("딜로드도 별도 하루이고 40분 대화 가능 페이스다", () => {
     const skeleton = six("2099-03-23", 4);
     skeleton.zone2 = placeZone2({ skeleton, trainingDays: 6, deload: true });
     expect(skeleton.zone2.form).toBe("day");
     const bounds = dayBoundsFromSkeleton(skeleton, 2)!;
     const host = bounds.find((day) => day.zone2?.includes("day"))!;
     expect(host.zone2).toEqual(["day"]);
-    expect(host.zone2_duration).toEqual(["30"]);
+    expect(host.zone2_duration).toEqual(["40"]);
     expect(host.zone2_effort).toEqual(["conversational"]);
     const hostDay = host.day;
     expect(
       zone2RuleErrors({
         trainingDays: 6,
         zone2: skeleton.zone2,
-        planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 30, effort: "conversational", hr: "unspecified", intensity: "light" } }),
+        planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 40, effort: "conversational", hr: "unspecified", intensity: "light" } }),
       }),
     ).toEqual([]);
     expect(
       zone2RuleErrors({
         trainingDays: 6,
         zone2: skeleton.zone2,
-        planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 45, effort: "conversational", hr: "60-70", intensity: "light" } }),
+        planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 30, effort: "conversational", hr: "60-70", intensity: "light" } }),
       }).join(" "),
     ).toMatch(/duration/);
     expect(
       zone2RuleErrors({
         trainingDays: 6,
         zone2: skeleton.zone2,
-        planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 30, effort: "1", hr: "unspecified", intensity: "light" } }),
+        planDays: planDays({ [hostDay]: { zone2: "day", modality: "bike_erg", duration: 40, effort: "1", hr: "unspecified", intensity: "light" } }),
       }).join(" "),
     ).toMatch(/effort/);
   });

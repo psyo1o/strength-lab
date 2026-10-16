@@ -16,11 +16,13 @@ import {
   SIMILARITY_CONFIG,
   STIMULI,
   isLowerBodyLift,
+  percentFamily,
   isScheme,
   isWeekIndex,
   type ConditioningDraft,
   type Equipment,
   type MonthDirection,
+  type MovementDraft,
   type MovementPattern,
   type SessionDraft,
   type SimilarityFeature,
@@ -215,7 +217,7 @@ function asString(value: unknown): string | null {
 function parseSets(value: unknown): WeekDraft["sessions"][number]["strength"] {
   if (!isRecord(value)) return null;
   const lift = value.lift;
-  if (lift !== "squat" && lift !== "ohp" && lift !== "bench" && lift !== "deadlift") return null;
+  if (lift !== "squat" && lift !== "ohp" && lift !== "bench" && lift !== "deadlift" && lift !== "olympic") return null;
   if (!Array.isArray(value.sets) || value.sets.length === 0) return null;
   const sets = [];
   for (const row of value.sets) {
@@ -226,7 +228,8 @@ function parseSets(value: unknown): WeekDraft["sessions"][number]["strength"] {
     if (typeof percent !== "number" || !Number.isFinite(percent) || reps == null || amrap == null) return null;
     sets.push({ percent_of_tm: percent, reps, amrap });
   }
-  return { lift, sets };
+  const movement_key = typeof value.movement_key === "string" && value.movement_key.trim() ? value.movement_key.trim() : undefined;
+  return { lift, sets, ...(movement_key ? { movement_key } : {}) };
 }
 
 function parseStringList<T extends string>(value: unknown, allowed: readonly T[]): T[] | null {
@@ -280,7 +283,22 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     const amount = asString(row.amount);
     const name = asString(row.name_ko);
     if (!key || !amount || !name) return null;
-    movements.push({ key, amount, name_ko: name });
+    const qty = Array.isArray(row.qty) && row.qty.every((item) => typeof item === "number") ? (row.qty as number[]) : typeof row.qty === "number" ? row.qty : null;
+    const load = isRecord(row.load)
+      ? {
+          male: typeof row.load.male === "string" ? row.load.male : null,
+          female: typeof row.load.female === "string" ? row.load.female : null,
+        }
+      : null;
+    movements.push({
+      key,
+      amount,
+      name_ko: name,
+      ...(typeof row.amount_value === "number" ? { amount_value: row.amount_value } : {}),
+      ...(typeof row.unit === "string" ? { unit: row.unit as MovementDraft["unit"] } : {}),
+      ...(qty != null ? { qty } : {}),
+      ...(load ? { load } : {}),
+    });
   }
   const listed = parseStringList(value.equipment, EQUIPMENT);
   const equipment = listed ?? equipmentForKeys(movements.map((movement) => movement.key));
@@ -299,10 +317,13 @@ function parseConditioning(value: unknown): ConditioningDraft | null {
     intensity,
     long_conditioning: longPiece,
     purpose,
+    ...(isRecord(value.clock) ? { clock: value.clock as ConditioningDraft["clock"] } : {}),
+    ...(typeof value.derived_sec === "number" ? { derived_sec: value.derived_sec, time_source: "derived" as const } : {}),
+    ...(typeof value.derived_rounds === "number" ? { derived_rounds: value.derived_rounds } : {}),
   };
 }
 
-const LIFT_VALUES = ["squat", "ohp", "bench", "deadlift"] as const;
+const LIFT_VALUES = ["squat", "ohp", "bench", "deadlift", "olympic"] as const;
 
 function zone2Draft(value: unknown): SessionDraft["zone2"] | null {
   if (!value || typeof value !== "object") return null;
@@ -902,7 +923,11 @@ export function weekSchemaErrors(draft: WeekDraft, raw: unknown): string[] {
     if (session.intensity && session.intensity !== session.conditioning.intensity) {
       errors.push(`${session.day} intensity does not match`);
     }
-    if (session.expected_duration != null && session.expected_duration !== session.conditioning.duration_min) {
+    const completion = session.conditioning.format === "for_time" || session.conditioning.format === "chipper" || session.conditioning.format === "partner";
+    const derivedMinutes = completion && session.conditioning.derived_sec != null ? Math.max(1, Math.round(session.conditioning.derived_sec / 60)) : null;
+    if (derivedMinutes != null) {
+      if (session.expected_duration !== derivedMinutes) errors.push(`${session.day} expected duration is not the derived estimate`);
+    } else if (session.expected_duration != null && session.expected_duration !== session.conditioning.duration_min) {
       errors.push(`${session.day} expected duration does not match`);
     }
     if ((session.stimulus ?? null) !== (session.conditioning.stimulus ?? null)) {
@@ -985,23 +1010,25 @@ function lowerSetProblem(
   actual: WeekActual | null | undefined,
   lowers: readonly SessionDraft[],
 ): string | null {
-  if (!session.strength) return null;
-  const fatigue = strengthCheckFatigue(session.strength.lift, actual);
+  const lift = percentFamily(session.strength?.lift);
+  if (!session.strength || !lift) return null;
+  const fatigue = strengthCheckFatigue(lift, actual);
   const problem = validateStrengthPrescription(method, session.strength.sets, {
     day: session.day,
     weekIndex,
-    lift: session.strength.lift,
+    lift,
     fatigue,
   });
-  if (!problem || fatigue !== "high" || !isLowerBodyLift(session.strength.lift)) return problem;
+  if (!problem || fatigue !== "high" || !isLowerBodyLift(lift)) return problem;
   if (!setsMatchSecondLowerVolume(method, weekIndex, session.strength.sets)) return problem;
   const anchored = lowers.filter((row) => {
-    if (row.day === session.day || !row.strength || !isLowerBodyLift(row.strength.lift)) return false;
+    const family = percentFamily(row.strength?.lift);
+    if (row.day === session.day || !row.strength || !family || !isLowerBodyLift(family)) return false;
     return (
       validateStrengthPrescription(method, row.strength.sets, {
         day: row.day,
         weekIndex,
-        lift: row.strength.lift,
+        lift: family,
         fatigue: "high",
       }) == null
     );
@@ -1023,7 +1050,10 @@ export function constitutionViolations(
     if (!session) continue;
     exposures.set(day, exposure(session));
     if (session.strength) {
-      const lowers = draft.sessions.filter((row) => row.strength && isLowerBodyLift(row.strength.lift));
+      const lowers = draft.sessions.filter((row) => {
+        const family = percentFamily(row.strength?.lift);
+        return family != null && isLowerBodyLift(family);
+      });
       const problem = lowerSetProblem(month.strength_method || month.scheme, weekIndex, session, actual, lowers);
       if (problem) errors.push(problem);
     }
@@ -2220,7 +2250,7 @@ export function weekBurden(draft: WeekDraft): WeekBurden {
   let lowerMetcon = 0;
   let intensity = 0;
   for (const session of draft.sessions) {
-    const lift = session.strength?.lift;
+    const lift = percentFamily(session.strength?.lift);
     if (lift && LOWER_LIFTS.has(lift)) {
       lowerSessions += 1;
       lowerVolume += session.strength?.sets.length ?? 0;
@@ -2259,7 +2289,10 @@ export function feedbackViolations(
   const level = previousLowerFatigue(actual);
   const method = month.strength_method || month.scheme;
   const errors: string[] = [];
-  const lower = draft.sessions.filter((session) => session.strength && LOWER_LIFTS.has(session.strength.lift));
+  const lower = draft.sessions.filter((session) => {
+    const family = percentFamily(session.strength?.lift);
+    return family != null && LOWER_LIFTS.has(family);
+  });
   if (level === "high" || level === "low") {
     for (const session of lower) {
       const problem = lowerSetProblem(method, weekIndex, session, actual, lower);
@@ -2281,12 +2314,13 @@ export function feedbackViolations(
   }
   const text = `${draft.intent.why_ko}\n${draft.intent.focus}\n${draft.intent.scheme_note}`;
   const keptHeavy = lower.some((session) => {
-    if (!session.strength || !strengthIsHeavy(session.strength.sets)) return false;
+    const family = percentFamily(session.strength?.lift);
+    if (!session.strength || !family || !strengthIsHeavy(session.strength.sets)) return false;
     return (
       validateStrengthPrescription(method, session.strength.sets, {
         day: session.day,
         weekIndex,
-        lift: session.strength.lift,
+        lift: family,
         fatigue: "high",
       }) != null
     );
@@ -2384,7 +2418,7 @@ function dedupe(errors: string[]): string[] {
 function isLowerSetMismatch(draft: WeekDraft, error: string): boolean {
   const day = error.match(/^(mon|tue|wed|thu|fri|sat|sun) sets do not match/)?.[1];
   if (!day) return false;
-  const lift = draft.sessions.find((session) => session.day === day)?.strength?.lift;
+  const lift = percentFamily(draft.sessions.find((session) => session.day === day)?.strength?.lift);
   return isLowerBodyLift(lift);
 }
 
@@ -2443,5 +2477,5 @@ export function judgeWeek(
 }
 
 export function liftOf(session: SessionDraft): MainLift | null {
-  return session.strength?.lift ?? null;
+  return percentFamily(session.strength?.lift);
 }

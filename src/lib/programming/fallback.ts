@@ -15,6 +15,7 @@ import {
 import { schemeSets, strengthIsHeavy } from "./schemes";
 import { exampleSets } from "./strength-methods";
 import { fillSessionFields } from "./session-fields";
+import { percentFamily } from "./types";
 import { classMetconPurpose } from "../wod/purpose";
 import type { WeekActual } from "./summary";
 import {
@@ -157,6 +158,7 @@ const STIMULUS_FROM_KO: Record<MetconStimulus, Stimulus> = {
   고중량: "heavy",
   고반복: "high_rep",
   기술: "technical",
+  유산소: "aerobic",
 };
 
 function domain(minutes: number): TimeDomain {
@@ -1062,11 +1064,13 @@ function assembleFallbackWeek(
       Boolean(core.strength) ||
       core.conditioning.equipment.includes("barbell") ||
       core.conditioning.movements.some((movement) => LOADED_KEYS.has(movement.key));
-    core.warmup_ko = warmupText(core.day, barbell, core.strength?.lift ?? null);
+    const family = percentFamily(core.strength?.lift ?? null);
+    core.warmup_ko = warmupText(core.day, barbell, family);
   }
-  const sessions = cores.map((core) =>
-    fillSessionFields(core, core.strength ? lowerVolume(highLower, core.strength.lift, month.scheme) : null),
-  );
+  const sessions = cores.map((core) => {
+    const family = percentFamily(core.strength?.lift);
+    return fillSessionFields(core, family ? lowerVolume(highLower, family, month.scheme) : null);
+  });
   const schemeNote = highLower
     ? `${month.primary_block} 블록입니다. 지난주 하체 피로가 높아 스쿼트와 데드리프트 세트를 줄입니다.`
     : `${month.primary_block} 블록을 한 달 동안 유지합니다.`;

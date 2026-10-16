@@ -226,7 +226,8 @@ describe("heavy lower metcon", () => {
 
   it("applies a legal revision and records each failure mode", () => {
     const low = rangeFor("deadlift", "reps")!.min;
-    const mid = Math.round((low + rangeFor("deadlift", "reps")!.max) / 2);
+    const mid = quantityOptions("deadlift").find((option) => option.unit === "reps" && option.amount !== low)?.amount;
+    if (mid == null) throw new Error("deadlift grid missing");
     const session: SessionDraft = {
       day: "thu",
       rest: false,

@@ -1,7 +1,7 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../../month-plan/types";
 import { classMetconPurpose } from "../../wod/purpose";
 import { fillSessionFields } from "../session-fields";
-import { exampleSets, secondLowerVolumeSets } from "../strength-methods";
+import { exampleSets, olympicSets, secondLowerVolumeSets } from "../strength-methods";
 import { evaluateWeek } from "../evaluate-week";
 import { similarityScore, toStructure, type WeekCheckContext } from "../rules";
 import { strengthIsHeavy } from "../schemes";
@@ -24,9 +24,11 @@ import {
 } from "../types";
 import { timeDomainFromMinutes } from "./canonical";
 import type { DaySessionLock } from "./session-contract";
+import { clockForFormat, clockPresent, derivedFor, readClock, renderMetconLine, rxNumbers, sameClock } from "./session-contract";
+import type { MetconClock } from "../types";
 import { jointsFor, sessionJoints, warmupIssues } from "./warmup-ramp";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
-import { exactStrengthKey } from "./goal-table";
+import { exactStrengthKey, strengthFamily } from "./goal-table";
 import { catalogMovement, equipmentForKeys, type CatalogLoad, type CatalogUnit } from "./movement-catalog";
 import { movementCatalog, recipePool, roleFor, type Recipe } from "./pieces";
 
@@ -71,33 +73,50 @@ function collides(candidate: StoredStructure, chosen: readonly StoredStructure[]
   return false;
 }
 
-function conditioningFrom(day: DayKey, recipe: Recipe, benchmark: boolean): ConditioningDraft {
-  const names = recipe.movements.map((movement) => movement.name_ko).join(", ");
+function dosesOf(movements: MovementDraft[]) {
+  return movements.map((movement) => ({
+    key: movement.key,
+    unit: (movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" || movement.unit === "min" ? movement.unit : "reps") as "reps" | "cal" | "m" | "sec" | "min",
+    amount: movement.amount_value ?? (Number(String(movement.amount).replace(/[^\d]/g, "")) || 0),
+    ...(Array.isArray(movement.qty) ? { qty: movement.qty } : {}),
+  }));
+}
+
+function conditioningFrom(day: DayKey, recipe: Recipe, benchmark: boolean, clock: MetconClock | null): ConditioningDraft | null {
   const domain = timeDomainFromMinutes(recipe.minutes);
-  const rep =
-    domain === "long"
-      ? `3라운드. 캡 ${recipe.minutes}분. ${names}.`
-      : recipe.format === "emom"
-        ? `${recipe.minutes}분 동안 1분마다 ${names}.`
-        : recipe.format === "intervals"
-          ? `${recipe.minutes}분 인터벌. 40초 일하고 20초 쉽니다. ${names}.`
-          : recipe.format === "for_time"
-            ? `3라운드. 캡 ${recipe.minutes}분. ${names}.`
-            : recipe.format === "chipper"
-              ? `칩퍼. 캡 ${recipe.minutes}분. ${names}.`
-              : recipe.format === "partner"
-                ? `${recipe.minutes}분 파트너 형식. 개인도 가능. ${names}.`
-                : `${recipe.minutes}분 동안 반복합니다. ${names}.`;
+  const source = recipe.movements as MovementDraft[];
+  const doses = dosesOf(source);
+  const movements = source.map((movement, index) => {
+    const rx = rxNumbers(movement.load);
+    const dose = doses[index];
+    return { ...movement, ...(rx ? { rx } : {}), qty: movement.qty ?? movement.amount_value ?? dose?.amount ?? null, unit: movement.unit ?? dose?.unit };
+  });
+  const resolved = clock ?? clockForFormat(recipe.format, recipe.minutes, movements.map((movement) => movement.key));
+  const intensity = recipe.intensity === "light" || recipe.intensity === "moderate" || recipe.intensity === "heavy" ? recipe.intensity : null;
+  const derived = recipe.format === "zone2"
+    ? { sec: resolved.duration_sec ?? recipe.minutes * 60, rounds: null, time_source: "derived" as const }
+    : derivedFor(recipe.format, recipe.minutes, doses, resolved, intensity);
+  const line = renderMetconLine({
+    format: recipe.format,
+    clock: resolved,
+    movements: movements.map((movement, index) => ({
+      key: movement.key,
+      amount: doses[index]?.amount ?? movement.amount_value,
+      unit: doses[index]?.unit ?? movement.unit,
+      qty: Array.isArray(movement.qty) ? movement.qty : doses[index]?.qty,
+      load: movement.load,
+    })),
+  });
   return {
     benchmark,
     format: recipe.format,
     time_domain: domain,
     stimulus: recipe.stimulus,
     movement_patterns: [...recipe.patterns],
-    movements: recipe.movements.map((movement) => ({ ...movement })),
+    movements,
     equipment: [...recipe.equipment],
-    rep_structure: rep,
-    work_rest_structure: `캡 ${recipe.minutes}분 안에 마칩니다.`,
+    rep_structure: line,
+    work_rest_structure: line,
     duration_min: recipe.minutes,
     volume: recipe.volume,
     intensity: recipe.intensity,
@@ -109,7 +128,16 @@ function conditioningFrom(day: DayKey, recipe: Recipe, benchmark: boolean): Cond
       format: recipe.format,
       stimulus: recipe.stimulus,
     }),
+    clock: resolved,
+    ...(derived ? { derived_sec: derived.sec, derived_rounds: derived.rounds, time_source: "derived" as const } : {}),
   };
+}
+
+function stripCooldown(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => line.trim() && !line.trim().toLowerCase().startsWith("cooldown"))
+    .join("\n");
 }
 
 function warmup(day: DayKey, lift: MainLift | null): string {
@@ -157,21 +185,34 @@ function fatigueMode(actual: WeekActual | null | undefined): "high" | "low" | "u
   return "unknown";
 }
 
+function olympicBar(key: string | null | undefined): boolean {
+  return Boolean(key && /clean|snatch/.test(key) && !key.startsWith("dumbbell"));
+}
+
+/** 세트표와 메인 블록은 골격 movement_id 하나에서 나온다. */
 function strengthFor(
-  lift: MainLift,
+  lift: MainLift | null,
   month: MonthDirection,
   weekIndex: WeekIndex,
   actual: WeekActual | null | undefined,
   exposure?: "heavy" | "volume",
+  movement?: string | null,
 ) {
-  const mode = lift === "squat" || lift === "deadlift" ? fatigueMode(actual) : "unknown";
-  if (exposure === "volume" && mode === "high" && (lift === "squat" || lift === "deadlift")) {
-    const volume = secondLowerVolumeSets(month.strength_method || month.scheme, weekIndex);
-    if (volume) return { lift, sets: volume, movement_key: exactStrengthKey(lift, weekIndex) };
+  if (movement && olympicBar(movement)) {
+    return { lift: "olympic" as const, sets: olympicSets(weekIndex), movement_key: movement };
   }
-  const sets = exampleSets(month.strength_method || month.scheme, weekIndex, mode, lift);
+  const family = movement ? strengthFamily(movement) : "none";
+  const resolved = family !== "none" ? family : lift;
+  if (!resolved) return null;
+  const mode = resolved === "squat" || resolved === "deadlift" ? fatigueMode(actual) : "unknown";
+  const key = movement && strengthFamily(movement) === resolved ? movement : exactStrengthKey(resolved, weekIndex);
+  if (exposure === "volume" && mode === "high" && (resolved === "squat" || resolved === "deadlift")) {
+    const volume = secondLowerVolumeSets(month.strength_method || month.scheme, weekIndex);
+    if (volume) return { lift: resolved, sets: volume, movement_key: key };
+  }
+  const sets = exampleSets(month.strength_method || month.scheme, weekIndex, mode, resolved);
   if (!sets) return null;
-  return { lift, sets, movement_key: exactStrengthKey(lift, weekIndex) };
+  return { lift: resolved, sets, movement_key: key };
 }
 
 const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner", "zone2"] as const;
@@ -331,9 +372,18 @@ export function sessionFromCoachJson(input: {
   };
   const namedLift = input.intent.strength_lift;
   const lift = namedLift && namedLift !== "none" ? namedLift : null;
-  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual, input.intent.lower_exposure) : null;
-  const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
-  const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark);
+  const strength = strengthFor(lift, input.month, input.weekIndex, input.actual, input.intent.lower_exposure, input.intent.main_movement);
+  const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? stripCooldown(body.warmup_ko) : warmup(input.intent.day, strength?.lift === "olympic" ? null : strength?.lift ?? null);
+  const echoed = readClock(piece);
+  if (input.lock && !input.lock.rest && clockPresent(piece) && (!echoed || !sameClock(echoed, input.lock.clock))) return null;
+  if (input.intent.zone2 === "day") recipe.format = "zone2";
+  let clock = echoed ?? (input.lock && !input.lock.rest ? input.lock.clock : null);
+  if (!input.lock && format === "intervals" && typeof piece.interval_work_sec === "number" && typeof piece.interval_rest_sec === "number") {
+    const base = clock ?? clockForFormat("intervals", minutes, movements.map((movement) => movement.key));
+    clock = { ...base, work_sec: piece.interval_work_sec, rest_sec: piece.interval_rest_sec, sets: minutes, duration_sec: minutes * 60 };
+  }
+  const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark, clock);
+  if (!built) return null;
   const zone2 =
     input.intent.zone2 === "day"
       ? body.zone2_option == null
@@ -341,15 +391,6 @@ export function sessionFromCoachJson(input: {
         : zone2FromOption(body.zone2_option, true)
       : null;
   if (input.intent.zone2 === "day" && !zone2) return null;
-  if (
-    format === "intervals" &&
-    typeof piece.interval_work_sec === "number" &&
-    typeof piece.interval_rest_sec === "number"
-  ) {
-    const clock = `${piece.interval_work_sec}초 일하고 ${piece.interval_rest_sec}초 쉽니다.`;
-    built.work_rest_structure = clock;
-    built.rep_structure = `${minutes}분 인터벌. ${clock}`;
-  }
   const session = fillSessionFields(
     {
       day: input.intent.day,
@@ -364,6 +405,11 @@ export function sessionFromCoachJson(input: {
     strength ? (input.intent.volume_profile === "low" ? "low" : "moderate") : null,
   );
   if (Array.isArray(body.session_blocks)) session.session_blocks = body.session_blocks as SessionDraft["session_blocks"];
+  const metconBlock = session.session_blocks?.find((block) => block.role === "metcon");
+  if (metconBlock && built.derived_sec != null) {
+    metconBlock.derived_sec = built.derived_sec;
+    metconBlock.time_source = "derived";
+  }
   if (Array.isArray(body.warmup_phases)) session.warmup_phases = body.warmup_phases as SessionDraft["warmup_phases"];
   const warmupBlock = session.session_blocks?.find((block) => block.role === "warmup");
   if (warmupBlock) session.warmup_min = warmupBlock.minutes;
@@ -383,30 +429,41 @@ export function sessionFromCoachJson(input: {
 function applySteadyZone2(session: SessionDraft, intent: DayIntent) {
   const zone = session.zone2;
   if (!zone || zone.form !== "day") return;
-  const minutes = zone.duration_min === 30 || zone.duration_min === 45 ? zone.duration_min : 40;
+  const minutes = zone.duration_min === 45 ? 45 : 40;
   const key = zone.modality === "bike_erg" || zone.modality === "run" || zone.modality === "row_erg" ? zone.modality : "row_erg";
   const name = catalogMovement(key)?.name_ko;
   const piece = session.conditioning;
   if (!name || !piece) return;
-  const stimulus = piece.stimulus === "high_rep" ? "high_rep" : "technical";
+  const stimulus = "aerobic" as const;
   const patterns: Array<"engine" | "pull"> = intent.companion_movement && /row|pull|core/i.test(intent.companion_movement) ? ["engine", "pull"] : ["engine"];
+  const clock = clockForFormat("zone2", minutes, [key]);
+  const line = renderMetconLine({
+    format: "zone2",
+    clock,
+    movements: [{ key, amount: minutes, unit: "min" }],
+  });
   const conditioning: NonNullable<SessionDraft["conditioning"]> = {
     ...piece,
     format: "zone2",
     time_domain: "long",
     stimulus,
     movement_patterns: patterns,
-    movements: [{ key, amount: `${minutes}분`, name_ko: name, amount_value: minutes, unit: "min" }],
+    movements: [{ key, amount: `${minutes}분`, name_ko: name, amount_value: minutes, unit: "min", qty: minutes }],
     equipment: equipmentForKeys([key]),
-    rep_structure: `${minutes}분 지속, RPE 2–3. ${name}.`,
-    work_rest_structure: `${minutes}분 동안 대화가 가능한 페이스로 이어 갑니다.`,
+    rep_structure: line,
+    work_rest_structure: line,
     duration_min: minutes,
     volume: "low",
     intensity: "light",
     long_conditioning: false,
     purpose: `${name} ${minutes}분, RPE 2–3. 고강도 메트콘은 두지 않습니다.`,
+    clock,
+    derived_sec: clock.duration_sec,
+    derived_rounds: null,
+    time_source: "derived",
   };
   session.conditioning = conditioning;
+  session.stimulus = stimulus;
   session.metcon_format = "zone2";
   session.time_domain = "long";
   session.volume = "low";
@@ -417,6 +474,10 @@ function applySteadyZone2(session: SessionDraft, intent: DayIntent) {
   if (metcon) {
     metcon.minutes = minutes;
     metcon.movements = [{ key, unit: "min", amount: minutes }];
+    if (clock.duration_sec != null) {
+      metcon.derived_sec = clock.duration_sec;
+      metcon.time_source = "derived";
+    }
   }
 }
 
@@ -458,15 +519,16 @@ export function buildSession(input: {
   if (!recipe) return null;
   const scaled = longPiece ? recipe : { ...recipe, minutes: input.shortClock ? Math.min(recipe.minutes, 12) : recipe.minutes };
   if (!longPiece && timeDomainFromMinutes(scaled.minutes) === "long") return null;
-  const conditioning = conditioningFrom(day.day, scaled, day.benchmark);
-  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual, day.lower_exposure) : null;
+  const conditioning = conditioningFrom(day.day, scaled, day.benchmark, null);
+  if (!conditioning) return null;
+  const strength = strengthFor(lift, input.month, input.weekIndex, input.actual, day.lower_exposure, day.main_movement);
   return fillSessionFields(
     {
       day: day.day,
       rest: false,
       optional: day.day === "sat",
       warmup_min: 10,
-      warmup_ko: warmup(day.day, strength?.lift ?? null),
+      warmup_ko: warmup(day.day, strength?.lift === "olympic" ? null : strength?.lift ?? null),
       strength,
       conditioning,
     },
