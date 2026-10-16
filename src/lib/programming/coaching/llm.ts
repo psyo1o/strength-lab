@@ -161,7 +161,7 @@ async function postOnce(input: {
     }
     if (!response.ok) {
       const detail = typeof payload === "string" ? payload : JSON.stringify(payload).slice(0, 400);
-      const schemaRejected = response.status === 400 && /response_format|json_schema|output_config|responseJsonSchema|responseSchema/i.test(detail);
+      const schemaRejected = response.status === 400 && /response_format|json_schema|output_config|responseJsonSchema|responseSchema|compiled grammar|strict tools/i.test(detail);
       const temperatureRejected = response.status === 400 && /temperature/i.test(detail);
       const seedRejected = response.status === 400 && /\bseed\b/i.test(detail);
       return {

@@ -172,8 +172,8 @@ function assertCalendar() {
   if (PROBE_SIMULATION_ORDER.at(-1) !== "do not recompute actual again") {
     throw new ProbeSafetyError("simulation order lost the seed guard");
   }
-  if (!process.env.COACH_MODEL_NAME?.trim() && (coachModel("weekly") !== "gpt-5.4-nano" || coachModel("session") !== "gpt-5.4-nano")) {
-    throw new ProbeSafetyError("plan lab must stay on gpt-5.4-nano");
+  if (!process.env.COACH_MODEL_NAME?.trim() && (coachModel("weekly") !== "gpt-5.4-nano" || coachModel("monthly") !== "gpt-5.4-nano" || coachModel("head") !== "gpt-5.4-nano")) {
+    throw new ProbeSafetyError("plan lab monthly, weekly, and head must stay on gpt-5.4-nano");
   }
 }
 
