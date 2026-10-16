@@ -1,3 +1,4 @@
+import { hardLevelErrorsFromRaw } from "./coaching/intensity-levels";
 import { weekContractIssues, type ContractDayInput } from "./coaching/session-contract";
 import { lowerAdjacentRunErrors } from "./coaching/zone2";
 import { lockedSkeletonDrift, validateSkeletonConformance, type MonthlyDirection, type WeekSkeleton } from "./direction";
@@ -161,7 +162,7 @@ export function evaluateWeek(
   const extra = [
     ...skeletonIssues(month, context),
     ...lowerAdjacentIssues(raw, context),
-    ...weekContractIssues(raw, weekIndex, month.strength_method || month.scheme || "531", context.contractDays).map((message) => {
+    ...[...weekContractIssues(raw, weekIndex, month.strength_method || month.scheme || "531", context.contractDays), ...hardLevelErrorsFromRaw(raw)].map((message) => {
       const day = dayOf(message);
       if (day) {
         return makeIssue({

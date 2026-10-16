@@ -6,6 +6,7 @@ import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { classCompletionForCoach, classSummaryForCoach, omitAbsenceSummary, parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
+import { hardLevelErrors } from "./intensity-levels";
 import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, sessionEstimateIssues, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
@@ -494,6 +495,11 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+/** Level-check text. Slot-id repairs stay on the narrow path; these stay on the one session retry. */
+function levelCheckError(error: string): boolean {
+  return error.startsWith("levels ") || /(?:^|\s)level \d/.test(error);
+}
+
 function outsideArea(body: Record<string, unknown>, banned: readonly string[]): string | null {
   const hit = banned.find((key) => body[key] != null);
   return hit ? `specialist wrote ${hit}` : null;
@@ -570,6 +576,7 @@ function mergeSpecialists(input: {
       notes_ko: conditioning.notes_ko,
       conditioning: conditioning.conditioning,
       ...(conditioning.zone2_option ? { zone2_option: conditioning.zone2_option } : {}),
+      ...(conditioning.prescription_levels ? { prescription_levels: conditioning.prescription_levels } : {}),
       ...(contract ?? {}),
     },
   };
@@ -773,6 +780,19 @@ async function writeSession(input: {
     });
     normalizations.push(...adopted.normalizations);
     normalizedJson = adopted.json;
+    const presented = asRecord(json);
+    if (
+      adopted.ok &&
+      sessionLock &&
+      !sessionLock.rest &&
+      !sessionLock.steady &&
+      sessionLock.format !== "zone2" &&
+      presented &&
+      Object.prototype.hasOwnProperty.call(presented, "prescription_levels")
+    ) {
+      const levelErrors = adopted.session.levels ? hardLevelErrors(adopted.session) : ["levels 1-5 are missing"];
+      if (levelErrors.length) return { ok: false as const, errors: levelErrors };
+    }
     if (input.deferPlacement) return adopted.ok ? { ok: true as const } : { ok: false as const, errors: adopted.errors };
     const pack = overlapPack(adopted.json, adopted.ok ? adopted.draft : input.draft);
     if (!adopted.ok) {
@@ -820,7 +840,7 @@ async function writeSession(input: {
     const ready = present(area, json);
     if (!ready.ok) return { ok: false as const, errors: ready.errors, retry: false as const };
     const verdict = validateArea(area)(ready.json);
-    if (!verdict.ok && isSlotPayload(json)) return { ...verdict, retry: false as const };
+    if (!verdict.ok && isSlotPayload(json) && !verdict.errors.some(levelCheckError)) return { ...verdict, retry: false as const };
     return verdict;
   };
   const storeArea = (area: SpecialistArea, json: unknown) => {
@@ -854,7 +874,9 @@ async function writeSession(input: {
     if (!asked.ok) {
       const errors = asked.trace.validation_errors?.length ? asked.trace.validation_errors : [asked.trace.failure_reason ?? "schema"];
       const frame = frames.get(area);
-      if (frame && isSlotPayload(asked.json)) {
+      if (errors.some(levelCheckError)) {
+        slotClosed.add(area);
+      } else if (frame && isSlotPayload(asked.json)) {
         const ready = present(area, asked.json);
         const picks = ready.ok ? ready.picks : readPicks(asked.json);
         const bad = ready.ok ? slotsForFitErrors(frame, picks, errors) : ready.badSlots;
@@ -2795,7 +2817,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     weekContractIssues({ sessions: [...sessions] }, input.weekIndex, month.strength_method || month.scheme || "531", contractDaysFor(week, plan)).some((message) =>
       /locked dose|locked ceiling|does not match lock|do not match lock/.test(message),
     );
-  const estimateBroken = (sessions: readonly SessionDraft[]) => sessions.some((session) => sessionEstimateIssues(session).length > 0);
+  const estimateBroken = (sessions: readonly SessionDraft[]) =>
+    sessions.some((session) => sessionEstimateIssues(session).length > 0 || hardLevelErrors(session).length > 0);
   const headCells = applyHeadCells(draft.sessions, modelRevisions, {
     avoidHeavyLower,
     accept: (sessions) => !lockStillBroken(sessions) && !estimateBroken(sessions),

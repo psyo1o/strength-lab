@@ -281,6 +281,46 @@ export type SessionDraft = {
     static_hold: boolean;
     load_percent?: number;
   }[];
+  /**
+   * 공통 WOD 뼈대와 강도 1–5 처방. 오버라이드는 비어 있고, 나중에 박스·회원이 레벨을 고른다.
+   * 수량·라운드·캡·무게는 모델 값이다. derived와 status만 코드가 적는다.
+   */
+  levels?: SessionLevels | null;
+};
+
+export type IntensityLevelNumber = 1 | 2 | 3 | 4 | 5;
+
+export type LevelMovement = {
+  key: string;
+  unit: "reps" | "cal" | "m" | "sec" | "min";
+  amount: number | null;
+  load: { male: string | null; female: string | null } | null;
+};
+
+export type LevelPrescription = {
+  level: IntensityLevelNumber;
+  cap_min: number | null;
+  rounds: number | null;
+  work_sec: number | null;
+  rest_sec: number | null;
+  sets: number | null;
+  movements: LevelMovement[];
+  derived_sec: number | null;
+  time_source: "derived" | null;
+  status: "pass" | "hidden";
+  hidden_reason: string | null;
+};
+
+export type SessionLevels = {
+  skeleton: {
+    format: string;
+    movement_keys: string[];
+    block_roles: string[];
+    other_minutes: number;
+  };
+  levels: LevelPrescription[];
+  monotonicity: string[];
+  overrides: { scope: "box" | "member"; scope_id: string; level: number | null }[];
 };
 
 export type ProgrammingIntent = {

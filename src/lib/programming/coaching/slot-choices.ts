@@ -19,6 +19,7 @@ import {
   type CatalogUnit,
 } from "./movement-catalog";
 import { allowedAmounts, cleanDisplayName, clockEcho, clockPresent, intensityLockEnum, readClock, sameClock, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { fitLevelEnums, levelGuide, levelSchema } from "./intensity-levels";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
@@ -506,6 +507,10 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
         else if (typeof value === "number") properties[key] = { type: "integer", enum: [value] };
         else properties[key] = { type: "string", enum: [value] };
       }
+      if (frame.contract.format !== "zone2" && !frame.zone2Slot) {
+        required.push("levels");
+        properties.levels = levelSchema({ format: frame.contract.format, byLevel: fitLevelEnums(frame.contract) });
+      }
     } else if (frame.area === "warmup") {
       for (const key of ["warmup_minutes", "cooldown_minutes"]) required.push(key);
       properties.warmup_minutes = { type: "integer", enum: [minutes("warmup")] };
@@ -542,7 +547,11 @@ export function slotChoiceUser(frame: SessionFrame): unknown {
       })),
     })),
     ...(frame.contract && frame.area === "conditioning"
-      ? { format: frame.contract.format, stimulus: stimulusLockEnum(frame.contract, frame.piece?.stimulus) }
+      ? {
+          format: frame.contract.format,
+          stimulus: stimulusLockEnum(frame.contract, frame.piece?.stimulus),
+          ...(frame.contract.format !== "zone2" && !frame.zone2Slot ? { level_rules: levelGuide(frame.contract) } : {}),
+        }
       : {}),
   };
 }
@@ -876,6 +885,7 @@ function expandContract(
         interval_rest_sec: lock.format === "intervals" ? 20 : null,
         ...clockEcho(lock.clock),
       },
+      ...(lock.format !== "zone2" ? { prescription_levels: body.levels ?? null } : {}),
       contract_part: {
         kind: "conditioning",
         metcon_minutes: lock.metcon_minutes,

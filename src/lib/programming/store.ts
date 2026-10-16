@@ -540,6 +540,17 @@ function insertMonthRow(
   return id;
 }
 
+export function listActiveWeekStarts(): string[] {
+  const rows = getSqlite().prepare("SELECT week_start FROM programming_weeks WHERE status = 'active' ORDER BY week_start").all() as { week_start: string }[];
+  return rows.map((row) => row.week_start);
+}
+
+export function saveWeekDisplay(weekStart: string, display: PlannedWeek): void {
+  getSqlite()
+    .prepare("UPDATE programming_weeks SET display_json = ? WHERE week_start = ? AND status = 'active'")
+    .run(JSON.stringify(display), weekStart);
+}
+
 export function getProgrammingWeek(weekStart: string): WeekRow | null {
   const row = getSqlite()
     .prepare(`SELECT ${WEEK_SELECT} FROM programming_weeks WHERE week_start = ? AND status = 'active'`)

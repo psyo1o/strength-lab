@@ -1,5 +1,7 @@
 import { ENGINE_DRY_ACTIONS, ENGINE_LIVE_ACTIONS, ENGINE_WRITE_ACTIONS } from "./admin-actions";
 import { writeStoredClassIntensity } from "./class-intensity";
+import { projectWeek } from "./project";
+import { syncClassWeek } from "./sync";
 import { getSqlite } from "../db/client";
 import { classWeekToTrain, kstParts } from "../month-plan/calendar";
 import { recomputeWeeklyActual } from "./actual";
@@ -32,6 +34,8 @@ import {
 import {
   getProgrammingMonth,
   getProgrammingWeek,
+  listActiveWeekStarts,
+  saveWeekDisplay,
   listRecentLiftMaps,
   listRecentStructures,
   scrubGenerationPayload,
@@ -631,6 +635,23 @@ export async function simulateMonthCycle(input: { nowMs?: number; key?: string |
   }
 }
 
+function redisplayAtClassLevel(level: number): number {
+  let count = 0;
+  for (const weekStart of listActiveWeekStarts()) {
+    const week = getProgrammingWeek(weekStart);
+    if (!week) continue;
+    const month = getSqlite().prepare("SELECT direction_json FROM programming_months WHERE id = ?").get(week.monthId) as { direction_json: string } | undefined;
+    const method = month ? ((JSON.parse(month.direction_json) as { strength_method?: string }).strength_method ?? "531") : "531";
+    const adapter = week.generationSource === "model" ? "model" : "rules";
+    const display = projectWeek(week.draft, week.weekIndex, adapter, method, level);
+    saveWeekDisplay(weekStart, display);
+    const saved = getProgrammingWeek(weekStart);
+    if (saved) syncClassWeek(saved, Date.now());
+    count += 1;
+  }
+  return count;
+}
+
 export async function runAdminAction(
   action: string,
   input: {
@@ -646,7 +667,8 @@ export async function runAdminAction(
   const nowMs = input.nowMs ?? Date.now();
   if (action === "save-class-intensity") {
     const saved = writeStoredClassIntensity(input.level);
-    return { wrote: true, action, class_intensity_level: saved, applies: "next_generation" };
+    const weeks = redisplayAtClassLevel(saved);
+    return { wrote: true, action, class_intensity_level: saved, applies: "display", weeks };
   }
   if (action === "dry-run-week") return dryRunWeek({ nowMs, actualCase: input.actualCase, key: input.key, fetchImpl: input.fetchImpl });
   if (action === "dry-run-month") return dryRunMonth({ nowMs, key: input.key, fetchImpl: input.fetchImpl });

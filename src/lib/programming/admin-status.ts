@@ -1,3 +1,5 @@
+import { levelLine } from "./coaching/intensity-levels";
+import type { SessionDraft } from "./types";
 import { classWeekToTrain, kstParts } from "../month-plan/calendar";
 import { getClassPlanByStart } from "../month-plan/class-week";
 import { getLatestProgrammingWeek, getProgrammingMonth, getProgrammingWeek } from "./store";
@@ -19,12 +21,16 @@ export type EnginePlanStamp = {
   fallbackReason: string | null;
 };
 
+export type LevelBoardCell = { level: number; text: string; hidden: boolean; reason: string | null };
+
 export type EngineAdminStatus = {
   month: EnginePlanStamp;
   week: EnginePlanStamp;
   memberWod: string;
   copyNote: string;
   nextAction: string;
+  hiddenLevels: { day: string; level: number; reason: string }[];
+  levelBoard: { day: string; cells: LevelBoardCell[] }[];
 };
 
 const KST_MS = 9 * 60 * 60 * 1000;
@@ -167,5 +173,29 @@ export function readEngineAdminStatus(nowMs = Date.now()): EngineAdminStatus {
     }),
     copyNote: engineCopyNote(shadowGeneratorEnabled()),
     nextAction: engineNextAction({ monthGenerated: Boolean(month), weekGenerated: Boolean(activeWeek) }),
+    ...levelBoardFrom(week?.draft.sessions ?? []),
   };
+}
+
+function levelBoardFrom(sessions: readonly SessionDraft[]): {
+  hiddenLevels: { day: string; level: number; reason: string }[];
+  levelBoard: { day: string; cells: LevelBoardCell[] }[];
+} {
+  const hiddenLevels: { day: string; level: number; reason: string }[] = [];
+  const levelBoard: { day: string; cells: LevelBoardCell[] }[] = [];
+  for (const session of sessions) {
+    if (session.rest || !session.levels) continue;
+    const cells = session.levels.levels.map((level) => {
+      const hidden = level.status !== "pass";
+      if (hidden) hiddenLevels.push({ day: session.day, level: level.level, reason: level.hidden_reason ?? "hidden" });
+      return {
+        level: level.level,
+        hidden,
+        reason: level.hidden_reason,
+        text: levelLine(session.levels!.skeleton.format, level),
+      };
+    });
+    levelBoard.push({ day: session.day, cells });
+  }
+  return { hiddenLevels, levelBoard };
 }

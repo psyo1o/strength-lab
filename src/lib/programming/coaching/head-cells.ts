@@ -2,6 +2,7 @@ import type { DayKey } from "../../month-plan/types";
 import type { SessionDraft } from "../types";
 import type { HeadPieceRef } from "./contract";
 import { patchStoredMovement, type MovementCellField } from "./movement-catalog";
+import { syncLevel3FromPiece } from "./intensity-levels";
 import { derivedFor, intensityBandsAtMost, intensityBandsForStimulus, intensityLockEnum, isLockPatchField, renderMetconLine } from "./session-contract";
 import { applyCatalogOption, peerMovementIds } from "./slot-choices";
 import type { SessionRevision } from "./review";
@@ -198,6 +199,12 @@ export function applyHeadCells(
       continue;
     }
     const before = JSON.parse(JSON.stringify(movement)) as typeof movement;
+    const levelBackup = session?.levels ? (JSON.parse(JSON.stringify(session.levels)) as SessionDraft["levels"]) : null;
+    const restore = () => {
+      Object.assign(movement, before);
+      if (session && levelBackup) session.levels = levelBackup;
+      restampMetcon(session);
+    };
     if (cell.field === "quantity_option" || cell.field === "movement_id" || cell.field === "unit" || cell.field === "load") {
       const allowed = peerMovementIds(movement.key, session?.strength?.lift ?? null);
       const patched = applyCatalogOption(movement, cell.field, cell.value, allowed, {
@@ -205,19 +212,31 @@ export function applyHeadCells(
         intensity: session?.conditioning?.intensity ?? null,
         avoidHeavyLower: context?.avoidHeavyLower,
       });
-      if (!patched.ok || (context?.accept && !context.accept(sessions))) {
-        Object.assign(movement, before);
+      if (!patched.ok) {
+        restore();
         rows.push({
           day: cell.day,
           catalog_key: cell.catalog_key,
           field: cell.field,
           value: cell.value,
           result: "reverted",
-          reason: patched.ok ? "not an allowed candidate" : patched.reason,
+          reason: patched.reason,
         });
         continue;
       }
       restampMetcon(session);
+      if (context?.accept && !context.accept(sessions)) {
+        restore();
+        rows.push({
+          day: cell.day,
+          catalog_key: cell.catalog_key,
+          field: cell.field,
+          value: cell.value,
+          result: "reverted",
+          reason: "not an allowed candidate",
+        });
+        continue;
+      }
       rows.push({
         day: cell.day,
         catalog_key: cell.catalog_key,
@@ -229,19 +248,31 @@ export function applyHeadCells(
       continue;
     }
     const patched = patchStoredMovement(movement, cell);
-    if (!patched.ok || (context?.accept && !context.accept(sessions))) {
-      Object.assign(movement, before);
+    if (!patched.ok) {
+      restore();
       rows.push({
         day: cell.day,
         catalog_key: cell.catalog_key,
         field: cell.field,
         value: cell.value,
         result: "reverted",
-        reason: patched.ok ? "not an allowed candidate" : patched.reason,
+        reason: patched.reason,
       });
       continue;
     }
     restampMetcon(session);
+    if (context?.accept && !context.accept(sessions)) {
+      restore();
+      rows.push({
+        day: cell.day,
+        catalog_key: cell.catalog_key,
+        field: cell.field,
+        value: cell.value,
+        result: "reverted",
+        reason: "not an allowed candidate",
+      });
+      continue;
+    }
     rows.push({
       day: cell.day,
       catalog_key: cell.catalog_key,
@@ -287,6 +318,7 @@ function restampMetcon(session: SessionDraft | undefined) {
   if (piece.format === "for_time" || piece.format === "chipper" || piece.format === "partner") {
     session.expected_duration = Math.max(1, Math.round(derived.sec / 60));
   }
+  syncLevel3FromPiece(session);
   const block = session.session_blocks?.find((row) => row.role === "metcon");
   if (block) {
     block.derived_sec = derived.sec;

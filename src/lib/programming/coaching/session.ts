@@ -25,6 +25,7 @@ import {
 import { timeDomainFromMinutes } from "./canonical";
 import type { DaySessionLock } from "./session-contract";
 import { clockForFormat, clockPresent, derivedFor, readClock, renderMetconLine, rxNumbers, sameClock } from "./session-contract";
+import { applyLevelToSession, capFitsSession, judgeLevels } from "./intensity-levels";
 import type { MetconClock } from "../types";
 import { jointsFor, sessionJoints, warmupIssues } from "./warmup-ramp";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
@@ -411,6 +412,16 @@ export function sessionFromCoachJson(input: {
     metconBlock.time_source = "derived";
   }
   if (Array.isArray(body.warmup_phases)) session.warmup_phases = body.warmup_phases as SessionDraft["warmup_phases"];
+  if (input.lock && !input.lock.steady && input.lock.format !== "zone2" && body.prescription_levels) {
+    const judged = judgeLevels(body.prescription_levels, input.lock);
+    if (judged) {
+      session.levels = judged;
+      const level3 = judged.levels.find((row) => row.level === 3);
+      if (level3?.status === "pass" && level3.cap_min != null && capFitsSession(level3.cap_min, longPiece)) {
+        applyLevelToSession(session, level3);
+      }
+    }
+  }
   const warmupBlock = session.session_blocks?.find((block) => block.role === "warmup");
   if (warmupBlock) session.warmup_min = warmupBlock.minutes;
   if (session.warmup_phases?.length) {

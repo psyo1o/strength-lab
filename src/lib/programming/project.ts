@@ -16,7 +16,9 @@ import {
   type WeekIndex,
 } from "../month-plan/types";
 import { catalogMovement, displayAmount, linkedCatalogKey, movementDisplayName } from "./coaching/movement-catalog";
+import { sessionAtLevel } from "./coaching/intensity-levels";
 import { renderMetconLine } from "./coaching/session-contract";
+import { readStoredClassIntensity } from "./class-intensity";
 import { loadBasisForMethod } from "./strength-methods";
 import { tipFor } from "../tips";
 import type { ConditioningDraft, MovementDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
@@ -320,13 +322,14 @@ export function projectWeek(
   weekIndex: WeekIndex,
   adapterId: "model" | "rules",
   strengthMethod = "531",
+  displayLevel = readStoredClassIntensity(),
 ): PlannedWeek {
   return {
     weekIndex,
     source: "rules",
     adapterId,
     bodyBudgetMin: BODY_BUDGET_MIN,
-    days: draft.sessions.map((session) => dayFrom(session, strengthMethod)),
+    days: draft.sessions.map((session) => dayFrom(sessionAtLevel(session, displayLevel), strengthMethod)),
   };
 }
 

@@ -499,6 +499,12 @@ export function firstWorkingPercent(method: string, weekIndex: WeekIndex): numbe
   return sets?.[0]?.percent_of_tm ?? 65;
 }
 
+/** Level 3 uses the moderate floor. Heavy's 10-minute floor is lower, so the lock dose is scaled to moderate. */
+function lockDoseIntensity(intensity: IntensityCeiling | null | undefined): IntensityCeiling | null {
+  if (intensity === "heavy") return "moderate";
+  return intensity ?? null;
+}
+
 function minuteWindow(
   format: string,
   source: readonly DoseMovement[],
@@ -545,14 +551,14 @@ export function planWeekContract(
     const bounds = metconClockBounds(day, index);
     const current = chosen.get(day.day)!;
     const fits = (format: string, source: readonly DoseMovement[]) =>
-      minuteWindow(format, source, bounds.preferred, bounds.min, day.intensity_class ?? null, bounds.max) != null;
+      minuteWindow(format, source, bounds.preferred, bounds.min, lockDoseIntensity(day.intensity_class), bounds.max) != null;
     const holds = (key: string, template: Template) => {
       if (key === day.day || zone2Day(key)) return false;
       const other = training.find((row) => row.day === key);
       if (!other) return false;
       const otherIndex = training.findIndex((row) => row.day === key);
       const otherBounds = metconClockBounds(other, otherIndex);
-      return minuteWindow(template.format, template.metcon, otherBounds.preferred, otherBounds.min, other.intensity_class ?? null, otherBounds.max) != null;
+      return minuteWindow(template.format, template.metcon, otherBounds.preferred, otherBounds.min, lockDoseIntensity(other.intensity_class), otherBounds.max) != null;
     };
     if (fits(current.format, current.metcon)) continue;
     const free = (row: Template) => {
@@ -653,7 +659,7 @@ export function planWeekContract(
     fitted.skillSets = { sets: skillPlan.dose.sets ?? fitted.skillSets.sets, minutes: Math.max(2, Math.round(skillPlan.minutes / (skillPlan.dose.sets || 1))) };
     fitted.blocks.cooldown = Math.min(fitted.blocks.cooldown, 4);
     const bounds = metconClockBounds(day, index);
-    const opened = zone2 ? null : minuteWindow(format, metconSource, Math.min(bounds.max, Math.max(bounds.min, fitted.blocks.metcon)), bounds.min, day.intensity_class ?? null, bounds.max);
+    const opened = zone2 ? null : minuteWindow(format, metconSource, Math.min(bounds.max, Math.max(bounds.min, fitted.blocks.metcon)), bounds.min, lockDoseIntensity(day.intensity_class), bounds.max);
     if (opened) fitted.blocks.metcon = opened.minutes;
     let guard = 0;
     while (blockSum(fitted.blocks) < SESSION_MINUTES_MIN && guard < 30) {
@@ -689,7 +695,7 @@ export function planWeekContract(
     }
     fitted.skillSets = { sets: skillPlan.dose.sets ?? fitted.skillSets.sets, minutes: Math.max(2, Math.round(skillPlan.minutes / (skillPlan.dose.sets || 1))) };
     const pieceMinutes = fitted.blocks.metcon;
-    const metcon = zone2Dose ?? opened?.dose ?? scaleDose(format, pieceMinutes, metconSource, clockForFormat(format, pieceMinutes, metconSource.map((move) => move.key)), day.intensity_class ?? null);
+    const metcon = zone2Dose ?? opened?.dose ?? scaleDose(format, pieceMinutes, metconSource, clockForFormat(format, pieceMinutes, metconSource.map((move) => move.key)), lockDoseIntensity(day.intensity_class));
     const blocks: ContractBlock[] = roles.map((role) => ({
       role,
       minutes: fitted.blocks[role],
@@ -1120,6 +1126,18 @@ export function doseIssues(input: {
   return errors;
 }
 
+/** Issues plus the work estimate. The estimate stays when a floor check fails. */
+export function doseReport(input: {
+  format: string;
+  minutes: number;
+  movements: readonly DoseMovement[];
+  clock?: MetconClock | null;
+  intensity?: IntensityCeiling | null;
+}): { issues: string[]; derived: MetconDerived | null } {
+  const issues = doseIssues(input);
+  return { issues, derived: lastDerived ? { ...lastDerived } : null };
+}
+
 function clampDose(movement: DoseMovement): boolean {
   if (movement.unit === "min") return false;
   const range = rangeFor(movement.key, movement.unit);
@@ -1460,19 +1478,34 @@ type LockSession = {
   session_blocks?: { role?: string; minutes?: number; movements?: { key?: string; unit?: string; amount?: number; amount_value?: number }[] }[];
 };
 
+function levelPack(session: LockSession): { cap: number | null; keys: string[] } | null {
+  const pack = (session as { levels?: { levels?: { level?: number; cap_min?: number | null; movements?: { key?: string }[] }[] } | null }).levels;
+  if (!pack?.levels || pack.levels.length !== 5) return null;
+  const level3 = pack.levels.find((row) => row.level === 3);
+  return { cap: typeof level3?.cap_min === "number" ? level3.cap_min : null, keys: (level3?.movements ?? []).map((row) => row.key ?? "") };
+}
+
 /** 포맷, 메트콘 양, 블록 분, 강도 상한, 자극. 세 경로가 이 문장만 쓴다. */
 export function lockMismatchMessages(session: LockSession, lock: DaySessionLock): string[] {
   const day = session.day ?? lock.day;
   const errors: string[] = [];
   const blocks = session.session_blocks ?? [];
+  const leveled = levelPack(session);
   for (const block of lock.blocks) {
     const found = blocks.find((row) => row.role === block.role);
     if (!found) errors.push(`${day} is missing ${block.role}`);
-    else if (found.minutes !== block.minutes) errors.push(`${day} ${block.role} minutes ${found.minutes} do not match lock ${block.minutes}`);
+    else if (leveled && block.role === "metcon") {
+      if (leveled.cap != null && found.minutes !== leveled.cap) {
+        errors.push(`${day} metcon minutes ${found.minutes} do not match level 3 cap ${leveled.cap}`);
+      }
+    } else if (found.minutes !== block.minutes) errors.push(`${day} ${block.role} minutes ${found.minutes} do not match lock ${block.minutes}`);
   }
   const metcon = blocks.find((block) => block.role === "metcon");
   const blockMoves = (metcon?.movements ?? []).map((row) => doseFrom(row)).filter((row): row is DoseMovement => row != null);
-  if (blockMoves.length !== lock.metcon.length || blockMoves.some((move, index) => !sameDose(move, lock.metcon[index]!))) {
+  if (leveled) {
+    const keys = blockMoves.map((move) => move.key);
+    if (keys.join("|") !== lock.metcon.map((move) => move.key).join("|")) errors.push(`${day} metcon does not match the locked dose`);
+  } else if (blockMoves.length !== lock.metcon.length || blockMoves.some((move, index) => !sameDose(move, lock.metcon[index]!))) {
     errors.push(`${day} metcon does not match the locked dose`);
   }
   const lockedMain = lock.blocks.find((block) => block.role === "main_lift")?.movements[0];

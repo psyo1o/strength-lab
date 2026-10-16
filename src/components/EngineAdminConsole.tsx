@@ -70,7 +70,7 @@ export function EngineAdminConsole({ classIntensity }: { classIntensity: number 
     setPending("");
     const panel = enginePanelText(res.ok, body);
     setError(panel.error);
-    setResult(panel.result || (body?.class_intensity_level ? `클래스 강도 ${body.class_intensity_level}을 저장했습니다. 다음 생성부터 적용됩니다.` : ""));
+    setResult(panel.result || (body?.class_intensity_level ? `클래스 강도 ${body.class_intensity_level}의 저장된 처방을 보여 줍니다. 다시 만들지 않습니다.` : ""));
     if (res.ok && panel.error.length === 0) router.refresh();
   }
 
