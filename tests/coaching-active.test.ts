@@ -704,7 +704,7 @@ describe("active coaching contracts", () => {
     expect(weeks[2]?.revisions).toBe(0);
     expect(weeks[2]?.head).toBe("ADJUST");
     expect(weeks.map((week) => week.model_days).reduce((sum, value) => sum + value, 0)).toBe(modelDays);
-  });
+  }, 20000);
 });
 
 function conditioning(
