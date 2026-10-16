@@ -85,22 +85,25 @@ function dosesOf(movements: MovementDraft[]) {
 function conditioningFrom(day: DayKey, recipe: Recipe, benchmark: boolean, clock: MetconClock | null): ConditioningDraft | null {
   const domain = timeDomainFromMinutes(recipe.minutes);
   const source = recipe.movements as MovementDraft[];
-  const movements = source.map((movement) => {
+  const doses = dosesOf(source);
+  const movements = source.map((movement, index) => {
     const rx = rxNumbers(movement.load);
-    return { ...movement, ...(rx ? { rx } : {}), qty: movement.qty ?? movement.amount_value ?? null };
+    const dose = doses[index];
+    return { ...movement, ...(rx ? { rx } : {}), qty: movement.qty ?? movement.amount_value ?? dose?.amount ?? null, unit: movement.unit ?? dose?.unit };
   });
   const resolved = clock ?? clockForFormat(recipe.format, recipe.minutes, movements.map((movement) => movement.key));
+  const intensity = recipe.intensity === "light" || recipe.intensity === "moderate" || recipe.intensity === "heavy" ? recipe.intensity : null;
   const derived = recipe.format === "zone2"
     ? { sec: resolved.duration_sec ?? recipe.minutes * 60, rounds: null, time_source: "derived" as const }
-    : derivedFor(recipe.format, recipe.minutes, dosesOf(movements), resolved);
+    : derivedFor(recipe.format, recipe.minutes, doses, resolved, intensity);
   const line = renderMetconLine({
     format: recipe.format,
     clock: resolved,
-    movements: movements.map((movement) => ({
+    movements: movements.map((movement, index) => ({
       key: movement.key,
-      amount: movement.amount_value,
-      unit: movement.unit,
-      qty: movement.qty,
+      amount: doses[index]?.amount ?? movement.amount_value,
+      unit: doses[index]?.unit ?? movement.unit,
+      qty: Array.isArray(movement.qty) ? movement.qty : doses[index]?.qty,
       load: movement.load,
     })),
   });

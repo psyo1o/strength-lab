@@ -65,3 +65,32 @@
 - 금: `12세트 인터벌 · 40초 일하고 20초 쉼 / Single-under 15회 / Push-up 10회` — 작업 34초, 12세트.
 - 토: `3라운드 파트너 · 캡 20분 · 2명 split / Run 800m / American Kettlebell Swing 20회 (53/35 lb) / Sumo Deadlift High Pull 40회 (95/65 lb)` — 945초, 예상 분 16, 캡 1200초. 분담은 split이다.
 - 일: 휴식.
+
+## Rx·스케일·형식별 최소 시간
+
+카탈로그 동작에 `rx_variant`와 `scale_variants`를 둔다. 스케일은 변환 비율, 수량 축소, 더 가벼운 부하·높이다. 줄넘기 Rx는 Double-under이고 Single-under는 2:1·3:1 스케일이다. Rx 칸의 Single-under는 거절한다. Pull-up/C2B, Toes-to-bar, HSPU, Muscle-up, Rope climb, Pistol, Box jump 높이, Wall ball 무게, 바벨 무게, Run의 Row/Bike/Ski도 같은 쌍이다. 회원 화면은 Rx 뒤에 스케일을 붙인다. 강도 3의 derived 최소는 For Time 12분, AMRAP 12분, 치퍼 15분, 인터벌 작업+휴식 12분, 파트너 15분이다. 강도 4–5는 그 최소를 10분까지 허용하고 같은 캡 안에서 수량을 올린다. 강도 1–2는 시간 영역을 넘기지 않는 선에서 더 길고 가볍다. 짧은 날은 12분, 중간 날은 13–20분, 긴 날은 30–40분이다. 최소에 못 미치면 값을 고치지 않고 거절한다. 캡 ±25%, 치퍼 90%, 하루 내용 시간 90–110분은 그대로다. 헤드 코치는 1회이고 뒤에 루프는 없다.
+
+`tsc --noEmit`은 통과했다. `vitest`는 94개 파일, 620개 테스트가 통과했다. 모킹은 실측이 아니다.
+
+통과로 센 실행은 이 규칙을 넣은 뒤의 8주다. 입구는 `regenerate-week`, 모델은 `gpt-5.4-nano`, DB는 2099 임시 파일, 실행당 토큰 상한은 250만, 주 생성은 실행마다 4회다.
+
+| 구분 | 주 | 결과 | 호출 | 토큰 |
+|---|---|---|---|---|
+| 보통 | 2099-09-07, 09-14, 09-21, 09-28 | model 4, fallback 0 | 134 | 1,284,157 |
+| 고피로 | 2099-11-02, 11-09, 11-16, 11-23 | model 4, fallback 0 | 140 | 1,357,422 |
+
+두 실행 모두 잠금 불일치 전후 0, 미해결 일 0, 실패 주 0이다. 훈련일 출처는 실행마다 `MODEL` 10과 `MODEL_REVISED` 14이고 `FALLBACK`과 `FAILED`는 0이다. 월간 2099-09-01과 2099-11-01은 model이다. 키 없이 심은 앞달(2099-08-01, 2099-10-01)은 fallback이고 8회에 넣지 않는다. 일요일은 휴식이다.
+
+저장된 8주를 다시 읽어 메인 누락, 세트표와 블록 불일치, 내용 시간과 블록 분의 ±25% 이탈, 하루 90–110 이탈, 캡·라운드·간격 이탈, 바벨 메트콘의 숫자 lb 누락, Rx 칸 Single-under, 형식별 최소 시간 미달을 세었다. 모두 0이다. 화면 이름 치환은 보통 44건, 고피로 48건이고 단위 변환은 0이다.
+
+## 샘플 주 2099-09-07 회원 화면 (Rx·스케일)
+
+보통 1주다. 문장은 저장된 메트콘 `bodyKo` 첫 줄 그대로다. 괄호 안은 코드가 계산한 예상이다. For Time·치퍼·파트너의 `expected_duration`은 그 예상 분을 반올림한 값이고 캡 분이 아니다. 하루 블록 합은 월 90, 화 91, 수 90, 목 91, 금 90, 토 91분이다.
+
+- 월: `3라운드 For Time · 캡 12분 / Row Erg 20cal / Barbell Thruster 15회 (95/65 lb) (스케일 45/35 lb · 11회) / Burpee 15회` — 753초, 예상 분 13, 캡 720초. 강도 heavy라 최소는 10분이다.
+- 화: `20분 AMRAP / Ski Erg 10cal / Wall-Ball Shot 20회 (20/14 lb) (스케일 14/10 lb · 14회) / Box Jump 15회 (스케일 20/16 in · Box Step-up 15회)` — 한 라운드 201초, 시계 1200초, 예상 6.0라운드. 강도 moderate, 최소 12분.
+- 수: `40분 존 2 · RPE 2–3 / Row Erg 40분` — 2400초. 존 2는 형식별 최소 시간 밖이다.
+- 목: `1라운드 치퍼 · 캡 20분 / Bike Erg 55cal / Dumbbell Snatch 35회 (50/35 lb) / Toes-to-Bar 35회 (스케일 Hanging Knee Raise 35회 · 21회) / Wall-Ball Shot 50회 (20/14 lb) (스케일 14/10 lb · 35회) / Kipping Pull-up 35회 (스케일 Ring Row 35회 · 21회)` — 927초, 예상 분 15, 캡 1200초. 강도 moderate, 최소 15분.
+- 금: `12세트 인터벌 · 40초 일하고 20초 쉼 / Double-under 15회 (스케일 Single-under 30회 2:1 · Single-under 45회 3:1) / Push-up 10회` — 한 세트 작업 37초, 작업+휴식 720초. 강도 heavy, 최소 10분. Rx는 Double-under다.
+- 토: `3라운드 파트너 · 캡 20분 · 2명 split / Run 800m (스케일 Row Erg 1000m · Bike Erg 40cal · Ski Erg 32cal) / American Kettlebell Swing 20회 (53/35 lb) / Sumo Deadlift High Pull 40회 (95/65 lb) (스케일 28회)` — 945초, 예상 분 16, 캡 1200초. 분담은 split. 강도 moderate, 최소 15분.
+- 일: `쉽니다.`

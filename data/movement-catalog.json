@@ -1,7 +1,94 @@
 {
   "version": "0.5.0-draft",
   "generated": "2026-10-12",
-  "note": "ranges는 출처 WOD에서 실제로 본 값의 범위. 미확인은 null. 무게 단위 lb(출처 표기).",
+  "note": "ranges는 출처 WOD에서 실제로 본 값의 범위. 미확인은 null. 무게 단위 lb(출처 표기). rx_scale은 Rx 동작과 허용 스케일이다. scale_only는 Rx 칸에 두면 거절한다.",
+  "rx_scale": [
+    {
+      "rx_key": "double_under",
+      "scales": [
+        { "key": "single_under", "mode": "ratio", "factor": 2, "scale_only": true },
+        { "key": "single_under", "mode": "ratio", "factor": 3, "scale_only": true }
+      ]
+    },
+    {
+      "rx_key": "chest_to_bar_pull_up",
+      "scales": [
+        { "key": "kipping_pull_up", "mode": "ratio", "factor": 1 },
+        { "key": "chest_to_bar_pull_up", "mode": "quantity", "factor": 0.6 }
+      ]
+    },
+    {
+      "rx_key": "kipping_pull_up",
+      "scales": [
+        { "key": "ring_row", "mode": "ratio", "factor": 1 },
+        { "key": "kipping_pull_up", "mode": "quantity", "factor": 0.6 }
+      ]
+    },
+    {
+      "rx_key": "toes_to_bar",
+      "scales": [
+        { "key": "hanging_knee_raise", "mode": "ratio", "factor": 1 },
+        { "key": "toes_to_bar", "mode": "quantity", "factor": 0.6 }
+      ]
+    },
+    {
+      "rx_key": "kipping_handstand_push_up",
+      "scales": [
+        { "key": "db_press", "mode": "ratio", "factor": 1 },
+        { "key": "kipping_handstand_push_up", "mode": "quantity", "factor": 0.5 }
+      ]
+    },
+    {
+      "rx_key": "ring_muscle_up",
+      "scales": [
+        { "key": "kipping_pull_up", "mode": "ratio", "factor": 3 },
+        { "key": "ring_muscle_up", "mode": "quantity", "factor": 0.5 }
+      ]
+    },
+    {
+      "rx_key": "bar_muscle_up",
+      "scales": [
+        { "key": "chest_to_bar_pull_up", "mode": "ratio", "factor": 3 },
+        { "key": "bar_muscle_up", "mode": "quantity", "factor": 0.5 }
+      ]
+    },
+    {
+      "rx_key": "rope_climb",
+      "scales": [
+        { "key": "ring_row", "mode": "ratio", "factor": 3 },
+        { "key": "rope_climb", "mode": "quantity", "factor": 0.5 }
+      ]
+    },
+    {
+      "rx_key": "pistol_squat",
+      "scales": [
+        { "key": "walking_lunge", "mode": "ratio", "factor": 2 },
+        { "key": "pistol_squat", "mode": "quantity", "factor": 0.6 }
+      ]
+    },
+    {
+      "rx_key": "box_jump",
+      "scales": [
+        { "key": "box_jump", "mode": "ratio", "factor": 1, "load": { "male": "20 in", "female": "16 in" } },
+        { "key": "box_step_up", "mode": "ratio", "factor": 1 }
+      ]
+    },
+    {
+      "rx_key": "wall_ball",
+      "scales": [
+        { "key": "wall_ball", "mode": "ratio", "factor": 1, "load": { "male": "14 lb", "female": "10 lb" } },
+        { "key": "wall_ball", "mode": "quantity", "factor": 0.7 }
+      ]
+    },
+    {
+      "rx_key": "run",
+      "scales": [
+        { "key": "row_erg", "mode": "ratio", "factor": 1.25, "unit": "m" },
+        { "key": "bike_erg", "mode": "ratio", "factor": 0.05, "unit": "cal" },
+        { "key": "ski_erg", "mode": "ratio", "factor": 0.04, "unit": "cal" }
+      ]
+    }
+  ],
   "sources": {
     "S1": {
       "title": "CrossFit Movements & Exercise List",

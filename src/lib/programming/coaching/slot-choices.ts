@@ -10,6 +10,7 @@ import { is_heavy_lower_metcon } from "./heavy-lower-metcon";
 import {
   catalogMovement,
   displayAmount,
+  isScaleOnly,
   linkedCatalogKey,
   modelSelectable,
   prescribedLoad,
@@ -160,6 +161,7 @@ function legalConditioning(lift: string | null | undefined, deadliftConditioning
   return standardMovements()
     .filter((row) => modelSelectable(row) && !banned.has(row.key) && quantityOptions(row.key).length > 0)
     .map((row) => row.key)
+    .filter((key) => !isScaleOnly(key))
     .filter((key) => deadliftConditioning !== false || (key !== "deadlift" && key !== "romanian_deadlift"));
 }
 

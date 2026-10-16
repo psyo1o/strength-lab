@@ -265,7 +265,8 @@ function restampMetcon(session: SessionDraft | undefined) {
     if (!unit || !Number.isInteger(amount)) return [];
     return [{ key: movement.key, unit, amount, ...(Array.isArray(movement.qty) ? { qty: movement.qty } : {}) }];
   });
-  const derived = derivedFor(piece.format, piece.duration_min, doses, piece.clock);
+  const intensity = piece.intensity === "light" || piece.intensity === "moderate" || piece.intensity === "heavy" ? piece.intensity : null;
+  const derived = derivedFor(piece.format, piece.duration_min, doses, piece.clock, intensity);
   if (!derived || !session) return;
   piece.derived_sec = derived.sec;
   piece.derived_rounds = derived.rounds;

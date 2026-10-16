@@ -4,7 +4,7 @@ import type { DayKey, WeekIndex } from "../../month-plan/types";
 import { exampleSets } from "../strength-methods";
 import { rangeFor } from "./movement-catalog";
 import { STIMULI, type MainLift, type MetconClock, type ShareMode, type Stimulus, type WodFormat } from "../types";
-import { catalogRxWeights, modalWodLb, movementDisplayName } from "./movement-catalog";
+import { catalogRxWeights, isScaleOnly, modalWodLb, movementDisplayName, rxVariantOf, scaleVariants } from "./movement-catalog";
 
 /** 수업 창. 설정이 없으면 100이고, 그 사실을 한 번 남긴다. */
 export const SESSION_MINUTES_MIN = 90;
@@ -222,6 +222,35 @@ type Template = {
   patterns: string[];
 };
 
+/** 짧은 보통 날이 본 틀에 안 들어갈 때. 줄넘기를 또 쓰지 않는다. */
+const SHORT_OPEN_FALLBACK: Template = {
+  format: "for_time",
+  exception: null,
+  machine: "ski_erg",
+  patterns: ["cycle", "push", "core"],
+  metcon: [
+    { key: "ski_erg", unit: "cal", amount: 10 },
+    { key: "burpee", unit: "reps", amount: 10 },
+    { key: "sit_up", unit: "reps", amount: 15 },
+  ],
+  skill: { key: "ring_row", unit: "reps", amount: 8 },
+  extra: { key: "easy_row", unit: "sec", amount: 150, intensity: "light" },
+};
+
+/** 짧은 가벼운 날은 12분 안에서 강도 1–2 최소에 닿는 형식이 EMOM뿐이다. 동작은 2개다. */
+const SHORT_LIGHT_FALLBACK: Template = {
+  format: "emom",
+  exception: "mono",
+  machine: null,
+  patterns: ["jump", "core"],
+  metcon: [
+    { key: "double_under", unit: "reps", amount: 20 },
+    { key: "sit_up", unit: "reps", amount: 8 },
+  ],
+  skill: { key: "ring_row", unit: "reps", amount: 8 },
+  extra: { key: "easy_row", unit: "sec", amount: 150, intensity: "light" },
+};
+
 const LONG_FALLBACK: Template = {
   format: "amrap",
   exception: null,
@@ -269,7 +298,7 @@ const TEMPLATES: readonly Template[] = [
     machine: null,
     patterns: ["jump", "hinge"],
     metcon: [
-      { key: "single_under", unit: "reps", amount: 15 },
+      { key: "double_under", unit: "reps", amount: 30 },
       { key: "barbell_thruster", unit: "reps", amount: 5 },
     ],
     skill: { key: "push_press", unit: "reps", amount: 8 },
@@ -279,12 +308,13 @@ const TEMPLATES: readonly Template[] = [
     format: "chipper",
     exception: null,
     machine: "bike_erg",
-    patterns: ["cycle", "hinge", "core"],
+    patterns: ["cycle", "hinge", "core", "squat", "pull"],
     metcon: [
       { key: "bike_erg", unit: "cal", amount: 20 },
       { key: "dumbbell_snatch", unit: "reps", amount: 12 },
       { key: "toes_to_bar", unit: "reps", amount: 8 },
-      { key: "sit_up", unit: "reps", amount: 15 },
+      { key: "wall_ball", unit: "reps", amount: 15 },
+      { key: "kipping_pull_up", unit: "reps", amount: 10 },
     ],
     skill: { key: "ring_row", unit: "reps", amount: 8 },
     extra: { key: "easy_ski", unit: "sec", amount: 150, intensity: "light" },
@@ -295,7 +325,7 @@ const TEMPLATES: readonly Template[] = [
     machine: null,
     patterns: ["jump", "push"],
     metcon: [
-      { key: "single_under", unit: "reps", amount: 15 },
+      { key: "double_under", unit: "reps", amount: 30 },
       { key: "push_up", unit: "reps", amount: 10 },
     ],
     skill: { key: "air_squat", unit: "reps", amount: 20 },
@@ -345,10 +375,25 @@ function bandFor(day: ContractDayInput, index: number): MetconBand {
   return index % 2 === 0 ? "short" : "medium";
 }
 
-function metconMinutes(band: MetconBand): number {
+/** 긴 날이 아닌 메트콘은 세션 스키마의 8–20분이다. 가벼운 중간 날도 그 상한이다. */
+const NON_LONG_METCON_MAX = 20;
+const LONG_METCON_MIN = 30;
+const LONG_METCON_MAX = 40;
+
+function metconMinutes(band: MetconBand, intensity: IntensityCeiling | null | undefined): number {
   if (band === "long") return 36;
   if (band === "short") return 12;
+  if (intensity === "light") return NON_LONG_METCON_MAX;
   return 20;
+}
+
+function metconClockBounds(day: ContractDayInput, index: number): { min: number; max: number; preferred: number } {
+  const band = day.long ? "long" : bandFor(day, index);
+  if (band === "long") return { min: LONG_METCON_MIN, max: LONG_METCON_MAX, preferred: metconMinutes("long", day.intensity_class) };
+  // 중간 시간 영역은 13–29이고, 긴 날이 아닌 세션 스키마는 20분까지다.
+  if (band === "medium") return { min: 13, max: NON_LONG_METCON_MAX, preferred: metconMinutes("medium", day.intensity_class) };
+  // 짧은 시간 영역은 1–12이고, 메트콘 블록 최소는 12다.
+  return { min: 12, max: 12, preferred: 12 };
 }
 
 function accessoryDose(skill: DoseMovement, preferredSets: number, targetMinutes: number = BLOCK_RANGES.skill_or_accessory.min): { dose: DoseMovement; minutes: number } {
@@ -454,14 +499,24 @@ export function firstWorkingPercent(method: string, weekIndex: WeekIndex): numbe
   return sets?.[0]?.percent_of_tm ?? 65;
 }
 
-function minuteWindow(format: string, source: readonly DoseMovement[], preferred: number, minMinutes: number = BLOCK_RANGES.metcon.min): { minutes: number; dose: DoseMovement[] } | null {
+function minuteWindow(
+  format: string,
+  source: readonly DoseMovement[],
+  preferred: number,
+  minMinutes: number = BLOCK_RANGES.metcon.min,
+  intensity: IntensityCeiling | null = null,
+  maxMinutes: number = BLOCK_RANGES.metcon.max,
+): { minutes: number; dose: DoseMovement[] } | null {
   const minutes = [];
-  for (let value = minMinutes; value <= BLOCK_RANGES.metcon.max; value += 1) minutes.push(value);
+  const upper = Math.min(BLOCK_RANGES.metcon.max, maxMinutes);
+  for (let value = minMinutes; value <= upper; value += 1) minutes.push(value);
   minutes.sort((left, right) => Math.abs(left - preferred) - Math.abs(right - preferred) || left - right);
   for (const value of minutes) {
     const clock = clockForFormat(format, value, source.map((move) => move.key));
-    const dose = scaleDose(format, value, source, clock);
-    if (!doseIssues({ format, minutes: value, movements: dose, clock }).length) return { minutes: value, dose };
+    const window = estimateWindow(format, value * 60, metconFloorSec(format, intensity));
+    if (window && window.low > window.high) continue;
+    const dose = scaleDose(format, value, source, clock, intensity);
+    if (!doseIssues({ format, minutes: value, movements: dose, clock, intensity }).length) return { minutes: value, dose };
   }
   return null;
 }
@@ -485,23 +540,35 @@ export function planWeekContract(
   const chosen = new Map(training.map((day, index) => [day.day, TEMPLATES[(index + shift) % TEMPLATES.length]!]));
   const zone2Day = (key: string) => training.some((row) => row.day === key && row.zone2);
   for (const day of training) {
-    if (!day.long || day.zone2) continue;
+    if (day.zone2) continue;
+    const index = training.findIndex((row) => row.day === day.day);
+    const bounds = metconClockBounds(day, index);
     const current = chosen.get(day.day)!;
-    if (minuteWindow(current.format, current.metcon, 36, 30)) continue;
-    const replacement = TEMPLATES.find((row) => {
+    const fits = (format: string, source: readonly DoseMovement[]) =>
+      minuteWindow(format, source, bounds.preferred, bounds.min, day.intensity_class ?? null, bounds.max) != null;
+    const holds = (key: string, template: Template) => {
+      if (key === day.day || zone2Day(key)) return false;
+      const other = training.find((row) => row.day === key);
+      if (!other) return false;
+      const otherIndex = training.findIndex((row) => row.day === key);
+      const otherBounds = metconClockBounds(other, otherIndex);
+      return minuteWindow(template.format, template.metcon, otherBounds.preferred, otherBounds.min, other.intensity_class ?? null, otherBounds.max) != null;
+    };
+    if (fits(current.format, current.metcon)) continue;
+    const free = (row: Template) => {
       const signature = row.metcon.map((move) => move.key).sort().join("|");
-      const taken = [...chosen.entries()].some(([key, template]) => key !== day.day && !zone2Day(key) && template.metcon.map((move) => move.key).sort().join("|") === signature);
+      const taken = [...chosen.entries()].some(([key, template]) => holds(key, template) && template.metcon.map((move) => move.key).sort().join("|") === signature);
       if (taken) return false;
-      const formatCount = [...chosen.entries()].filter(([key, template]) => key !== day.day && !zone2Day(key) && template.format === row.format).length;
-      if (formatCount >= 2) return false;
-      return minuteWindow(row.format, row.metcon, 36, 30) != null;
-    });
-    const fallbackSignature = LONG_FALLBACK.metcon.map((move) => move.key).sort().join("|");
-    const fallbackTaken = [...chosen.entries()].some(([key, template]) => !zone2Day(key) && template.metcon.map((move) => move.key).sort().join("|") === fallbackSignature);
-    const fallbackFormats = [...chosen.entries()].filter(([key, template]) => key !== day.day && !zone2Day(key) && template.format === LONG_FALLBACK.format).length;
-    const fallbackOk = !fallbackTaken && fallbackFormats < 2 && minuteWindow(LONG_FALLBACK.format, LONG_FALLBACK.metcon, 36, 30);
+      const formatCount = [...chosen.entries()].filter(([key, template]) => holds(key, template) && template.format === row.format).length;
+      return formatCount < 2 && fits(row.format, row.metcon);
+    };
+    const replacement = TEMPLATES.find((row) => free(row));
+    const spare = free;
     if (replacement) chosen.set(day.day, replacement);
-    else if (fallbackOk) chosen.set(day.day, LONG_FALLBACK);
+    else if (bounds.max >= LONG_METCON_MIN && spare(LONG_FALLBACK)) chosen.set(day.day, LONG_FALLBACK);
+    else if (bounds.max <= 12 && spare(SHORT_OPEN_FALLBACK)) chosen.set(day.day, SHORT_OPEN_FALLBACK);
+    else if (bounds.max <= 12 && spare(SHORT_LIGHT_FALLBACK)) chosen.set(day.day, SHORT_LIGHT_FALLBACK);
+    else if (spare(LONG_FALLBACK)) chosen.set(day.day, LONG_FALLBACK);
   }
   return sorted.map((day) => {
     if (day.rest) {
@@ -534,7 +601,7 @@ export function planWeekContract(
     const index = training.findIndex((row) => row.day === day.day);
     const template = chosen.get(day.day) ?? TEMPLATES[(index + shift) % TEMPLATES.length]!;
     const band = bandFor(day, index);
-    const minutes = metconMinutes(band);
+    const minutes = metconMinutes(band, day.intensity_class);
     const lift = liftOf(day.lift);
     const zone2 = day.zone2 === true;
     // 쿨다운은 고유 스트레치 4분이다. 존 2가 30분이면 나머지 칸을 최대로 올려도 86분이라 90에 닿지 않는다.
@@ -585,7 +652,8 @@ export function planWeekContract(
     }
     fitted.skillSets = { sets: skillPlan.dose.sets ?? fitted.skillSets.sets, minutes: Math.max(2, Math.round(skillPlan.minutes / (skillPlan.dose.sets || 1))) };
     fitted.blocks.cooldown = Math.min(fitted.blocks.cooldown, 4);
-    const opened = zone2 ? null : minuteWindow(format, metconSource, fitted.blocks.metcon, day.long ? 30 : BLOCK_RANGES.metcon.min);
+    const bounds = metconClockBounds(day, index);
+    const opened = zone2 ? null : minuteWindow(format, metconSource, Math.min(bounds.max, Math.max(bounds.min, fitted.blocks.metcon)), bounds.min, day.intensity_class ?? null, bounds.max);
     if (opened) fitted.blocks.metcon = opened.minutes;
     let guard = 0;
     while (blockSum(fitted.blocks) < SESSION_MINUTES_MIN && guard < 30) {
@@ -621,7 +689,7 @@ export function planWeekContract(
     }
     fitted.skillSets = { sets: skillPlan.dose.sets ?? fitted.skillSets.sets, minutes: Math.max(2, Math.round(skillPlan.minutes / (skillPlan.dose.sets || 1))) };
     const pieceMinutes = fitted.blocks.metcon;
-    const metcon = zone2Dose ?? opened?.dose ?? scaleDose(format, pieceMinutes, metconSource);
+    const metcon = zone2Dose ?? opened?.dose ?? scaleDose(format, pieceMinutes, metconSource, clockForFormat(format, pieceMinutes, metconSource.map((move) => move.key)), day.intensity_class ?? null);
     const blocks: ContractBlock[] = roles.map((role) => ({
       role,
       minutes: fitted.blocks[role],
@@ -756,6 +824,27 @@ function qtyLabel(qty: number | readonly number[], unit: string): string {
   return `${body}회`;
 }
 
+function scaleSuffix(key: string, qty: number | readonly number[], unit: string): string {
+  const variants = scaleVariants(key);
+  if (!variants.length) return "";
+  const amounts = Array.isArray(qty) ? [...qty] : [qty];
+  const parts = variants.map((variant) => {
+    const scaled = amounts.map((amount) => Math.max(1, Math.round(amount * variant.factor)));
+    const shown = variant.unit || unit;
+    const count = qtyLabel(scaled.length === 1 ? scaled[0]! : scaled, shown);
+    if (variant.load && variant.factor === 1 && variant.key === key) {
+      const male = variant.load.male.match(/[\d.]+/)?.[0] ?? "";
+      const female = variant.load.female.match(/[\d.]+/)?.[0] ?? "";
+      const unitName = variant.load.male.match(/\b(lb|kg|in)\b/i)?.[1]?.toLowerCase() ?? "";
+      return `${male}/${female}${unitName ? ` ${unitName}` : ""}`.trim();
+    }
+    if (variant.mode === "quantity" && variant.key === key) return count;
+    const ratio = Number.isInteger(variant.factor) && variant.factor >= 2 ? ` ${variant.factor}:1` : "";
+    return `${movementDisplayName(variant.key)} ${count}${ratio}`;
+  });
+  return ` (스케일 ${parts.join(" · ")})`;
+}
+
 function clockHead(format: string, clock: MetconClock): string {
   const minutes = (sec: number | null) => (sec == null ? "?" : String(Math.round(sec / 60)));
   if (format === "for_time") return `${clock.rounds}라운드 For Time · 캡 ${minutes(clock.cap_sec)}분`;
@@ -785,7 +874,7 @@ export function renderMetconLine(input: {
     const unit = movement.unit || "reps";
     const rx = rxNumbers(movement.load);
     const weight = rx ? ` (${rx.male}/${rx.female} ${rx.unit})` : "";
-    return `${movementDisplayName(movement.key)} ${qtyLabel(qty, unit)}${weight}`;
+    return `${movementDisplayName(movement.key)} ${qtyLabel(qty, unit)}${weight}${scaleSuffix(movement.key, qty, unit)}`;
   });
   return [clockHead(input.format, input.clock), ...lines].join(" / ");
 }
@@ -882,14 +971,57 @@ export type MetconDerived = { sec: number; rounds: number | null; time_source: "
 
 let lastDerived: MetconDerived | null = null;
 
-export function derivedFor(format: string, minutes: number, movements: readonly DoseMovement[], clock: MetconClock): MetconDerived | null {
-  const issues = doseIssues({ format, minutes, movements, clock });
+export function derivedFor(
+  format: string,
+  minutes: number,
+  movements: readonly DoseMovement[],
+  clock: MetconClock,
+  intensity: IntensityCeiling | null = null,
+): MetconDerived | null {
+  const issues = doseIssues({ format, minutes, movements, clock, intensity });
   if (issues.length || !lastDerived) return null;
   return { ...lastDerived };
 }
 
+/** 강도 3(moderate) 최소 초. 1–2는 더 길고, 4–5는 10분까지 허용한다. 시간에 배수를 곱하지 않는다. */
+const FLOOR_MODERATE_SEC: Record<string, number> = {
+  for_time: 12 * 60,
+  amrap: 12 * 60,
+  chipper: 15 * 60,
+  intervals: 12 * 60,
+  partner: 15 * 60,
+};
+
+const FLOOR_LIGHT_SEC: Record<string, number> = {
+  for_time: 15 * 60,
+  amrap: 15 * 60,
+  chipper: 18 * 60,
+  intervals: 15 * 60,
+  partner: 18 * 60,
+};
+
+export function metconFloorSec(format: string, intensity: IntensityCeiling | null | undefined): number | null {
+  if (format === "zone2" || format === "emom") return null;
+  if (intensity === "heavy") return 10 * 60;
+  const table = intensity === "light" ? FLOOR_LIGHT_SEC : FLOOR_MODERATE_SEC;
+  return table[format] ?? null;
+}
+
+function estimateWindow(format: string, cap: number, floor: number | null): { low: number; high: number } | null {
+  if (format !== "for_time" && format !== "partner" && format !== "chipper") return null;
+  const low = Math.max(floor ?? 0, cap * 0.75);
+  const high = format === "chipper" ? Math.min(cap * 1.25, cap * 0.9) : cap * 1.25;
+  return { low, high };
+}
+
 /** 양-시간. 느린 끝으로 보고, 값이 없으면 기본값을 넣지 않는다. 모델 숫자는 고치지 않는다. */
-export function doseIssues(input: { format: string; minutes: number; movements: readonly DoseMovement[]; clock?: MetconClock | null }): string[] {
+export function doseIssues(input: {
+  format: string;
+  minutes: number;
+  movements: readonly DoseMovement[];
+  clock?: MetconClock | null;
+  intensity?: IntensityCeiling | null;
+}): string[] {
   lastDerived = null;
   const clock = input.clock ?? clockForFormat(input.format, input.minutes, input.movements.map((move) => move.key));
   const errors: string[] = [];
@@ -918,6 +1050,11 @@ export function doseIssues(input: { format: string; minutes: number; movements: 
   } else if (input.format === "intervals") {
     if (clock.work_sec == null || clock.rest_sec == null || clock.sets == null) errors.push("intervals work_sec, rest_sec, and sets are missing");
   }
+  for (const movement of input.movements) {
+    if (!isScaleOnly(movement.key)) continue;
+    const rx = rxVariantOf(movement.key);
+    errors.push(`${movement.key} is a scale of ${rx}. The Rx slot must be ${rx}`);
+  }
   if (errors.length) return errors;
   const rounds = input.format === "for_time" || input.format === "chipper" || input.format === "partner" ? clock.rounds! : 1;
   let work = 0;
@@ -937,8 +1074,10 @@ export function doseIssues(input: { format: string; minutes: number; movements: 
   if ("error" in one) return [one.error];
   const oneSec = one.parts.work + one.parts.transitions + one.parts.handoffs;
   const cap = clock.cap_sec ?? input.minutes * 60;
+  const floor = metconFloorSec(input.format, input.intensity);
   if (input.format === "amrap") {
     const window = clock.duration_sec ?? cap;
+    if (floor != null && window < floor) errors.push(`AMRAP duration ${Math.round(window)}s is under the ${floor / 60} min minimum`);
     if (oneSec > window * 0.4) errors.push(`AMRAP round ${Math.round(oneSec)}s is over 40% of ${input.minutes} min`);
     const estimated = window / oneSec;
     if (estimated < 2.5) errors.push(`AMRAP allows fewer than 2.5 rounds in ${input.minutes} min`);
@@ -950,6 +1089,7 @@ export function doseIssues(input: { format: string; minutes: number; movements: 
       errors.push(`${input.format} estimate ${Math.round(total)}s differs from the ${input.minutes} min cap by more than 25%`);
     }
     if (input.format === "chipper" && total > cap * 0.9) errors.push(`chipper estimate ${Math.round(total)}s is over 90% of ${input.minutes} min`);
+    if (floor != null && total < floor) errors.push(`${input.format} estimate ${Math.round(total)}s is under the ${floor / 60} min minimum`);
     lastDerived = { sec: Math.round(total), rounds, time_source: "derived" };
   } else if (input.format === "emom" || input.format === "intervals") {
     const stationWork = one.parts.work;
@@ -971,6 +1111,9 @@ export function doseIssues(input: { format: string; minutes: number; movements: 
       if (stationGap > restSec) errors.push(`intervals transitions ${Math.round(stationGap)}s do not fit in rest_sec ${restSec}`);
       const span = clock.duration_sec ?? input.minutes * 60;
       if (sets * (workSec + restSec) !== span) errors.push("intervals do not fill the block");
+      if (floor != null && sets * (workSec + restSec) < floor) {
+        errors.push(`intervals work+rest ${sets * (workSec + restSec)}s is under the ${floor / 60} min minimum`);
+      }
       lastDerived = { sec: Math.round(stationWork), rounds: sets, time_source: "derived" };
     }
   }
@@ -987,18 +1130,34 @@ function clampDose(movement: DoseMovement): boolean {
   return true;
 }
 
-function lowerGridAmount(movement: DoseMovement): boolean {
-  if (movement.unit === "min") return false;
+function stepGrid(movement: DoseMovement, direction: 1 | -1): boolean {
+  if (movement.unit === "min" || Array.isArray(movement.qty)) return false;
   const span = rangeFor(movement.key, movement.unit);
   const grid = span ? allowedAmounts(movement.unit, span.min, span.max) : [];
-  const lower = [...grid].reverse().find((amount) => amount < movement.amount);
-  if (lower == null) return false;
-  movement.amount = lower;
+  const next = direction > 0 ? grid.find((amount) => amount > movement.amount) : [...grid].reverse().find((amount) => amount < movement.amount);
+  if (next == null) return false;
+  movement.amount = next;
   return true;
 }
 
+function doseTarget(format: string, cap: number, window: { low: number; high: number }, intensity: IntensityCeiling | null): number {
+  if (intensity === "light") return window.low;
+  if (intensity === "heavy") {
+    const dense = format === "chipper" ? Math.min(window.high, cap * 0.88) : Math.min(window.high, cap);
+    return Math.max(window.low, dense);
+  }
+  const standard = format === "chipper" ? cap * 0.82 : cap;
+  return Math.min(window.high, Math.max(window.low, standard));
+}
+
 /** 코드가 잠그는 용량만 창 안으로 맞춘다. 카탈로그 범위 밖으로는 올리지 않는다. 모델이 낸 값은 바꾸지 않는다. */
-export function scaleDose(format: string, minutes: number, movements: readonly DoseMovement[], clock?: MetconClock | null): DoseMovement[] {
+export function scaleDose(
+  format: string,
+  minutes: number,
+  movements: readonly DoseMovement[],
+  clock?: MetconClock | null,
+  intensity: IntensityCeiling | null = null,
+): DoseMovement[] {
   const copy = movements.map((movement) => ({ ...movement }));
   const used = clock ?? clockForFormat(format, minutes, copy.map((move) => move.key));
   for (const movement of copy) {
@@ -1007,22 +1166,23 @@ export function scaleDose(format: string, minutes: number, movements: readonly D
   }
   if (format === "emom" || format === "intervals") {
     for (let step = 0; step < 8; step += 1) {
-      const issues = doseIssues({ format, minutes, movements: copy, clock: used });
-      if (!issues.some((error) => error.includes("over 40s") || error.includes("over 20s") || error.includes("does not fit"))) return copy;
+      const issues = doseIssues({ format, minutes, movements: copy, clock: used, intensity });
+      if (!issues.some((error) => error.includes("over 40s") || error.includes("over 20s") || error.includes("does not fit") || error.includes("under the"))) return copy;
       const ranked = [...copy].sort((left, right) => (workSeconds(right) ?? 0) - (workSeconds(left) ?? 0));
-      if (!ranked.some((movement) => lowerGridAmount(movement))) return copy;
+      if (!ranked.some((movement) => stepGrid(movement, -1))) return copy;
     }
     return copy;
   }
   if (format !== "for_time" && format !== "partner" && format !== "chipper") return copy;
-  for (let step = 0; step < 12; step += 1) {
-    const issues = doseIssues({ format, minutes, movements: copy, clock: used });
-    const window = issues.find((error) => error.includes("25%") || error.includes("90%"));
-    if (!window) return copy;
-    const estimate = Number(window.match(/estimate (\d+)s/)?.[1] ?? 0);
-    const cap = used.cap_sec ?? minutes * 60;
-    if (!estimate || !cap) return copy;
-    const target = format === "chipper" ? cap * 0.82 : cap;
+  const cap = used.cap_sec ?? minutes * 60;
+  const window = estimateWindow(format, cap, metconFloorSec(format, intensity));
+  if (!window || window.low > window.high) return copy;
+  const target = doseTarget(format, cap, window, intensity);
+  for (let step = 0; step < 16; step += 1) {
+    doseIssues({ format, minutes, movements: copy, clock: used, intensity });
+    const estimate = lastDerived?.sec ?? 0;
+    if (!estimate) return copy;
+    if (estimate >= window.low && estimate <= window.high) return copy;
     const factor = target / estimate;
     let moved = false;
     for (const movement of copy) {
@@ -1033,7 +1193,9 @@ export function scaleDose(format: string, minutes: number, movements: readonly D
       movement.amount = snapDoseAmount(movement.key, movement.unit, movement.amount);
       if (movement.amount !== before) moved = true;
     }
-    if (!moved) return copy;
+    if (moved) continue;
+    const ranked = [...copy].sort((left, right) => (workSeconds(right) ?? 0) - (workSeconds(left) ?? 0));
+    if (!ranked.some((movement) => stepGrid(movement, estimate < target ? 1 : -1))) return copy;
   }
   return copy;
 }
@@ -1128,7 +1290,7 @@ export function lockIssues(lock: DaySessionLock, setting = resolveSessionMinutes
     const minutes = lock.metcon[0]?.unit === "min" ? lock.metcon[0].amount : null;
     if (minutes !== 30 && minutes !== 40 && minutes !== 45) errors.push(`${lock.day} zone2 minutes ${minutes ?? "missing"} are outside 30–45`);
   } else {
-    errors.push(...doseIssues({ format: lock.format, minutes: lock.metcon_minutes, movements: lock.metcon, clock: lock.clock }));
+    errors.push(...doseIssues({ format: lock.format, minutes: lock.metcon_minutes, movements: lock.metcon, clock: lock.clock, intensity: lock.intensity_class }));
   }
   return errors;
 }
@@ -1153,6 +1315,7 @@ type RawSession = {
     clock?: MetconClock | null;
     derived_sec?: number | null;
     time_source?: string | null;
+    intensity?: string | null;
     movements?: RawMovement[];
   } | null;
   zone2?: { form?: string; modality?: string; duration_min?: number } | null;
@@ -1185,7 +1348,8 @@ function paceAndRxIssues(session: RawSession): string[] {
   }
   const movements = (piece.movements ?? []).map((row) => doseFrom(row)).filter((row): row is DoseMovement => row != null);
   const minutes = piece.duration_min ?? Math.round((clock.cap_sec ?? clock.duration_sec ?? 0) / 60);
-  const errors = doseIssues({ format: piece.format, minutes, movements, clock }).map((issue) => `${day} ${issue}`);
+  const intensity = piece.intensity === "light" || piece.intensity === "moderate" || piece.intensity === "heavy" ? piece.intensity : null;
+  const errors = doseIssues({ format: piece.format, minutes, movements, clock, intensity }).map((issue) => `${day} ${issue}`);
   for (const row of piece.movements ?? []) {
     const key = row.key ?? "";
     if (!key) continue;
