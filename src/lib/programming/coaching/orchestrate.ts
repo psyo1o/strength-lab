@@ -6,7 +6,7 @@ import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { classCompletionForCoach, classSummaryForCoach, omitAbsenceSummary, parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
-import { hardLevelErrors } from "./intensity-levels";
+import { hardLevelErrors, ladderRiskRows } from "./intensity-levels";
 import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, sessionEstimateIssues, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
@@ -2610,7 +2610,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           allowed_values: cell.intensity_values ?? [],
         })),
       constitution:
-        "You are called once. Every cell_violations entry must appear once in revisions. Patch each indicated cell with one of its allowed_values. Do not leave an indicated cell unchanged. Fix hard_constraints violations before warnings. On a day whose heavy_lower_metcon is avoid, REVISE only with a movement_id or quantity_option that remains in that day's revisable enum. REVISE only when value is a different movement_id or quantity_option in that cell's enum. If catalog_key is intensity, field is intensity and value is one of that cell's bands. If the enum has no different id, return APPROVE_WITH_NOTE with empty revisions and empty adjustments. Do not use adjustments as a cell edit. The server writes a legal cell and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4.",
+        "You are called once. Every cell_violations entry must appear once in revisions. Patch each indicated cell with one of its allowed_values. Do not leave an indicated cell unchanged. Fix hard_constraints violations before warnings. On a day whose heavy_lower_metcon is avoid, REVISE only with a movement_id or quantity_option that remains in that day's revisable enum. REVISE only when value is a different movement_id or quantity_option in that cell's enum. If catalog_key is intensity, field is intensity and value is one of that cell's bands. If the enum has no different id, return APPROVE_WITH_NOTE with empty revisions and empty adjustments. Do not use adjustments as a cell edit. The server writes a legal cell and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4. ladder_risk lists ladder steps and their risk_level. Leave those movements in place and do not strip risk_level.",
       unresolved_days: [...unresolvedDays.entries()].map(([day, errors]) => ({ day, errors })),
       monthly_goal: month.coaching_plan?.block_goal ?? null,
       monthly_method: month.coaching_plan?.strength_method ?? month.strength_method,
@@ -2629,6 +2629,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       integrator: bundle.integrator,
       evidence: stages.evidence,
       risk_classification: stages.risk,
+      ladder_risk: ladderRiskRows(draft.sessions),
       priority_result: stages.priority,
       tradeoff_result: stages.tradeoff,
       action_plan: stages.action,

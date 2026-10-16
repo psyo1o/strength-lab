@@ -4,7 +4,7 @@ import type { DayKey, WeekIndex } from "../../month-plan/types";
 import { exampleSets } from "../strength-methods";
 import { rangeFor } from "./movement-catalog";
 import { STIMULI, type MainLift, type MetconClock, type ShareMode, type Stimulus, type WodFormat } from "../types";
-import { catalogRxWeights, isScaleOnly, modalWodLb, movementDisplayName, rxVariantOf, scaleVariants } from "./movement-catalog";
+import { catalogRxWeights, isScaleOnly, ladderFor, modalWodLb, movementDisplayName, repCostOf, rxVariantOf, scaleVariants } from "./movement-catalog";
 
 /** 수업 창. 설정이 없으면 100이고, 그 사실을 한 번 남긴다. */
 export const SESSION_MINUTES_MIN = 90;
@@ -746,18 +746,34 @@ function rateMax(pace: Pace, unit: DoseMovement["unit"]): number | null {
 }
 
 export function workSeconds(movement: DoseMovement): number | null {
+  if (movement.unit === "sec") return movement.amount;
+  if (movement.unit === "reps") {
+    const cost = repCostOf(movement.key);
+    if (cost != null) return movement.amount * cost;
+  }
   const pace = movementPace(movement.key);
   if (!pace) return null;
-  if (movement.unit === "sec") return movement.amount;
   const rate = rateMax(pace, movement.unit);
   if (rate == null) return null;
   return movement.amount * rate;
 }
 
+function metconCandidate(key: string): boolean {
+  return movementPace(key) != null || ladderFor(key) != null;
+}
+
 export function transitionSeconds(key: string): number | null {
   const pace = movementPace(key);
-  if (!pace?.transition_seconds) return null;
-  return pace.transition_seconds[1];
+  if (pace?.transition_seconds) return pace.transition_seconds[1];
+  const ladder = ladderFor(key);
+  if (!ladder) return null;
+  for (const step of ladder.ladder.steps) {
+    for (const candidate of step.keys) {
+      const other = movementPace(candidate);
+      if (other?.transition_seconds) return other.transition_seconds[1];
+    }
+  }
+  return null;
 }
 
 export function emptyClock(): MetconClock {
@@ -842,13 +858,15 @@ function scaleSuffix(key: string, qty: number | readonly number[], unit: string)
       const male = variant.load.male.match(/[\d.]+/)?.[0] ?? "";
       const female = variant.load.female.match(/[\d.]+/)?.[0] ?? "";
       const unitName = variant.load.male.match(/\b(lb|kg|in)\b/i)?.[1]?.toLowerCase() ?? "";
+      if (unitName === "kg") return "";
       return `${male}/${female}${unitName ? ` ${unitName}` : ""}`.trim();
     }
     if (variant.mode === "quantity" && variant.key === key) return count;
     const ratio = Number.isInteger(variant.factor) && variant.factor >= 2 ? ` ${variant.factor}:1` : "";
     return `${movementDisplayName(variant.key)} ${count}${ratio}`;
   });
-  return ` (스케일 ${parts.join(" · ")})`;
+  const shown = parts.filter((part) => part.length > 0);
+  return shown.length ? ` (스케일 ${shown.join(" · ")})` : "";
 }
 
 function clockHead(format: string, clock: MetconClock): string {
@@ -879,7 +897,7 @@ export function renderMetconLine(input: {
     const qty = Array.isArray(movement.qty) ? [...movement.qty] : (movement.qty ?? movement.amount ?? 0);
     const unit = movement.unit || "reps";
     const rx = rxNumbers(movement.load);
-    const weight = rx ? ` (${rx.male}/${rx.female} ${rx.unit})` : "";
+    const weight = rx && rx.unit !== "kg" ? ` (${rx.male}/${rx.female} ${rx.unit})` : "";
     return `${movementDisplayName(movement.key)} ${qtyLabel(qty, unit)}${weight}${scaleSuffix(movement.key, qty, unit)}`;
   });
   return [clockHead(input.format, input.clock), ...lines].join(" / ");
@@ -949,7 +967,7 @@ function roundParts(movements: readonly DoseMovement[], clock: MetconClock, roun
   if (partner && (clock.team_size == null || clock.team_size < 2)) return { error: "partner team_size must be at least 2" };
   for (let index = 0; index < movements.length; index += 1) {
     const movement = movements[index]!;
-    if (!movementPace(movement.key)) return { error: `${movement.key} has no pace. It is not a metcon candidate.` };
+    if (!metconCandidate(movement.key)) return { error: `${movement.key} has no pace. It is not a metcon candidate.` };
     const gap = transitionSeconds(movement.key);
     const qty = qtyAt(movement, roundIndex, rounds);
     if (gap == null || qty == null) return { error: `${movement.key} ${movement.unit} has no pace for this unit` };
@@ -1016,7 +1034,8 @@ export function metconFloorSec(format: string, intensity: IntensityCeiling | nul
 function estimateWindow(format: string, cap: number, floor: number | null): { low: number; high: number } | null {
   if (format !== "for_time" && format !== "partner" && format !== "chipper") return null;
   const low = Math.max(floor ?? 0, cap * 0.75);
-  const high = format === "chipper" ? Math.min(cap * 1.25, cap * 0.9) : cap * 1.25;
+  const upper = format === "chipper" ? Math.min(cap * 1.25, cap * 0.9) : cap * 1.25;
+  const high = Math.min(upper, cap);
   return { low, high };
 }
 
@@ -1094,7 +1113,9 @@ export function doseIssues(input: {
     if (cap > 0 && Math.abs(total - cap) / cap > 0.25) {
       errors.push(`${input.format} estimate ${Math.round(total)}s differs from the ${input.minutes} min cap by more than 25%`);
     }
+    if (total > cap) errors.push(`${input.format} estimate ${Math.round(total)}s is over the ${input.minutes} min cap`);
     if (input.format === "chipper" && total > cap * 0.9) errors.push(`chipper estimate ${Math.round(total)}s is over 90% of ${input.minutes} min`);
+    if (floor != null && cap < floor) errors.push(`${input.format} cap ${Math.round(cap)}s is under the ${floor / 60} min minimum`);
     if (floor != null && total < floor) errors.push(`${input.format} estimate ${Math.round(total)}s is under the ${floor / 60} min minimum`);
     lastDerived = { sec: Math.round(total), rounds, time_source: "derived" };
   } else if (input.format === "emom" || input.format === "intervals") {
@@ -1158,7 +1179,15 @@ function stepGrid(movement: DoseMovement, direction: 1 | -1): boolean {
   return true;
 }
 
-function doseTarget(format: string, cap: number, window: { low: number; high: number }, intensity: IntensityCeiling | null): number {
+function doseTarget(
+  format: string,
+  cap: number,
+  window: { low: number; high: number },
+  intensity: IntensityCeiling | null,
+  aim: "low" | "high" | null,
+): number {
+  if (aim === "low") return window.low;
+  if (aim === "high") return window.high;
   if (intensity === "light") return window.low;
   if (intensity === "heavy") {
     const dense = format === "chipper" ? Math.min(window.high, cap * 0.88) : Math.min(window.high, cap);
@@ -1168,6 +1197,65 @@ function doseTarget(format: string, cap: number, window: { low: number; high: nu
   return Math.min(window.high, Math.max(window.low, standard));
 }
 
+function amountInRange(movement: DoseMovement, amount: number): boolean {
+  if (!Number.isInteger(amount) || amount < 1) return false;
+  const span = rangeFor(movement.key, movement.unit);
+  if (!span) return true;
+  return amount >= span.min && amount <= span.max;
+}
+
+/** The 5-rep grid can step over a window that is only a few seconds wide. Try nearby integers. */
+function tuneToWindow(
+  copy: DoseMovement[],
+  format: string,
+  minutes: number,
+  clock: MetconClock,
+  intensity: IntensityCeiling | null,
+  window: { low: number; high: number },
+): void {
+  const distance = (estimate: number | null) => {
+    if (estimate == null) return Number.POSITIVE_INFINITY;
+    if (estimate < window.low) return window.low - estimate;
+    if (estimate > window.high) return estimate - window.high;
+    return 0;
+  };
+  doseIssues({ format, minutes, movements: copy, clock, intensity });
+  if (distance(lastDerived?.sec ?? null) === 0) return;
+  if (window.high - window.low > 45) return;
+  const width = copy.length >= 5 ? 1 : copy.length === 1 ? 8 : 4;
+  const spans: number[][] = copy.map((movement) => {
+    const values = [movement.amount];
+    for (let delta = 1; delta <= width; delta += 1) {
+      if (amountInRange(movement, movement.amount - delta)) values.push(movement.amount - delta);
+      if (amountInRange(movement, movement.amount + delta)) values.push(movement.amount + delta);
+    }
+    return values;
+  });
+  const original = copy.map((movement) => movement.amount);
+  let best = original.slice();
+  let bestDistance = distance(lastDerived?.sec ?? null);
+  const walk = (index: number) => {
+    if (index === copy.length) {
+      doseIssues({ format, minutes, movements: copy, clock, intensity });
+      const next = distance(lastDerived?.sec ?? null);
+      if (next < bestDistance) {
+        bestDistance = next;
+        best = copy.map((movement) => movement.amount);
+      }
+      return;
+    }
+    for (const amount of spans[index] ?? [copy[index]!.amount]) {
+      copy[index]!.amount = amount;
+      walk(index + 1);
+      if (bestDistance === 0) return;
+    }
+  };
+  walk(0);
+  copy.forEach((movement, index) => {
+    movement.amount = best[index] ?? original[index]!;
+  });
+}
+
 /** 코드가 잠그는 용량만 창 안으로 맞춘다. 카탈로그 범위 밖으로는 올리지 않는다. 모델이 낸 값은 바꾸지 않는다. */
 export function scaleDose(
   format: string,
@@ -1175,6 +1263,7 @@ export function scaleDose(
   movements: readonly DoseMovement[],
   clock?: MetconClock | null,
   intensity: IntensityCeiling | null = null,
+  aim: "low" | "high" | null = null,
 ): DoseMovement[] {
   const copy = movements.map((movement) => ({ ...movement }));
   const used = clock ?? clockForFormat(format, minutes, copy.map((move) => move.key));
@@ -1195,7 +1284,7 @@ export function scaleDose(
   const cap = used.cap_sec ?? minutes * 60;
   const window = estimateWindow(format, cap, metconFloorSec(format, intensity));
   if (!window || window.low > window.high) return copy;
-  const target = doseTarget(format, cap, window, intensity);
+  const target = doseTarget(format, cap, window, intensity, aim);
   for (let step = 0; step < 16; step += 1) {
     doseIssues({ format, minutes, movements: copy, clock: used, intensity });
     const estimate = lastDerived?.sec ?? 0;
@@ -1213,8 +1302,9 @@ export function scaleDose(
     }
     if (moved) continue;
     const ranked = [...copy].sort((left, right) => (workSeconds(right) ?? 0) - (workSeconds(left) ?? 0));
-    if (!ranked.some((movement) => stepGrid(movement, estimate < target ? 1 : -1))) return copy;
+    if (!ranked.some((movement) => stepGrid(movement, estimate < target ? 1 : -1))) break;
   }
+  tuneToWindow(copy, format, minutes, used, intensity, window);
   return copy;
 }
 

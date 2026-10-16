@@ -5581,5 +5581,63 @@
       ],
       "memo": "웜업 potentiate hip,ankle"
     }
+  ],
+  "ladders": [
+    {
+      "id": "vertical_pull",
+      "pattern": "pull",
+      "stimulus_group": "vertical_pull",
+      "steps": [
+        { "step": 0, "keys": ["kipping_pull_up", "pull_up"], "pattern": "pull", "stimulus_group": "vertical_pull", "skill_level": "foundation", "equipment": ["pullup_bar"], "rep_cost": 4, "risk_level": "low" },
+        { "step": 1, "keys": ["chest_to_bar_pull_up"], "pattern": "pull", "stimulus_group": "vertical_pull", "skill_level": "intermediate", "equipment": ["pullup_bar"], "rep_cost": 5, "risk_level": "moderate" },
+        { "step": 2, "keys": ["bar_muscle_up", "ring_muscle_up"], "pattern": "pull", "stimulus_group": "vertical_pull", "skill_level": "advanced", "equipment": ["pullup_bar", "rings"], "rep_cost": 8, "risk_level": "high" }
+      ]
+    },
+    {
+      "id": "burpee",
+      "pattern": "burpee",
+      "stimulus_group": "conditioning_burpee",
+      "steps": [
+        { "step": 0, "keys": ["burpee"], "pattern": "burpee", "stimulus_group": "conditioning_burpee", "skill_level": "foundation", "equipment": ["bodyweight"], "rep_cost": 5, "risk_level": "low" },
+        { "step": 1, "keys": ["bar_facing_burpee"], "pattern": "burpee", "stimulus_group": "conditioning_burpee", "skill_level": "intermediate", "equipment": ["barbell"], "rep_cost": 6, "risk_level": "moderate" },
+        { "step": 2, "keys": ["burpee_pull_up"], "pattern": "burpee", "stimulus_group": "conditioning_burpee", "skill_level": "advanced", "equipment": ["pullup_bar"], "rep_cost": 8, "risk_level": "high" }
+      ]
+    },
+    {
+      "id": "thruster",
+      "pattern": "squat+push",
+      "stimulus_group": "thruster",
+      "steps": [
+        { "step": 0, "keys": ["dumbbell_thruster"], "pattern": "squat+push", "stimulus_group": "thruster", "skill_level": "foundation", "equipment": ["dumbbell"], "rep_cost": 3.5, "risk_level": "low" },
+        { "step": 1, "keys": ["barbell_thruster"], "pattern": "squat+push", "stimulus_group": "thruster", "skill_level": "intermediate", "equipment": ["barbell"], "rep_cost": 4, "risk_level": "low" }
+      ]
+    },
+    {
+      "id": "midline",
+      "pattern": "core",
+      "stimulus_group": "midline",
+      "steps": [
+        { "step": 0, "keys": ["hanging_knee_raise"], "pattern": "core", "stimulus_group": "midline", "skill_level": "foundation", "equipment": ["pullup_bar"], "rep_cost": 3, "risk_level": "low" },
+        { "step": 1, "keys": ["toes_to_bar"], "pattern": "core", "stimulus_group": "midline", "skill_level": "intermediate", "equipment": ["pullup_bar"], "rep_cost": 4, "risk_level": "low" }
+      ]
+    },
+    {
+      "id": "kettlebell_swing",
+      "pattern": "hinge",
+      "stimulus_group": "kettlebell_swing",
+      "steps": [
+        { "step": 0, "keys": ["russian_kettlebell_swing"], "pattern": "hinge", "stimulus_group": "kettlebell_swing", "skill_level": "foundation", "equipment": ["kettlebell"], "rep_cost": 2, "risk_level": "low" },
+        { "step": 1, "keys": ["american_kettlebell_swing"], "pattern": "hinge", "stimulus_group": "kettlebell_swing", "skill_level": "intermediate", "equipment": ["kettlebell"], "rep_cost": 2.5, "risk_level": "low" }
+      ]
+    },
+    {
+      "id": "handstand",
+      "pattern": "push",
+      "stimulus_group": "handstand",
+      "steps": [
+        { "step": 0, "keys": ["kipping_handstand_push_up", "handstand_push_up", "hspu"], "pattern": "push", "stimulus_group": "handstand", "skill_level": "advanced", "equipment": ["bodyweight"], "rep_cost": 4, "risk_level": "high" },
+        { "step": 1, "keys": ["strict_handstand_push_up"], "pattern": "push", "stimulus_group": "handstand", "skill_level": "advanced", "equipment": ["bodyweight"], "rep_cost": 5, "risk_level": "high" }
+      ]
+    }
   ]
 }

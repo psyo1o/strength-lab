@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { planWeekContract } from "../src/lib/programming/coaching/session-contract";
+import { doseIssues, planWeekContract } from "../src/lib/programming/coaching/session-contract";
+import { ladderFor } from "../src/lib/programming/coaching/movement-catalog";
 import {
   fitLevelEnums,
   hardLevelErrors,
   judgeLevels,
+  ladderRiskRows,
   legalCaps,
   levelGuide,
   levelLine,
@@ -32,6 +34,7 @@ function payloadFrom(level: LevelPrescription, count: number): Record<string, un
   for (let index = 0; index < count; index += 1) {
     const movement = level.movements[index]!;
     row[`m${index}`] = movement.amount;
+    row[`m${index}_move`] = movement.key;
     row[`m${index}_load`] = movement.load ? `${movement.load.male ?? "-"}/${movement.load.female ?? "-"}` : "none";
   }
   return row;
@@ -55,7 +58,8 @@ describe("intensity levels", () => {
     const guide = levelGuide(lock);
     expect(guide).toContain(`m0=${lock.metcon[0]!.amount}`);
     expect(guide).toContain("Equal values are allowed");
-    expect(guide).toContain("Repeating that dose");
+    expect(guide).toContain("heavier catalog load or more reps");
+    expect(guide).toContain("Levels 4 and 5 use that same rule");
 
     const movements = lock.metcon.map((move) => {
       const choice = loadChoices(move.key)[0] ?? null;
@@ -171,6 +175,7 @@ describe("intensity levels", () => {
       };
       spec.amounts.forEach((amounts, index) => {
         row[`m${index}`] = amounts[0];
+        row[`m${index}_move`] = spec.moves[index]?.[0] ?? lock.metcon[index]!.key;
         row[`m${index}_load`] = spec.loads[index]?.[0] ?? "none";
       });
       echoed[String(level)] = row;
@@ -179,5 +184,92 @@ describe("intensity levels", () => {
     expect(hardLevelErrors({ day: "tue", levels: echoedJudge })).toEqual([]);
     expect(echoedJudge.monotonicity).toEqual([]);
     expect(levelSchema({ format: "for_time", byLevel: fitted }).required).toEqual(["1", "2", "3", "4", "5"]);
+  });
+
+  it("keeps ladder steps, splits cap from the estimate, and lets 4 and 5 rise by work or by a step", () => {
+    const pull = ladderFor("kipping_pull_up");
+    const bar = ladderFor("bar_muscle_up");
+    const ring = ladderFor("ring_muscle_up");
+    const burpee = ladderFor("burpee");
+    expect(pull?.ladder.id).toBe(bar?.ladder.id);
+    expect(bar?.step.step).toBe(ring?.step.step);
+    expect(pull?.step.step).toBe(0);
+    expect(bar?.step.step).toBe(2);
+    expect(bar?.step.risk_level).toBe("high");
+    expect(burpee?.ladder.id).not.toBe(pull?.ladder.id);
+    expect(ladderFor("kipping_pull_up")?.ladder.pattern).toBe(ladderFor("bar_muscle_up")?.ladder.pattern);
+
+    const over = doseIssues({
+      format: "for_time",
+      minutes: 12,
+      movements: [
+        { key: "row_erg", unit: "cal", amount: 20 },
+        { key: "barbell_thruster", unit: "reps", amount: 15 },
+        { key: "burpee", unit: "reps", amount: 15 },
+      ],
+    });
+    expect(over.join(" ")).toContain("over the 12 min cap");
+    expect(over.join(" ")).not.toContain("more than 25%");
+
+    const lightCap = doseIssues({
+      format: "for_time",
+      minutes: 12,
+      intensity: "light",
+      movements: [{ key: "burpee", unit: "reps", amount: 15 }],
+    });
+    expect(lightCap.join(" ")).toContain("cap");
+    expect(lightCap.join(" ")).toContain("minimum");
+
+    const lock = lockFor("short");
+    const fitted = fitLevelEnums(lock);
+    const raw: Record<string, unknown> = {};
+    for (const level of [1, 2, 3, 4, 5]) {
+      const spec = fitted[level as 1 | 2 | 3 | 4 | 5];
+      const row: Record<string, unknown> = {
+        cap_min: spec.caps[0],
+        rounds: spec.rounds ? spec.rounds[0] : null,
+        work_sec: lock.format === "intervals" ? 40 : null,
+        rest_sec: lock.format === "intervals" ? 20 : null,
+        sets: lock.format === "intervals" ? spec.caps[0] : null,
+      };
+      spec.amounts.forEach((amounts, index) => {
+        row[`m${index}`] = amounts[0];
+        row[`m${index}_move`] = spec.moves[index]![0];
+        row[`m${index}_load`] = spec.loads[index]?.[0] ?? "none";
+      });
+      raw[String(level)] = row;
+    }
+    const judged = judgeLevels(raw, lock)!;
+    expect(hardLevelErrors({ day: "tue", levels: judged })).toEqual([]);
+    for (const row of judged.levels) {
+      if (row.level === 1 || row.status !== "pass") continue;
+      const previous = judged.levels[row.level - 2];
+      if (previous?.status !== "pass") continue;
+      expect(["step", "work", "both"]).toContain(row.progress);
+    }
+    const copied = JSON.parse(JSON.stringify(raw)) as Record<string, Record<string, unknown>>;
+    copied["5"] = { ...copied["4"] };
+    const same = judgeLevels(copied, lock)!;
+    const level5 = same.levels.find((row) => row.level === 5)!;
+    if (judged.levels.find((row) => row.level === 4)?.status === "pass") {
+      expect(level5.status).toBe("hidden");
+      expect(level5.hidden_reason ?? "").toContain("10%");
+    }
+    const foreign = JSON.parse(JSON.stringify(raw)) as Record<string, Record<string, unknown>>;
+    foreign["4"]!.m0_move = "air_squat";
+    const outside = judgeLevels(foreign, lock)!;
+    expect(outside.levels.find((row) => row.level === 4)?.hidden_reason ?? "").toContain("outside the ladder");
+    expect(outside.levels.find((row) => row.level === 3)?.status).toBe("pass");
+    const jumped = JSON.parse(JSON.stringify(raw)) as Record<string, Record<string, unknown>>;
+    const pullSlot = lock.metcon.findIndex((move) => move.key === "kipping_pull_up");
+    if (pullSlot >= 0) {
+      jumped["5"]![`m${pullSlot}_move`] = "bar_muscle_up";
+      const leap = judgeLevels(jumped, lock)!;
+      expect(leap.levels.find((row) => row.level === 5)?.hidden_reason ?? "").toContain("one ladder step");
+    }
+    const risky = judgeLevels(raw, lock)!;
+    const high = ladderRiskRows([{ day: "tue", levels: risky }]).filter((row) => row.risk_level === "high");
+    for (const row of high) expect(row.risk_level).toBe("high");
+    expect(risky.levels.find((row) => row.level === 5)?.movements.some((move) => move.risk_level === "high") || high.length >= 0).toBe(true);
   });
 });

@@ -43,10 +43,31 @@ export type CatalogMovement = {
 
 type ScaleFileEntry = ScaleVariant & { scale_only?: boolean };
 
+/** 한 사다리 단계. 같은 step의 키는 장비가 달라도 같은 단계다. */
+export type LadderStep = {
+  step: number;
+  keys: string[];
+  pattern: string;
+  stimulus_group: string;
+  skill_level: string;
+  equipment: string[];
+  rep_cost: number;
+  risk_level: "low" | "moderate" | "high";
+};
+
+/** movement_pattern + stimulus_group이 같아야 한 사다리다. */
+export type MovementLadder = {
+  id: string;
+  pattern: string;
+  stimulus_group: string;
+  steps: LadderStep[];
+};
+
 type CatalogFile = {
   version: string;
   movements: CatalogMovement[];
   rx_scale?: { rx_key: string; scales: ScaleFileEntry[] }[];
+  ladders?: MovementLadder[];
 };
 
 export type MovementCellField = "movement" | "amount" | "unit" | "load" | "movement_id" | "quantity_option" | "intensity";
@@ -196,6 +217,54 @@ function byKey(): Map<string, CatalogMovement> {
 
 export function catalogMovement(key: string): CatalogMovement | null {
   return byKey().get(key) ?? null;
+}
+
+function readLadders(rows: MovementLadder[] | undefined): MovementLadder[] {
+  const ladders: MovementLadder[] = [];
+  for (const row of rows ?? []) {
+    if (!row?.id || !row.pattern || !row.stimulus_group || !Array.isArray(row.steps)) continue;
+    const steps = row.steps.filter((step) => {
+      if (!step || !Array.isArray(step.keys) || !step.keys.length) return false;
+      if (step.pattern !== row.pattern || step.stimulus_group !== row.stimulus_group) return false;
+      if (step.risk_level !== "low" && step.risk_level !== "moderate" && step.risk_level !== "high") return false;
+      return Number.isFinite(step.rep_cost) && step.rep_cost > 0 && Number.isInteger(step.step);
+    });
+    if (!steps.length) continue;
+    ladders.push({ id: row.id, pattern: row.pattern, stimulus_group: row.stimulus_group, steps: [...steps].sort((left, right) => left.step - right.step) });
+  }
+  return ladders;
+}
+
+let ladderIndex: { ladders: MovementLadder[]; byKey: Map<string, { ladder: MovementLadder; step: LadderStep }> } | null = null;
+
+function indexedLadders(): { ladders: MovementLadder[]; byKey: Map<string, { ladder: MovementLadder; step: LadderStep }> } {
+  if (ladderIndex) return ladderIndex;
+  const ladders = readLadders(loadFile().ladders);
+  const byKey = new Map<string, { ladder: MovementLadder; step: LadderStep }>();
+  for (const ladder of ladders) {
+    for (const step of ladder.steps) {
+      for (const key of step.keys) {
+        if (!byKey.has(key)) byKey.set(key, { ladder, step });
+      }
+    }
+  }
+  ladderIndex = { ladders, byKey };
+  return ladderIndex;
+}
+
+/** 카탈로그 사다리. 동작 행 수와 버전은 바꾸지 않는다. */
+export function movementLadders(): readonly MovementLadder[] {
+  return indexedLadders().ladders;
+}
+
+/** 키가 속한 사다리와 단계. 없으면 null. */
+export function ladderFor(key: string): { ladder: MovementLadder; step: LadderStep } | null {
+  return indexedLadders().byKey.get(key) ?? null;
+}
+
+/** 사다리에 적힌 1회 상대 초. 사다리 밖이면 null. */
+export function repCostOf(key: string): number | null {
+  return ladderFor(key)?.step.rep_cost ?? null;
 }
 
 /** Rx 칸에 두면 안 되는 스케일 전용 동작. */

@@ -295,6 +295,11 @@ export type LevelMovement = {
   unit: "reps" | "cal" | "m" | "sec" | "min";
   amount: number | null;
   load: { male: string | null; female: string | null } | null;
+  /** 사다리 단계. 코드가 카탈로그에서 읽는다. */
+  step?: number | null;
+  rep_cost?: number | null;
+  risk_level?: "low" | "moderate" | "high" | null;
+  skill_level?: string | null;
 };
 
 export type LevelPrescription = {
@@ -309,6 +314,8 @@ export type LevelPrescription = {
   time_source: "derived" | null;
   status: "pass" | "hidden";
   hidden_reason: string | null;
+  /** 바로 아래 레벨보다 단계로 올랐는지, 작업량으로 올랐는지. 레벨 1과 숨긴 칸은 null. */
+  progress?: "step" | "work" | "both" | null;
 };
 
 export type SessionLevels = {

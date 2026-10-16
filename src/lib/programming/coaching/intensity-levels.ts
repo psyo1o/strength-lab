@@ -1,10 +1,12 @@
-import { catalogRxWeights, modalWodLb, rangeFor, scaleVariants } from "./movement-catalog";
+import { catalogMovement, catalogRxWeights, equipmentForKeys, isScaleOnly, ladderFor, modalWodLb, modelSelectable, rangeFor, repCostOf, scaleVariants } from "./movement-catalog";
 import {
   allowedAmounts,
   clockForFormat,
   doseReport,
   metconFloorSec,
+  movementPace,
   renderMetconLine,
+  scaleDose,
   type DaySessionLock,
   type DoseMovement,
   type IntensityCeiling,
@@ -79,6 +81,7 @@ export type LevelEnum = {
   rounds: number[] | null;
   amounts: number[][];
   loads: string[][];
+  moves: string[][];
 };
 
 /** Same-call schema. Amounts and loads are enums. The server does not fill them. */
@@ -99,10 +102,13 @@ export function levelSchema(input: { format: string; byLevel: Readonly<Record<nu
     spec.amounts.forEach((amounts, index) => {
       const amountKey = `m${index}`;
       const loadKey = `m${index}_load`;
+      const moveKey = `m${index}_move`;
       fields[amountKey] = intEnum(amounts.length ? amounts : [1]);
       const loads = spec.loads[index] ?? [];
       fields[loadKey] = { type: "string", enum: loads.length ? [...loads] : ["none"] };
-      fieldRequired.push(amountKey, loadKey);
+      const moves = spec.moves[index] ?? [];
+      fields[moveKey] = { type: "string", enum: moves.length ? [...moves] : ["none"] };
+      fieldRequired.push(amountKey, loadKey, moveKey);
     });
     properties[String(level)] = strictObject(fields, fieldRequired);
     required.push(String(level));
@@ -110,20 +116,48 @@ export function levelSchema(input: { format: string; byLevel: Readonly<Record<nu
   return strictObject(properties, required);
 }
 
-type DoseCombo = { cap: number; rounds: number | null; amounts: number[] };
+type Built = { cap: number; rounds: number | null; keys: string[]; amounts: number[]; loads: string[] };
 
-function candidateAmounts(move: DoseMovement): number[] {
-  const span = rangeFor(move.key, move.unit);
-  const grid = span ? allowedAmounts(move.unit, span.min, span.max).slice(0, 3) : [];
-  const amounts = [...grid];
-  if (!amounts.includes(move.amount)) amounts.push(move.amount);
-  return [...new Set(amounts.length ? amounts : [move.amount])];
+/** Caps for levels 1–2. The class window stays on level 3. Light caps may run longer so the cap meets the light floor. */
+export function lightCaps(lock: DaySessionLock): number[] {
+  const floor = metconFloorSec(lock.format, "light");
+  const floorMin = floor == null ? 0 : Math.ceil(floor / 60);
+  const other = otherBlockMinutes(lock);
+  const classMax = lock.band === "long" ? 40 : 20;
+  const classMin = lock.band === "long" ? 30 : Math.max(12, floorMin);
+  const low = Math.max(classMin, floorMin || classMin, 90 - other);
+  const high = Math.min(classMax, 110 - other);
+  const caps: number[] = [];
+  for (let minute = low; minute <= high; minute += 1) caps.push(minute);
+  return caps;
 }
 
-function roundChoices(format: string): Array<number | null> {
-  if (format === "chipper") return [1];
-  if (format === "for_time" || format === "partner") return [2, 3, 4];
-  return [null];
+function neighborKey(key: string, direction: -1 | 1): string | null {
+  const found = ladderFor(key);
+  if (!found) return null;
+  const next = found.ladder.steps.find((step) => step.step === found.step.step + direction);
+  if (!next) return null;
+  const equipment = catalogMovement(key)?.equipment ?? null;
+  const keys = next.keys.filter((candidate) => {
+    const row = catalogMovement(candidate);
+    return row != null && modelSelectable(row) && !isScaleOnly(candidate);
+  });
+  if (!keys.length) return null;
+  return keys.find((candidate) => catalogMovement(candidate)?.equipment === equipment) ?? keys[0]!;
+}
+
+function timedRounds(lock: DaySessionLock): number | null {
+  if (lock.format === "chipper") return 1;
+  if (lock.format === "for_time" || lock.format === "partner") return lock.clock.rounds ?? 3;
+  return null;
+}
+
+function dosesOf(lock: DaySessionLock, built: Built): DoseMovement[] {
+  return built.keys.map((key, index) => ({
+    key,
+    unit: lock.metcon[index]!.unit,
+    amount: built.amounts[index] ?? lock.metcon[index]!.amount,
+  }));
 }
 
 function comboDensity(format: string, derived: number | null, cap: number): number | null {
@@ -133,20 +167,15 @@ function comboDensity(format: string, derived: number | null, cap: number): numb
   return derived / (cap * 60);
 }
 
-function scoreCombo(lock: DaySessionLock, combo: DoseCombo, level: number): { issues: string[]; derived: number | null; density: number | null } {
+function scoreBuilt(lock: DaySessionLock, level: number, built: Built): { ok: boolean; derived: number | null; density: number | null } {
   const prescription: LevelPrescription = {
     level: level as LevelPrescription["level"],
-    cap_min: combo.cap,
-    rounds: combo.rounds,
+    cap_min: built.cap,
+    rounds: built.rounds,
     work_sec: lock.format === "intervals" ? 40 : null,
     rest_sec: lock.format === "intervals" ? 20 : null,
-    sets: lock.format === "intervals" ? combo.cap : null,
-    movements: lock.metcon.map((move, index) => ({
-      key: move.key,
-      unit: move.unit,
-      amount: combo.amounts[index] ?? move.amount,
-      load: null,
-    })),
+    sets: lock.format === "intervals" ? built.cap : null,
+    movements: dosesOf(lock, built).map((movement) => ({ key: movement.key, unit: movement.unit, amount: movement.amount, load: null })),
     derived_sec: null,
     time_source: null,
     status: "pass",
@@ -154,126 +183,269 @@ function scoreCombo(lock: DaySessionLock, combo: DoseCombo, level: number): { is
   };
   const reading = doseReport({
     format: lock.format,
-    minutes: combo.cap,
-    movements: prescription.movements.map((movement) => ({ key: movement.key, unit: movement.unit, amount: movement.amount as number })),
-    clock: clockForLevel(lock.format, prescription, prescription.movements.map((movement) => movement.key)),
+    minutes: built.cap,
+    movements: dosesOf(lock, built),
+    clock: clockForLevel(lock.format, prescription, built.keys),
     intensity: bandForLevel(level),
   });
-  const derived = reading.derived?.sec ?? null;
   const issues = [...reading.issues];
-  const total = otherBlockMinutes(lock) + combo.cap;
+  const total = otherBlockMinutes(lock) + built.cap;
   if (total < 90 || total > 110) issues.push(`block sum ${total} is outside 90-110`);
-  return { issues, derived, density: comboDensity(lock.format, derived, combo.cap) };
+  const derived = reading.derived?.sec ?? null;
+  return { ok: issues.length === 0 && derived != null, derived, density: comboDensity(lock.format, derived, built.cap) };
 }
 
-function enumerateCombos(lock: DaySessionLock): DoseCombo[] {
-  const caps = legalCaps(lock);
-  const rounds = roundChoices(lock.format);
-  const grids = lock.metcon.map((move) => candidateAmounts(move));
-  const out: DoseCombo[] = [];
-  const walk = (index: number, amounts: number[]) => {
-    if (index === grids.length) {
-      for (const cap of caps) for (const round of rounds) out.push({ cap, rounds: round, amounts: [...amounts] });
-      return;
-    }
-    for (const amount of grids[index] ?? [1]) walk(index + 1, [...amounts, amount]);
+function copyBuilt(built: Built): Built {
+  return { cap: built.cap, rounds: built.rounds, keys: [...built.keys], amounts: [...built.amounts], loads: [...built.loads] };
+}
+
+function retarget(lock: DaySessionLock, level: number, keys: readonly string[], amounts: readonly number[], cap: number, aim: "low" | "high" | null): Built | null {
+  const seeded = keys.map((key, index) => ({ key, unit: lock.metcon[index]!.unit, amount: amounts[index] ?? lock.metcon[index]!.amount }));
+  const scaled = scaleDose(lock.format, cap, seeded, clockForFormat(lock.format, cap, keys), bandForLevel(level), aim);
+  const built: Built = {
+    cap,
+    rounds: timedRounds(lock),
+    keys: scaled.map((movement) => movement.key),
+    amounts: scaled.map((movement) => movement.amount),
+    loads: scaled.map(() => "none"),
   };
-  walk(0, []);
-  return out;
+  return scoreBuilt(lock, level, built).ok ? built : null;
 }
 
-function atLeast(combo: DoseCombo, floor: DoseCombo): boolean {
-  if (combo.rounds != null && floor.rounds != null && combo.rounds < floor.rounds) return false;
-  return combo.amounts.every((amount, index) => amount >= (floor.amounts[index] ?? amount));
+function stepIndex(skeleton: string, key: string): number | null {
+  const home = ladderFor(skeleton);
+  if (!home) return key === skeleton ? 0 : null;
+  const chosen = ladderFor(key);
+  if (!chosen || chosen.ladder.id !== home.ladder.id) return null;
+  return chosen.step.step;
 }
 
-function atMost(combo: DoseCombo, ceiling: DoseCombo): boolean {
-  if (combo.rounds != null && ceiling.rounds != null && combo.rounds > ceiling.rounds) return false;
-  return combo.amounts.every((amount, index) => amount <= (ceiling.amounts[index] ?? amount));
+function maxStepDelta(skeletons: readonly string[], left: readonly string[], right: readonly string[]): number | null {
+  let max = 0;
+  for (let index = 0; index < skeletons.length; index += 1) {
+    const before = stepIndex(skeletons[index]!, left[index] ?? "");
+    const after = stepIndex(skeletons[index]!, right[index] ?? "");
+    if (before == null || after == null) return null;
+    max = Math.max(max, Math.abs(before - after));
+  }
+  return max;
 }
 
-function sameCombo(left: DoseCombo, right: DoseCombo): boolean {
-  return left.cap === right.cap && left.rounds === right.rounds && left.amounts.every((amount, index) => amount === right.amounts[index]);
+function stepsDiffer(skeletons: readonly string[], left: readonly string[], right: readonly string[]): boolean {
+  return skeletons.some((key, index) => stepIndex(key, left[index] ?? "") !== stepIndex(key, right[index] ?? ""));
 }
 
-function oneLoad(key: string): string {
-  const choices = loadChoices(key);
-  if (!choices.length) return "none";
-  const ranked = [...choices].sort((left, right) => (maleNumber(right) ?? -1) - (maleNumber(left) ?? -1));
-  return ranked[0]!.id;
+function unitCost(key: string, unit: DoseMovement["unit"]): number {
+  if (unit === "sec") return 1;
+  if (unit === "reps") {
+    const cost = repCostOf(key);
+    if (cost != null) return cost;
+  }
+  const pace = movementPace(key);
+  if (!pace) return 0;
+  const span = unit === "cal" ? pace.seconds_per_cal : unit === "m" ? pace.seconds_per_m : pace.seconds_per_rep;
+  return span?.[1] ?? 0;
 }
 
-function enumFrom(lock: DaySessionLock, combo: DoseCombo): LevelEnum {
+function loadFactor(key: string, load: { male: string | null; female: string | null } | null): number {
+  const nums = loadChoices(key).map((choice) => maleNumber(choice)).filter((value): value is number => value != null && value > 0);
+  const lightest = nums.length ? Math.min(...nums) : null;
+  const male = maleNumber(load);
+  if (lightest == null || male == null) return 1;
+  return male / lightest;
+}
+
+function builtWork(lock: DaySessionLock, built: Built): number {
+  const multiplier =
+    lock.format === "intervals" ? built.cap : lock.format === "for_time" || lock.format === "partner" || lock.format === "chipper" ? (built.rounds ?? 1) : 1;
+  return built.keys.reduce((sum, key, index) => {
+    const load = parseLoad(built.loads[index], loadChoices(key));
+    return sum + (built.amounts[index] ?? 0) * unitCost(key, lock.metcon[index]!.unit) * loadFactor(key, load);
+  }, 0) * multiplier;
+}
+
+function loadAt(key: string, minMale: number | null): string {
+  const ranked = [...loadChoices(key)].sort((left, right) => (maleNumber(left) ?? 0) - (maleNumber(right) ?? 0));
+  if (!ranked.length) return "none";
+  const eligible = ranked.filter((choice) => minMale == null || (maleNumber(choice) ?? 0) + 1e-6 >= minMale);
+  return (eligible[0] ?? ranked[ranked.length - 1])!.id;
+}
+
+function heavierLoad(key: string, male: number | null): string | null {
+  const ranked = [...loadChoices(key)].sort((left, right) => (maleNumber(left) ?? 0) - (maleNumber(right) ?? 0));
+  const next = ranked.find((choice) => male == null || (maleNumber(choice) ?? 0) > male + 1e-6);
+  return next?.id ?? null;
+}
+
+function assignLoads(lock: DaySessionLock, rows: Built[]): void {
+  const floors: (number | null)[] = lock.metcon.map(() => null);
+  for (const built of rows) {
+    built.loads = built.keys.map((key, index) => {
+      const id = loadAt(key, floors[index] ?? null);
+      const male = maleNumber(parseLoad(id, loadChoices(key)));
+      if (male != null) floors[index] = male;
+      return id;
+    });
+  }
+  const skeletons = lock.metcon.map((move) => move.key);
+  for (let index = 1; index < rows.length; index += 1) {
+    if (index < 3) continue;
+    const previous = rows[index - 1]!;
+    const current = rows[index]!;
+    if (stepsDiffer(skeletons, previous.keys, current.keys)) continue;
+    const before = builtWork(lock, previous);
+    if (before <= 0 || builtWork(lock, current) >= before * 1.1) continue;
+    for (let slot = 0; slot < current.keys.length; slot += 1) {
+      const male = maleNumber(parseLoad(current.loads[slot], loadChoices(current.keys[slot]!)));
+      const next = heavierLoad(current.keys[slot]!, male);
+      if (!next || next === current.loads[slot]) continue;
+      const floor = floors[slot];
+      const nextMale = maleNumber(parseLoad(next, loadChoices(current.keys[slot]!)));
+      if (floor != null && nextMale != null && nextMale + 1e-6 < floor) continue;
+      current.loads[slot] = next;
+      if (nextMale != null) floors[slot] = Math.max(floors[slot] ?? nextMale, nextMale);
+      if (builtWork(lock, current) >= before * 1.1) break;
+    }
+  }
+}
+
+function densityOk(previous: { density: number } | null, density: number | null): boolean {
+  if (!previous || density == null) return density != null;
+  return density + 1e-6 >= previous.density;
+}
+
+function seek(
+  lock: DaySessionLock,
+  level: number,
+  keys: readonly string[],
+  amounts: readonly number[],
+  caps: readonly number[],
+  aim: "low" | "high" | null,
+  previous: { keys: string[]; amounts: number[]; density: number; work: number } | null,
+  maxDensity: number | null = null,
+): Built | null {
+  const skeletons = lock.metcon.map((move) => move.key);
+  const order = aim === "high" ? [...caps].reverse() : [...caps];
+  for (const cap of order) {
+    const built = retarget(lock, level, keys, amounts, cap, aim);
+    if (!built) continue;
+    const scored = scoreBuilt(lock, level, built);
+    if (!scored.ok || !densityOk(previous, scored.density)) continue;
+    if (maxDensity != null && scored.density != null && scored.density > maxDensity + 1e-6) continue;
+    const delta = previous ? maxStepDelta(skeletons, previous.keys, built.keys) : 0;
+    if (delta == null || delta > 1) continue;
+    const work = builtWork(lock, built);
+    if (previous && !stepsDiffer(skeletons, previous.keys, built.keys) && (previous.work <= 0 || work < previous.work * 1.1)) continue;
+    return built;
+  }
+  return null;
+}
+
+function harderVariants(keys: readonly string[]): string[][] {
+  const variants: { keys: string[]; risk: number }[] = [];
+  keys.forEach((key, index) => {
+    const next = neighborKey(key, 1);
+    if (!next || next === key) return;
+    const copy = [...keys];
+    copy[index] = next;
+    const risk = ladderFor(next)?.step.risk_level === "high" ? 2 : ladderFor(next)?.step.risk_level === "moderate" ? 1 : 0;
+    variants.push({ keys: copy, risk });
+  });
+  return variants.sort((left, right) => left.risk - right.risk).map((row) => row.keys);
+}
+
+function enumFrom(built: Built, lock: DaySessionLock): LevelEnum {
   const timed = lock.format === "for_time" || lock.format === "partner" || lock.format === "chipper";
   return {
-    caps: [combo.cap],
-    rounds: timed ? [combo.rounds ?? 1] : null,
-    amounts: combo.amounts.map((amount) => [amount]),
-    loads: lock.metcon.map((move) => [oneLoad(move.key)]),
+    caps: [built.cap],
+    rounds: timed ? [built.rounds ?? 1] : null,
+    amounts: built.amounts.map((amount) => [amount]),
+    loads: built.loads.map((id) => [id || "none"]),
+    moves: built.keys.map((key) => [key]),
   };
 }
 
 /**
- * Enums the model must copy. Each level has only doses that keep level 3 legal
- * and keep load and density from falling. The server still does not write the stored numbers.
+ * One legal enum value per level. The model still emits it.
+ * The server does not write the stored numbers after the model answers.
  */
 export function fitLevelEnums(lock: DaySessionLock): Record<(typeof LEVEL_NUMBERS)[number], LevelEnum> {
-  const skeleton: DoseCombo = {
-    cap: lock.metcon_minutes,
-    rounds: lock.format === "chipper" ? 1 : lock.format === "for_time" || lock.format === "partner" ? (lock.clock.rounds ?? 3) : null,
-    amounts: lock.metcon.map((move) => move.amount),
-  };
-  const pool = enumerateCombos(lock);
-  const skeletonScore = scoreCombo(lock, skeleton, 3);
-  let standard = skeletonScore.issues.length === 0 && skeletonScore.density != null ? skeleton : null;
-  if (!standard) {
-    const passing = pool
-      .map((combo) => ({ combo, score: scoreCombo(lock, combo, 3) }))
-      .filter((row) => row.score.issues.length === 0 && row.score.density != null)
-      .sort((left, right) => Math.abs((left.score.derived ?? 0) - skeleton.cap * 60) - Math.abs((right.score.derived ?? 0) - skeleton.cap * 60));
-    standard = passing[0]?.combo ?? skeleton;
-  }
-  const standardScore = scoreCombo(lock, standard, 3);
-  const heavier = pool
-    .filter((combo) => atLeast(combo, standard) && !sameCombo(combo, standard))
-    .map((combo) => ({ combo, score: scoreCombo(lock, combo, 5) }))
-    .filter((row) => row.score.issues.length === 0 && row.score.density != null && standardScore.density != null && row.score.density + 1e-6 >= standardScore.density)
-    .sort((left, right) => left.score.density! - right.score.density!);
-  const heavy = heavier[0]?.combo ?? standard;
-  const lighter = pool
-    .filter((combo) => atMost(combo, standard))
-    .map((combo) => ({ combo, score: scoreCombo(lock, combo, 1) }))
-    .filter((row) => row.score.issues.length === 0 && row.score.density != null && standardScore.density != null && row.score.density <= standardScore.density + 1e-6)
-    .sort((left, right) => right.score.density! - left.score.density!);
-  const light = lighter[0]?.combo ?? standard;
+  const skeletons = lock.metcon.map((move) => move.key);
+  const seedAmounts = lock.metcon.map((move) => move.amount);
+  const classCaps = legalCaps(lock);
+  const preferredCaps = [lock.metcon_minutes, ...classCaps.filter((minute) => minute !== lock.metcon_minutes)];
+  const standard =
+    seek(lock, 3, skeletons, seedAmounts, preferredCaps, null, null) ??
+    ({
+      cap: lock.metcon_minutes,
+      rounds: timedRounds(lock),
+      keys: [...skeletons],
+      amounts: [...seedAmounts],
+      loads: skeletons.map(() => "none"),
+    } as Built);
+  const easy = skeletons.map((key) => neighborKey(key, -1) ?? key);
+  const lights = lightCaps(lock);
+  const lightCapsOrClass = lights.length ? lights : classCaps;
+  const standardDensity = scoreBuilt(lock, 3, standard).density;
+  const first =
+    seek(lock, 1, easy, seedAmounts, lightCapsOrClass, "low", null, standardDensity) ??
+    seek(lock, 1, skeletons, seedAmounts, lightCapsOrClass, "low", null, standardDensity) ??
+    copyBuilt(standard);
+  const firstView = { keys: first.keys, amounts: first.amounts, density: scoreBuilt(lock, 1, first).density ?? 0, work: builtWork(lock, first) };
+  const second =
+    seek(lock, 2, first.keys, first.amounts, lightCapsOrClass, "high", firstView, standardDensity) ??
+    seek(lock, 2, easy, seedAmounts, lightCapsOrClass, "high", firstView, standardDensity) ??
+    copyBuilt(first);
+  const thirdView = { keys: standard.keys, amounts: standard.amounts, density: scoreBuilt(lock, 3, standard).density ?? 0, work: builtWork(lock, standard) };
+  const secondFitsThird =
+    maxStepDelta(skeletons, second.keys, standard.keys) != null &&
+    (maxStepDelta(skeletons, second.keys, standard.keys) ?? 2) <= 1 &&
+    (stepsDiffer(skeletons, second.keys, standard.keys) || thirdView.work >= builtWork(lock, second) * 1.1);
+  const keptSecond = secondFitsThird ? second : copyBuilt(first);
+  const fourthBase = { keys: standard.keys, amounts: standard.amounts, density: thirdView.density, work: thirdView.work };
+  let fourth =
+    seek(lock, 4, standard.keys, standard.amounts, classCaps, "high", fourthBase) ??
+    harderVariants(standard.keys).map((keys) => seek(lock, 4, keys, standard.amounts, classCaps, "low", fourthBase)).find((row) => row != null) ??
+    copyBuilt(standard);
+  const fourthView = { keys: fourth.keys, amounts: fourth.amounts, density: scoreBuilt(lock, 4, fourth).density ?? fourthBase.density, work: builtWork(lock, fourth) };
+  let fifth =
+    seek(lock, 5, fourth.keys, fourth.amounts, classCaps, "high", fourthView) ??
+    harderVariants(fourth.keys).map((keys) => seek(lock, 5, keys, fourth.amounts, classCaps, "low", fourthView)).find((row) => row != null) ??
+    copyBuilt(fourth);
+  const rows = [first, keptSecond, standard, fourth, fifth];
+  assignLoads(lock, rows);
+  fourth = rows[3]!;
+  fifth = rows[4]!;
+  const resolved = [rows[0]!, rows[1]!, standard, fourth, fifth];
   return {
-    1: enumFrom(lock, light),
-    2: enumFrom(lock, light),
-    3: enumFrom(lock, standard),
-    4: enumFrom(lock, heavy),
-    5: enumFrom(lock, heavy),
+    1: enumFrom(resolved[0]!, lock),
+    2: enumFrom(resolved[1]!, lock),
+    3: enumFrom(resolved[2]!, lock),
+    4: enumFrom(resolved[3]!, lock),
+    5: enumFrom(resolved[4]!, lock),
   };
 }
 
 export function levelGuide(lock: DaySessionLock): string {
   const floor = (level: number) => metconFloorSec(lock.format, bandForLevel(level));
-  const dose = lock.metcon.map((move, index) => `m${index}=${move.amount}`).join(" ");
+  const dose = lock.metcon.map((move, index) => `m${index}=${move.amount} m${index}_move=${move.key}`).join(" ");
   const rounds = lock.clock.rounds == null ? "null" : String(lock.clock.rounds);
   return [
     "Output levels.1 through levels.5 in this same response.",
-    "Movement keys and the format stay on the skeleton. Do not change them per level.",
-    "Each level has its own rounds, amounts, loads, and cap from the enums.",
-    "The server checks derived time, the cap plus or minus 25 percent, the format minimum, Rx, the 90-110 block sum, and monotonicity.",
-    "The server does not rewrite your numbers.",
+    "Each slot stays on that slot's ladder. A ladder is one movement_pattern and one stimulus_group. A different pattern is not the same ladder.",
+    "Adjacent levels change a slot by at most one step. The same step may use another equipment key, such as ring and bar muscle-up.",
+    "You may keep the movement and raise the level with a heavier catalog load or more reps. A harder movement is optional.",
+    "Levels 1 and 2 use an easier ladder step when one exists, plus more rounds or a longer cap, so the cap meets that level's minimum and the estimate finishes at or under the cap.",
+    "The server checks derived time, estimate at or under the cap, cap at or over the format minimum, the cap plus or minus 25 percent, Rx, the 90-110 block sum, the one-step limit, and monotonicity.",
+    "The server does not rewrite your movement or your numbers.",
     "Level 3 must pass or the day is rejected. Another level that fails its own check is hidden and does not by itself fail the day.",
+    "An adjacent pair passes when at least one slot changes step or total work is at least 1.10 times the lower level. Work is reps times rep_cost times load factor. Levels 4 and 5 use that same rule. Weight or reps can raise the level. Do not force a high-skill movement. Otherwise that higher level is hidden.",
     `Floors in seconds for this format: 1-2 ${floor(1) ?? "none"}, 3 ${floor(3) ?? "none"}, 4-5 ${floor(5) ?? "none"}.`,
     "Load and density must not fall as the level number rises. Equal values are allowed. A drop fails the whole day.",
     "Density is derived work divided by the cap for for_time, chipper, and partner. For AMRAP, EMOM, and intervals it is the round or station work.",
     `The skeleton dose already fits level 3: cap_min ${lock.metcon_minutes}, rounds ${rounds}, ${dose}.`,
-    "Repeating that dose, one catalog load, and that cap on every level is a valid answer.",
-    "Raise a higher level only with a larger enum amount, load, or round count when that level still meets its floor and the cap plus or minus 25 percent.",
-    "Do not shrink work on levels 1-2 to chase their floor. If the same dose misses that floor, the level is hidden.",
     "EMOM station work must be at most 40 seconds and must fit in 60 seconds. Interval work must fit in work_sec 40.",
+    "High-skill ladder steps keep risk_level for the head coach. Do not strip it.",
   ].join(" ");
 }
 
@@ -326,14 +498,19 @@ function density(format: string, level: LevelPrescription): number | null {
 
 function monotonicityIssues(format: string, levels: readonly LevelPrescription[]): string[] {
   const errors: string[] = [];
-  for (let index = 1; index < levels.length; index += 1) {
-    const previous = levels[index - 1]!;
-    const current = levels[index]!;
+  const passing = levels.filter((level) => level.status === "pass" && level.derived_sec != null);
+  for (let index = 1; index < passing.length; index += 1) {
+    const previous = passing[index - 1]!;
+    const current = passing[index]!;
     const before = density(format, previous);
     const after = density(format, current);
     if (before != null && after != null && after + 1e-6 < before) {
       errors.push(`level ${current.level} density is below level ${previous.level}`);
     }
+  }
+  for (let index = 1; index < levels.length; index += 1) {
+    const previous = levels[index - 1]!;
+    const current = levels[index]!;
     const count = Math.max(previous.movements.length, current.movements.length);
     for (let move = 0; move < count; move += 1) {
       const left = maleNumber(previous.movements[move]?.load ?? null);
@@ -381,13 +558,21 @@ export function judgeLevels(raw: unknown, lock: DaySessionLock): SessionLevels |
     }
     const movements = specs.map((spec, index) => {
       const amount = integerOrNull(row[`m${index}`]);
-      const parsed = parseLoad(row[`m${index}_load`], spec.choices);
-      const known = spec.choices.find((choice) => choice.id === row[`m${index}_load`]);
+      const chosen = typeof row[`m${index}_move`] === "string" ? (row[`m${index}_move`] as string) : "";
+      const key = chosen || spec.key;
+      const choices = loadChoices(key);
+      const parsed = parseLoad(row[`m${index}_load`], choices);
+      const known = choices.find((choice) => choice.id === row[`m${index}_load`]);
+      const found = ladderFor(key);
       return {
-        key: spec.key,
+        key,
         unit: spec.unit,
         amount,
         load: known ? { male: known.male, female: known.female } : parsed,
+        step: stepIndex(spec.key, key),
+        rep_cost: found?.step.rep_cost ?? null,
+        risk_level: found?.step.risk_level ?? null,
+        skill_level: found?.step.skill_level ?? null,
       };
     });
     const prescription: LevelPrescription = {
@@ -406,6 +591,11 @@ export function judgeLevels(raw: unknown, lock: DaySessionLock): SessionLevels |
     const issues: string[] = [];
     if (prescription.cap_min == null) issues.push("cap_min is missing");
     if (movements.some((movement) => movement.amount == null)) issues.push("amount is missing");
+    movements.forEach((movement, index) => {
+      const named = typeof row[`m${index}_move`] === "string";
+      if (!named) issues.push("movement is missing");
+      else if (stepIndex(specs[index]!.key, movement.key) == null) issues.push(`${movement.key} is outside the ladder`);
+    });
     const complete = movements.every((movement) => movement.amount != null);
     if (prescription.cap_min != null && complete) {
       const doses: DoseMovement[] = movements.map((movement) => ({
@@ -437,6 +627,7 @@ export function judgeLevels(raw: unknown, lock: DaySessionLock): SessionLevels |
     prescription.hidden_reason = issues.length ? issues.join("; ") : null;
     levels.push(prescription);
   }
+  annotatePairs(lock.format, specs.map((spec) => spec.key), levels);
   return {
     skeleton: {
       format: lock.format,
@@ -472,6 +663,7 @@ export function syncLevel3FromPiece(session: SessionDraft): void {
     if (current.load) movement.load = { male: current.load.male ?? null, female: current.load.female ?? null };
   }
   pack.monotonicity = monotonicityIssues(piece.format, pack.levels);
+  annotatePairs(piece.format, pack.skeleton.movement_keys, pack.levels);
 }
 
 export function hardLevelErrors(session: { day?: string; levels?: SessionLevels | null }): string[] {
@@ -512,15 +704,20 @@ export function applyLevelToSession(session: SessionDraft, level: LevelPrescript
   const keys = level.movements.map((movement) => movement.key);
   piece.duration_min = level.cap_min;
   piece.clock = clockForLevel(piece.format, level, keys);
-  for (const movement of piece.movements) {
-    const next = level.movements.find((row) => row.key === movement.key);
-    if (!next || next.amount == null) continue;
+  piece.movements.forEach((movement, index) => {
+    const next = level.movements[index];
+    if (!next || next.amount == null) return;
+    const named = catalogMovement(next.key);
+    movement.key = next.key;
+    if (named) movement.name_ko = named.name_ko;
+    movement.movement = next.key;
     movement.amount_value = next.amount;
     movement.unit = next.unit;
     movement.qty = next.amount;
     movement.amount = shownAmount(next.amount, next.unit);
     if (next.load) movement.load = { male: next.load.male, female: next.load.female };
-  }
+  });
+  piece.equipment = equipmentForKeys(keys);
   if (level.derived_sec != null) {
     piece.derived_sec = level.derived_sec;
     piece.time_source = "derived";
@@ -562,4 +759,65 @@ export function sessionAtLevel(session: SessionDraft, level: number): SessionDra
 export function capFitsSession(minutes: number, longPiece: boolean): boolean {
   if (longPiece) return minutes >= 30 && minutes <= 40;
   return minutes >= 8 && minutes <= 20;
+}
+
+function levelWork(format: string, level: LevelPrescription): number {
+  const multiplier =
+    format === "intervals" ? (level.sets ?? level.cap_min ?? 1) : format === "for_time" || format === "partner" || format === "chipper" ? (level.rounds ?? 1) : 1;
+  return (
+    level.movements.reduce((sum, movement) => {
+      if (movement.amount == null) return sum;
+      return sum + movement.amount * unitCost(movement.key, movement.unit) * loadFactor(movement.key, movement.load);
+    }, 0) * multiplier
+  );
+}
+
+function hideLevel(level: LevelPrescription, reason: string): void {
+  if (level.status === "hidden") return;
+  level.status = "hidden";
+  level.hidden_reason = reason;
+  level.progress = null;
+}
+
+/** Adjacent step and work checks. A hidden lower level is not a baseline. */
+function annotatePairs(format: string, skeletons: readonly string[], levels: LevelPrescription[]): void {
+  for (let index = 1; index < levels.length; index += 1) {
+    const previous = levels[index - 1]!;
+    const current = levels[index]!;
+    const left = previous.movements.map((movement) => movement.key);
+    const right = current.movements.map((movement) => movement.key);
+    const delta = maxStepDelta(skeletons, left, right);
+    if (delta != null && delta > 1) hideLevel(current, `level ${current.level} moves more than one ladder step`);
+    if (previous.status !== "pass" || current.status !== "pass") continue;
+    const before = levelWork(format, previous);
+    const after = levelWork(format, current);
+    const stepped = stepsDiffer(skeletons, left, right);
+    const worked = before > 0 && after >= before * 1.1;
+    if (!stepped && !worked) {
+      hideLevel(current, `level ${current.level} does not change a ladder step or raise work by 10%`);
+      continue;
+    }
+    current.progress = stepped && worked ? "both" : stepped ? "step" : "work";
+  }
+}
+
+/** High-skill ladder steps the head coach reviews. The field is not rewritten. */
+export function ladderRiskRows(sessions: readonly { day?: string; levels?: SessionLevels | null }[]): { day: string; level: number; key: string; step: number | null; risk_level: string; skill_level: string | null }[] {
+  const rows: { day: string; level: number; key: string; step: number | null; risk_level: string; skill_level: string | null }[] = [];
+  for (const session of sessions) {
+    for (const level of session.levels?.levels ?? []) {
+      for (const movement of level.movements) {
+        if (movement.risk_level !== "high" && movement.risk_level !== "moderate") continue;
+        rows.push({
+          day: session.day ?? "",
+          level: level.level,
+          key: movement.key,
+          step: movement.step ?? null,
+          risk_level: movement.risk_level,
+          skill_level: movement.skill_level ?? null,
+        });
+      }
+    }
+  }
+  return rows;
 }

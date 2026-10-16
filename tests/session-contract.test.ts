@@ -200,6 +200,13 @@ describe("session contract", () => {
       ],
     });
     expect(line).toBe("3라운드 For Time · 캡 12분 / Row Erg 15cal / Barbell Thruster 10회 (95/65 lb) (스케일 45/35 lb · 7회) / Burpee 10회");
+    const snatch = renderMetconLine({
+      format: "chipper",
+      clock: clockForFormat("chipper", 20, ["dumbbell_snatch"]),
+      movements: [{ key: "dumbbell_snatch", amount: 35, unit: "reps", load: { male: "22.5 kg", female: "15 kg" } }],
+    });
+    expect(snatch).not.toMatch(/\d(?:\.\d+)?\s*kg/i);
+    expect(snatch).toContain("35회");
     const varying = doseIssues({
       format: "for_time",
       minutes: 12,
