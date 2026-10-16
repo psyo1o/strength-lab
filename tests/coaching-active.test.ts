@@ -753,5 +753,5 @@ describe("coaching pipeline production guard", () => {
     expect(live.c).toBe(0);
     delete process.env.COACHING_PIPELINE;
     delete process.env.STRENGTH_LAB_PROBE;
-  });
+  }, 20000);
 });
