@@ -7,7 +7,8 @@ import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft,
 import { classCompletionForCoach, classSummaryForCoach, omitAbsenceSummary, parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { hardLevelErrors, ladderRiskRows } from "./intensity-levels";
-import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, sessionEstimateIssues, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
+import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, metconKeysAtCap, planWeekContract, resolveSessionMinutes, sessionEstimateIssues, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
+import { requestOuterLevels } from "./level-menu";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -665,6 +666,15 @@ function affectedDays(days: readonly DayKey[]): DayKey[] {
   return DAY_ORDER.filter((_, index) => indexes.has(index));
 }
 
+function modelMetconKeys(draft: WeekDraft, sources: Record<string, "model" | "fallback">): { day: string; keys: string[] }[] {
+  const rows: { day: string; keys: string[] }[] = [];
+  for (const session of draft.sessions) {
+    if (sources[session.day] !== "model" || session.rest || !session.conditioning || session.conditioning.format === "zone2") continue;
+    rows.push({ day: session.day, keys: [...new Set(session.conditioning.movements.map((movement) => movement.key))] });
+  }
+  return rows;
+}
+
 async function writeSession(input: {
   week: CoachWeekInput;
   plan: WeeklyIntentPlan;
@@ -681,6 +691,8 @@ async function writeSession(input: {
   deferPlacement?: boolean;
   /** Recent-week overlap brief for the one post-swap rewrite of this day. */
   recentOverlap?: ReturnType<typeof recentOverlapPayload> | null;
+  /** Metcon keys already chosen by the model on earlier days of this week. */
+  priorMetconKeys?: readonly { day: string; keys: readonly string[] }[];
 }): Promise<{
   draft: WeekDraft;
   source: "model" | "fallback";
@@ -730,6 +742,7 @@ async function writeSession(input: {
   const areaTraces: AgentTrace[] = [];
   const areaReason = new Map<SpecialistArea, string | null>();
   const areaErrors = new Map<SpecialistArea, string[]>();
+  const slotClosed = new Set<SpecialistArea>();
   const areaInvalid = new Map<SpecialistArea, unknown>();
   let failed: { errors: string[]; retry: number; reason: string | null; json: unknown } | null = null;
   let overlapShown = false;
@@ -822,6 +835,7 @@ async function writeSession(input: {
       skeletonCombo: skeletonComboFor(input.week, input.rules, input.day.day),
       avoidHeavyLower: hardConstraints(input.week.previousActual).heavy_lower_metcon === "avoid",
       sessionLock,
+      omitKeys: area === "conditioning" ? metconKeysAtCap(input.priorMetconKeys ?? [], input.day.day) : [],
     });
     const zone2Spec = zone2SlotSpec({
       zone2: input.day.zone2,
@@ -831,9 +845,14 @@ async function writeSession(input: {
       dropRun: (input.week.weekSkeleton?.zone2?.lowerAdjacent ?? []).includes(input.day.day),
     });
     if (frame && area === "conditioning" && zone2Spec) frame.zone2Slot = zone2Spec;
+    if (frame?.slots.some((slot) => slot.movements.length === 0)) {
+      areaErrors.set(area, [`${input.day.day} metcon list is empty after the weekly movement cap`]);
+      areaReason.set(area, "empty_enum");
+      slotClosed.add(area);
+      continue;
+    }
     if (frame) frames.set(area, frame);
   }
-  const slotClosed = new Set<SpecialistArea>();
   let slotRecovered = false;
   const present = (area: SpecialistArea, json: unknown) => {
     const frame = frames.get(area);
@@ -861,6 +880,11 @@ async function writeSession(input: {
     return frame ? { ...user, ...extra, slot_choices: slotChoiceUser(frame) } : { ...user, ...extra };
   };
   for (const area of areas) {
+    if (slotClosed.has(area)) {
+      const errors = areaErrors.get(area) ?? ["empty_enum"];
+      failed ??= { errors, retry: 0, reason: areaReason.get(area) ?? "empty_enum", json: null };
+      continue;
+    }
     const asked = await askSpecialist({
       area,
       user: areaUser(area),
@@ -1177,6 +1201,21 @@ async function writeSession(input: {
     };
   }
   if (merged.strengthNote && adopted.session.strength) adopted.session.strength_purpose = merged.strengthNote;
+  const conditioningPart = asRecord(parts.conditioning);
+  const indexedMetcon = asRecord(conditioningPart?.contract_part)?.kind === "conditioning";
+  if (indexedMetcon && sessionLock && !sessionLock.rest && !sessionLock.steady && sessionLock.format !== "zone2" && adopted.session.conditioning) {
+    const outer = await requestOuterLevels({
+      lock: sessionLock,
+      session: adopted.session,
+      key: input.week.key ?? "",
+      fetchImpl: input.week.fetchImpl,
+      timeoutMs: input.timeoutMs,
+      runId: input.runId,
+      weekId: input.week.weekStart,
+    });
+    adopted.session.levels = outer.levels;
+    areaTraces.push(...outer.traces);
+  }
   return {
     draft: adopted.draft,
     source: "model",
@@ -2005,6 +2044,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       rules,
       ignoreDays: queue.slice(index + 1).map((row) => row.day),
       deferPlacement: true,
+      priorMetconKeys: modelMetconKeys(draft, daySources),
     });
     traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
     for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);
@@ -2259,6 +2299,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       rules,
       deferPlacement: true,
       recentOverlap: payload,
+      priorMetconKeys: modelMetconKeys(draft, daySources),
     });
     traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
     for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);
@@ -2957,6 +2998,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       timeoutMs,
       rules,
       areas: [area],
+      priorMetconKeys: modelMetconKeys(draft, daySources),
     });
     traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
     for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);

@@ -19,7 +19,7 @@ import {
   type CatalogUnit,
 } from "./movement-catalog";
 import { allowedAmounts, cleanDisplayName, clockEcho, clockPresent, intensityLockEnum, readClock, sameClock, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
-import { fitLevelEnums, levelGuide, levelSchema } from "./intensity-levels";
+import { levelGuide } from "./intensity-levels";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
@@ -352,16 +352,27 @@ export function buildSessionFrame(input: {
   avoidHeavyLower?: boolean;
   /** 수업 블록이 잠겨 있으면 그 칸만 연다. */
   sessionLock?: DaySessionLock | null;
+  /** 이번 주 한도를 이미 채운 메트콘 키. 번호표에 넣지 않는다. */
+  omitKeys?: readonly string[] | null;
 }): SessionFrame | null {
   const locked = input.sessionLock && !input.sessionLock.rest ? input.sessionLock : null;
-  const slots = locked
+  let slots = locked
     ? contractSlots(input.area, input.day, locked)
     : input.area === "conditioning"
       ? conditioningSlots(input.day, input.slot, input.skeletonCombo?.deadliftConditioning)
       : input.area === "strength"
         ? strengthSlots(input.day, input.skeletonCombo?.strengthLifts)
         : warmupSlots(input.day);
-  if (!slots.length || slots.some((slot) => slot.movements.length === 0)) return null;
+  if (input.omitKeys?.length && input.area === "conditioning") {
+    const banned = new Set(input.omitKeys);
+    slots = slots.map((slot) => {
+      if (slot.phase && slot.phase !== "metcon") return slot;
+      const kept = slot.movements.filter((movement) => !banned.has(movement.key));
+      return kept.length ? { ...slot, movements: kept } : slot;
+    });
+  }
+  if (!slots.length) return null;
+  if (slots.some((slot) => slot.movements.length === 0) && !input.omitKeys?.length) return null;
   const piece = input.area === "conditioning" ? pieceOf(input.day, input.slot) : null;
   if (piece && locked) {
     piece.format = locked.format;
@@ -408,6 +419,21 @@ function branch(slot: FrameSlot, movement: FrameMovement, locked: boolean): Reco
     required.push("load_percent");
   }
   return strictObject(properties, required);
+}
+
+function usesIndexSlots(frame: SessionFrame): boolean {
+  return frame.area === "conditioning" && Boolean(frame.contract) && frame.contract?.format !== "zone2" && !frame.zone2Slot;
+}
+
+function indexSlotSchema(slot: FrameSlot): Record<string, unknown> {
+  const qtyMax = Math.max(1, ...slot.movements.map((movement) => movement.options.length));
+  return strictObject(
+    {
+      move: { type: "integer", enum: slot.movements.map((_, index) => index) },
+      qty: { type: "integer", enum: Array.from({ length: qtyMax }, (_, index) => index) },
+    },
+    ["move", "qty"],
+  );
 }
 
 function slotSchema(slot: FrameSlot, locked = false): Record<string, unknown> {
@@ -487,7 +513,7 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
   const required: string[] = [];
   for (const slot of frame.slots) {
     required.push(slot.id);
-    properties[slot.id] = slotSchema(slot, Boolean(frame.contract));
+    properties[slot.id] = usesIndexSlots(frame) ? indexSlotSchema(slot) : slotSchema(slot, Boolean(frame.contract));
   }
   if (frame.contract) {
     const minutes = (role: DaySessionLock["blocks"][number]["role"]) => frame.contract?.blocks.find((block) => block.role === role)?.minutes ?? 0;
@@ -506,10 +532,6 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
         if (value == null) properties[key] = { type: "null" };
         else if (typeof value === "number") properties[key] = { type: "integer", enum: [value] };
         else properties[key] = { type: "string", enum: [value] };
-      }
-      if (frame.contract.format !== "zone2" && !frame.zone2Slot) {
-        required.push("levels");
-        properties.levels = levelSchema({ format: frame.contract.format, byLevel: fitLevelEnums(frame.contract) });
       }
     } else if (frame.area === "warmup") {
       for (const key of ["warmup_minutes", "cooldown_minutes"]) required.push(key);
@@ -550,7 +572,20 @@ export function slotChoiceUser(frame: SessionFrame): unknown {
       ? {
           format: frame.contract.format,
           stimulus: stimulusLockEnum(frame.contract, frame.piece?.stimulus),
-          ...(frame.contract.format !== "zone2" && !frame.zone2Slot ? { level_rules: levelGuide(frame.contract) } : {}),
+          ...(usesIndexSlots(frame)
+            ? {
+                movement_count: "3-6; chipper up to 8",
+                rules: levelGuide(frame.contract),
+                menu: frame.slots.map((slot) => ({
+                  slot: slot.id,
+                  movements: slot.movements.map((movement, index) => ({
+                    index,
+                    key: movement.key,
+                    quantities: movement.options.map((option, qty) => ({ index: qty, amount: option.amount, unit: option.unit })),
+                  })),
+                })),
+              }
+            : {}),
         }
       : {}),
   };
@@ -753,17 +788,20 @@ function expandContract(
   const chosen: (SlotPick & { reason: string; load_percent: number | null; phase: string; option: QuantityChoice })[] = [];
   for (const slot of frame.slots) {
     const cell = asRecord(body[slot.id]);
+    const moveIndex = typeof cell?.move === "number" && Number.isInteger(cell.move) ? cell.move : null;
+    const qtyIndex = typeof cell?.qty === "number" && Number.isInteger(cell.qty) ? cell.qty : null;
     const movementId = typeof cell?.movement_id === "string" ? cell.movement_id : "";
     const quantity = typeof cell?.quantity_option === "string" ? cell.quantity_option : "";
     const reason = typeof cell?.reason === "string" ? cell.reason.trim() : "";
-    const movement = movementOn(frame, slot.id, movementId);
-    const option = movement?.options.find((row) => row.id === quantity) ?? null;
+    const indexed = moveIndex != null || qtyIndex != null;
+    const movement = indexed ? (slot.movements[moveIndex ?? -1] ?? null) : movementOn(frame, slot.id, movementId);
+    const option = indexed ? (movement?.options[qtyIndex ?? -1] ?? null) : (movement?.options.find((row) => row.id === quantity) ?? null);
     if (!movement || !option) {
       errors.push(`${slot.id} is not an allowed movement and quantity`);
       bad.add(slot.id);
       continue;
     }
-    if (reason.length < 8) {
+    if (frame.area !== "conditioning" && reason.length < 8) {
       errors.push(`${slot.id} reason is missing`);
       bad.add(slot.id);
       continue;

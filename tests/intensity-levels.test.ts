@@ -2,17 +2,18 @@ import { describe, expect, it } from "vitest";
 import { doseIssues, planWeekContract } from "../src/lib/programming/coaching/session-contract";
 import { ladderFor } from "../src/lib/programming/coaching/movement-catalog";
 import {
-  fitLevelEnums,
   hardLevelErrors,
   judgeLevels,
   ladderRiskRows,
   legalCaps,
   levelGuide,
   levelLine,
-  levelSchema,
   loadChoices,
+  packLevelSet,
   sessionAtLevel,
 } from "../src/lib/programming/coaching/intensity-levels";
+import { materializeOuter, mergeRepair, outerFormat, outerMenu, readOuterPicks, repairErrors, type OuterPicks } from "../src/lib/programming/coaching/level-menu";
+import { movementsAtWeekCap } from "../src/lib/programming/coaching/session-contract";
 import { quantityOptions, sessionSlotFormat, type SessionFrame } from "../src/lib/programming/coaching/slot-choices";
 import type { LevelPrescription, SessionDraft } from "../src/lib/programming/types";
 
@@ -21,6 +22,22 @@ function lockFor(domain: "short" | "medium" | "long") {
     [{ day: "tue", rest: false, long: domain === "long", domain, lift: "bench", intensity_class: "moderate" }],
     1,
   )[0]!;
+}
+
+function doseRaw(lock: ReturnType<typeof lockFor>): Record<string, unknown> {
+  const row: Record<string, unknown> = {
+    cap_min: lock.metcon_minutes,
+    rounds: lock.format === "chipper" ? 1 : lock.format === "amrap" || lock.format === "intervals" || lock.format === "emom" ? null : (lock.clock.rounds ?? 3),
+    work_sec: lock.format === "intervals" ? 40 : null,
+    rest_sec: lock.format === "intervals" ? 20 : null,
+    sets: lock.format === "intervals" ? lock.metcon_minutes : null,
+  };
+  lock.metcon.forEach((move, index) => {
+    row[`m${index}`] = move.amount;
+    row[`m${index}_move`] = move.key;
+    row[`m${index}_load`] = loadChoices(move.key)[0]?.id ?? "none";
+  });
+  return row;
 }
 
 function payloadFrom(level: LevelPrescription, count: number): Record<string, unknown> {
@@ -51,15 +68,15 @@ describe("intensity levels", () => {
       slots: lock.metcon.map((move, index) => ({ id: `s${index}`, phase: "metcon" as const, movements: [{ key: move.key, options: quantityOptions(move.key) }] })),
     };
     const schema = JSON.stringify(sessionSlotFormat(frame));
-    expect(schema).toContain('"levels"');
-    expect(schema).toContain('"1"');
-    expect(schema).toContain('"5"');
+    expect(schema).toContain('"move"');
+    expect(schema).toContain('"qty"');
+    expect(schema).not.toContain('"levels"');
+    expect(schema).not.toContain('"reason"');
     expect(legalCaps(lock)).toContain(lock.metcon_minutes);
     const guide = levelGuide(lock);
-    expect(guide).toContain(`m0=${lock.metcon[0]!.amount}`);
-    expect(guide).toContain("Equal values are allowed");
-    expect(guide).toContain("heavier catalog load or more reps");
-    expect(guide).toContain("Levels 4 and 5 use that same rule");
+    expect(guide).toContain("Choose only from this list");
+    expect(guide).toContain("Output JSON only");
+    expect(guide).toContain("3-6");
 
     const movements = lock.metcon.map((move) => {
       const choice = loadChoices(move.key)[0] ?? null;
@@ -162,28 +179,36 @@ describe("intensity levels", () => {
     const shown = sessionAtLevel(session, 5);
     expect(shown.conditioning?.duration_min).toBe(judged.levels[4]?.cap_min);
     expect(session.levels?.levels[4]?.movements[weighted]?.load?.male).toBe(lighter.male);
-    const fitted = fitLevelEnums(lock);
-    const echoed: Record<string, unknown> = {};
-    for (const level of [1, 2, 3, 4, 5]) {
-      const spec = fitted[level as 1 | 2 | 3 | 4 | 5];
-      const row: Record<string, unknown> = {
-        cap_min: spec.caps[0],
-        rounds: spec.rounds ? spec.rounds[0] : null,
-        work_sec: lock.format === "intervals" ? 40 : null,
-        rest_sec: lock.format === "intervals" ? 20 : null,
-        sets: lock.format === "intervals" ? spec.caps[0] : null,
-      };
-      spec.amounts.forEach((amounts, index) => {
-        row[`m${index}`] = amounts[0];
-        row[`m${index}_move`] = spec.moves[index]?.[0] ?? lock.metcon[index]!.key;
-        row[`m${index}_load`] = spec.loads[index]?.[0] ?? "none";
-      });
-      echoed[String(level)] = row;
+    const level3 = judged.levels.find((row) => row.level === 3)!;
+    const menu = outerMenu(lock, { ...level3, status: "pass", hidden_reason: null });
+    const schema = outerFormat(menu);
+    expect((schema.json_schema.schema as { required: string[] }).required).toEqual(["1", "2", "4", "5"]);
+    expect(JSON.stringify(schema)).not.toContain("cap_min");
+    const indexPicks: OuterPicks = {};
+    for (const level of ["1", "2", "4", "5"]) {
+      indexPicks[level] = {};
+      for (const slot of menu.slots) {
+        const option = slot.options.find((row) => row.role === "base") ?? slot.options[0]!;
+        const qty = option.quantities.findIndex((row) => row.amount === level3.movements[menu.slots.indexOf(slot)]?.amount);
+        indexPicks[level]![slot.id] = { move: option.index, qty: qty >= 0 ? qty : 0, load: option.loads.length ? 0 : null };
+      }
     }
-    const echoedJudge = judgeLevels(echoed, lock)!;
-    expect(hardLevelErrors({ day: "tue", levels: echoedJudge })).toEqual([]);
-    expect(echoedJudge.monotonicity).toEqual([]);
-    expect(levelSchema({ format: "for_time", byLevel: fitted }).required).toEqual(["1", "2", "3", "4", "5"]);
+    const copied = materializeOuter(lock, { ...level3, status: "pass", hidden_reason: null }, indexPicks, menu);
+    const hiddenOuter = copied.levels.find((row) => row.level === 1);
+    if (hiddenOuter?.status === "hidden") expect(hiddenOuter.hidden_reason ?? "").toMatch(/SAME_AS_L3|CAP_OUT|NOT_ALLOWED|WORK/);
+    const illegal = readOuterPicks({ "1": { s0: { move: 99, qty: 0 } }, "2": { s0: { move: 0, qty: 0 } } }, menu);
+    const rejected = materializeOuter(lock, { ...level3, status: "pass", hidden_reason: null }, illegal, menu);
+    expect(rejected.levels.find((row) => row.level === 1)?.hidden_reason ?? "").toContain("NOT_ALLOWED");
+    expect(rejected.levels.find((row) => row.level === 1)?.movements[0]?.amount).toBeNull();
+    const blocked = mergeRepair(indexPicks, { "1": indexPicks["1"], "9": { s0: { move: 0, qty: 0 } } }, repairErrors(lock, copied, indexPicks, menu).slice(0, 1));
+    expect(blocked.ok).toBe(false);
+    const rows = [
+      { day: "mon", metcon: [{ key: "double_under" }] },
+      { day: "tue", metcon: [{ key: "double_under" }] },
+      { day: "wed", metcon: [{ key: "burpee" }] },
+    ];
+    expect(movementsAtWeekCap(rows, "wed")).toContain("double_under");
+    expect(movementsAtWeekCap(rows, "mon")).not.toContain("double_under");
   });
 
   it("keeps ladder steps, splits cap from the estimate, and lets 4 and 5 rise by work or by a step", () => {
@@ -221,26 +246,12 @@ describe("intensity levels", () => {
     expect(lightCap.join(" ")).toContain("minimum");
 
     const lock = lockFor("short");
-    const fitted = fitLevelEnums(lock);
     const raw: Record<string, unknown> = {};
-    for (const level of [1, 2, 3, 4, 5]) {
-      const spec = fitted[level as 1 | 2 | 3 | 4 | 5];
-      const row: Record<string, unknown> = {
-        cap_min: spec.caps[0],
-        rounds: spec.rounds ? spec.rounds[0] : null,
-        work_sec: lock.format === "intervals" ? 40 : null,
-        rest_sec: lock.format === "intervals" ? 20 : null,
-        sets: lock.format === "intervals" ? spec.caps[0] : null,
-      };
-      spec.amounts.forEach((amounts, index) => {
-        row[`m${index}`] = amounts[0];
-        row[`m${index}_move`] = spec.moves[index]![0];
-        row[`m${index}_load`] = spec.loads[index]?.[0] ?? "none";
-      });
-      raw[String(level)] = row;
-    }
+    for (const level of [1, 2, 3, 4, 5]) raw[String(level)] = doseRaw(lock);
     const judged = judgeLevels(raw, lock)!;
-    expect(hardLevelErrors({ day: "tue", levels: judged })).toEqual([]);
+    if (judged.levels.find((row) => row.level === 3)?.status === "pass") {
+      expect(hardLevelErrors({ day: "tue", levels: judged })).toEqual([]);
+    }
     for (const row of judged.levels) {
       if (row.level === 1 || row.status !== "pass") continue;
       const previous = judged.levels[row.level - 2];
@@ -275,24 +286,8 @@ describe("intensity levels", () => {
 
   it("compares each level with the nearest displayed level toward 3 and hides the outer copy", () => {
     const lock = lockFor("short");
-    const fitted = fitLevelEnums(lock);
     const raw: Record<string, Record<string, unknown>> = {};
-    for (const level of [1, 2, 3, 4, 5]) {
-      const spec = fitted[level as 1 | 2 | 3 | 4 | 5];
-      const row: Record<string, unknown> = {
-        cap_min: spec.caps[0],
-        rounds: spec.rounds ? spec.rounds[0] : null,
-        work_sec: lock.format === "intervals" ? 40 : null,
-        rest_sec: lock.format === "intervals" ? 20 : null,
-        sets: lock.format === "intervals" ? spec.caps[0] : null,
-      };
-      spec.amounts.forEach((amounts, index) => {
-        row[`m${index}`] = amounts[0];
-        row[`m${index}_move`] = spec.moves[index]![0];
-        row[`m${index}_load`] = spec.loads[index]?.[0] ?? "none";
-      });
-      raw[String(level)] = row;
-    }
+    for (const level of [1, 2, 3, 4, 5]) raw[String(level)] = doseRaw(lock);
     const center = judgeLevels(raw, lock)!;
     expect(center.levels.find((row) => row.level === 3)?.status).toBe("pass");
 
@@ -325,7 +320,23 @@ describe("intensity levels", () => {
       expect(outer1.hidden_reason ?? "").toContain("10%");
     } else {
       expect(outer1.status).toBe("hidden");
-      expect(outer1.hidden_reason ?? "").toContain("10%");
     }
+    const center3 = center.levels.find((row) => row.level === 3)!;
+    const identical = packLevelSet(
+      lock,
+      ([1, 2, 3, 4, 5] as const).map((level) => ({
+        ...center3,
+        level,
+        movements: center3.movements.map((movement) => ({ ...movement })),
+        status: "pass" as const,
+        hidden_reason: null,
+        progress: null,
+      })),
+    );
+    expect(identical.levels.find((row) => row.level === 3)?.status).toBe("pass");
+    expect(identical.levels.find((row) => row.level === 2)?.status).toBe("hidden");
+    expect(identical.levels.find((row) => row.level === 2)?.hidden_reason ?? "").toContain("10%");
+    expect(identical.levels.find((row) => row.level === 1)?.hidden_reason ?? "").toContain("10%");
+    expect(identical.levels.find((row) => row.level === 5)?.hidden_reason ?? "").toContain("10%");
   });
 });

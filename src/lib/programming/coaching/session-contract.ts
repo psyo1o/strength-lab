@@ -1316,6 +1316,28 @@ export type DiversityDay = {
   exception: "intervals" | "mono" | null;
 };
 
+/** 같은 메트콘 동작은 주 2회까지다. 3회째는 거절이고, 이 숫자를 낮추지 않는다. */
+export const METCON_MOVEMENT_WEEK_CAP = 2;
+
+/** 이 날을 빼면 이미 주간 한도에 닿은 메트콘 키. 호출 A 번호표에서 뺀다. */
+export function metconKeysAtCap(rows: readonly { day: string; keys: readonly string[] }[], day: string): string[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.day === day) continue;
+    for (const key of new Set(row.keys)) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()].filter(([, count]) => count >= METCON_MOVEMENT_WEEK_CAP).map(([key]) => key);
+}
+
+export function movementsAtWeekCap(locks: readonly { day: string; rest?: boolean; steady?: boolean; format?: string; metcon?: readonly { key: string }[] }[], day: string): string[] {
+  return metconKeysAtCap(
+    locks
+      .filter((lock) => !lock.rest && !lock.steady && lock.format !== "zone2")
+      .map((lock) => ({ day: lock.day, keys: (lock.metcon ?? []).map((move) => move.key) })),
+    day,
+  );
+}
+
 export function diversityIssues(days: readonly DiversityDay[]): string[] {
   const errors: string[] = [];
   const formats = new Map<string, number>();
@@ -1350,7 +1372,7 @@ export function diversityIssues(days: readonly DiversityDay[]): string[] {
     if (count > 2) errors.push(`format ${format} is used ${count} times`);
   }
   for (const [key, count] of movementCount) {
-    if (count > 2) errors.push(`${key} is in ${count} metcons`);
+    if (count > METCON_MOVEMENT_WEEK_CAP) errors.push(`${key} is in ${count} metcons`);
   }
   for (const [key, count] of machineCount) {
     if (count > 3) errors.push(`machine ${key} is used ${count} times`);

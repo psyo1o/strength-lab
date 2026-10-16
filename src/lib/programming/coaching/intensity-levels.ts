@@ -426,26 +426,12 @@ export function fitLevelEnums(lock: DaySessionLock): Record<(typeof LEVEL_NUMBER
   };
 }
 
-export function levelGuide(lock: DaySessionLock): string {
-  const floor = (level: number) => metconFloorSec(lock.format, bandForLevel(level));
-  const dose = lock.metcon.map((move, index) => `m${index}=${move.amount} m${index}_move=${move.key}`).join(" ");
-  const rounds = lock.clock.rounds == null ? "null" : String(lock.clock.rounds);
+export function levelGuide(_lock: DaySessionLock): string {
   return [
-    "Output levels.1 through levels.5 in this same response.",
-    "Each slot stays on that slot's ladder. A ladder is one movement_pattern and one stimulus_group. A different pattern is not the same ladder.",
-    "Adjacent levels change a slot by at most one step. The same step may use another equipment key, such as ring and bar muscle-up.",
-    "You may keep the movement and raise the level with a heavier catalog load or more reps. A harder movement is optional.",
-    "Levels 1 and 2 use an easier ladder step when one exists, plus more rounds or a longer cap, so the cap meets that level's minimum and the estimate finishes at or under the cap.",
-    "The server checks derived time, estimate at or under the cap, cap at or over the format minimum, the cap plus or minus 25 percent, Rx, the 90-110 block sum, the one-step limit, and monotonicity.",
-    "The server does not rewrite your movement or your numbers.",
-    "Level 3 must pass or the day is rejected. Another level that fails its own check is hidden and does not by itself fail the day.",
-    "Each level is compared with the nearest displayed level toward level 3. A hidden level is not a baseline. The pair passes when at least one slot changes step or total work is at least 1.10 times the lower level. Work is reps times rep_cost times load factor. Levels 4 and 5 use that same rule. Weight or reps can raise the level. Do not force a high-skill movement. The same prescription hides the outer level, the one farther from 3.",
-    `Floors in seconds for this format: 1-2 ${floor(1) ?? "none"}, 3 ${floor(3) ?? "none"}, 4-5 ${floor(5) ?? "none"}.`,
-    "Load and density must not fall as the level number rises. Equal values are allowed. A drop fails the whole day.",
-    "Density is derived work divided by the cap for for_time, chipper, and partner. For AMRAP, EMOM, and intervals it is the round or station work.",
-    `The skeleton dose already fits level 3: cap_min ${lock.metcon_minutes}, rounds ${rounds}, ${dose}.`,
-    "EMOM station work must be at most 40 seconds and must fit in 60 seconds. Interval work must fit in work_sec 40.",
-    "High-skill ladder steps keep risk_level for the head coach. Do not strip it.",
+    "Choose only from this list. Output JSON only.",
+    "move, qty, and load are indices. Do not send keys, amounts, caps, minutes, or an estimate.",
+    "Levels 1 and 2 go easier. Levels 4 and 5 go harder by one ladder step or the work multiplier. Do not copy level 3.",
+    "Metcon movements are 3-6. Chipper may use up to 8.",
   ].join(" ");
 }
 
@@ -820,7 +806,7 @@ function annotatePairs(format: string, skeletons: readonly string[], levels: Lev
     const currentKeys = current.movements.map((movement) => movement.key);
     const delta = maxStepDelta(skeletons, baseKeys, currentKeys);
     if (delta != null && delta > 1) {
-      hideLevel(current, `level ${current.level} moves more than one ladder step`);
+      hideLevel(current, `STEP: level ${current.level} moves more than one ladder step`);
       continue;
     }
     const higher = current.level > baseline.level ? current : baseline;
@@ -833,12 +819,33 @@ function annotatePairs(format: string, skeletons: readonly string[], levels: Lev
       higher.movements.map((movement) => movement.key),
     );
     const worked = before > 0 && after >= before * 1.1;
-    if (samePrescription(baseline, current) || (!stepped && !worked)) {
-      hideLevel(current, `level ${current.level} does not change a ladder step or raise work by 10%`);
+    if (samePrescription(baseline, current)) {
+      hideLevel(current, `SAME_AS_L3: level ${current.level} does not change a ladder step or raise work by 10%`);
+      continue;
+    }
+    if (!stepped && !worked) {
+      hideLevel(current, `WORK: level ${current.level} does not change a ladder step or raise work by 10%`);
       continue;
     }
     higher.progress = stepped && worked ? "both" : stepped ? "step" : "work";
   }
+}
+
+/** Pair check and load/density check. The prescriptions are the model's indices after the server derives cap and time. */
+export function packLevelSet(lock: DaySessionLock, levels: LevelPrescription[]): SessionLevels {
+  const skeletons = lock.metcon.map((move) => move.key);
+  annotatePairs(lock.format, skeletons, levels);
+  return {
+    skeleton: {
+      format: lock.format,
+      movement_keys: skeletons,
+      block_roles: lock.blocks.map((block) => block.role),
+      other_minutes: otherBlockMinutes(lock),
+    },
+    levels,
+    monotonicity: monotonicityIssues(lock.format, levels),
+    overrides: [],
+  };
 }
 
 /** High-skill ladder steps the head coach reviews. The field is not rewritten. */

@@ -35,6 +35,7 @@ export type AgentName =
   | "variation_engine"
   | "strength_coach"
   | "conditioning_coach"
+  | "outer_levels"
   | "warmup_coach"
   | "recovery_coach"
   | "variation_coach"
