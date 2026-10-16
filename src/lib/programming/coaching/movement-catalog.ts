@@ -211,6 +211,19 @@ function loadMatches(text: string | null, options: readonly RxSide[]): boolean {
 /** When the catalog lists an Rx weight, that side's load is required and must be one of those weights. */
 export function rxLoadErrors(key: string, load: { male?: string | null; female?: string | null } | null | undefined): string[] {
   const weights = catalogRxWeights(key);
+  const modal = modalWodLb(key);
+  if (!weights && modal) {
+    const errors: string[] = [];
+    const male = Number(modal.male.match(/\d+/)?.[0]);
+    const female = Number(modal.female.match(/\d+/)?.[0]);
+    if (!loadMatches(load?.male ?? null, [{ amount: male, unit: "lb" }])) {
+      errors.push(`${key} load.male is required and must be ${modal.male}`);
+    }
+    if (!loadMatches(load?.female ?? null, [{ amount: female, unit: "lb" }])) {
+      errors.push(`${key} load.female is required and must be ${modal.female}`);
+    }
+    return errors;
+  }
   const text = catalogRxText(key);
   if (!weights && text) {
     const errors: string[] = [];
@@ -245,6 +258,16 @@ export function catalogRxText(key: string): { male: string | null; female: strin
   return { male, female };
 }
 
+/** 바벨 메모의 첫 남/여 최빈 WOD. rx가 1RM %여도 메트콘에는 이 숫자를 쓴다. 맨몸·로잉 메모의 무게는 Rx가 아니다. */
+export function modalWodLb(key: string): { male: string; female: string } | null {
+  const row = catalogMovement(key) ?? catalogMovement(linkedCatalogKey(key).key);
+  if (!row || row.equipment !== "barbell" || catalogRxWeights(key)) return null;
+  const memo = row.memo ?? "";
+  const match = memo.match(/최빈:\s*(\d+)\/(\d+)\s*lb/);
+  if (!match) return null;
+  return { male: `${match[1]} lb`, female: `${match[2]} lb` };
+}
+
 export function prescribedLoad(key: string): { male: string | null; female: string | null } | null {
   const weights = catalogRxWeights(key);
   if (weights) {
@@ -253,6 +276,8 @@ export function prescribedLoad(key: string): { male: string | null; female: stri
       female: weights.female[0] ? `${weights.female[0].amount} ${weights.female[0].unit}` : null,
     };
   }
+  const modal = modalWodLb(key);
+  if (modal) return modal;
   const text = catalogRxText(key);
   if (!text) return null;
   return { male: text.male, female: text.female };

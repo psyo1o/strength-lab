@@ -1,7 +1,6 @@
 import type { DayKey } from "../../month-plan/types";
 import { TIME_DOMAIN_RANGES } from "../rules";
-import type { ConditioningSlot, DayIntent, Stimulus, VolumeBand, WodFormat } from "../types";
-import { STIMULI } from "../types";
+import { STIMULI, type ConditioningSlot, type DayIntent, type Stimulus, type VolumeBand, type WodFormat } from "../types";
 import type { ResponseFormat } from "./contract";
 import { bannedConditioningKeys } from "./conditioning-board";
 import { GOAL_TABLE_RULES } from "./goal-table";
@@ -18,7 +17,7 @@ import {
   standardMovements,
   type CatalogUnit,
 } from "./movement-catalog";
-import { cleanDisplayName, intensityLockEnum, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { allowedAmounts, cleanDisplayName, intensityLockEnum, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
@@ -107,8 +106,8 @@ export function quantityOptions(key: string): QuantityChoice[] {
   for (const unit of row.units) {
     const span = rangeFor(row.key, unit);
     if (!span) continue;
-    const mid = Math.round((span.min + span.max) / 2);
-    for (const amount of [span.min, mid, span.max]) {
+    const grid = allowedAmounts(unit, span.min, span.max);
+    for (const amount of grid.length ? grid.slice(0, 3) : []) {
       const id = `${unit}:${amount}`;
       if (seen.has(id)) continue;
       seen.add(id);
@@ -178,8 +177,10 @@ function volumeAtMost(current: VolumeBand, ceiling: VolumeBand | null | undefine
 
 function pieceOf(day: DayIntent, slot: ConditioningSlot | null): SessionPiece {
   const long = day.secondary_training === "long_conditioning" || slot?.time_domain === "long";
-  const stimulus = slot && (STIMULI as readonly string[]).includes(slot.stimulus) ? slot.stimulus : "high_rep";
   const format = slot?.format ?? "for_time";
+  const requested = slot && (STIMULI as readonly string[]).includes(slot.stimulus) ? slot.stimulus : "high_rep";
+  const legal = stimuliMatchingFormat(format);
+  const stimulus = (legal as readonly string[]).includes(requested) ? requested : (legal[0] ?? "high_rep");
   const raw = slot?.duration_min ?? (long ? 32 : 12);
   const range = long ? LONG : NON_LONG;
   const duration_min = Math.min(range.max, Math.max(range.min, raw));
@@ -302,7 +303,8 @@ function doseMovement(move: DoseMovement): FrameMovement {
     return { key: move.key, options: [{ id: `min:${move.amount}`, unit: "min", amount: move.amount, method: false }] };
   }
   const span = rangeFor(move.key, move.unit);
-  const amount = span ? Math.min(span.max, Math.max(span.min, move.amount)) : move.amount;
+  const clamped = span ? Math.min(span.max, Math.max(span.min, move.amount)) : move.amount;
+  const amount = snapDoseAmount(move.key, move.unit, clamped);
   const pinned = { id: `${move.unit}:${amount}`, unit: move.unit, amount, method: false as const };
   const options = quantityInsideRange(move.key, pinned) ? [pinned] : quantityOptions(move.key);
   return { key: move.key, options };
@@ -789,10 +791,12 @@ function expandContract(
       static_hold: warmupMeta(pick.movement_id)?.static_hold === true,
       ...(pick.load_percent != null ? { load_percent: pick.load_percent } : {}),
     }));
-    const lines = phases.map((phase) => {
+    const lines = phases
+      .filter((phase) => phase.phase !== "cooldown")
+      .map((phase) => {
       const name = resolved(phase.key)?.name_ko ?? phase.key;
       const amount = phase.unit === "sec" ? `${phase.amount}초` : `${phase.amount}회`;
-      const percent = phase.load_percent != null ? ` ${phase.load_percent}%` : "";
+      const percent = phase.load_percent != null && phase.load_percent > 0 ? ` ${phase.load_percent}%` : "";
       return `${phase.phase} ${name} ${amount}${percent}`;
     });
     return {
@@ -821,7 +825,16 @@ function expandContract(
           kind: "strength",
           main_minutes: minutesOf("main_lift"),
           skill_minutes: minutesOf("skill_or_accessory"),
-          skill: skill ? { key: skill.movement_id, unit: skill.option.unit, amount: skill.option.amount } : null,
+          skill: skill
+            ? {
+                key: skill.movement_id,
+                unit: skill.option.unit,
+                amount: skill.option.amount,
+                ...(lock.skill.sets != null ? { sets: lock.skill.sets } : {}),
+                ...(lock.skill.rest_sec != null ? { rest_sec: lock.skill.rest_sec } : {}),
+                time_source: "derived" as const,
+              }
+            : null,
           main: lock.blocks.find((block) => block.role === "main_lift")?.movements[0] ?? null,
         },
       },
@@ -854,7 +867,15 @@ function expandContract(
         metcon_minutes: lock.metcon_minutes,
         extra_minutes: minutesOf("extra_conditioning"),
         format: lock.format,
-        extra: extra ? { key: extra.movement_id, unit: extra.option.unit, amount: extra.option.amount } : null,
+        extra: extra
+          ? {
+              key: extra.movement_id,
+              unit: extra.option.unit,
+              amount: extra.option.amount,
+              ...(lock.extra.sets != null ? { sets: lock.extra.sets } : {}),
+              time_source: "derived" as const,
+            }
+          : null,
       },
     },
   };

@@ -134,7 +134,7 @@ export function schemaBrief(agent: CoachAgentName): string {
       "conditioning keys: format, duration_min, stimulus, movements, volume, intensity.",
       "Do not return time_domain, kilograms, percentages, sets, or equipment. The server fills equipment from the movement catalog.",
       enumLine("format", WOD_FORMATS),
-      "When format is emom or intervals, stimulus is high_rep or technical. heavy is not a candidate for those formats.",
+      "When format is for_time, amrap, emom, or intervals, stimulus is high_rep or technical. heavy is not a candidate for those formats. zone2 stimulus is aerobic.",
       "A zone2 block uses format zone2, one movement, and minutes 30, 40, or 45. It is not a metcon.",
       enumLine("stimulus", STIMULI),
       enumLine("volume", VOLUME_BANDS),

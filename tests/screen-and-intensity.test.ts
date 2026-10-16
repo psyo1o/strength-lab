@@ -147,9 +147,9 @@ describe("screen names and class intensity", () => {
     const heavySchema = JSON.stringify(sessionSlotFormat(heavyPiece));
     expect(stimuliForCeiling("moderate", "heavy")).toEqual(["heavy"]);
     expect(intensityBandsForStimulus("moderate", ["heavy"])).toEqual(["moderate"]);
-    expect(heavySchema).toContain('"heavy"');
+    expect(heavySchema).not.toContain('"heavy"');
+    expect(heavySchema).toContain('"high_rep"');
     expect(heavySchema).toContain('"moderate"');
-    expect(heavySchema).not.toContain('"light"');
     const light = planWeekContract(
       [{ day: "fri", rest: false, long: false, domain: "short", lift: "none", intensity_ceiling: "light" }],
       1,

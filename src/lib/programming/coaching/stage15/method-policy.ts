@@ -19,12 +19,13 @@ export function setsForMethodAction(input: {
   }
   const method = input.month.strength_method || input.month.scheme;
   const lift = input.session.strength.lift;
+  if (lift === "olympic") return { strength: input.session.strength, clamped: false };
   if (input.action === "cut" && !fatigueCutAllowed(lift)) {
     const sets = exampleSets(method, input.weekIndex, "unknown", lift) ?? input.session.strength.sets;
-    return { strength: { lift, sets }, clamped: true };
+    return { strength: { ...input.session.strength, lift, sets }, clamped: true };
   }
   const fatigue = input.action === "cut" ? "high" : "low";
   const sets = exampleSets(method, input.weekIndex, fatigue, lift);
   if (!sets) return { strength: input.session.strength, clamped: false };
-  return { strength: { lift, sets }, clamped: false };
+  return { strength: { ...input.session.strength, lift, sets }, clamped: false };
 }

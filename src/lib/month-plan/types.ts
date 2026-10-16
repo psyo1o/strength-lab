@@ -7,12 +7,13 @@ export type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 export type BlockRole = "warmup" | "main" | "metcon" | "skill" | "assistance" | "extra_conditioning" | "cooldown";
 export type MainLift = "squat" | "ohp" | "bench" | "deadlift";
 export type MetconPattern = "squat" | "press" | "hinge" | "olympic" | "engine" | "gymnastic";
-export type MetconStimulus = "고중량" | "고반복" | "기술";
+export type MetconStimulus = "고중량" | "고반복" | "기술" | "유산소";
 
-export const METCON_STIMULI: readonly MetconStimulus[] = ["고중량", "고반복", "기술"];
+/** Catalog chips. Zone 2 uses 유산소 and is not one of these three. */
+export const METCON_STIMULI: readonly Exclude<MetconStimulus, "유산소">[] = ["고중량", "고반복", "기술"];
 
 export function isMetconStimulus(value: unknown): value is MetconStimulus {
-  return value === "고중량" || value === "고반복" || value === "기술";
+  return value === "고중량" || value === "고반복" || value === "기술" || value === "유산소";
 }
 export type PieceFormat = "amrap" | "for_time" | "emom" | "intervals" | "chipper" | "partner" | "zone2";
 
@@ -41,7 +42,7 @@ export type StrengthSet = {
 };
 
 export type StrengthPrescription = {
-  exerciseKey: MainLift;
+  exerciseKey: MainLift | "olympic";
   nameKo: string;
   oneRmKg: number | null;
   trainingMaxKg: number | null;

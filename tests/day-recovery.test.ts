@@ -14,6 +14,7 @@ import { coachWeek, type CoachWeekInput } from "../src/lib/programming/coaching/
 import { HEAD_COACH_PROMPT_VERSION, STAGE16_PIPELINE_VERSION } from "../src/lib/programming/coaching/prompts";
 import { parseHeadReview } from "../src/lib/programming/coaching/review";
 import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
+import { stimuliMatchingFormat } from "../src/lib/programming/coaching/session-contract";
 import { headStanceOf } from "../src/lib/programming/coaching/stage16/pass";
 import { planCoachedWeek } from "../src/lib/programming/coaching/weekly";
 import { ensureProgrammingWeek } from "../src/lib/programming/engine";
@@ -147,7 +148,9 @@ function sessionJson(session: SessionDraft, user?: Record<string, unknown>) {
         load: row.load ?? prescribedLoad(row.key),
       }));
   const format = slot?.from_goal ? piece.format : (slot?.format ?? piece.format);
-  const stimulus = slot?.stimulus ?? piece.stimulus;
+  const legal = stimuliMatchingFormat(format);
+  const requested = slot?.stimulus ?? piece.stimulus;
+  const stimulus = requested && (legal as readonly string[]).includes(requested) ? requested : (legal[0] ?? requested);
   return {
     day: session.day,
     notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",

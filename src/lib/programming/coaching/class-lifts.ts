@@ -112,10 +112,34 @@ export function placeClassLifts(input: {
         movement: zone2Modality(input.weekIndex),
         companion: "ring_row",
       });
-      return TRAINING.map((day) => byDay.get(day)!);
+      return assignAccessories(TRAINING.map((day) => byDay.get(day)!), input.fatigued, accessorySquat);
     }
   }
   throw new Error("class lift rules have no placement");
+}
+
+/** 보조 패턴은 골격이 고른다. 이웃 날과 같은 동작을 두지 않고, 고피로 주에는 하체 헤비 옆에 스쿼트 보조를 두지 않는다. */
+function assignAccessories(days: ClassLiftDay[], fatigued: boolean, accessorySquat: string): ClassLiftDay[] {
+  const chosen: string[] = [];
+  return days.map((day, index) => {
+    const previous = chosen[index - 1] ?? null;
+    const neighborLower = (offset: number) => {
+      const other = days[index + offset];
+      return Boolean(other && (other.role === "squat" || other.role === "hinge"));
+    };
+    let companion = "strict_pull_up";
+    if (day.role === "zone2") companion = previous === "ring_row" ? "strict_pull_up" : "ring_row";
+    else if (day.role === "olympic") {
+      const besideLower = neighborLower(-1) || neighborLower(1);
+      companion = fatigued && besideLower ? (previous === "push_press" ? "strict_pull_up" : "push_press") : accessorySquat;
+    } else if (day.role === "squat" || day.role === "hinge") companion = previous === "push_press" ? "ring_row" : "push_press";
+    else companion = previous === "strict_pull_up" ? "ring_row" : "strict_pull_up";
+    if (companion === day.movement || companion === previous) {
+      companion = companion === "ring_row" ? "push_up" : "ring_row";
+    }
+    chosen.push(companion);
+    return { ...day, companion };
+  });
 }
 
 function liftDay(day: DayKey, family: "squat" | "deadlift", tag: LiftTag, squatKey: string): ClassLiftDay {

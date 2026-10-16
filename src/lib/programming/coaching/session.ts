@@ -1,7 +1,7 @@
 import { DAY_ORDER, type DayKey, type MainLift } from "../../month-plan/types";
 import { classMetconPurpose } from "../../wod/purpose";
 import { fillSessionFields } from "../session-fields";
-import { exampleSets, secondLowerVolumeSets } from "../strength-methods";
+import { exampleSets, olympicSets, secondLowerVolumeSets } from "../strength-methods";
 import { evaluateWeek } from "../evaluate-week";
 import { similarityScore, toStructure, type WeekCheckContext } from "../rules";
 import { strengthIsHeavy } from "../schemes";
@@ -26,7 +26,7 @@ import { timeDomainFromMinutes } from "./canonical";
 import type { DaySessionLock } from "./session-contract";
 import { jointsFor, sessionJoints, warmupIssues } from "./warmup-ramp";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
-import { exactStrengthKey } from "./goal-table";
+import { exactStrengthKey, strengthFamily } from "./goal-table";
 import { catalogMovement, equipmentForKeys, type CatalogLoad, type CatalogUnit } from "./movement-catalog";
 import { movementCatalog, recipePool, roleFor, type Recipe } from "./pieces";
 
@@ -112,6 +112,13 @@ function conditioningFrom(day: DayKey, recipe: Recipe, benchmark: boolean): Cond
   };
 }
 
+function stripCooldown(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => line.trim() && !line.trim().toLowerCase().startsWith("cooldown"))
+    .join("\n");
+}
+
 function warmup(day: DayKey, lift: MainLift | null): string {
   const label = DAY_KO[day];
   if (lift === "squat") return `${label} 스쿼트 전에 에어 스쿼트와 힙 힌지로 하체를 깨웁니다.`;
@@ -157,21 +164,34 @@ function fatigueMode(actual: WeekActual | null | undefined): "high" | "low" | "u
   return "unknown";
 }
 
+function olympicBar(key: string | null | undefined): boolean {
+  return Boolean(key && /clean|snatch/.test(key) && !key.startsWith("dumbbell"));
+}
+
+/** 세트표와 메인 블록은 골격 movement_id 하나에서 나온다. */
 function strengthFor(
-  lift: MainLift,
+  lift: MainLift | null,
   month: MonthDirection,
   weekIndex: WeekIndex,
   actual: WeekActual | null | undefined,
   exposure?: "heavy" | "volume",
+  movement?: string | null,
 ) {
-  const mode = lift === "squat" || lift === "deadlift" ? fatigueMode(actual) : "unknown";
-  if (exposure === "volume" && mode === "high" && (lift === "squat" || lift === "deadlift")) {
-    const volume = secondLowerVolumeSets(month.strength_method || month.scheme, weekIndex);
-    if (volume) return { lift, sets: volume, movement_key: exactStrengthKey(lift, weekIndex) };
+  if (movement && olympicBar(movement)) {
+    return { lift: "olympic" as const, sets: olympicSets(weekIndex), movement_key: movement };
   }
-  const sets = exampleSets(month.strength_method || month.scheme, weekIndex, mode, lift);
+  const family = movement ? strengthFamily(movement) : "none";
+  const resolved = family !== "none" ? family : lift;
+  if (!resolved) return null;
+  const mode = resolved === "squat" || resolved === "deadlift" ? fatigueMode(actual) : "unknown";
+  const key = movement && strengthFamily(movement) === resolved ? movement : exactStrengthKey(resolved, weekIndex);
+  if (exposure === "volume" && mode === "high" && (resolved === "squat" || resolved === "deadlift")) {
+    const volume = secondLowerVolumeSets(month.strength_method || month.scheme, weekIndex);
+    if (volume) return { lift: resolved, sets: volume, movement_key: key };
+  }
+  const sets = exampleSets(month.strength_method || month.scheme, weekIndex, mode, resolved);
   if (!sets) return null;
-  return { lift, sets, movement_key: exactStrengthKey(lift, weekIndex) };
+  return { lift: resolved, sets, movement_key: key };
 }
 
 const FORMATS = ["amrap", "for_time", "emom", "intervals", "chipper", "partner", "zone2"] as const;
@@ -331,8 +351,8 @@ export function sessionFromCoachJson(input: {
   };
   const namedLift = input.intent.strength_lift;
   const lift = namedLift && namedLift !== "none" ? namedLift : null;
-  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual, input.intent.lower_exposure) : null;
-  const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? body.warmup_ko : warmup(input.intent.day, strength?.lift ?? null);
+  const strength = strengthFor(lift, input.month, input.weekIndex, input.actual, input.intent.lower_exposure, input.intent.main_movement);
+  const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? stripCooldown(body.warmup_ko) : warmup(input.intent.day, strength?.lift === "olympic" ? null : strength?.lift ?? null);
   const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark);
   const zone2 =
     input.intent.zone2 === "day"
@@ -383,12 +403,12 @@ export function sessionFromCoachJson(input: {
 function applySteadyZone2(session: SessionDraft, intent: DayIntent) {
   const zone = session.zone2;
   if (!zone || zone.form !== "day") return;
-  const minutes = zone.duration_min === 30 || zone.duration_min === 45 ? zone.duration_min : 40;
+  const minutes = zone.duration_min === 45 ? 45 : 40;
   const key = zone.modality === "bike_erg" || zone.modality === "run" || zone.modality === "row_erg" ? zone.modality : "row_erg";
   const name = catalogMovement(key)?.name_ko;
   const piece = session.conditioning;
   if (!name || !piece) return;
-  const stimulus = piece.stimulus === "high_rep" ? "high_rep" : "technical";
+  const stimulus = "aerobic" as const;
   const patterns: Array<"engine" | "pull"> = intent.companion_movement && /row|pull|core/i.test(intent.companion_movement) ? ["engine", "pull"] : ["engine"];
   const conditioning: NonNullable<SessionDraft["conditioning"]> = {
     ...piece,
@@ -407,6 +427,7 @@ function applySteadyZone2(session: SessionDraft, intent: DayIntent) {
     purpose: `${name} ${minutes}분, RPE 2–3. 고강도 메트콘은 두지 않습니다.`,
   };
   session.conditioning = conditioning;
+  session.stimulus = stimulus;
   session.metcon_format = "zone2";
   session.time_domain = "long";
   session.volume = "low";
@@ -459,14 +480,14 @@ export function buildSession(input: {
   const scaled = longPiece ? recipe : { ...recipe, minutes: input.shortClock ? Math.min(recipe.minutes, 12) : recipe.minutes };
   if (!longPiece && timeDomainFromMinutes(scaled.minutes) === "long") return null;
   const conditioning = conditioningFrom(day.day, scaled, day.benchmark);
-  const strength = lift ? strengthFor(lift, input.month, input.weekIndex, input.actual, day.lower_exposure) : null;
+  const strength = strengthFor(lift, input.month, input.weekIndex, input.actual, day.lower_exposure, day.main_movement);
   return fillSessionFields(
     {
       day: day.day,
       rest: false,
       optional: day.day === "sat",
       warmup_min: 10,
-      warmup_ko: warmup(day.day, strength?.lift ?? null),
+      warmup_ko: warmup(day.day, strength?.lift === "olympic" ? null : strength?.lift ?? null),
       strength,
       conditioning,
     },

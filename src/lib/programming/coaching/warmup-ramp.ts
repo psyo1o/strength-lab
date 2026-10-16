@@ -199,44 +199,85 @@ function forJoint(
   return choices.slice(0, 15);
 }
 
-/** 코드가 그날 세션 동작에서 관절과 슬롯을 만든다. 정적 유지는 모빌라이즈 선택지에 남는다. */
+function dedupeChoices(list: readonly RampChoice[], used: Set<string>): RampChoice[] {
+  const out: RampChoice[] = [];
+  const seen = new Set<string>();
+  for (const choice of list) {
+    if (used.has(choice.key) || seen.has(choice.key)) continue;
+    seen.add(choice.key);
+    out.push(choice);
+  }
+  return out;
+}
+
+/** 한 키는 한 슬롯에만 둔다. 빈 슬롯은 여분이 있는 슬롯에서 하나 가져온다. */
+function claimSplit(list: readonly RampChoice[], buckets: number, used: Set<string>): RampChoice[][] {
+  const unique = dedupeChoices(list, used);
+  const out = Array.from({ length: buckets }, () => [] as RampChoice[]);
+  unique.forEach((choice, index) => out[index % buckets]!.push(choice));
+  for (const bucket of out) {
+    if (bucket.length > 0) continue;
+    const donor = out.filter((row) => row.length > 1).sort((left, right) => right.length - left.length)[0];
+    const moved = donor?.pop();
+    if (moved) bucket.push(moved);
+  }
+  for (const choice of out.flat()) used.add(choice.key);
+  return out;
+}
+
+/** 코드가 그날 세션 동작에서 관절과 슬롯을 만든다. 짧은 정적 유지는 모빌라이즈, 긴 유지는 쿨다운에 한 번씩만 둔다. */
 export function rampSlots(
   lock: Pick<DaySessionLock, "lift" | "patterns"> & Partial<Pick<DaySessionLock, "metcon" | "skill" | "extra" | "blocks">>,
 ): RampSlot[] {
   const joints = sessionJoints(lock);
   const primary = joints[0] ?? "hip";
   const secondary = joints[1] ?? primary;
-  const dynamicPrimary = forJoint(DYNAMIC, primary, false, null, joints);
-  const mixed = [
+  const used = new Set<string>();
+  const raise = claimSplit(choices(RAISE, false, null), 1, used)[0] ?? [];
+  const potentiateAll = choices(POTENTIATE[lock.lift ?? "none"] ?? POTENTIATE.none!, false, null);
+  if (potentiateAll[0]) used.add(potentiateAll[0].key);
+  const dynamic = [
+    ...forJoint(DYNAMIC, primary, false, null, joints),
     ...forJoint(DYNAMIC, secondary, false, null, joints),
-    ...forJoint(STATIC, secondary, true, 5, joints),
   ];
-  const third = forJoint({ both: [...(DYNAMIC[primary] ?? []), ...(STATIC[primary] ?? [])] }, "both", true, 5, joints);
-  const activate = forJoint(ACTIVATE, primary, false, null, joints);
-  const potentiate = choices(POTENTIATE[lock.lift ?? "none"] ?? POTENTIATE.none!, false, null);
-  const cooldown = forJoint(
-    { both: [...(STATIC[primary] ?? []), ...(STATIC[secondary] ?? [])] },
-    "both",
-    true,
-    null,
-    joints,
-  ).map((choice) => ({
-    ...choice,
-    amount: 75,
-  }));
+  const mobilise = claimSplit(dynamic, 3, used);
+  const staticKeys = [...new Set(joints.flatMap((joint) => STATIC[joint] ?? []))];
+  const staticHolds = dedupeChoices(
+    prepares(staticKeys, true, 5, joints).filter((choice) => choice.static_hold),
+    used,
+  );
   const coolMinutes = lock.blocks?.find((block) => block.role === "cooldown")?.minutes ?? 8;
-  const coolCount = cooldownMovementBounds(coolMinutes).min;
+  const bounds = cooldownMovementBounds(coolMinutes);
+  const preview = lock.blocks == null;
+  const shortStatic = preview || staticHolds.length - 1 >= bounds.min ? staticHolds[0] : undefined;
+  if (shortStatic) {
+    used.add(shortStatic.key);
+    mobilise[1]?.push({ ...shortStatic, amount: Math.min(shortStatic.amount, 5) });
+  }
+  let activate = claimSplit(forJoint(ACTIVATE, primary, false, null, joints), 1, used)[0] ?? [];
+  if (!activate.length) {
+    activate = claimSplit(prepares([...new Set(Object.values(ACTIVATE).flat())], false, null, joints), 1, used)[0] ?? [];
+  }
+  const potentiate = potentiateAll.filter((choice) => choice.key === potentiateAll[0]?.key || !used.has(choice.key));
+  for (const choice of potentiate) used.add(choice.key);
+  const cooldownPool = dedupeChoices(
+    prepares(staticKeys, true, null, joints)
+      .filter((choice) => choice.static_hold)
+      .map((choice) => ({ ...choice, amount: 75 })),
+    used,
+  );
+  const coolCount = Math.min(cooldownPool.length, bounds.max);
   const coolSlots = Array.from({ length: coolCount }, (_, index) => ({
     id: `c${index}`,
     phase: "cooldown" as const,
-    choices: cooldown,
+    choices: cooldownPool.filter((_, choiceIndex) => choiceIndex % Math.max(coolCount, 1) === index),
     holdMax: null,
   }));
   return [
-    { id: "s0", phase: "raise", choices: choices(RAISE, false, null), holdMax: null },
-    { id: "s1", phase: "mobilise", choices: dynamicPrimary, holdMax: null },
-    { id: "s2", phase: "mobilise", choices: mixed, holdMax: 5 },
-    { id: "s3", phase: "mobilise", choices: third, holdMax: 5 },
+    { id: "s0", phase: "raise", choices: raise, holdMax: null },
+    { id: "s1", phase: "mobilise", choices: mobilise[0] ?? [], holdMax: null },
+    { id: "s2", phase: "mobilise", choices: mobilise[1] ?? [], holdMax: 5 },
+    { id: "s3", phase: "mobilise", choices: mobilise[2] ?? [], holdMax: 5 },
     { id: "s4", phase: "activate", choices: activate, holdMax: null },
     { id: "s5", phase: "potentiate", choices: potentiate, holdMax: null },
     ...coolSlots,
@@ -252,7 +293,7 @@ export function cooldownMovementBounds(minutes: number): { min: number; max: num
 }
 
 export function potentiatePercents(first: number): string[] {
-  return [0, 40, 50, 60, 70, 75, 80, 85, 90, 95].filter((value) => value <= first).map(String);
+  return [40, 50, 60, 70, 75, 80, 85, 90, 95].filter((value) => value > 0 && value <= first).map(String);
 }
 
 export function phaseMinutes(total: number): Record<Exclude<WarmupPhase, "cooldown">, number> {
@@ -298,6 +339,11 @@ export function warmupIssues(input: {
   }
   for (const [purpose, count] of purposes) {
     if (count > 2) warn.push(`${purpose} repeats ${count} times`);
+  }
+  const seen = new Set<string>();
+  for (const pick of input.picks) {
+    if (seen.has(pick.key)) reject.push(`${pick.key} repeats in the warmup`);
+    seen.add(pick.key);
   }
   const mobilise = input.picks.filter((pick) => pick.phase === "mobilise");
   if (mobilise.length < 3 || mobilise.length > 4) reject.push(`mobilise has ${mobilise.length} movements; allowed 3–4`);

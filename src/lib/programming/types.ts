@@ -9,9 +9,9 @@ export type Scheme = "531" | "volume" | "intensity" | "skill" | "deload";
 
 export const SCHEMES: readonly Scheme[] = ["531", "volume", "intensity", "skill", "deload"];
 
-export type Stimulus = "heavy" | "high_rep" | "technical";
+export type Stimulus = "heavy" | "high_rep" | "technical" | "aerobic";
 
-export const STIMULI: readonly Stimulus[] = ["heavy", "high_rep", "technical"];
+export const STIMULI: readonly Stimulus[] = ["heavy", "high_rep", "technical", "aerobic"];
 
 export type TimeDomain = "short" | "medium" | "long";
 
@@ -60,6 +60,12 @@ export function isLowerBodyLift(lift: MainLift | null | undefined): boolean {
   return lift != null && LOWER_BODY_LIFTS.includes(lift);
 }
 
+/** Squat, press, bench, and deadlift keep a percent family. Olympic bars do not. */
+export function percentFamily(lift: MainLift | "olympic" | null | undefined): MainLift | null {
+  if (lift === "squat" || lift === "ohp" || lift === "bench" || lift === "deadlift") return lift;
+  return null;
+}
+
 export type StrengthSetDraft = {
   percent_of_tm: number;
   reps: number;
@@ -67,9 +73,10 @@ export type StrengthSetDraft = {
 };
 
 export type StrengthDraft = {
-  lift: MainLift;
+  /** Percent family, or olympic when the bar movement is a clean or snatch. The bar name is movement_key. */
+  lift: MainLift | "olympic";
   sets: StrengthSetDraft[];
-  /** Shown on the screen. The method family stays `lift` so percentages still resolve. */
+  /** The one bar the set table and the main block both use. */
   movement_key?: string;
 };
 
@@ -225,7 +232,15 @@ export type SessionDraft = {
   session_blocks?: {
     role: "warmup" | "main_lift" | "skill_or_accessory" | "metcon" | "extra_conditioning" | "cooldown";
     minutes: number;
-    movements: { key: string; unit: "reps" | "cal" | "m" | "sec" | "min"; amount: number }[];
+    movements: {
+      key: string;
+      unit: "reps" | "cal" | "m" | "sec" | "min";
+      amount: number;
+      sets?: number;
+      rest_sec?: number;
+      derived_minutes?: number;
+      time_source?: "derived";
+    }[];
   }[];
   warmup_phases?: {
     phase: "raise" | "mobilise" | "activate" | "potentiate" | "cooldown";

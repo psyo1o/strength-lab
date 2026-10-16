@@ -32,7 +32,36 @@ export type DoseMovement = {
   amount: number;
   /** 추가 컨디셔닝처럼 시간·강도가 있는 프로토콜. */
   intensity?: "light" | "moderate" | "heavy";
+  sets?: number;
+  rest_sec?: number;
+  derived_minutes?: number;
+  time_source?: "derived";
 };
+
+/** 메트콘 수량은 이 격자만. 거리는 200·400·800, 횟수와 칼로리는 5의 배수, 초는 30의 배수. */
+export function allowedAmounts(unit: string, min: number, max: number): number[] {
+  if (max < min) return [];
+  if (unit === "m") return [200, 400, 800].filter((amount) => amount >= min && amount <= max);
+  const step = unit === "sec" ? 30 : unit === "reps" || unit === "cal" ? 5 : 0;
+  if (!step) return [];
+  const out: number[] = [];
+  for (let amount = Math.ceil(min / step) * step; amount <= max && out.length < 8; amount += step) out.push(amount);
+  return out;
+}
+
+export function snapDoseAmount(key: string, unit: DoseMovement["unit"], amount: number): number {
+  if (unit === "min") return amount;
+  const span = rangeFor(key, unit);
+  const grid = span ? allowedAmounts(unit, span.min, span.max) : [];
+  if (!grid.length) return amount;
+  return grid.reduce((best, next) => (Math.abs(next - amount) < Math.abs(best - amount) ? next : best));
+}
+
+/** 보조 내용 시간. 세트×(횟수×4초+휴식). 모델 횟수를 바꾸지 않고 이 값만 계산한다. */
+export function accessoryContentMinutes(sets: number, reps: number, restSec = 90): number {
+  if (sets < 1 || reps < 1) return 0;
+  return (sets * (reps * 4 + restSec)) / 60;
+}
 
 export type ContractBlock = {
   role: ContractRole;
@@ -49,10 +78,13 @@ export function intensityBandsAtMost(ceiling: string | null | undefined): Intens
   return ["light", "moderate", "heavy"];
 }
 
-/** Clock formats do not offer heavy. Other formats keep the stimulus list they were given. */
+/** 형식마다 허용 자극만. 포 타임·AMRAP·시계 형식은 heavy가 없고, 존 2는 aerobic만이다. */
 export function stimuliMatchingFormat(format: string | null | undefined, stimuli: readonly Stimulus[] = STIMULI): Stimulus[] {
-  if (format === "emom" || format === "intervals") return stimuli.filter((item) => item !== "heavy");
-  return [...stimuli];
+  if (format === "zone2") return stimuli.filter((item) => item === "aerobic");
+  if (format === "for_time" || format === "amrap" || format === "emom" || format === "intervals") {
+    return stimuli.filter((item) => item !== "heavy" && item !== "aerobic");
+  }
+  return stimuli.filter((item) => item !== "aerobic");
 }
 
 /**
@@ -61,7 +93,7 @@ export function stimuliMatchingFormat(format: string | null | undefined, stimuli
  * A stimulus the ceiling cannot host is an empty enum. The caller stops before generation.
  */
 export function stimuliForCeiling(ceiling: string | null | undefined, current: string | null | undefined): Stimulus[] {
-  const legal: Stimulus[] = ceiling === "light" ? ["high_rep", "technical"] : [...STIMULI];
+  const legal: Stimulus[] = ceiling === "light" ? ["high_rep", "technical", "aerobic"] : [...STIMULI];
   if (current && (STIMULI as readonly string[]).includes(current)) {
     return (legal as readonly string[]).includes(current) ? [current as Stimulus] : [];
   }
@@ -185,6 +217,20 @@ type Template = {
   patterns: string[];
 };
 
+const LONG_FALLBACK: Template = {
+  format: "amrap",
+  exception: null,
+  machine: "assault_bike",
+  patterns: ["cycle", "core"],
+  metcon: [
+    { key: "assault_bike", unit: "cal", amount: 12 },
+    { key: "push_up", unit: "reps", amount: 12 },
+    { key: "sit_up", unit: "reps", amount: 15 },
+  ],
+  skill: { key: "ring_row", unit: "reps", amount: 8 },
+  extra: { key: "easy_row", unit: "sec", amount: 180, intensity: "light" },
+};
+
 const TEMPLATES: readonly Template[] = [
   {
     format: "for_time",
@@ -214,13 +260,12 @@ const TEMPLATES: readonly Template[] = [
   },
   {
     format: "emom",
-    exception: null,
+    exception: "mono",
     machine: null,
     patterns: ["jump", "hinge"],
     metcon: [
-      { key: "double_under", unit: "reps", amount: 10 },
-      { key: "power_clean", unit: "reps", amount: 3 },
-      { key: "barbell_thruster", unit: "reps", amount: 3 },
+      { key: "single_under", unit: "reps", amount: 15 },
+      { key: "barbell_thruster", unit: "reps", amount: 5 },
     ],
     skill: { key: "push_press", unit: "reps", amount: 8 },
     extra: { key: "easy_row", unit: "sec", amount: 150, intensity: "light" },
@@ -242,11 +287,11 @@ const TEMPLATES: readonly Template[] = [
   {
     format: "intervals",
     exception: "intervals",
-    machine: "assault_bike",
-    patterns: ["cycle", "jump"],
+    machine: null,
+    patterns: ["jump", "push"],
     metcon: [
-      { key: "assault_bike", unit: "cal", amount: 6 },
       { key: "single_under", unit: "reps", amount: 15 },
+      { key: "push_up", unit: "reps", amount: 10 },
     ],
     skill: { key: "air_squat", unit: "reps", amount: 20 },
     extra: { key: "easy_jog", unit: "sec", amount: 180, intensity: "light" },
@@ -284,6 +329,8 @@ export type ContractDayInput = {
   /** 올림픽처럼 strength_lift enum 밖의 바벨 메인. */
   main_key?: string | null;
   companion_key?: string | null;
+  /** 데드리프트 헤비 다음 날 메트콘에 올림픽 바벨을 두지 않는다. */
+  heavy_hinge?: boolean;
 };
 
 function bandFor(day: ContractDayInput, index: number): MetconBand {
@@ -297,6 +344,51 @@ function metconMinutes(band: MetconBand): number {
   if (band === "long") return 36;
   if (band === "short") return 12;
   return 20;
+}
+
+function accessoryDose(skill: DoseMovement, preferredSets: number, targetMinutes: number = BLOCK_RANGES.skill_or_accessory.min): { dose: DoseMovement; minutes: number } {
+  const span = rangeFor(skill.key, "reps");
+  const grid = span ? allowedAmounts("reps", span.min, span.max) : [];
+  let reps = snapDoseAmount(skill.key, "reps", skill.amount);
+  let rest = 90;
+  let sets = Math.max(3, Math.min(6, preferredSets));
+  const goal = Math.min(BLOCK_RANGES.skill_or_accessory.max, Math.max(BLOCK_RANGES.skill_or_accessory.min, targetMinutes));
+  const minutesOf = () => Math.round(accessoryContentMinutes(sets, reps, rest));
+  while (minutesOf() < goal && sets < 6) sets += 1;
+  while (minutesOf() < goal) {
+    const higher = grid.find((amount) => amount > reps);
+    if (higher == null) break;
+    reps = higher;
+  }
+  while (minutesOf() < goal && rest < 180) rest += 15;
+  while (minutesOf() > BLOCK_RANGES.skill_or_accessory.max && sets > 3) sets -= 1;
+  let exact = accessoryContentMinutes(sets, reps, rest);
+  const published = Math.round(exact);
+  if (exact + 1e-6 < published && sets > 0) {
+    const deficitSec = Math.ceil((published - exact) * 60 - 1e-6);
+    rest += Math.ceil(deficitSec / sets);
+    exact = accessoryContentMinutes(sets, reps, rest);
+  }
+  const derived = Math.round(exact);
+  const minutes = derived >= BLOCK_RANGES.skill_or_accessory.min && derived <= BLOCK_RANGES.skill_or_accessory.max ? derived : goal;
+  return {
+    dose: { ...skill, unit: "reps", amount: reps, sets, rest_sec: rest, derived_minutes: derived, time_source: "derived" },
+    minutes,
+  };
+}
+
+function extraDose(extra: DoseMovement, preferredMinutes: number): { dose: DoseMovement; minutes: number } {
+  const bout = snapDoseAmount(extra.key, "sec", extra.unit === "sec" ? extra.amount : 180);
+  let sets = Math.max(1, Math.round(preferredMinutes / Math.max(1, bout / 60)));
+  const contentOf = () => (sets * bout) / 60;
+  while (contentOf() > BLOCK_RANGES.extra_conditioning.max && sets > 1) sets -= 1;
+  const exact = contentOf();
+  const derived = Math.round(exact);
+  const minutes = Math.min(BLOCK_RANGES.extra_conditioning.max, Math.max(1, derived));
+  return {
+    dose: { ...extra, unit: "sec", amount: bout, sets, derived_minutes: derived, time_source: "derived" },
+    minutes,
+  };
 }
 
 function chooseSets(blockMin: number, preferred: number): { sets: number; minutes: number } {
@@ -357,6 +449,17 @@ export function firstWorkingPercent(method: string, weekIndex: WeekIndex): numbe
   return sets?.[0]?.percent_of_tm ?? 65;
 }
 
+function minuteWindow(format: string, source: readonly DoseMovement[], preferred: number, minMinutes: number = BLOCK_RANGES.metcon.min): { minutes: number; dose: DoseMovement[] } | null {
+  const minutes = [];
+  for (let value = minMinutes; value <= BLOCK_RANGES.metcon.max; value += 1) minutes.push(value);
+  minutes.sort((left, right) => Math.abs(left - preferred) - Math.abs(right - preferred) || left - right);
+  for (const value of minutes) {
+    const dose = scaleDose(format, value, source);
+    if (!doseIssues({ format, minutes: value, movements: dose }).length) return { minutes: value, dose };
+  }
+  return null;
+}
+
 function liftOf(value: ContractDayInput["lift"]): MainLift | null {
   if (value === "squat" || value === "bench" || value === "ohp" || value === "deadlift") return value;
   return null;
@@ -373,6 +476,26 @@ export function planWeekContract(
   const sorted = [...days].sort((left, right) => order.indexOf(left.day) - order.indexOf(right.day));
   const training = sorted.filter((day) => !day.rest);
   const shift = (weekIndex - 1) % TEMPLATES.length;
+  const chosen = new Map(training.map((day, index) => [day.day, TEMPLATES[(index + shift) % TEMPLATES.length]!]));
+  for (const day of training) {
+    if (!day.long) continue;
+    const current = chosen.get(day.day)!;
+    if (minuteWindow(current.format, current.metcon, 36, 30)) continue;
+    const replacement = TEMPLATES.find((row) => {
+      const signature = row.metcon.map((move) => move.key).sort().join("|");
+      const taken = [...chosen.entries()].some(([key, template]) => key !== day.day && template.metcon.map((move) => move.key).sort().join("|") === signature);
+      if (taken) return false;
+      const formatCount = [...chosen.entries()].filter(([key, template]) => key !== day.day && template.format === row.format).length;
+      if (formatCount >= 2) return false;
+      return minuteWindow(row.format, row.metcon, 36, 30) != null;
+    });
+    const fallbackSignature = LONG_FALLBACK.metcon.map((move) => move.key).sort().join("|");
+    const fallbackTaken = [...chosen.values()].some((template) => template.metcon.map((move) => move.key).sort().join("|") === fallbackSignature);
+    const fallbackFormats = [...chosen.entries()].filter(([key, template]) => key !== day.day && template.format === LONG_FALLBACK.format).length;
+    const fallbackOk = !fallbackTaken && fallbackFormats < 2 && minuteWindow(LONG_FALLBACK.format, LONG_FALLBACK.metcon, 36, 30);
+    if (replacement) chosen.set(day.day, replacement);
+    else if (fallbackOk) chosen.set(day.day, LONG_FALLBACK);
+  }
   return sorted.map((day) => {
     if (day.rest) {
       return {
@@ -401,12 +524,14 @@ export function planWeekContract(
       };
     }
     const index = training.findIndex((row) => row.day === day.day);
-    const template = TEMPLATES[(index + shift) % TEMPLATES.length]!;
+    const template = chosen.get(day.day) ?? TEMPLATES[(index + shift) % TEMPLATES.length]!;
     const band = bandFor(day, index);
     const minutes = metconMinutes(band);
     const lift = liftOf(day.lift);
     const zone2 = day.zone2 === true;
-    const zone2Minutes = zone2 ? (day.zone2_minutes === 30 || day.zone2_minutes === 45 ? day.zone2_minutes : 40) : 0;
+    // 쿨다운은 고유 스트레치 4분이다. 존 2가 30분이면 나머지 칸을 최대로 올려도 86분이라 90에 닿지 않는다.
+    const requestedZone2 = zone2 ? (day.zone2_minutes === 45 ? 45 : 40) : 0;
+    const zone2Minutes = requestedZone2;
     // 리프트가 없는 짧은·중간 날은 스킬만으로 90분에 닿지 않는다. 메인 분량은 패턴 연습이다.
     // 존 2와 코드가 정한 바벨 메인은 그 예외다. 맨몸 한 줄 메인은 만들지 않는다.
     const patternMain = lift == null && !zone2 && !day.main_key && band !== "long";
@@ -419,16 +544,76 @@ export function planWeekContract(
     const zone2Dose: DoseMovement[] | null = zone2
       ? [{ key: modality, unit: "min", amount: zone2Minutes, intensity: "light" }]
       : null;
-    const pieceMinutes = zone2Dose ? zone2Minutes : minutes;
     const format = zone2 ? "zone2" : template.format;
-    const metcon = zone2Dose ?? scaleDose(format, pieceMinutes, template.metcon);
-    const clocked = format === "emom" || format === "intervals";
-    const stimulus = zone2 ? "technical" : clocked && day.stimulus === "heavy" ? "technical" : (day.stimulus ?? null);
-    const skill = day.companion_key
-      ? { key: day.companion_key, unit: "reps" as const, amount: 5 }
+    const requestedStimulus = zone2 ? "aerobic" : (day.stimulus ?? null);
+    const ceilingLegal = stimuliForCeiling(day.intensity_ceiling ?? "heavy", null);
+    let legalStimuli = stimuliMatchingFormat(format, ceilingLegal);
+    if (day.intensity_class === "light") legalStimuli = legalStimuli.filter((item) => item !== "heavy");
+    const stimulus = requestedStimulus && (legalStimuli as readonly string[]).includes(requestedStimulus) ? requestedStimulus : (legalStimuli[0] ?? null);
+    const rawSkill = day.companion_key
+      ? { key: day.companion_key, unit: "reps" as const, amount: 10 }
       : zone2
-        ? { key: "ring_row", unit: "reps" as const, amount: 8 }
+        ? { key: "push_up", unit: "reps" as const, amount: 15 }
         : template.skill;
+    const previous = sorted.slice(0, sorted.indexOf(day)).reverse().find((row) => !row.rest);
+    const metconSource = (zone2Dose ?? template.metcon).map((move) =>
+      !zone2 && previous?.heavy_hinge && /clean|snatch/.test(move.key) && !move.key.startsWith("dumbbell")
+        ? { ...move, key: "push_up", unit: "reps" as const, amount: 10 }
+        : move,
+    );
+    let skillPlan = accessoryDose(rawSkill, fitted.skillSets.sets);
+    let extraPlan = extraDose(template.extra, fitted.blocks.extra_conditioning);
+    fitted.blocks.skill_or_accessory = skillPlan.minutes;
+    fitted.blocks.extra_conditioning = extraPlan.minutes;
+    if (zone2) {
+      fitted.blocks.warmup = BLOCK_RANGES.warmup.max;
+      fitted.blocks.cooldown = BLOCK_RANGES.cooldown.max;
+      extraPlan = extraDose(template.extra, BLOCK_RANGES.extra_conditioning.max);
+      fitted.blocks.extra_conditioning = extraPlan.minutes;
+      const withoutSkill = blockSum(fitted.blocks) - fitted.blocks.skill_or_accessory;
+      const need = SESSION_MINUTES_MIN - withoutSkill;
+      skillPlan = accessoryDose(rawSkill, fitted.skillSets.sets, need);
+      fitted.blocks.skill_or_accessory = skillPlan.minutes;
+    }
+    fitted.skillSets = { sets: skillPlan.dose.sets ?? fitted.skillSets.sets, minutes: Math.max(2, Math.round(skillPlan.minutes / (skillPlan.dose.sets || 1))) };
+    fitted.blocks.cooldown = Math.min(fitted.blocks.cooldown, 4);
+    const opened = zone2 ? null : minuteWindow(format, metconSource, fitted.blocks.metcon, day.long ? 30 : BLOCK_RANGES.metcon.min);
+    if (opened) fitted.blocks.metcon = opened.minutes;
+    let guard = 0;
+    while (blockSum(fitted.blocks) < SESSION_MINUTES_MIN && guard < 30) {
+      guard += 1;
+      const nextSkill = accessoryDose(rawSkill, skillPlan.dose.sets ?? 4, fitted.blocks.skill_or_accessory + 2);
+      if (nextSkill.minutes > fitted.blocks.skill_or_accessory && nextSkill.minutes <= BLOCK_RANGES.skill_or_accessory.max) {
+        skillPlan = nextSkill;
+        fitted.blocks.skill_or_accessory = nextSkill.minutes;
+        continue;
+      }
+      const nextExtra = extraDose(template.extra, fitted.blocks.extra_conditioning + 3);
+      if (nextExtra.minutes > fitted.blocks.extra_conditioning) {
+        extraPlan = nextExtra;
+        fitted.blocks.extra_conditioning = nextExtra.minutes;
+        continue;
+      }
+      if (fitted.blocks.warmup < BLOCK_RANGES.warmup.max) {
+        fitted.blocks.warmup += 1;
+        continue;
+      }
+      if (hasMain && fitted.blocks.main_lift < BLOCK_RANGES.main_lift.max) {
+        fitted.blocks.main_lift += 1;
+        fitted.mainSets = chooseSets(fitted.blocks.main_lift, fitted.mainSets.sets || 3);
+        continue;
+      }
+      break;
+    }
+    while (blockSum(fitted.blocks) > SESSION_MINUTES_MAX && fitted.blocks.extra_conditioning > 3) {
+      const nextExtra = extraDose(template.extra, fitted.blocks.extra_conditioning - 3);
+      if (nextExtra.minutes >= fitted.blocks.extra_conditioning) break;
+      extraPlan = nextExtra;
+      fitted.blocks.extra_conditioning = nextExtra.minutes;
+    }
+    fitted.skillSets = { sets: skillPlan.dose.sets ?? fitted.skillSets.sets, minutes: Math.max(2, Math.round(skillPlan.minutes / (skillPlan.dose.sets || 1))) };
+    const pieceMinutes = fitted.blocks.metcon;
+    const metcon = zone2Dose ?? opened?.dose ?? scaleDose(format, pieceMinutes, metconSource);
     const blocks: ContractBlock[] = roles.map((role) => ({
       role,
       minutes: fitted.blocks[role],
@@ -436,11 +621,11 @@ export function planWeekContract(
         role === "metcon"
           ? metcon
           : role === "skill_or_accessory"
-            ? [skill]
+            ? [skillPlan.dose]
             : role === "extra_conditioning"
-              ? [template.extra]
+              ? [extraPlan.dose]
               : role === "main_lift" && day.main_key
-                ? [{ key: day.main_key, unit: "reps" as const, amount: 3 }]
+                ? [{ key: day.main_key, unit: "reps" as const, amount: fitted.mainSets.sets > 0 ? 3 : 3, sets: fitted.mainSets.sets, time_source: "derived" as const, derived_minutes: fitted.blocks.main_lift }]
                 : [],
     }));
     return {
@@ -460,8 +645,8 @@ export function planWeekContract(
       skill_set_minutes: fitted.skillSets.minutes,
       first_working_percent: firstWorkingPercent(method, weekIndex),
       metcon,
-      skill,
-      extra: template.extra,
+      skill: skillPlan.dose,
+      extra: extraPlan.dose,
       patterns: zone2 ? ["engine"] : template.patterns,
       intensity_ceiling: zone2 ? "light" : (day.intensity_ceiling ?? "heavy"),
       stimulus,
@@ -513,7 +698,8 @@ export function doseIssues(input: { format: string; minutes: number; movements: 
   });
   if (errors.length || !works.length) return errors;
   const work = works.reduce((sum, value) => sum + value, 0);
-  const round = work + transitions;
+  const partnerSplit = input.format === "partner" ? 0.5 : 1;
+  const round = work * partnerSplit + transitions;
   const cap = input.minutes * 60;
   if (input.format === "amrap") {
     const limit = cap * 0.4;
@@ -550,10 +736,32 @@ function clampDose(movement: DoseMovement): boolean {
   return true;
 }
 
+function lowerGridAmount(movement: DoseMovement): boolean {
+  if (movement.unit === "min") return false;
+  const span = rangeFor(movement.key, movement.unit);
+  const grid = span ? allowedAmounts(movement.unit, span.min, span.max) : [];
+  const lower = [...grid].reverse().find((amount) => amount < movement.amount);
+  if (lower == null) return false;
+  movement.amount = lower;
+  return true;
+}
+
 /** 코드가 잠그는 용량만 창 안으로 맞춘다. 카탈로그 범위 밖으로는 올리지 않는다. 모델이 낸 값은 바꾸지 않는다. */
 export function scaleDose(format: string, minutes: number, movements: readonly DoseMovement[]): DoseMovement[] {
   const copy = movements.map((movement) => ({ ...movement }));
-  for (const movement of copy) clampDose(movement);
+  for (const movement of copy) {
+    clampDose(movement);
+    if (movement.unit !== "min") movement.amount = snapDoseAmount(movement.key, movement.unit, movement.amount);
+  }
+  if (format === "emom" || format === "intervals") {
+    for (let step = 0; step < 8; step += 1) {
+      const issues = doseIssues({ format, minutes, movements: copy });
+      if (!issues.some((error) => error.includes("over 40s") || error.includes("over 20s"))) return copy;
+      const ranked = [...copy].sort((left, right) => (workSeconds(right) ?? 0) - (workSeconds(left) ?? 0));
+      if (!ranked.some((movement) => lowerGridAmount(movement))) return copy;
+    }
+    return copy;
+  }
   if (format !== "for_time" && format !== "partner" && format !== "chipper") return copy;
   for (let step = 0; step < 8; step += 1) {
     const issues = doseIssues({ format, minutes, movements: copy });
@@ -567,8 +775,9 @@ export function scaleDose(format: string, minutes: number, movements: readonly D
     for (const movement of copy) {
       if (movement.unit === "sec") continue;
       const before = movement.amount;
-      movement.amount = Math.max(1, Math.round(movement.amount * factor));
+      movement.amount = snapDoseAmount(movement.key, movement.unit, Math.max(1, Math.round(movement.amount * factor)));
       clampDose(movement);
+      movement.amount = snapDoseAmount(movement.key, movement.unit, movement.amount);
       if (movement.amount !== before) moved = true;
     }
     if (!moved) return copy;
@@ -639,9 +848,10 @@ export function lockIssues(lock: DaySessionLock, setting = resolveSessionMinutes
   for (const role of ["warmup", "skill_or_accessory", "metcon", "cooldown"] as const) {
     if (!roles.includes(role)) errors.push(`${lock.day} is missing ${role}`);
   }
-  const patternMain = !lock.lift && lock.band !== "long" && !lock.steady;
-  if ((lock.lift || patternMain) && !roles.includes("main_lift")) errors.push(`${lock.day} is missing main_lift`);
-  if (!lock.lift && !patternMain && roles.includes("main_lift")) errors.push(`${lock.day} has main_lift without a lift`);
+  const namedMain = Boolean(lock.blocks.find((block) => block.role === "main_lift")?.movements[0]?.key);
+  const patternMain = !lock.lift && lock.band !== "long" && !lock.steady && !namedMain;
+  if ((lock.lift || patternMain || namedMain) && !roles.includes("main_lift")) errors.push(`${lock.day} is missing main_lift`);
+  if (!lock.lift && !patternMain && !namedMain && roles.includes("main_lift")) errors.push(`${lock.day} has main_lift without a lift`);
   for (const block of lock.blocks) {
     const range = BLOCK_RANGES[block.role];
     if (block.minutes < range.min || block.minutes > range.max) errors.push(`${lock.day} ${block.role} ${block.minutes} is outside ${range.min}–${range.max}`);
@@ -737,10 +947,10 @@ export function stimulusLockEnum(
   lock: Pick<DaySessionLock, "intensity_ceiling" | "stimulus" | "intensity_class" | "format">,
   current: string | null | undefined,
 ): Stimulus[] {
-  const stimuli = stimuliForCeiling(lock.intensity_ceiling, lock.stimulus ?? current);
-  const clocked = lock.format === "emom" || lock.format === "intervals";
-  const legal = stimuliMatchingFormat(lock.format, stimuli);
-  const opened = legal.length ? legal : clocked ? stimuliForCeiling(lock.intensity_ceiling, "technical").filter((item) => item !== "heavy") : legal;
+  const requested = stimuliForCeiling(lock.intensity_ceiling, lock.stimulus ?? current);
+  const matched = stimuliMatchingFormat(lock.format, requested);
+  const legal = matched.length ? matched : stimuliMatchingFormat(lock.format, stimuliForCeiling(lock.intensity_ceiling, null));
+  const opened = legal.length ? legal : lock.format === "zone2" ? (["aerobic"] as Stimulus[]) : legal;
   if (lock.intensity_class !== "light") return opened;
   const withoutHeavy = opened.filter((item) => item !== "heavy");
   return withoutHeavy.length ? withoutHeavy : [];
@@ -819,11 +1029,18 @@ export function slotCauseFromMessage(message: string): SlotCause {
   return { day, code: "hard_error", field: day, message };
 }
 
-/** 세션에 블록이 있을 때만 검사한다. 예전 주는 이 검사를 타지 않는다. */
-export function weekContractIssues(raw: unknown, weekIndex: WeekIndex = 1, method = "531"): string[] {
+/** 세션에 블록이 있을 때만 검사한다. 예전 주는 이 검사를 타지 않는다. 계약 입력이 있으면 생성 때와 같은 잠금을 다시 만든다. */
+export function weekContractIssues(
+  raw: unknown,
+  weekIndex: WeekIndex = 1,
+  method = "531",
+  contractDays?: readonly ContractDayInput[] | null,
+): string[] {
   const sessions = readSessions(raw);
   if (!sessions.some((session) => Array.isArray(session.session_blocks) && session.session_blocks.length > 0)) return [];
-  const inputs: ContractDayInput[] = sessions.map((session) => {
+  const inputs: ContractDayInput[] = contractDays?.length
+    ? contractDays.map((day) => ({ ...day }))
+    : sessions.map((session) => {
     const duration = session.conditioning?.duration_min ?? 0;
     const domain = session.conditioning?.time_domain;
     const band: MetconBand | null = domain === "short" || domain === "medium" || domain === "long" ? domain : duration >= 30 ? "long" : duration <= 12 ? "short" : duration ? "medium" : null;

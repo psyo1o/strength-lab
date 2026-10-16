@@ -82,9 +82,10 @@ export function presentClassWeek(
   const next = structuredClone(week);
   for (const day of next.days) {
     if (!day.lift) continue;
-    const rx = day.lift.sets.length
-      ? applyStoredStrength(day.lift, maxes)
-      : prescribeMainLift(day.lift.exerciseKey, next.weekIndex, maxes);
+    const rx =
+      day.lift.exerciseKey === "olympic" || day.lift.sets.length
+        ? applyStoredStrength(day.lift, maxes)
+        : prescribeMainLift(day.lift.exerciseKey, next.weekIndex, maxes);
     day.lift = rx;
     for (const block of day.blocks) {
       if (!block.strength) continue;

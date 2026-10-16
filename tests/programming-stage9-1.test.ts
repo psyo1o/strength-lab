@@ -97,7 +97,7 @@ describe("stage 9.1 weekly structure planning", () => {
         intensity: 0,
       },
     });
-    expect(STIMULI).toEqual(["heavy", "high_rep", "technical"]);
+    expect(STIMULI).toEqual(["heavy", "high_rep", "technical", "aerobic"]);
   });
 
   it("plans structure before prescriptions and does not assign a lift to a weekday", () => {

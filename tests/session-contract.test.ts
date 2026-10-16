@@ -73,6 +73,33 @@ describe("session contract", () => {
     expect(lockIssues(monday!, 100)).toEqual([]);
   });
 
+  it("locks a 30 minute zone2 request at 40 so the day reaches 90", () => {
+    const days = weekDays().map((day) =>
+      day.day === "wed"
+        ? { ...day, rest: false, lift: "none" as const, long: false, domain: "medium" as const, zone2: true, zone2_minutes: 30, zone2_modality: "row_erg" as const }
+        : day,
+    );
+    const wednesday = planWeekContract(days, 4, "531", 100).find((lock) => lock.day === "wed");
+    expect(wednesday?.format).toBe("zone2");
+    expect(wednesday?.metcon[0]?.amount).toBe(40);
+    expect(lockIssues(wednesday!, 100)).toEqual([]);
+  });
+
+  it("checks the saved week against the generation contract", () => {
+    const days = weekDays().map((day) =>
+      day.day === "mon" ? { ...day, stimulus: "technical", companion_key: "strict_pull_up", main_key: "back_squat" } : day,
+    );
+    const locks = planWeekContract(days, 1, "531", 100);
+    const stored = locks.map((lock) => {
+      const session = sessionFromLock(lock);
+      if (session.conditioning) session.conditioning = { ...session.conditioning, stimulus: lock.stimulus };
+      return session;
+    });
+    const same = weekContractIssues({ sessions: stored }, 1, "531", days);
+    expect(same.filter((issue) => issue.includes("does not match lock"))).toEqual([]);
+    expect(weekContractIssues({ sessions: stored }, 1, "531").join(" ")).toContain("stimulus");
+  });
+
   it("rejects a block sum outside 90–110, a missing block, and a minute mismatch", () => {
     const [lock] = planWeekContract(weekDays(), 1, "531", 100);
     expect(lock).toBeTruthy();
@@ -464,7 +491,8 @@ describe("warmup ramp", () => {
                   ? { phase: slot.phase, key: choice.key, unit: choice.unit, amount: choice.amount, reason: "준비 동작입니다", static_hold: choice.static_hold }
                   : pick,
               );
-              const verdict = warmupIssues({ picks, joints, warmupMinutes: 10, cooldownMinutes: 6 });
+              const cooldownMinutes = lock.blocks.find((block) => block.role === "cooldown")?.minutes ?? 6;
+              const verdict = warmupIssues({ picks, joints, warmupMinutes: 10, cooldownMinutes });
               expect(verdict.reject, `${week} ${lift} ${lock.day} ${slot.id} ${choice.key}`).toEqual([]);
             }
           }

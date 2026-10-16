@@ -19,6 +19,7 @@ import {
   coachSystemPrompt,
 } from "../src/lib/programming/coaching/prompts";
 import { assembleLegalWeek } from "../src/lib/programming/coaching/session";
+import { stimuliMatchingFormat } from "../src/lib/programming/coaching/session-contract";
 import { COACHING_POLICY } from "../src/lib/programming/coaching/stage13/policy";
 import { MOVEMENT_EQUIPMENT } from "../src/lib/programming/coaching/stage13/units";
 import { headStanceOf } from "../src/lib/programming/coaching/stage16/pass";
@@ -115,12 +116,15 @@ function sessionJson(session: SessionDraft, user?: Record<string, unknown>) {
   const movements = slot?.primary_keys?.length
     ? goalMovements(slot.primary_keys)
     : piece.movements.map((movement) => ({ ...movement, load: movement.load ?? prescribedLoad(movement.key) }));
-  const stimulus = slot?.stimulus ?? piece.stimulus;
+  const format = slot?.from_goal ? piece.format : (slot?.format ?? piece.format);
+  const legal = stimuliMatchingFormat(format);
+  const requested = slot?.stimulus ?? piece.stimulus;
+  const stimulus = requested && (legal as readonly string[]).includes(requested) ? requested : (legal[0] ?? requested);
   return {
     day: session.day,
     notes_ko: "이 날의 컨디셔닝 목적을 유지합니다.",
     conditioning: {
-      format: slot?.from_goal ? piece.format : (slot?.format ?? piece.format),
+      format,
       duration_min: slot?.from_goal ? durationForSlot(slot) : (slot?.duration_min ?? piece.duration_min),
       stimulus,
       movements,

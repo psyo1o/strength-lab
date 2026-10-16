@@ -234,7 +234,8 @@ export function finalWeekReport(input: {
     issues.push(issueFromCheck(message, "week.structure", "hard_error"));
   }
   if (classRestDay(input.month) === "sun") {
-    for (const message of classQualityErrors(input.draft)) {
+    const fatigueHigh = input.context?.previousActual?.class_summary?.fatigue_signal === "high";
+    for (const message of classQualityErrors(input.draft, fatigueHigh)) {
       hard.push(message);
       issues.push(issueFromCheck(message, "week.structure", "hard_error"));
     }

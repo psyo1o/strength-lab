@@ -305,9 +305,9 @@ export const GOAL_TABLE_RULES = {
     blocks: { day: 1 },
     duration: {
       day: [40, 45],
-      deload: [30],
+      deload: [40],
     },
-    /** RPE 2–3 대화 가능 페이스. 딜로드도 같다. 딜로드에서 바뀌는 것은 30분뿐이다. */
+    /** RPE 2–3 대화 가능 페이스. 딜로드도 같다. 쿨다운 4분으로는 30분이 하루 90분에 닿지 않아 딜로드도 40분이다. */
     effort: ["conversational"],
     hr: ["60-70", "unspecified"],
     modalities: ["row_erg", "bike_erg", "assault_bike", "run", "ski_erg"],
@@ -461,12 +461,13 @@ function pickWithin(input: {
 }): FocusCell | null {
   const focus = FOCUS_FOR[input.category];
   const region = REGION_FOR[input.category];
-  const span = PATTERNS.length * ENERGY_SYSTEMS.length * STIMULI.length;
+  const rotationStimuli = STIMULI.filter((stimulus) => stimulus !== "aerobic");
+  const span = PATTERNS.length * ENERGY_SYSTEMS.length * rotationStimuli.length;
   for (let step = 0; step < span; step += 1) {
     const pattern = PATTERNS[(input.weekIndex * 3 + input.dayIndex + step) % PATTERNS.length]!;
     const energy = ENERGY_SYSTEMS[(input.weekIndex + input.dayIndex + step) % ENERGY_SYSTEMS.length]!;
-    const stimulus = STIMULI[(input.weekIndex * 2 + input.dayIndex + Math.floor(step / PATTERNS.length)) % STIMULI.length]!;
-    if (input.neighborStimulus && stimulus === input.neighborStimulus && step < span - STIMULI.length) continue;
+    const stimulus = rotationStimuli[(input.weekIndex * 2 + input.dayIndex + Math.floor(step / PATTERNS.length)) % rotationStimuli.length]!;
+    if (input.neighborStimulus && stimulus === input.neighborStimulus && step < span - rotationStimuli.length) continue;
     const cell: FocusCell = { focus, pattern, region, energy, stimulus };
     if (input.blocked.has(cellSignature(cell))) continue;
     return cell;

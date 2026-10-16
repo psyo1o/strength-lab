@@ -24,6 +24,7 @@ const STIMULUS_KO: Record<Stimulus, MetconStimulus> = {
   heavy: "고중량",
   high_rep: "고반복",
   technical: "기술",
+  aerobic: "유산소",
 };
 
 function asPattern(value: string): MetconPiece["pattern"] {
@@ -114,12 +115,13 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
 function strengthFrom(session: SessionDraft, strengthMethod: string): StrengthPrescription | null {
   if (!session.strength) return null;
   const specific = session.strength.movement_key;
+  const olympic = session.strength.lift === "olympic";
   return {
-    exerciseKey: session.strength.lift,
+    exerciseKey: olympic ? "olympic" : session.strength.lift,
     nameKo: movementDisplayName(specific || session.strength.lift),
     oneRmKg: null,
     trainingMaxKg: null,
-    loadBasis: loadBasisForMethod(strengthMethod),
+    loadBasis: olympic ? undefined : loadBasisForMethod(strengthMethod),
     missingOneRm: true,
     noteKo: "1RM이 없습니다. 무거운 단수를 1RM에 저장하세요. 무게는 만들지 않습니다.",
     sets: session.strength.sets.map((set, index) => ({
@@ -307,6 +309,16 @@ export function applyStoredStrength(
   lift: StrengthPrescription,
   maxes: Record<string, number>,
 ): StrengthPrescription {
+  if (lift.exerciseKey === "olympic") {
+    return {
+      ...lift,
+      oneRmKg: null,
+      trainingMaxKg: null,
+      missingOneRm: true,
+      noteKo: "올림픽 리프트는 기술 퍼센트입니다. 가족 1RM으로 킬로그램을 만들지 않습니다.",
+      sets: lift.sets.map((set) => ({ ...set, weightKg: null })),
+    };
+  }
   const oneRm = readStoredOneRm(maxes, lift.exerciseKey);
   if (oneRm == null) {
     return {

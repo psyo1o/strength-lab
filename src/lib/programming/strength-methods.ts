@@ -233,6 +233,23 @@ export function setsMatchSecondLowerVolume(method: string, weekIndex: WeekIndex,
   });
 }
 
+/** 올림픽 메인의 세트표. 5/3/1 퍼센트가 아니라 기술 퍼센트다. */
+export function olympicSets(weekIndex: WeekIndex): StrengthSetDraft[] {
+  if (weekIndex === 4) {
+    return [
+      { percent_of_tm: 55, reps: 3, amrap: false },
+      { percent_of_tm: 55, reps: 2, amrap: false },
+      { percent_of_tm: 60, reps: 2, amrap: false },
+    ];
+  }
+  return [
+    { percent_of_tm: 60, reps: 3, amrap: false },
+    { percent_of_tm: 65, reps: 2, amrap: false },
+    { percent_of_tm: 70, reps: 2, amrap: false },
+    { percent_of_tm: 70, reps: 1, amrap: false },
+  ];
+}
+
 export function exampleSets(method: string, weekIndex: WeekIndex, fatigue: PrescriptionContext["fatigue"], lift: MainLift): StrengthSetDraft[] | null {
   const guide = prescriptionGuide(method, weekIndex, fatigue);
   if (!guide) return null;
