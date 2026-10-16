@@ -236,6 +236,12 @@ export function finalWeekReport(input: {
   if (classRestDay(input.month) === "sun") {
     const fatigueHigh = input.context?.previousActual?.class_summary?.fatigue_signal === "high";
     for (const message of classQualityErrors(input.draft, fatigueHigh)) {
+      const fatigueCeiling = message.includes("third consecutive high lower-load day") || message.includes("metcon olympic lift follows a heavy hinge");
+      if (fatigueCeiling) {
+        signals.push(message);
+        issues.push(issueFromCheck(message, "week.structure", "warning"));
+        continue;
+      }
       hard.push(message);
       issues.push(issueFromCheck(message, "week.structure", "hard_error"));
     }

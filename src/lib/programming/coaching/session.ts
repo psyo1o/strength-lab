@@ -311,7 +311,7 @@ function serverRecipeClock(
     doses.push({ key: movement.key, unit, amount: movement.amount_value });
   }
   if (doses.length !== movements.length) return false;
-  return doseIssues({ format: lock.format, minutes, movements: doses, clock: echoed, intensity: "moderate" }).length === 0;
+  return doseIssues({ format: lock.format, minutes, movements: doses, clock: echoed, intensity: "heavy" }).length === 0;
 }
 
 export function sessionFromCoachJson(input: {
@@ -410,6 +410,23 @@ export function sessionFromCoachJson(input: {
   }
   const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark, clock);
   if (!built) return null;
+  if (piece.dose_band === "heavy" && built.clock) {
+    const doses = built.movements.flatMap((movement) => {
+      const unit = movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" || movement.unit === "min" ? movement.unit : null;
+      return unit && typeof movement.amount_value === "number" ? [{ key: movement.key, unit, amount: movement.amount_value }] : [];
+    });
+    const derived = derivedFor(built.format, built.duration_min, doses, built.clock, "heavy");
+    if (derived) {
+      built.derived_sec = derived.sec;
+      built.derived_rounds = derived.rounds;
+      built.time_source = "derived";
+    }
+    built.dose_band = "heavy";
+    if (typeof piece.member_rx === "string") built.member_rx = piece.member_rx;
+    if (typeof piece.member_scale === "string") built.member_scale = piece.member_scale;
+    if (piece.scale_status === "pass" || piece.scale_status === "hidden") built.scale_status = piece.scale_status;
+    if (typeof piece.scale_reason === "string") built.scale_reason = piece.scale_reason;
+  }
   const zone2 =
     input.intent.zone2 === "day"
       ? body.zone2_option == null
@@ -430,6 +447,7 @@ export function sessionFromCoachJson(input: {
     },
     strength ? (input.intent.volume_profile === "low" ? "low" : "moderate") : null,
   );
+  if (built.dose_band === "heavy") session.rx = { cap_min: built.duration_min };
   if (Array.isArray(body.session_blocks)) session.session_blocks = body.session_blocks as SessionDraft["session_blocks"];
   const metconBlock = session.session_blocks?.find((block) => block.role === "metcon");
   if (metconBlock && built.derived_sec != null) {

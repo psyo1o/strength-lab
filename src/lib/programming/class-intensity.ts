@@ -2,7 +2,7 @@ import { getSqlite } from "../db/client";
 
 /** Class intensity stored for the next generation. Member and box can override later. */
 export const CLASS_INTENSITY_KEY = "class_intensity_level";
-export const CLASS_INTENSITY_DEFAULT = 3;
+export const CLASS_INTENSITY_DEFAULT = 4;
 export const CLASS_INTENSITY_LEVELS = [1, 2, 3, 4, 5] as const;
 
 export function parseClassIntensity(value: unknown): number | null {
@@ -11,7 +11,7 @@ export function parseClassIntensity(value: unknown): number | null {
   return number;
 }
 
-/** Later settings win in this order: member, box, class, then 3. */
+/** Later settings win in this order: member, box, class, then 4. The engine tab stays fixed at 4 until a box override is wired. */
 export function resolveClassIntensity(input: { member?: unknown; box?: unknown; classLevel?: unknown } = {}): number {
   return (
     parseClassIntensity(input.member) ??

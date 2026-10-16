@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { doseIssues, doseReport, planWeekContract } from "../src/lib/programming/coaching/session-contract";
-import { clockForRecipe, level3Recipes } from "../src/lib/programming/coaching/dose-menu";
+import { clockForRecipe, level3Recipes, rxRecipes, scaleRecipes } from "../src/lib/programming/coaching/dose-menu";
 import { ladderFor } from "../src/lib/programming/coaching/movement-catalog";
 import {
   hardLevelErrors,
@@ -71,6 +71,7 @@ describe("intensity levels", () => {
     };
     const schema = JSON.stringify(sessionSlotFormat(frame));
     expect(schema).toContain('"recipe"');
+    expect(schema).toContain('"scale"');
     expect(schema).not.toContain('"derived_sec"');
     expect(schema).not.toContain('"levels"');
     expect(schema).not.toContain('"reason"');
@@ -92,6 +93,26 @@ describe("intensity levels", () => {
     expect(guide).toContain("Choose only from this list");
     expect(guide).toContain("Output JSON only");
     expect(guide).toContain("3-6");
+    const rx = rxRecipes(lock);
+    expect(rx.length).toBeGreaterThan(0);
+    for (const recipe of rx) {
+      const reading = doseReport({
+        format: lock.format,
+        minutes: recipe.cap,
+        movements: recipe.slots.map((slot) => ({ key: slot.key, unit: slot.unit, amount: slot.amount })),
+        clock: clockForRecipe(lock.format, recipe.cap, recipe.rounds, recipe.slots.map((slot) => slot.key)),
+        intensity: "heavy",
+      });
+      expect(reading.issues).toEqual([]);
+    }
+    for (const scale of scaleRecipes(lock, rx)) {
+      const base = rx.find((recipe) => recipe.index === scale.rxIndex);
+      expect(base).toBeTruthy();
+      expect(scale.cap).toBe(base?.cap);
+      const ratio = base && base.work > 0 ? scale.work / base.work : 0;
+      expect(ratio).toBeGreaterThanOrEqual(0.6 - 1e-6);
+      expect(ratio).toBeLessThanOrEqual(0.85 + 1e-6);
+    }
 
     const movements = lock.metcon.map((move) => {
       const choice = loadChoices(move.key)[0] ?? null;

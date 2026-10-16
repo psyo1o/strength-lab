@@ -4,6 +4,7 @@ import {
   legalCaps,
   levelWork,
   lightCaps,
+  loadChoices,
   otherBlockMinutes,
   packLevelSet,
 } from "./intensity-levels";
@@ -35,6 +36,11 @@ export type DoseRecipe = {
   derivedSec: number;
   work: number;
 };
+
+/** 스케일 번호. 수량·무게·쉬운 사다리 짝은 이미 검사에 들어간 상태다. */
+export type ScaleRecipe = DoseRecipe & { rxIndex: number };
+
+const SKILL_RANK: Record<string, number> = { foundation: 0, intermediate: 1, advanced: 2 };
 
 type Grid = { key: string; unit: DoseMovement["unit"]; amounts: number[]; seed: number };
 
@@ -274,6 +280,46 @@ export function level3Recipes(lock: DaySessionLock): DoseRecipe[] {
   return rank(lock, 3, search(lock, 3, [lock.metcon.map((move) => move.key)], caps.length ? caps : [lock.metcon_minutes], rounds));
 }
 
+function rankRx(lock: DaySessionLock, rows: readonly Omit<DoseRecipe, "index">[]): DoseRecipe[] {
+  const floor = metconFloorSec(lock.format, "heavy");
+  const heavyDay = lock.intensity_class === "heavy";
+  const ordered = [...rows].sort((left, right) => {
+    if (heavyDay) {
+      const load = loadScore(right) - loadScore(left);
+      if (load) return load;
+      const reps = repScore(left) - repScore(right);
+      if (reps) return reps;
+    } else {
+      const mid = midpointDistance(left, floor) - midpointDistance(right, floor);
+      if (mid) return mid;
+    }
+    return comfort(left.derivedSec, floor, left.cap * 60) - comfort(right.derivedSec, floor, right.cap * 60) || left.cap - right.cap;
+  });
+  return ordered.slice(0, KEEP).map((row, index) => ({ ...row, index }));
+}
+
+function loadScore(row: Omit<DoseRecipe, "index">): number {
+  return row.slots.reduce((sum, slot) => sum + (maleOf(slot.load) ?? 0), 0);
+}
+
+function repScore(row: Omit<DoseRecipe, "index">): number {
+  return row.slots.reduce((sum, slot) => sum + (slot.unit === "reps" ? slot.amount : 0), 0);
+}
+
+function midpointDistance(row: Omit<DoseRecipe, "index">, floor: number | null): number {
+  const low = floor ?? 0;
+  const high = Math.max(row.cap * 60, low);
+  return Math.abs(row.derivedSec - (low + high) / 2);
+}
+
+/** 하루 WOD 하나. 검사는 강도 4(heavy) 최소·캡이다. */
+export function rxRecipes(lock: DaySessionLock): DoseRecipe[] {
+  if (lock.format === "zone2" || lock.steady || !lock.metcon.length) return [];
+  const caps = legalCaps(lock);
+  const rounds = roundChoices(lock.format, lock.clock.rounds);
+  return rankRx(lock, search(lock, 4, [lock.metcon.map((move) => move.key)], caps.length ? caps : [lock.metcon_minutes], rounds));
+}
+
 function sameAs(level3: LevelPrescription, row: Omit<DoseRecipe, "index">): boolean {
   if (level3.cap_min !== row.cap || level3.rounds !== row.rounds) return false;
   return level3.movements.every((movement, index) => movement.key === row.slots[index]?.key && movement.amount === row.slots[index]?.amount);
@@ -361,6 +407,176 @@ export function outerRecipes(lock: DaySessionLock, level3: LevelPrescription): P
     out[level] = picked.map((row, index) => ({ ...row, index }));
   }
   return out;
+}
+
+function maleOf(load: DoseSlot["load"]): number | null {
+  const match = load?.male?.match(/(\d+(?:\.\d+)?)/);
+  return match ? Number(match[1]) : null;
+}
+
+function skillRank(key: string): number | null {
+  const found = ladderFor(key);
+  if (!found) return null;
+  return SKILL_RANK[found.step.skill_level] ?? found.step.step;
+}
+
+function samePattern(left: string, right: string): boolean {
+  if (left === right) return true;
+  const a = ladderFor(left);
+  const b = ladderFor(right);
+  return Boolean(a && b && a.ladder.id === b.ladder.id && a.ladder.pattern === b.ladder.pattern);
+}
+
+function easierStep(base: string, next: string): boolean {
+  if (base === next) return false;
+  const from = ladderFor(base);
+  const to = ladderFor(next);
+  if (!from || !to || from.ladder.id !== to.ladder.id) return false;
+  const fromRank = skillRank(base);
+  const toRank = skillRank(next);
+  if (fromRank == null || toRank == null) return to.step.step < from.step.step;
+  return toRank < fromRank || (toRank === fromRank && to.step.step < from.step.step);
+}
+
+function easierNeighbors(key: string, unit: DoseMovement["unit"]): string[] {
+  const found = ladderFor(key);
+  if (!found) return [];
+  const prev = found.ladder.steps.find((step) => step.step === found.step.step - 1);
+  if (!prev || prev.pattern !== found.ladder.pattern) return [];
+  return prev.keys.filter((candidate) => {
+    const row = catalogMovement(candidate);
+    if (!row || !modelSelectable(row)) return false;
+    if (unit !== "min" && !(row.units ?? []).includes(unit)) return false;
+    return easierStep(key, candidate);
+  });
+}
+
+function lighterLoads(key: string, current: DoseSlot["load"]): DoseSlot["load"][] {
+  const currentMale = maleOf(current);
+  if (currentMale == null) return [];
+  const out: DoseSlot["load"][] = [];
+  for (const choice of loadChoices(key)) {
+    const male = maleOf(choice);
+    if (male == null || male >= currentMale) continue;
+    const load = { male: choice.male, female: choice.female };
+    if (out.some((row) => row?.male === load.male && row?.female === load.female)) continue;
+    out.push(load);
+  }
+  return out;
+}
+
+function amountsFor(key: string, unit: DoseMovement["unit"], seed: number): number[] {
+  const span = unit === "min" ? null : rangeFor(key, unit);
+  const grid = span ? allowedAmounts(unit, span.min, span.max) : [];
+  const amounts = [...new Set(grid.length ? grid : [])];
+  amounts.sort((left, right) => left - right);
+  if (!amounts.length && seed > 0) return [seed];
+  return amounts;
+}
+
+function slotOptions(slot: DoseSlot): DoseSlot[] {
+  const options: DoseSlot[] = [];
+  const seen = new Set<string>();
+  const push = (next: DoseSlot) => {
+    const signature = `${next.key}:${next.amount}:${next.load?.male ?? ""}/${next.load?.female ?? ""}`;
+    if (seen.has(signature)) return;
+    seen.add(signature);
+    options.push(next);
+  };
+  for (const key of easierNeighbors(slot.key, slot.unit)) {
+    const loads = [prescribedLoad(key), ...lighterLoads(key, prescribedLoad(key))].filter((load): load is DoseSlot["load"] => load != null);
+    const usable = loads.length ? loads.slice(0, 2) : [prescribedLoad(key)];
+    const amounts = amountsFor(key, slot.unit, slot.amount).filter((amount) => amount <= slot.amount);
+    const picked = (amounts.length ? amounts : amountsFor(key, slot.unit, slot.amount)).slice(-3);
+    for (const amount of picked) {
+      for (const load of usable) push({ key, unit: slot.unit, amount, load });
+    }
+  }
+  for (const load of lighterLoads(slot.key, slot.load)) {
+    const amounts = amountsFor(slot.key, slot.unit, slot.amount).filter((amount) => amount <= slot.amount).slice(-3);
+    for (const amount of amounts.length ? amounts : [slot.amount]) push({ key: slot.key, unit: slot.unit, amount, load });
+  }
+  for (const amount of amountsFor(slot.key, slot.unit, slot.amount)) {
+    if (amount < slot.amount) push({ ...slot, amount });
+  }
+  return options;
+}
+
+function scaleLegal(rx: DoseRecipe, slots: readonly DoseSlot[], work: number): boolean {
+  if (rx.work <= 0 || slots.length !== rx.slots.length) return false;
+  const ratio = work / rx.work;
+  if (ratio + 1e-9 < 0.6 || ratio - 1e-9 > 0.85) return false;
+  let eased = false;
+  for (let index = 0; index < slots.length; index += 1) {
+    const base = rx.slots[index]!;
+    const next = slots[index]!;
+    if (!samePattern(base.key, next.key)) return false;
+    if (next.key !== base.key && !easierStep(base.key, next.key)) return false;
+    const baseMale = maleOf(base.load);
+    const nextMale = maleOf(next.load);
+    if (baseMale != null && nextMale != null && nextMale > baseMale && next.key === base.key) return false;
+    if (easierStep(base.key, next.key)) eased = true;
+    if (baseMale != null && nextMale != null && nextMale < baseMale) eased = true;
+  }
+  return eased;
+}
+
+function scaleWork(format: string, recipe: Omit<DoseRecipe, "index" | "work" | "derivedSec">): number {
+  return levelWork(format, prescription(4, format, { ...recipe, derivedSec: 0 }));
+}
+
+function scalesForRx(lock: DaySessionLock, rx: DoseRecipe): Omit<ScaleRecipe, "index">[] {
+  const found = new Map<string, Omit<ScaleRecipe, "index">>();
+  const accept = (slots: DoseSlot[]) => {
+    const work = scaleWork(lock.format, { cap: rx.cap, rounds: rx.rounds, slots });
+    if (!scaleLegal(rx, slots, work)) return;
+    const signature = slots.map((slot) => `${slot.key}:${slot.amount}:${slot.load?.male ?? ""}`).join(",");
+    if (found.has(signature)) return;
+    const ratio = work / rx.work;
+    found.set(signature, {
+      rxIndex: rx.index,
+      cap: rx.cap,
+      rounds: rx.rounds,
+      slots,
+      derivedSec: Math.max(1, Math.round(rx.derivedSec * ratio)),
+      work,
+    });
+  };
+  rx.slots.forEach((slot, index) => {
+    for (const option of slotOptions(slot)) {
+      const slots = rx.slots.map((current, cursor) => (cursor === index ? option : { ...current }));
+      accept(slots);
+      if (found.size >= KEEP) return;
+    }
+  });
+  if (found.size < KEEP) {
+    for (const factor of [0.65, 0.75, 0.85]) {
+      const slots = rx.slots.map((slot) => {
+        const grid = amountsFor(slot.key, slot.unit, slot.amount);
+        const target = nearest(grid.length ? grid : [slot.amount], slot.amount * factor);
+        return { ...slot, amount: target };
+      });
+      const first = slots.findIndex((_, index) => slotOptions(rx.slots[index]!).some((option) => option.key !== rx.slots[index]!.key || maleOf(option.load) !== maleOf(rx.slots[index]!.load)));
+      if (first >= 0) {
+        const eased = slotOptions(rx.slots[first]!).find((option) => option.key !== rx.slots[first]!.key || (maleOf(option.load) ?? 0) < (maleOf(rx.slots[first]!.load) ?? 0));
+        if (eased) slots[first] = { ...eased, amount: nearest(amountsFor(eased.key, eased.unit, eased.amount).concat(eased.amount), slots[first]!.amount) };
+      }
+      accept(slots);
+      if (found.size >= KEEP) break;
+    }
+  }
+  return [...found.values()].slice(0, KEEP);
+}
+
+export function scaleRecipes(lock: DaySessionLock, recipes: readonly DoseRecipe[]): ScaleRecipe[] {
+  const rows: ScaleRecipe[] = [];
+  for (const recipe of recipes) {
+    for (const scale of scalesForRx(lock, recipe)) {
+      rows.push({ ...scale, index: rows.length });
+      if (rows.length >= KEEP * recipes.length) return rows;
+    }
+  }
+  return rows;
 }
 
 export function recipeByIndex(recipes: readonly DoseRecipe[], index: number): DoseRecipe | null {

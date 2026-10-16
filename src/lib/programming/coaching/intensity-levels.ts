@@ -429,8 +429,10 @@ export function fitLevelEnums(lock: DaySessionLock): Record<(typeof LEVEL_NUMBER
 export function levelGuide(_lock: DaySessionLock): string {
   return [
     "Choose only from this list. Output JSON only.",
-    "Return the recipe index. Do not send keys, amounts, caps, minutes, or an estimate.",
-    "Every listed recipe already fits the minimum, the cap, and the work multiplier. The server writes the time.",
+    "Return the recipe index for Rx and the scale index that belongs to that recipe. Do not send keys, amounts, caps, minutes, or an estimate.",
+    "Rx is effort RPE 8 안팎, 완주하되 마지막 구간이 힘든 정도. Every listed recipe already fits the minimum and the cap. The server writes the time.",
+    "A scale index uses the same format and cap, an easier ladder step or a lighter load, and 0.6 to 0.85 of that recipe's work. If the recipe lists no scale, return null.",
+    "On a heavy day prefer the higher load and the limited reps. On a conditioning day prefer the sustainable volume.",
     "Metcon movements are 3-6. Chipper may use up to 8.",
   ].join(" ");
 }

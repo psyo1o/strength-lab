@@ -201,7 +201,8 @@ describe("session contract", () => {
         { key: "burpee", amount: 10, unit: "reps" },
       ],
     });
-    expect(line).toBe("3라운드 For Time · 캡 12분 / Row Erg 15cal / Barbell Thruster 10회 (95/65 lb) (스케일 45/35 lb · 7회) / Burpee 10회");
+    expect(line).toBe("3라운드 For Time · 캡 12분 / Row Erg 15cal / Barbell Thruster 10회 (95/65 lb) / Burpee 10회");
+    expect(line).not.toContain("스케일");
     const snatch = renderMetconLine({
       format: "chipper",
       clock: clockForFormat("chipper", 20, ["dumbbell_snatch"]),
@@ -265,7 +266,8 @@ describe("session contract", () => {
       clock: clockForFormat("intervals", 12, ["double_under", "push_up"]),
       movements: [{ key: "double_under", amount: 30, unit: "reps" }],
     });
-    expect(scaled).toContain("Double-under 30회 (스케일 Single-under 60회 2:1 · Single-under 90회 3:1)");
+    expect(scaled).toContain("Double-under 30회");
+    expect(scaled).not.toContain("스케일");
   });
 
   it("stamps a heavy chipper that is under 12 minutes and over the 10 minute floor", () => {

@@ -21,7 +21,7 @@ export type EnginePlanStamp = {
   fallbackReason: string | null;
 };
 
-export type LevelBoardCell = { level: number; text: string; hidden: boolean; reason: string | null };
+export type LevelBoardCell = { level: number; text: string; hidden: boolean; reason: string | null; label?: string };
 
 export type EngineAdminStatus = {
   month: EnginePlanStamp;
@@ -184,12 +184,26 @@ function levelBoardFrom(sessions: readonly SessionDraft[]): {
   const hiddenLevels: { day: string; level: number; reason: string }[] = [];
   const levelBoard: { day: string; cells: LevelBoardCell[] }[] = [];
   for (const session of sessions) {
-    if (session.rest || !session.levels) continue;
+    if (session.rest) continue;
+    if (session.conditioning?.member_rx || session.conditioning?.member_scale) {
+      const hidden = session.conditioning.scale_status === "hidden";
+      if (hidden) hiddenLevels.push({ day: session.day, level: 0, reason: session.conditioning.scale_reason ?? "hidden" });
+      levelBoard.push({
+        day: session.day,
+        cells: [
+          { level: 4, label: "Rx", hidden: false, reason: null, text: session.conditioning.member_rx ?? "" },
+          { level: 0, label: "스케일", hidden, reason: session.conditioning.scale_reason ?? null, text: session.conditioning.member_scale ?? "" },
+        ],
+      });
+      continue;
+    }
+    if (!session.levels) continue;
     const cells = session.levels.levels.map((level) => {
       const hidden = level.status !== "pass";
       if (hidden) hiddenLevels.push({ day: session.day, level: level.level, reason: level.hidden_reason ?? "hidden" });
       return {
         level: level.level,
+        label: String(level.level),
         hidden,
         reason: level.hidden_reason,
         text: levelLine(session.levels!.skeleton.format, level),

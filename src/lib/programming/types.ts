@@ -212,6 +212,12 @@ export type ConditioningDraft = {
   derived_sec?: number | null;
   derived_rounds?: number | null;
   time_source?: "derived" | null;
+  /** 강도 4 용량 검사. 주간 계획의 intensity 표기와는 따로다. */
+  dose_band?: "heavy" | null;
+  member_rx?: string | null;
+  member_scale?: string | null;
+  scale_status?: "pass" | "hidden" | null;
+  scale_reason?: string | null;
 };
 
 export type SessionDraft = {
@@ -283,9 +289,11 @@ export type SessionDraft = {
   }[];
   /**
    * 공통 WOD 뼈대와 강도 1–5 처방. 오버라이드는 비어 있고, 나중에 박스·회원이 레벨을 고른다.
-   * 수량·라운드·캡·무게는 모델 값이다. derived와 status만 코드가 적는다.
+   * 지금 생성은 Rx 하나와 스케일 한 줄이다. 이 칸은 예전 주와 나중 박스 조정을 위해 남긴다.
    */
   levels?: SessionLevels | null;
+  /** Rx 레시피 캡. 잠금 분과 달라도 키만 맞으면 된다. */
+  rx?: { cap_min: number } | null;
 };
 
 export type IntensityLevelNumber = 1 | 2 | 3 | 4 | 5;

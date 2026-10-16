@@ -4,7 +4,7 @@ import type { DayKey, WeekIndex } from "../../month-plan/types";
 import { exampleSets } from "../strength-methods";
 import { rangeFor } from "./movement-catalog";
 import { STIMULI, type MainLift, type MetconClock, type ShareMode, type Stimulus, type WodFormat } from "../types";
-import { catalogRxWeights, isScaleOnly, ladderFor, modalWodLb, movementDisplayName, repCostOf, rxVariantOf, scaleVariants } from "./movement-catalog";
+import { catalogRxWeights, isScaleOnly, ladderFor, modalWodLb, movementDisplayName, repCostOf, rxVariantOf } from "./movement-catalog";
 
 /** 수업 창. 설정이 없으면 100이고, 그 사실을 한 번 남긴다. */
 export const SESSION_MINUTES_MIN = 90;
@@ -846,27 +846,16 @@ function qtyLabel(qty: number | readonly number[], unit: string): string {
   return `${body}회`;
 }
 
-function scaleSuffix(key: string, qty: number | readonly number[], unit: string): string {
-  const variants = scaleVariants(key);
-  if (!variants.length) return "";
-  const amounts = Array.isArray(qty) ? [...qty] : [qty];
-  const parts = variants.map((variant) => {
-    const scaled = amounts.map((amount) => Math.max(1, Math.round(amount * variant.factor)));
-    const shown = variant.unit || unit;
-    const count = qtyLabel(scaled.length === 1 ? scaled[0]! : scaled, shown);
-    if (variant.load && variant.factor === 1 && variant.key === key) {
-      const male = variant.load.male.match(/[\d.]+/)?.[0] ?? "";
-      const female = variant.load.female.match(/[\d.]+/)?.[0] ?? "";
-      const unitName = variant.load.male.match(/\b(lb|kg|in)\b/i)?.[1]?.toLowerCase() ?? "";
-      if (unitName === "kg") return "";
-      return `${male}/${female}${unitName ? ` ${unitName}` : ""}`.trim();
-    }
-    if (variant.mode === "quantity" && variant.key === key) return count;
-    const ratio = Number.isInteger(variant.factor) && variant.factor >= 2 ? ` ${variant.factor}:1` : "";
-    return `${movementDisplayName(variant.key)} ${count}${ratio}`;
-  });
-  const shown = parts.filter((part) => part.length > 0);
-  return shown.length ? ` (스케일 ${shown.join(" · ")})` : "";
+/** 강도 4의 노력. 프롬프트와 회원 화면이 이 문장을 같이 쓴다. */
+export const RX_EFFORT_KO = "RPE 8 안팎, 완주하되 마지막 구간이 힘든 정도";
+
+export function memberRxSentence(metconLine: string): string {
+  return `Rx · ${RX_EFFORT_KO} · ${metconLine}`;
+}
+
+export function memberScaleSentence(metconLine: string | null, hidden: boolean): string {
+  if (hidden || !metconLine) return "스케일 · 규칙에 맞는 후보가 없습니다";
+  return `스케일 · ${metconLine}`;
 }
 
 function clockHead(format: string, clock: MetconClock): string {
@@ -898,7 +887,7 @@ export function renderMetconLine(input: {
     const unit = movement.unit || "reps";
     const rx = rxNumbers(movement.load);
     const weight = rx && rx.unit !== "kg" ? ` (${rx.male}/${rx.female} ${rx.unit})` : "";
-    return `${movementDisplayName(movement.key)} ${qtyLabel(qty, unit)}${weight}${scaleSuffix(movement.key, qty, unit)}`;
+    return `${movementDisplayName(movement.key)} ${qtyLabel(qty, unit)}${weight}`;
   });
   return [clockHead(input.format, input.clock), ...lines].join(" / ");
 }
@@ -1446,6 +1435,7 @@ type RawSession = {
     derived_sec?: number | null;
     time_source?: string | null;
     intensity?: string | null;
+    dose_band?: "heavy" | null;
     movements?: RawMovement[];
   } | null;
   zone2?: { form?: string; modality?: string; duration_min?: number } | null;
@@ -1478,7 +1468,7 @@ function paceAndRxIssues(session: RawSession): string[] {
   }
   const movements = (piece.movements ?? []).map((row) => doseFrom(row)).filter((row): row is DoseMovement => row != null);
   const minutes = piece.duration_min ?? Math.round((clock.cap_sec ?? clock.duration_sec ?? 0) / 60);
-  const intensity = piece.intensity === "light" || piece.intensity === "moderate" || piece.intensity === "heavy" ? piece.intensity : null;
+  const intensity = piece.dose_band === "heavy" ? "heavy" : piece.intensity === "light" || piece.intensity === "moderate" || piece.intensity === "heavy" ? piece.intensity : null;
   const errors = doseIssues({ format: piece.format, minutes, movements, clock, intensity }).map((issue) => `${day} ${issue}`);
   for (const row of piece.movements ?? []) {
     const key = row.key ?? "";
@@ -1591,6 +1581,11 @@ type LockSession = {
 };
 
 function levelPack(session: LockSession): { cap: number | null; keys: string[] } | null {
+  const rx = (session as { rx?: { cap_min?: number } | null }).rx;
+  if (rx && typeof rx.cap_min === "number") {
+    const keys = (session.conditioning?.movements ?? []).map((row) => row.key ?? "");
+    return { cap: rx.cap_min, keys };
+  }
   const pack = (session as { levels?: { levels?: { level?: number; cap_min?: number | null; movements?: { key?: string }[] }[] } | null }).levels;
   if (!pack?.levels || pack.levels.length !== 5) return null;
   const level3 = pack.levels.find((row) => row.level === 3);

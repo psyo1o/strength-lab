@@ -271,10 +271,9 @@ describe("stage14 head decision", () => {
         rest("sun"),
       ],
     });
-    expect(stages.decision.decision).toBe("REVISE");
-    expect(stages.decision.issues.some((row) => row.issue_id === "fatigue-heavy-lower" && row.priority === "P1")).toBe(true);
-    expect(stages.decision.action_plan.scope).toBe("SESSION");
-    expect(stages.decision.action_plan.affected_days).toContain(lower);
+    expect(stages.decision.decision).not.toBe("REVISE");
+    expect(stages.decision.issues.some((row) => row.issue_id === "fatigue-heavy-lower" && row.action === "KEEP_WITH_NOTE")).toBe(true);
+    expect(stages.decision.action_plan.scope).not.toBe("SESSION");
   });
 
   it("case 4 revises heavy conditioning on a deload week", () => {

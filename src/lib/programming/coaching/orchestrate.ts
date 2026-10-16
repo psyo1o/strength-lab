@@ -8,7 +8,6 @@ import { classCompletionForCoach, classSummaryForCoach, omitAbsenceSummary, pars
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
 import { hardLevelErrors, ladderRiskRows } from "./intensity-levels";
 import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, metconKeysAtCap, planWeekContract, resolveSessionMinutes, sessionEstimateIssues, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
-import { requestOuterLevels } from "./level-menu";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -846,7 +845,7 @@ async function writeSession(input: {
     });
     if (frame && area === "conditioning" && zone2Spec) frame.zone2Slot = zone2Spec;
     if (frame?.recipes && frame.recipes.length === 0 && !frame.zone2Slot && frame.contract?.format !== "zone2") {
-      areaErrors.set(area, [`${input.day.day} RULE_CONFLICT: no level 3 dose fits the minimum and the cap`]);
+      areaErrors.set(area, [`${input.day.day} RULE_CONFLICT: no Rx dose fits the minimum and the cap`]);
       areaReason.set(area, "empty_enum");
       slotClosed.add(area);
       continue;
@@ -869,7 +868,10 @@ async function writeSession(input: {
     const ready = present(area, json);
     if (!ready.ok) return { ok: false as const, errors: ready.errors, retry: false as const };
     const verdict = validateArea(area)(ready.json);
-    if (!verdict.ok && isSlotPayload(json) && !verdict.errors.some(levelCheckError)) return { ...verdict, retry: false as const };
+    if (!verdict.ok && isSlotPayload(json) && !verdict.errors.some(levelCheckError)) {
+      if (verdict.errors.some((error) => error.includes("allowed:"))) return verdict;
+      return { ...verdict, retry: false as const };
+    }
     return verdict;
   };
   const storeArea = (area: SpecialistArea, json: unknown) => {
@@ -1207,21 +1209,6 @@ async function writeSession(input: {
     };
   }
   if (merged.strengthNote && adopted.session.strength) adopted.session.strength_purpose = merged.strengthNote;
-  const conditioningPart = asRecord(parts.conditioning);
-  const indexedMetcon = asRecord(conditioningPart?.contract_part)?.kind === "conditioning";
-  if (indexedMetcon && sessionLock && !sessionLock.rest && !sessionLock.steady && sessionLock.format !== "zone2" && adopted.session.conditioning) {
-    const outer = await requestOuterLevels({
-      lock: sessionLock,
-      session: adopted.session,
-      key: input.week.key ?? "",
-      fetchImpl: input.week.fetchImpl,
-      timeoutMs: input.timeoutMs,
-      runId: input.runId,
-      weekId: input.week.weekStart,
-    });
-    adopted.session.levels = outer.levels;
-    areaTraces.push(...outer.traces);
-  }
   return {
     draft: adopted.draft,
     source: "model",

@@ -18,8 +18,8 @@ import {
   standardMovements,
   type CatalogUnit,
 } from "./movement-catalog";
-import { allowedAmounts, cleanDisplayName, clockEcho, clockPresent, intensityLockEnum, readClock, sameClock, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
-import { clockForRecipe, level3Recipes, type DoseRecipe } from "./dose-menu";
+import { allowedAmounts, cleanDisplayName, clockEcho, clockPresent, intensityLockEnum, memberRxSentence, memberScaleSentence, readClock, renderMetconLine, sameClock, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { clockForRecipe, rxRecipes, scaleRecipes, type DoseRecipe, type ScaleRecipe } from "./dose-menu";
 import { levelGuide } from "./intensity-levels";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
@@ -63,8 +63,10 @@ export type SessionFrame = {
   zone2Slot?: { deload: boolean; previousModality?: string | null; dropRun?: boolean } | null;
   /** 잠긴 세션 계약이 있을 때만 단계·에코·이유를 요구한다. */
   contract?: DaySessionLock | null;
-  /** 강도 3에서 최소와 캡을 동시에 통과하는 번호표. */
+  /** 강도 4(Rx)에서 최소와 캡을 동시에 통과하는 번호표. */
   recipes?: DoseRecipe[];
+  /** 그 Rx에 붙는 스케일 번호. 없는 Rx는 빈 목록이다. */
+  scales?: ScaleRecipe[];
 };
 
 /** avoid 날 칸에 남아야 하는 동작·수량 선택지. 이보다 적으면 생성 전에 멈춘다. */
@@ -388,7 +390,12 @@ export function buildSessionFrame(input: {
     slots,
     piece,
     contract: locked,
-    ...(locked && input.area === "conditioning" && locked.format !== "zone2" ? { recipes: level3Recipes(locked) } : {}),
+    ...(locked && input.area === "conditioning" && locked.format !== "zone2"
+      ? (() => {
+          const recipes = rxRecipes(locked);
+          return { recipes, scales: scaleRecipes(locked, recipes) };
+        })()
+      : {}),
   };
   if (input.avoidHeavyLower && frame.area === "conditioning" && !frame.contract) return withoutHeavyLowerOptions(frame);
   return frame;
@@ -431,7 +438,12 @@ function usesIndexSlots(frame: SessionFrame): boolean {
 
 export function frameRecipes(frame: SessionFrame): DoseRecipe[] {
   if (!usesIndexSlots(frame) || !frame.contract) return [];
-  return frame.recipes ?? level3Recipes(frame.contract);
+  return frame.recipes ?? rxRecipes(frame.contract);
+}
+
+export function frameScales(frame: SessionFrame): ScaleRecipe[] {
+  if (!usesIndexSlots(frame) || !frame.contract) return [];
+  return frame.scales ?? scaleRecipes(frame.contract, frameRecipes(frame));
 }
 
 function indexSlotSchema(slot: FrameSlot): Record<string, unknown> {
@@ -533,8 +545,12 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
       const stimuli = stimulusLockEnum(frame.contract, frame.piece?.stimulus);
       const bands = intensityLockEnum(frame.contract, stimuli);
       if (indexed) {
-        required.push("recipe", "stimulus", "intensity");
+        const scales = frameScales(frame);
+        required.push("recipe", "scale", "stimulus", "intensity");
         properties.recipe = { type: "integer", enum: recipes.map((recipe) => recipe.index) };
+        properties.scale = scales.length
+          ? { anyOf: [{ type: "integer", enum: scales.map((scale) => scale.index) }, { type: "null" }] }
+          : { type: "null" };
         properties.stimulus = { type: "string", enum: stimuli };
         properties.intensity = { type: "string", enum: bands };
       } else {
@@ -580,6 +596,7 @@ export function slotChoiceUser(frame: SessionFrame): unknown {
   return {
     slots: frame.slots.map((slot) => ({
       slot: slot.id,
+      phase: slot.phase ?? "metcon",
       ...(slot.phase === "main" ? { main_lift: slot.movements.map((movement) => movement.key) } : {}),
       movements: slot.movements.map((movement) => ({
         movement_id: movement.key,
@@ -595,11 +612,24 @@ export function slotChoiceUser(frame: SessionFrame): unknown {
             ? {
                 movement_count: "3-6; chipper up to 8",
                 rules: levelGuide(frame.contract),
+                intensity: intensityLockEnum(frame.contract, stimulusLockEnum(frame.contract, frame.piece?.stimulus)),
                 recipes: frameRecipes(frame).map((recipe) => ({
                   index: recipe.index,
                   cap: recipe.cap,
                   rounds: recipe.rounds,
                   slots: recipe.slots.map((slot) => ({ key: slot.key, amount: slot.amount, unit: slot.unit })),
+                })),
+                scales: frameScales(frame).map((scale) => ({
+                  index: scale.index,
+                  recipe: scale.rxIndex,
+                  cap: scale.cap,
+                  rounds: scale.rounds,
+                  slots: scale.slots.map((slot) => ({
+                    key: slot.key,
+                    amount: slot.amount,
+                    unit: slot.unit,
+                    load: slot.load,
+                  })),
                 })),
               }
             : {}),
@@ -803,8 +833,11 @@ function expandContract(
   const errors: string[] = [];
   const bad = new Set<string>();
   const recipes = frameRecipes(frame);
+  const scales = frameScales(frame);
   const recipeIndex = typeof body.recipe === "number" && Number.isInteger(body.recipe) ? body.recipe : null;
   const recipe = recipeIndex == null ? null : (recipes.find((row) => row.index === recipeIndex) ?? null);
+  const scaleIndex = body.scale === null ? null : typeof body.scale === "number" && Number.isInteger(body.scale) ? body.scale : undefined;
+  const scale = scaleIndex == null ? null : (scales.find((row) => row.index === scaleIndex) ?? null);
   const useRecipe = usesIndexSlots(frame) && recipeIndex != null;
   const chosen: (SlotPick & { reason: string; load_percent: number | null; phase: string; option: QuantityChoice })[] = [];
   for (const slot of frame.slots) {
@@ -843,6 +876,12 @@ function expandContract(
   const minutesOf = (role: DaySessionLock["blocks"][number]["role"]) => lock.blocks.find((block) => block.role === role)?.minutes ?? 0;
   if (frame.area === "conditioning") {
     if (useRecipe && !recipe) errors.push("recipe is not an allowed dose");
+    if (useRecipe && recipe) {
+      const allowed = scales.filter((row) => row.rxIndex === recipe.index);
+      if (allowed.length > 0 && (!scale || scale.rxIndex !== recipe.index)) {
+        errors.push(`scale is not an allowed dose for this recipe; allowed: ${allowed.map((row) => row.index).join(",")}`);
+      }
+    }
     if (!useRecipe && echoed(body.metcon_format) !== lock.format) errors.push("metcon_format does not match the lock");
     if (!useRecipe && echoed(body.metcon_minutes) !== String(lock.metcon_minutes)) errors.push("metcon_minutes does not match the lock");
     if (!useRecipe && echoed(body.extra_minutes) !== String(minutesOf("extra_conditioning"))) errors.push("extra_minutes does not match the lock");
@@ -933,6 +972,26 @@ function expandContract(
     : metcon.map((pick) => movementFrom(pick.movement_id, pick.option));
   const metconMinutes = recipe?.cap ?? lock.metcon_minutes;
   const metconClock = recipe ? clockForRecipe(lock.format, recipe.cap, recipe.rounds, recipe.slots.map((slot) => slot.key)) : null;
+  const paired = recipe && scale && scale.rxIndex === recipe.index ? scale : null;
+  const scaleHidden = Boolean(recipe) && !paired;
+  const rxLine = recipe && metconClock
+    ? memberRxSentence(renderMetconLine({
+        format: lock.format,
+        clock: metconClock,
+        movements: recipe.slots.map((slot) => ({ key: slot.key, amount: slot.amount, unit: slot.unit, load: slot.load })),
+      }))
+    : null;
+  const scaleClock = paired ? clockForRecipe(lock.format, paired.cap, paired.rounds, paired.slots.map((slot) => slot.key)) : null;
+  const scaleLine = memberScaleSentence(
+    paired && scaleClock
+      ? renderMetconLine({
+          format: lock.format,
+          clock: scaleClock,
+          movements: paired.slots.map((slot) => ({ key: slot.key, amount: slot.amount, unit: slot.unit, load: slot.load })),
+        })
+      : null,
+    scaleHidden,
+  );
   return {
     ok: true,
     picks,
@@ -949,6 +1008,7 @@ function expandContract(
         interval_work_sec: lock.format === "intervals" ? 40 : null,
         interval_rest_sec: lock.format === "intervals" ? 20 : null,
         ...(metconClock ? clockEcho(metconClock) : clockEcho(lock.clock)),
+        ...(recipe ? { dose_band: "heavy" as const, member_rx: rxLine, member_scale: scaleLine, scale_status: paired ? ("pass" as const) : ("hidden" as const), scale_reason: paired ? null : "RULE_CONFLICT: no scale meets the same format, cap, pattern, easier step or lighter load, and 0.6–0.85 of Rx" } : {}),
       },
       ...(lock.format !== "zone2" && body.levels != null ? { prescription_levels: body.levels } : {}),
       contract_part: {
