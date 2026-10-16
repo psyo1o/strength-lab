@@ -5,7 +5,7 @@ export const MONTHLY_COACH_PROMPT_VERSION = "monthly-coach-v11";
 export const WEEKLY_COACH_PROMPT_VERSION = "weekly-coach-v5";
 export const SESSION_COACH_PROMPT_VERSION = "session-coach-v4";
 export const STRENGTH_COACH_PROMPT_VERSION = "strength-coach-v3";
-export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v8";
+export const CONDITIONING_COACH_PROMPT_VERSION = "conditioning-coach-v9";
 export const WARMUP_COACH_PROMPT_VERSION = "warmup-coach-v3";
 export const LOAD_COACH_PROMPT_VERSION = "load-coach-v2";
 export const HEAD_COACH_PROMPT_VERSION = "head-coach-v12";
@@ -84,7 +84,7 @@ const PROMPTS: Record<CoachAgentName, PromptDoc> = {
     decision_principles:
       "Choose format, duration, stimulus, movements, volume, and intensity. Do not return equipment. Do not rename a movement to escape a similar structure. Use other_training_days, previous_training_stimulus, and next_training_stimulus.",
     constraints:
-      "When the slot schema asks for move and qty, return those integer indices and nothing else for the slot. Choose only from that slot's numbered list. Output JSON only. Do not send a reason, a cap, block minutes, or an estimate. Otherwise return one movement_id and one quantity_option for each slot. quantity_option ids stay inside the catalog_range on that movement. Do not invent an amount outside that range. stimulus is only the enum for that format. emom and intervals do not include heavy. A zone2 block is format zone2, one movement, and minutes. It is not a metcon. Do not write units, loads, kilograms, or a display sentence. The server fills those from the catalog. Do not repeat a movement. Do not pick a movement that is not in that slot. Metcon movements are 3-6, and a chipper may use up to 8. When zone2_slot is in the schema, the same response includes primary and alternate. primary is the zone2 block. alternate is the short metcon that replaces primary when time is short. Do not prescribe both as work to do. When slot_repair is present, return only those slots. When edit_list is present, apply each listed item and do not change a slot that is not in edit_list.",
+      "When the schema asks for recipe, return that integer and nothing else for the dose. Choose only from the numbered list. Output JSON only. Do not send a reason, a cap, block minutes, or an estimate. The server writes derived time from the catalog pace, the quantity, and the rounds. Otherwise return one movement_id and one quantity_option for each slot. quantity_option ids stay inside the catalog_range on that movement. Do not invent an amount outside that range. stimulus is only the enum for that format. emom and intervals do not include heavy. A zone2 block is format zone2, one movement, and minutes. It is not a metcon. Do not write units, loads, kilograms, or a display sentence. The server fills those from the catalog. Do not repeat a movement. Do not pick a movement that is not in that slot. Metcon movements are 3-6, and a chipper may use up to 8. When zone2_slot is in the schema, the same response includes primary and alternate. primary is the zone2 block. alternate is the short metcon that replaces primary when time is short. Do not prescribe both as work to do. When slot_repair is present, return only those slots. When edit_list is present, apply each listed item and do not change a slot that is not in edit_list.",
     output_schema: "A locked metcon slot is move and qty indices. Other slots are movement_id and quantity_option. The server writes notes_ko, units, Rx, caps, and derived time.",
     failure_behavior: "A bad piece is rejected. Other days and the strength and warmup of this day stay.",
   },
@@ -147,9 +147,13 @@ export function coachPrompt(agent: CoachAgentName): PromptDoc {
   return PROMPTS[agent];
 }
 
+const FORMAT_EXAMPLES =
+  "Static format examples. For Time pass: cap 12, rounds 3, server time inside the cap and above the minimum. For Time pass: cap 15, rounds 4, same rule. For Time fail: an estimate under the minimum is not a recipe. AMRAP pass: the cap allows 2.5 to 20 rounds and one round stays under 40 percent. AMRAP fail: a round over 40 percent is not a recipe. Chipper pass: one round, server time at or under 90 percent of the cap and above the minimum. Chipper fail: time over 90 percent is not a recipe. Intervals pass: work fits in 40 seconds and work plus rest fills the cap. Intervals fail: work over 40 seconds is not a recipe. Partner pass: team rounds finish above the minimum and at or under the cap. Partner fail: time over the cap is not a recipe. EMOM pass: the minute of work fits in 60 seconds and the block has 8 to 40 rounds. EMOM fail: work over the minute is not a recipe.";
+
 export function coachSystemPrompt(agent: CoachAgentName): string {
   const doc = PROMPTS[agent];
   const sections = [
+    ...(agent === "conditioning" ? [FORMAT_EXAMPLES] : []),
     `ROLE\n${doc.role}`,
     `OBJECTIVE\n${doc.objective}`,
     `INPUTS\n${doc.inputs}`,

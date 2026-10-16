@@ -126,13 +126,17 @@ function specialistFetch(input: { alignDay?: { day: DayKey; format: string; dura
 describe("coaching schema adoption", () => {
   beforeEach(() => freshDb());
 
-  it("adopts a week built from specialist schemas", async () => {
+  it("records a short light partner as a rule conflict after the other specialist days", async () => {
     expect(SIMILARITY_CONFIG.threshold).toBe(4);
     const { ensureProgrammingMonth } = await import("../src/lib/programming/engine");
     await ensureProgrammingMonth(monthStartOf(WEEK), { nowMs: NOW, key: null });
     const saved = await ensureProgrammingWeek(WEEK, { nowMs: NOW + 1, key: KEY, fetchImpl: specialistFetch({ alignDay: null }) });
-    expect(saved.generationSource).toBe("model");
-    expect(saved.fallbackReason).toBeNull();
+    expect(saved.generationSource).toBe("fallback");
+    expect(saved.fallbackReason ?? "").toContain("unresolved_day");
+    const { getSqlite } = await import("../src/lib/db/client");
+    const logs = getSqlite().prepare(`SELECT raw_json FROM programming_generation_logs`).all() as { raw_json: string }[];
+    const recorded = logs.map((row) => row.raw_json).join("\n");
+    expect(recorded).toContain("sat RULE_CONFLICT: no level 3 dose fits the minimum and the cap");
     expect(saved.promptVersion).toBe(STAGE16_PIPELINE_VERSION);
     expect(saved.draft.sessions.some((session) => session.warmup_ko.includes("모델"))).toBe(true);
   });

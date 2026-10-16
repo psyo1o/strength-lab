@@ -845,6 +845,12 @@ async function writeSession(input: {
       dropRun: (input.week.weekSkeleton?.zone2?.lowerAdjacent ?? []).includes(input.day.day),
     });
     if (frame && area === "conditioning" && zone2Spec) frame.zone2Slot = zone2Spec;
+    if (frame?.recipes && frame.recipes.length === 0 && !frame.zone2Slot && frame.contract?.format !== "zone2") {
+      areaErrors.set(area, [`${input.day.day} RULE_CONFLICT: no level 3 dose fits the minimum and the cap`]);
+      areaReason.set(area, "empty_enum");
+      slotClosed.add(area);
+      continue;
+    }
     if (frame?.slots.some((slot) => slot.movements.length === 0)) {
       areaErrors.set(area, [`${input.day.day} metcon list is empty after the weekly movement cap`]);
       areaReason.set(area, "empty_enum");

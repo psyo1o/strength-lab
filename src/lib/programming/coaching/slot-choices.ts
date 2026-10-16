@@ -19,6 +19,7 @@ import {
   type CatalogUnit,
 } from "./movement-catalog";
 import { allowedAmounts, cleanDisplayName, clockEcho, clockPresent, intensityLockEnum, readClock, sameClock, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { clockForRecipe, level3Recipes, type DoseRecipe } from "./dose-menu";
 import { levelGuide } from "./intensity-levels";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
@@ -62,6 +63,8 @@ export type SessionFrame = {
   zone2Slot?: { deload: boolean; previousModality?: string | null; dropRun?: boolean } | null;
   /** 잠긴 세션 계약이 있을 때만 단계·에코·이유를 요구한다. */
   contract?: DaySessionLock | null;
+  /** 강도 3에서 최소와 캡을 동시에 통과하는 번호표. */
+  recipes?: DoseRecipe[];
 };
 
 /** avoid 날 칸에 남아야 하는 동작·수량 선택지. 이보다 적으면 생성 전에 멈춘다. */
@@ -385,6 +388,7 @@ export function buildSessionFrame(input: {
     slots,
     piece,
     contract: locked,
+    ...(locked && input.area === "conditioning" && locked.format !== "zone2" ? { recipes: level3Recipes(locked) } : {}),
   };
   if (input.avoidHeavyLower && frame.area === "conditioning" && !frame.contract) return withoutHeavyLowerOptions(frame);
   return frame;
@@ -423,6 +427,11 @@ function branch(slot: FrameSlot, movement: FrameMovement, locked: boolean): Reco
 
 function usesIndexSlots(frame: SessionFrame): boolean {
   return frame.area === "conditioning" && Boolean(frame.contract) && frame.contract?.format !== "zone2" && !frame.zone2Slot;
+}
+
+export function frameRecipes(frame: SessionFrame): DoseRecipe[] {
+  if (!usesIndexSlots(frame) || !frame.contract) return [];
+  return frame.recipes ?? level3Recipes(frame.contract);
 }
 
 function indexSlotSchema(slot: FrameSlot): Record<string, unknown> {
@@ -511,7 +520,10 @@ export function alternateOnlyFormat(spec: { deload: boolean; previousModality?: 
 export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
+  const recipes = frameRecipes(frame);
+  const indexed = usesIndexSlots(frame) && recipes.length > 0;
   for (const slot of frame.slots) {
+    if (indexed && slot.phase === "metcon") continue;
     required.push(slot.id);
     properties[slot.id] = usesIndexSlots(frame) ? indexSlotSchema(slot) : slotSchema(slot, Boolean(frame.contract));
   }
@@ -520,18 +532,25 @@ export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
     if (frame.area === "conditioning") {
       const stimuli = stimulusLockEnum(frame.contract, frame.piece?.stimulus);
       const bands = intensityLockEnum(frame.contract, stimuli);
-      for (const key of ["metcon_format", "metcon_minutes", "extra_minutes", "stimulus", "intensity"]) required.push(key);
-      properties.metcon_format = { type: "string", enum: [frame.contract.format] };
-      properties.metcon_minutes = { type: "integer", enum: [frame.contract.metcon_minutes] };
-      properties.extra_minutes = { type: "integer", enum: [minutes("extra_conditioning")] };
-      properties.stimulus = { type: "string", enum: stimuli };
-      properties.intensity = { type: "string", enum: bands };
-      const echo = clockEcho(frame.contract.clock);
-      for (const [key, value] of Object.entries(echo)) {
-        required.push(key);
-        if (value == null) properties[key] = { type: "null" };
-        else if (typeof value === "number") properties[key] = { type: "integer", enum: [value] };
-        else properties[key] = { type: "string", enum: [value] };
+      if (indexed) {
+        required.push("recipe", "stimulus", "intensity");
+        properties.recipe = { type: "integer", enum: recipes.map((recipe) => recipe.index) };
+        properties.stimulus = { type: "string", enum: stimuli };
+        properties.intensity = { type: "string", enum: bands };
+      } else {
+        for (const key of ["metcon_format", "metcon_minutes", "extra_minutes", "stimulus", "intensity"]) required.push(key);
+        properties.metcon_format = { type: "string", enum: [frame.contract.format] };
+        properties.metcon_minutes = { type: "integer", enum: [frame.contract.metcon_minutes] };
+        properties.extra_minutes = { type: "integer", enum: [minutes("extra_conditioning")] };
+        properties.stimulus = { type: "string", enum: stimuli };
+        properties.intensity = { type: "string", enum: bands };
+        const echo = clockEcho(frame.contract.clock);
+        for (const [key, value] of Object.entries(echo)) {
+          required.push(key);
+          if (value == null) properties[key] = { type: "null" };
+          else if (typeof value === "number") properties[key] = { type: "integer", enum: [value] };
+          else properties[key] = { type: "string", enum: [value] };
+        }
       }
     } else if (frame.area === "warmup") {
       for (const key of ["warmup_minutes", "cooldown_minutes"]) required.push(key);
@@ -576,13 +595,11 @@ export function slotChoiceUser(frame: SessionFrame): unknown {
             ? {
                 movement_count: "3-6; chipper up to 8",
                 rules: levelGuide(frame.contract),
-                menu: frame.slots.map((slot) => ({
-                  slot: slot.id,
-                  movements: slot.movements.map((movement, index) => ({
-                    index,
-                    key: movement.key,
-                    quantities: movement.options.map((option, qty) => ({ index: qty, amount: option.amount, unit: option.unit })),
-                  })),
+                recipes: frameRecipes(frame).map((recipe) => ({
+                  index: recipe.index,
+                  cap: recipe.cap,
+                  rounds: recipe.rounds,
+                  slots: recipe.slots.map((slot) => ({ key: slot.key, amount: slot.amount, unit: slot.unit })),
                 })),
               }
             : {}),
@@ -785,8 +802,13 @@ function expandContract(
   const lock = frame.contract!;
   const errors: string[] = [];
   const bad = new Set<string>();
+  const recipes = frameRecipes(frame);
+  const recipeIndex = typeof body.recipe === "number" && Number.isInteger(body.recipe) ? body.recipe : null;
+  const recipe = recipeIndex == null ? null : (recipes.find((row) => row.index === recipeIndex) ?? null);
+  const useRecipe = usesIndexSlots(frame) && recipeIndex != null;
   const chosen: (SlotPick & { reason: string; load_percent: number | null; phase: string; option: QuantityChoice })[] = [];
   for (const slot of frame.slots) {
+    if (useRecipe && slot.phase === "metcon") continue;
     const cell = asRecord(body[slot.id]);
     const moveIndex = typeof cell?.move === "number" && Number.isInteger(cell.move) ? cell.move : null;
     const qtyIndex = typeof cell?.qty === "number" && Number.isInteger(cell.qty) ? cell.qty : null;
@@ -820,16 +842,17 @@ function expandContract(
   }
   const minutesOf = (role: DaySessionLock["blocks"][number]["role"]) => lock.blocks.find((block) => block.role === role)?.minutes ?? 0;
   if (frame.area === "conditioning") {
-    if (echoed(body.metcon_format) !== lock.format) errors.push("metcon_format does not match the lock");
-    if (echoed(body.metcon_minutes) !== String(lock.metcon_minutes)) errors.push("metcon_minutes does not match the lock");
-    if (echoed(body.extra_minutes) !== String(minutesOf("extra_conditioning"))) errors.push("extra_minutes does not match the lock");
+    if (useRecipe && !recipe) errors.push("recipe is not an allowed dose");
+    if (!useRecipe && echoed(body.metcon_format) !== lock.format) errors.push("metcon_format does not match the lock");
+    if (!useRecipe && echoed(body.metcon_minutes) !== String(lock.metcon_minutes)) errors.push("metcon_minutes does not match the lock");
+    if (!useRecipe && echoed(body.extra_minutes) !== String(minutesOf("extra_conditioning"))) errors.push("extra_minutes does not match the lock");
     const stimuli = stimulusLockEnum(lock, frame.piece?.stimulus);
     const bands = intensityLockEnum(lock, stimuli);
     const pickedStimulus = echoed(body.stimulus);
     if (!(stimuli as readonly string[]).includes(pickedStimulus)) errors.push("stimulus is outside the locked ceiling");
     const picked = echoed(body.intensity);
     if (!(bands as readonly string[]).includes(picked)) errors.push("intensity is outside the locked ceiling");
-    if (clockPresent(body)) {
+    if (!useRecipe && clockPresent(body)) {
       const clock = readClock(body);
       if (!clock || !sameClock(clock, lock.clock)) errors.push("metcon clock does not match the lock");
     }
@@ -905,7 +928,11 @@ function expandContract(
   const piece = frame.piece!;
   const pickedStimulus = echoed(body.stimulus);
   const pickedIntensity = echoed(body.intensity);
-  const movements = metcon.map((pick) => movementFrom(pick.movement_id, pick.option));
+  const movements = recipe
+    ? recipe.slots.map((slot) => movementFrom(slot.key, { id: `${slot.unit}:${slot.amount}`, unit: slot.unit, amount: slot.amount, method: false }))
+    : metcon.map((pick) => movementFrom(pick.movement_id, pick.option));
+  const metconMinutes = recipe?.cap ?? lock.metcon_minutes;
+  const metconClock = recipe ? clockForRecipe(lock.format, recipe.cap, recipe.rounds, recipe.slots.map((slot) => slot.key)) : null;
   return {
     ok: true,
     picks,
@@ -914,19 +941,19 @@ function expandContract(
       notes_ko: "카탈로그에서 고른 수량으로 진행합니다.",
       conditioning: {
         format: lock.format,
-        duration_min: lock.metcon_minutes,
+        duration_min: metconMinutes,
         stimulus: pickedStimulus,
         movements,
         volume: piece.volume,
         intensity: pickedIntensity,
         interval_work_sec: lock.format === "intervals" ? 40 : null,
         interval_rest_sec: lock.format === "intervals" ? 20 : null,
-        ...clockEcho(lock.clock),
+        ...(metconClock ? clockEcho(metconClock) : clockEcho(lock.clock)),
       },
       ...(lock.format !== "zone2" && body.levels != null ? { prescription_levels: body.levels } : {}),
       contract_part: {
         kind: "conditioning",
-        metcon_minutes: lock.metcon_minutes,
+        metcon_minutes: metconMinutes,
         extra_minutes: minutesOf("extra_conditioning"),
         format: lock.format,
         extra: extra

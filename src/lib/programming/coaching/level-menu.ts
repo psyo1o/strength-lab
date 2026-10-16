@@ -1,3 +1,4 @@
+import { outerRecipes, recipeByIndex, type DoseRecipe } from "./dose-menu";
 import type { FetchLike } from "../model";
 import type { LevelMovement, LevelPrescription, SessionDraft, SessionLevels } from "../types";
 import type { ResponseFormat } from "./contract";
@@ -27,26 +28,32 @@ import {
 } from "./session-contract";
 import { finishTrace, inputHash, type AgentTrace } from "./trace";
 
-export const OUTER_LEVELS_PROMPT_VERSION = "outer-levels-v1";
+export const OUTER_LEVELS_PROMPT_VERSION = "outer-levels-v2";
 
 const OUTER_LEVELS = [1, 2, 4, 5] as const;
 const WORK_TARGET: Record<(typeof OUTER_LEVELS)[number], number> = { 1: 0.8, 2: 0.9, 4: 1.1, 5: 1.21 };
 
 export const OUTER_RULES = [
   "Choose only from this list. Output JSON only.",
-  "move, qty, and load are indices. Do not send keys, amounts, caps, minutes, or an estimate.",
-  "Levels 1 and 2 go easier. Levels 4 and 5 go harder by one ladder step or the work multiplier. Do not copy level 3.",
+  "pick is the recipe index. Do not send keys, amounts, caps, minutes, or an estimate.",
+  "Levels 1 and 2 are easier. Levels 4 and 5 are harder. Each recipe already meets the work multiplier, the cap, and the minimum.",
   "Metcon movements are 3-6. Chipper may use up to 8.",
 ] as const;
 
 const OUTER_SYSTEM = [
+  "Static examples: For Time pass is cap 12 rounds 3 with server time inside the cap and above the minimum. A second For Time pass is cap 15 rounds 4 on the same rule.",
+  "For Time fail: an estimate under the minimum is not listed.",
+  "AMRAP pass: the cap allows 2.5 to 20 rounds and one round stays under 40 percent of the cap. AMRAP fail: a round over 40 percent is not listed.",
+  "Chipper pass: one round, server time at or under 90 percent of the cap and above the minimum. Chipper fail: time over 90 percent of the cap is not listed.",
+  "Intervals pass: work fits in 40 seconds and work plus rest fills the cap. Intervals fail: work over 40 seconds is not listed.",
+  "Partner pass: team rounds finish above the minimum and at or under the cap. Partner fail: time over the cap is not listed.",
+  "EMOM pass: the minute of work fits in 60 seconds and the block has 8 to 40 rounds. EMOM fail: work over the minute is not listed.",
   "You fill intensity levels 1, 2, 4, and 5 for one metcon.",
-  "Choose only from the numbered list in the user message.",
-  "Output JSON only.",
-  "Do not send movement names, amounts, caps, block minutes, or an estimate.",
+  "Choose only a pick index from the numbered recipes in the user message. Output JSON only.",
+  "Do not send movement names, amounts, caps, block minutes, or an estimate. The server writes the time.",
 ].join(" ");
 
-export type RepairCode = "SAME_AS_L3" | "NOT_ALLOWED" | "CAP_OUT" | "STEP" | "WORK" | "LOAD_DOWN" | "DENSITY" | "BAD_JSON";
+export type RepairCode = "SAME_AS_L3" | "NOT_ALLOWED" | "CAP_OUT" | "STEP" | "WORK" | "LOAD_DOWN" | "DENSITY" | "BAD_JSON" | "RULE_CONFLICT";
 
 export type MenuQuantity = { index: number; amount: number; unit: DoseMovement["unit"] };
 export type MenuLoad = { index: number; id: string; male: string | null; female: string | null };
@@ -577,9 +584,10 @@ function returnOnly(errors: readonly RepairError[]): Record<string, string[]> {
   const grouped: Record<string, string[]> = {};
   for (const error of errors) {
     const [level, slot] = error.path.split(".");
-    if (!level || !slot) continue;
+    if (!level) continue;
+    const field = slot || "pick";
     grouped[level] = grouped[level] ?? [];
-    if (!grouped[level]!.includes(slot)) grouped[level]!.push(slot);
+    if (!grouped[level]!.includes(field)) grouped[level]!.push(field);
   }
   return grouped;
 }
@@ -617,6 +625,134 @@ function hiddenPack(lock: DaySessionLock, level3: LevelPrescription, reason: str
   return packLevelSet(lock, levels);
 }
 
+export type RecipeMenus = Partial<Record<1 | 2 | 4 | 5, DoseRecipe[]>>;
+export type RecipePicks = Record<string, number>;
+
+function recipeSchema(menus: RecipeMenus, only?: readonly RepairError[]): Record<string, unknown> {
+  const properties: Record<string, unknown> = {};
+  const required: string[] = [];
+  const levels = only ? [...new Set(only.map((error) => error.path))] : OUTER_LEVELS.map(String);
+  for (const level of levels) {
+    const recipes = menus[Number(level) as 1 | 2 | 4 | 5] ?? [];
+    if (!recipes.length) continue;
+    const allowed = only?.find((error) => error.path === level)?.allowed;
+    const indexes = allowed?.length ? allowed : recipes.map((recipe) => recipe.index);
+    properties[level] = strictObject({ pick: { type: "integer", enum: indexes } }, ["pick"]);
+    required.push(level);
+  }
+  return strictObject(properties, required);
+}
+
+export function recipeFormat(menus: RecipeMenus, only?: readonly RepairError[]): ResponseFormat {
+  return {
+    type: "json_schema",
+    json_schema: { name: only ? "outer_level_repair" : "outer_levels", strict: true, schema: recipeSchema(menus, only) },
+  };
+}
+
+export function readRecipePicks(json: unknown, menus: RecipeMenus): RecipePicks {
+  const body = asRecord(json) ?? {};
+  const picks: RecipePicks = {};
+  for (const level of OUTER_LEVELS) {
+    if (!(menus[level]?.length)) continue;
+    const row = asRecord(body[String(level)]);
+    picks[String(level)] = integer(row?.pick) ?? integer(body[String(level)]) ?? -1;
+  }
+  return picks;
+}
+
+function fromRecipe(level: 1 | 2 | 4 | 5, lock: DaySessionLock, recipe: DoseRecipe): LevelPrescription {
+  return {
+    level,
+    cap_min: recipe.cap,
+    rounds: recipe.rounds,
+    work_sec: lock.format === "intervals" ? 40 : null,
+    rest_sec: lock.format === "intervals" ? 20 : null,
+    sets: lock.format === "intervals" ? recipe.cap : null,
+    movements: recipe.slots.map((slot, index) => described(lock.metcon[index]?.key ?? slot.key, slot.key, slot.unit, slot.amount, slot.load)),
+    derived_sec: recipe.derivedSec,
+    time_source: "derived",
+    status: "pass",
+    hidden_reason: null,
+  };
+}
+
+export function materializeRecipes(lock: DaySessionLock, level3: LevelPrescription, picks: RecipePicks, menus: RecipeMenus): SessionLevels {
+  const count = Math.max(level3.movements.length, 1);
+  const levels: LevelPrescription[] = [];
+  for (const level of [1, 2, 3, 4, 5] as const) {
+    if (level === 3) {
+      levels.push(level3);
+      continue;
+    }
+    const recipes = menus[level] ?? [];
+    if (!recipes.length) {
+      levels.push(blankOuter(level, count, "RULE_CONFLICT: no dose meets the work multiplier, the cap, and the minimum"));
+      continue;
+    }
+    const recipe = recipeByIndex(recipes, picks[String(level)] ?? -1);
+    if (!recipe) {
+      levels.push(blankOuter(level, count, `NOT_ALLOWED: pick ${picks[String(level)] ?? "missing"} is outside the list`));
+      continue;
+    }
+    levels.push(fromRecipe(level, lock, recipe));
+  }
+  return packLevelSet(lock, levels);
+}
+
+export function recipeRepairErrors(lock: DaySessionLock, packed: SessionLevels, picks: RecipePicks, menus: RecipeMenus): RepairError[] {
+  const errors: RepairError[] = [];
+  for (const level of packed.levels) {
+    if (level.level === 3 || level.status === "pass") continue;
+    if ((level.hidden_reason ?? "").startsWith("RULE_CONFLICT")) continue;
+    const recipes = menus[level.level as 1 | 2 | 4 | 5] ?? [];
+    if (!recipes.length) continue;
+    errors.push({
+      path: String(level.level),
+      code: codeOf(level.hidden_reason ?? ""),
+      current: picks[String(level.level)] ?? null,
+      allowed: recipes.map((recipe) => recipe.index),
+      context: {
+        baseline_level: 3,
+        work_multiplier: WORK_TARGET[level.level as 1 | 2 | 4 | 5],
+        floor_sec: metconFloorSec(lock.format, bandForLevel(level.level)),
+        reason: level.hidden_reason,
+      },
+    });
+  }
+  return errors;
+}
+
+export function mergeRecipeRepair(base: RecipePicks, patch: unknown, errors: readonly RepairError[]): { ok: true; picks: RecipePicks } | { ok: false } {
+  const body = asRecord(patch);
+  if (!body) return { ok: false };
+  const allowed = new Map(errors.map((error) => [error.path, new Set(error.allowed)]));
+  for (const key of Object.keys(body)) {
+    if (!allowed.has(key)) return { ok: false };
+  }
+  const next: RecipePicks = { ...base };
+  for (const [level, indexes] of allowed) {
+    const row = asRecord(body[level]);
+    const pick = integer(row?.pick);
+    if (pick == null || !indexes.has(pick)) return { ok: false };
+    next[level] = pick;
+  }
+  return { ok: true, picks: next };
+}
+
+function recipeLines(menus: RecipeMenus): unknown[] {
+  return OUTER_LEVELS.flatMap((level): unknown[] => {
+    const recipes = menus[level] ?? [];
+    return recipes.map((recipe) => ({
+      level,
+      pick: recipe.index,
+      cap: recipe.cap,
+      rounds: recipe.rounds,
+      slots: recipe.slots.map((slot) => ({ key: slot.key, amount: slot.amount, unit: slot.unit })),
+    }));
+  });
+}
+
 export async function requestOuterLevels(input: {
   lock: DaySessionLock;
   session: SessionDraft;
@@ -632,17 +768,19 @@ export async function requestOuterLevels(input: {
   }
   const level3 = level3FromPiece(input.lock, piece);
   if (level3.status !== "pass") return { levels: hiddenPack(input.lock, level3, "NOT_ALLOWED: level 3 did not pass"), traces: [] };
-  const menu = outerMenu(input.lock, level3);
-  if (!menu.slots.length || menu.slots.some((slot) => slot.options.length === 0)) {
-    return { levels: hiddenPack(input.lock, level3, "NOT_ALLOWED: a slot list is empty"), traces: [] };
-  }
-  const table = targetTable(input.lock, level3, menu);
+  const menus = outerRecipes(input.lock, level3);
+  const openLevels = OUTER_LEVELS.filter((level) => (menus[level]?.length ?? 0) > 0);
+  if (!openLevels.length) return { levels: materializeRecipes(input.lock, level3, {}, menus), traces: [] };
   const user = {
     agent_name: "outer_levels",
     task: "levels",
     rules: [...OUTER_RULES],
-    example: examplePicks(menu),
-    ...table,
+    level_3: {
+      cap_min: level3.cap_min,
+      rounds: level3.rounds,
+      slots: level3.movements.map((movement) => ({ key: movement.key, amount: movement.amount, unit: movement.unit })),
+    },
+    recipes: recipeLines(menus),
   };
   const traces: AgentTrace[] = [];
   const started = Date.now();
@@ -652,53 +790,51 @@ export async function requestOuterLevels(input: {
     key: input.key,
     fetchImpl: input.fetchImpl,
     timeoutMs: input.timeoutMs,
-    maxTokens: 1500,
+    maxTokens: 800,
     promptVersion: OUTER_LEVELS_PROMPT_VERSION,
     runId: input.runId,
     systemPrompt: OUTER_SYSTEM,
-    schemaNote: "JSON only. Integer indices for levels 1, 2, 4, and 5.",
-    format: outerFormat(menu),
+    schemaNote: "JSON only. One pick index for each listed level.",
+    format: recipeFormat(menus),
     maxAttempts: 1,
     retryContext: { agent: "outer_levels", day: input.lock.day },
   });
   traces.push(traceFor({ runId: input.runId, weekId: input.weekId, day: input.lock.day, user }, asked, started));
-  let picks = asked.ok && asked.json ? readOuterPicks(asked.json, menu) : readOuterPicks({}, menu);
+  let picks = asked.ok && asked.json ? readRecipePicks(asked.json, menus) : readRecipePicks({}, menus);
   const retries = new Map<string, number>();
   if (!asked.ok || !asked.json) {
-    const bad: RepairError[] = menu.slots.flatMap((slot) =>
-      OUTER_LEVELS.map((level) => ({
-        path: `${level}.${slot.id}`,
-        code: "BAD_JSON" as const,
-        current: null,
-        allowed: slot.options.map((option) => option.index),
-        context: { baseline_level: 3 },
-      })),
-    );
-    const repaired = await repairOnce(input, menu, user.rules, bad, picks);
+    const bad: RepairError[] = openLevels.map((level) => ({
+      path: String(level),
+      code: "BAD_JSON" as const,
+      current: null,
+      allowed: (menus[level] ?? []).map((recipe) => recipe.index),
+      context: { baseline_level: 3 },
+    }));
+    const repaired = await repairOnce(input, menus, user.rules, bad, picks);
     traces.push(...repaired.traces);
     if (repaired.picks) picks = repaired.picks;
     for (const error of bad) retries.set(error.path, 1);
   }
   for (let round = 0; round < 2; round += 1) {
-    const packed = materializeOuter(input.lock, level3, picks, menu);
-    const open = repairErrors(input.lock, packed, picks, menu).filter((error) => (retries.get(error.path) ?? 0) < 2);
+    const packed = materializeRecipes(input.lock, level3, picks, menus);
+    const open = recipeRepairErrors(input.lock, packed, picks, menus).filter((error) => (retries.get(error.path) ?? 0) < 2);
     if (!open.length) return { levels: packed, traces };
-    const repaired = await repairOnce(input, menu, [...OUTER_RULES], open, picks);
+    const repaired = await repairOnce(input, menus, [...OUTER_RULES], open, picks);
     traces.push(...repaired.traces);
     for (const error of open) retries.set(error.path, (retries.get(error.path) ?? 0) + 1);
     if (!repaired.picks) break;
     picks = repaired.picks;
   }
-  return { levels: materializeOuter(input.lock, level3, picks, menu), traces };
+  return { levels: materializeRecipes(input.lock, level3, picks, menus), traces };
 }
 
 async function repairOnce(
   input: { lock: DaySessionLock; key: string; fetchImpl?: FetchLike; timeoutMs: number; runId: string; weekId: string },
-  menu: OuterMenu,
+  menus: RecipeMenus,
   rules: readonly string[],
   errors: readonly RepairError[],
-  picks: OuterPicks,
-): Promise<{ picks: OuterPicks | null; traces: AgentTrace[] }> {
+  picks: RecipePicks,
+): Promise<{ picks: RecipePicks | null; traces: AgentTrace[] }> {
   const repairUser = {
     agent_name: "outer_levels",
     task: "repair",
@@ -718,13 +854,13 @@ async function repairOnce(
     runId: input.runId,
     systemPrompt: OUTER_SYSTEM,
     schemaNote: "JSON only. Return only the paths in return_only.",
-    format: outerFormat(menu, errors),
+    format: recipeFormat(menus, errors),
     maxAttempts: 1,
     retryContext: { agent: "outer_levels", day: input.lock.day, task: "repair" },
-    validate: (json) => (mergeRepair(picks, json, errors).ok ? { ok: true } : { ok: false, errors: ["repair changed a field outside return_only"], retry: false }),
+    validate: (json) => (mergeRecipeRepair(picks, json, errors).ok ? { ok: true } : { ok: false, errors: ["repair changed a field outside return_only"], retry: false }),
   });
   const trace = traceFor({ runId: input.runId, weekId: input.weekId, day: input.lock.day, user: repairUser }, asked, started);
   if (!asked.ok || !asked.json) return { picks: null, traces: [trace] };
-  const merged = mergeRepair(picks, asked.json, errors);
+  const merged = mergeRecipeRepair(picks, asked.json, errors);
   return merged.ok ? { picks: merged.picks, traces: [trace] } : { picks: null, traces: [trace] };
 }

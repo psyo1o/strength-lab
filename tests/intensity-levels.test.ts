@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { doseIssues, planWeekContract } from "../src/lib/programming/coaching/session-contract";
+import { doseIssues, doseReport, planWeekContract } from "../src/lib/programming/coaching/session-contract";
+import { clockForRecipe, level3Recipes } from "../src/lib/programming/coaching/dose-menu";
 import { ladderFor } from "../src/lib/programming/coaching/movement-catalog";
 import {
   hardLevelErrors,
@@ -12,7 +13,8 @@ import {
   packLevelSet,
   sessionAtLevel,
 } from "../src/lib/programming/coaching/intensity-levels";
-import { materializeOuter, mergeRepair, outerFormat, outerMenu, readOuterPicks, repairErrors, type OuterPicks } from "../src/lib/programming/coaching/level-menu";
+import { materializeRecipes, mergeRecipeRepair, recipeFormat, readRecipePicks, recipeRepairErrors } from "../src/lib/programming/coaching/level-menu";
+import { outerRecipes } from "../src/lib/programming/coaching/dose-menu";
 import { movementsAtWeekCap } from "../src/lib/programming/coaching/session-contract";
 import { quantityOptions, sessionSlotFormat, type SessionFrame } from "../src/lib/programming/coaching/slot-choices";
 import type { LevelPrescription, SessionDraft } from "../src/lib/programming/types";
@@ -68,12 +70,25 @@ describe("intensity levels", () => {
       slots: lock.metcon.map((move, index) => ({ id: `s${index}`, phase: "metcon" as const, movements: [{ key: move.key, options: quantityOptions(move.key) }] })),
     };
     const schema = JSON.stringify(sessionSlotFormat(frame));
-    expect(schema).toContain('"move"');
-    expect(schema).toContain('"qty"');
+    expect(schema).toContain('"recipe"');
+    expect(schema).not.toContain('"derived_sec"');
     expect(schema).not.toContain('"levels"');
     expect(schema).not.toContain('"reason"');
     expect(legalCaps(lock)).toContain(lock.metcon_minutes);
     const guide = levelGuide(lock);
+    const recipes = level3Recipes(lock);
+    expect(recipes.length).toBeGreaterThan(0);
+    for (const recipe of recipes) {
+      const reading = doseReport({
+        format: lock.format,
+        minutes: recipe.cap,
+        movements: recipe.slots.map((slot) => ({ key: slot.key, unit: slot.unit, amount: slot.amount })),
+        clock: clockForRecipe(lock.format, recipe.cap, recipe.rounds, recipe.slots.map((slot) => slot.key)),
+        intensity: "moderate",
+      });
+      expect(reading.issues).toEqual([]);
+      expect(reading.derived?.sec).toBe(recipe.derivedSec);
+    }
     expect(guide).toContain("Choose only from this list");
     expect(guide).toContain("Output JSON only");
     expect(guide).toContain("3-6");
@@ -180,27 +195,29 @@ describe("intensity levels", () => {
     expect(shown.conditioning?.duration_min).toBe(judged.levels[4]?.cap_min);
     expect(session.levels?.levels[4]?.movements[weighted]?.load?.male).toBe(lighter.male);
     const level3 = judged.levels.find((row) => row.level === 3)!;
-    const menu = outerMenu(lock, { ...level3, status: "pass", hidden_reason: null });
-    const schema = outerFormat(menu);
-    expect((schema.json_schema.schema as { required: string[] }).required).toEqual(["1", "2", "4", "5"]);
+    const menus = outerRecipes(lock, { ...level3, status: "pass", hidden_reason: null });
+    const schema = recipeFormat(menus);
+    const required = (schema.json_schema.schema as { required?: string[] }).required ?? [];
+    expect(required.every((level) => ["1", "2", "4", "5"].includes(level))).toBe(true);
     expect(JSON.stringify(schema)).not.toContain("cap_min");
-    const indexPicks: OuterPicks = {};
-    for (const level of ["1", "2", "4", "5"]) {
-      indexPicks[level] = {};
-      for (const slot of menu.slots) {
-        const option = slot.options.find((row) => row.role === "base") ?? slot.options[0]!;
-        const qty = option.quantities.findIndex((row) => row.amount === level3.movements[menu.slots.indexOf(slot)]?.amount);
-        indexPicks[level]![slot.id] = { move: option.index, qty: qty >= 0 ? qty : 0, load: option.loads.length ? 0 : null };
-      }
-    }
-    const copied = materializeOuter(lock, { ...level3, status: "pass", hidden_reason: null }, indexPicks, menu);
+    expect(JSON.stringify(schema)).not.toContain("derived");
+    const indexPicks = readRecipePicks(
+      Object.fromEntries(required.map((level) => [level, { pick: menus[Number(level) as 1 | 2 | 4 | 5]?.[0]?.index ?? 0 }])),
+      menus,
+    );
+    const copied = materializeRecipes(lock, { ...level3, status: "pass", hidden_reason: null }, indexPicks, menus);
     const hiddenOuter = copied.levels.find((row) => row.level === 1);
-    if (hiddenOuter?.status === "hidden") expect(hiddenOuter.hidden_reason ?? "").toMatch(/SAME_AS_L3|CAP_OUT|NOT_ALLOWED|WORK/);
-    const illegal = readOuterPicks({ "1": { s0: { move: 99, qty: 0 } }, "2": { s0: { move: 0, qty: 0 } } }, menu);
-    const rejected = materializeOuter(lock, { ...level3, status: "pass", hidden_reason: null }, illegal, menu);
-    expect(rejected.levels.find((row) => row.level === 1)?.hidden_reason ?? "").toContain("NOT_ALLOWED");
-    expect(rejected.levels.find((row) => row.level === 1)?.movements[0]?.amount).toBeNull();
-    const blocked = mergeRepair(indexPicks, { "1": indexPicks["1"], "9": { s0: { move: 0, qty: 0 } } }, repairErrors(lock, copied, indexPicks, menu).slice(0, 1));
+    if ((menus[1]?.length ?? 0) === 0) expect(hiddenOuter?.hidden_reason ?? "").toContain("RULE_CONFLICT");
+    const illegal = readRecipePicks({ "1": { pick: 99 } }, menus);
+    const rejected = materializeRecipes(lock, { ...level3, status: "pass", hidden_reason: null }, illegal, menus);
+    if ((menus[1]?.length ?? 0) > 0) {
+      expect(rejected.levels.find((row) => row.level === 1)?.hidden_reason ?? "").toContain("NOT_ALLOWED");
+      expect(rejected.levels.find((row) => row.level === 1)?.movements[0]?.amount).toBeNull();
+    } else {
+      expect(rejected.levels.find((row) => row.level === 1)?.hidden_reason ?? "").toContain("RULE_CONFLICT");
+    }
+    const repair = recipeRepairErrors(lock, copied, indexPicks, menus);
+    const blocked = mergeRecipeRepair(indexPicks, { "1": { pick: 0 }, "9": { pick: 0 } }, repair.slice(0, 1));
     expect(blocked.ok).toBe(false);
     const rows = [
       { day: "mon", metcon: [{ key: "double_under" }] },

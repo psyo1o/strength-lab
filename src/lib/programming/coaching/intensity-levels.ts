@@ -429,8 +429,8 @@ export function fitLevelEnums(lock: DaySessionLock): Record<(typeof LEVEL_NUMBER
 export function levelGuide(_lock: DaySessionLock): string {
   return [
     "Choose only from this list. Output JSON only.",
-    "move, qty, and load are indices. Do not send keys, amounts, caps, minutes, or an estimate.",
-    "Levels 1 and 2 go easier. Levels 4 and 5 go harder by one ladder step or the work multiplier. Do not copy level 3.",
+    "Return the recipe index. Do not send keys, amounts, caps, minutes, or an estimate.",
+    "Every listed recipe already fits the minimum, the cap, and the work multiplier. The server writes the time.",
     "Metcon movements are 3-6. Chipper may use up to 8.",
   ].join(" ");
 }
@@ -747,7 +747,7 @@ export function capFitsSession(minutes: number, longPiece: boolean): boolean {
   return minutes >= 8 && minutes <= 20;
 }
 
-function levelWork(format: string, level: LevelPrescription): number {
+export function levelWork(format: string, level: LevelPrescription): number {
   const multiplier =
     format === "intervals" ? (level.sets ?? level.cap_min ?? 1) : format === "for_time" || format === "partner" || format === "chipper" ? (level.rounds ?? 1) : 1;
   return (
