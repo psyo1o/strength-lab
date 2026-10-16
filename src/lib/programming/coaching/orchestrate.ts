@@ -866,7 +866,10 @@ async function writeSession(input: {
   };
   const validatePresented = (area: SpecialistArea) => (json: unknown) => {
     const ready = present(area, json);
-    if (!ready.ok) return { ok: false as const, errors: ready.errors, retry: false as const };
+    if (!ready.ok) {
+      if (ready.errors.some((error) => error.includes("allowed:"))) return { ok: false as const, errors: ready.errors };
+      return { ok: false as const, errors: ready.errors, retry: false as const };
+    }
     const verdict = validateArea(area)(ready.json);
     if (!verdict.ok && isSlotPayload(json) && !verdict.errors.some(levelCheckError)) {
       if (verdict.errors.some((error) => error.includes("allowed:"))) return verdict;
