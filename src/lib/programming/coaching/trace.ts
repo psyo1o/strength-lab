@@ -35,6 +35,7 @@ export type AgentName =
   | "variation_engine"
   | "strength_coach"
   | "conditioning_coach"
+  | "outer_levels"
   | "warmup_coach"
   | "recovery_coach"
   | "variation_coach"
@@ -66,6 +67,10 @@ export type TokenUsage = {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  /** Tokens served from a prompt cache. Absent when the provider omits the field. */
+  cache_read_tokens?: number;
+  /** Tokens written into a prompt cache. Absent when the provider omits the field. */
+  cache_write_tokens?: number;
 };
 
 export type AgentTrace = {

@@ -4,8 +4,10 @@ import { sessionCoachErrors } from "../src/lib/programming/coaching/contract";
 import type { DayIntent } from "../src/lib/programming/types";
 import { projectWeek } from "../src/lib/programming/project";
 import { fatigueCutSets, schemeSets } from "../src/lib/programming/schemes";
+import { clockForRecipe, level3Recipes } from "../src/lib/programming/coaching/dose-menu";
 import {
   cleanDisplayName,
+  clockEcho,
   clockForFormat,
   diversityIssues,
   derivedFor,
@@ -199,7 +201,15 @@ describe("session contract", () => {
         { key: "burpee", amount: 10, unit: "reps" },
       ],
     });
-    expect(line).toBe("3라운드 For Time · 캡 12분 / Row Erg 15cal / Barbell Thruster 10회 (95/65 lb) (스케일 45/35 lb · 7회) / Burpee 10회");
+    expect(line).toBe("3라운드 For Time · 캡 12분 / Row Erg 15cal / Barbell Thruster 10회 (95/65 lb) / Burpee 10회");
+    expect(line).not.toContain("스케일");
+    const snatch = renderMetconLine({
+      format: "chipper",
+      clock: clockForFormat("chipper", 20, ["dumbbell_snatch"]),
+      movements: [{ key: "dumbbell_snatch", amount: 35, unit: "reps", load: { male: "22.5 kg", female: "15 kg" } }],
+    });
+    expect(snatch).not.toMatch(/\d(?:\.\d+)?\s*kg/i);
+    expect(snatch).toContain("35회");
     const varying = doseIssues({
       format: "for_time",
       minutes: 12,
@@ -256,7 +266,8 @@ describe("session contract", () => {
       clock: clockForFormat("intervals", 12, ["double_under", "push_up"]),
       movements: [{ key: "double_under", amount: 30, unit: "reps" }],
     });
-    expect(scaled).toContain("Double-under 30회 (스케일 Single-under 60회 2:1 · Single-under 90회 3:1)");
+    expect(scaled).toContain("Double-under 30회");
+    expect(scaled).not.toContain("스케일");
   });
 
   it("stamps a heavy chipper that is under 12 minutes and over the 10 minute floor", () => {
@@ -305,6 +316,64 @@ describe("session contract", () => {
     expect(built?.conditioning?.derived_sec).toBeGreaterThanOrEqual(10 * 60);
     expect(built?.conditioning?.derived_sec).toBeLessThan(12 * 60);
     expect(built?.conditioning?.time_source).toBe("derived");
+  });
+
+  it("keeps a server recipe clock when rounds or the cap differ from the lock echo", () => {
+    const lock = planWeekContract(
+      [{ day: "tue", rest: false, long: false, domain: "medium", lift: "bench", intensity_class: "moderate" }],
+      1,
+    )[0]!;
+    const recipes = level3Recipes(lock);
+    expect(recipes.length).toBeGreaterThan(0);
+    const recipe = recipes.find((row) => row.rounds !== lock.clock.rounds || row.cap !== lock.metcon_minutes) ?? recipes[0]!;
+    const clock = clockForRecipe(lock.format, recipe.cap, recipe.rounds, recipe.slots.map((slot) => slot.key));
+    const intent: DayIntent = {
+      day: "tue",
+      primary_training: "mixed_modal",
+      secondary_training: "moderate_conditioning",
+      training_goal: "컨디셔닝을 진행합니다.",
+      stimulus: "threshold",
+      intensity_profile: "moderate",
+      volume_profile: "moderate",
+      duration_profile: "45-60",
+      fatigue_target: "moderate",
+      movement_pattern: "mixed",
+      progression_required: false,
+      recovery_role: "train",
+      strength_lift: "bench",
+      benchmark: false,
+      notes_ko: "진행입니다.",
+    };
+    const built = sessionFromCoachJson({
+      json: {
+        day: "tue",
+        warmup_ko: "준비 동작을 먼저 합니다.",
+        notes_ko: "카탈로그에서 고른 수량으로 진행합니다.",
+        conditioning: {
+          format: lock.format,
+          duration_min: recipe.cap,
+          stimulus: "high_rep",
+          volume: "moderate",
+          intensity: "moderate",
+          movements: recipe.slots.map((slot) => ({
+            key: slot.key,
+            amount: slot.unit === "cal" ? `${slot.amount}cal` : slot.unit === "m" ? `${slot.amount}m` : String(slot.amount),
+            amount_value: slot.amount,
+            unit: slot.unit,
+            name_ko: catalogMovement(slot.key)?.name_ko ?? slot.key,
+            ...(slot.load ? { load: slot.load } : {}),
+          })),
+          ...clockEcho(clock),
+        },
+      },
+      intent,
+      month: fallbackMonth({ summary_ko: "이번 달은 축적입니다.", next_scheme: "volume", strength_method: "ACCUMULATION" }),
+      weekIndex: 1,
+      lock,
+    });
+    expect(built?.conditioning?.derived_sec).toBe(recipe.derivedSec);
+    expect(built?.conditioning?.time_source).toBe("derived");
+    expect(built?.conditioning?.clock?.rounds ?? null).toBe(recipe.rounds);
   });
 
   it("keeps a short piece at 12 minutes and a medium light piece inside 13–20", () => {

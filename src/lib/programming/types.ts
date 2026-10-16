@@ -212,6 +212,12 @@ export type ConditioningDraft = {
   derived_sec?: number | null;
   derived_rounds?: number | null;
   time_source?: "derived" | null;
+  /** 강도 4 용량 검사. 주간 계획의 intensity 표기와는 따로다. */
+  dose_band?: "heavy" | null;
+  member_rx?: string | null;
+  member_scale?: string | null;
+  scale_status?: "pass" | "hidden" | null;
+  scale_reason?: string | null;
 };
 
 export type SessionDraft = {
@@ -281,6 +287,55 @@ export type SessionDraft = {
     static_hold: boolean;
     load_percent?: number;
   }[];
+  /**
+   * 공통 WOD 뼈대와 강도 1–5 처방. 오버라이드는 비어 있고, 나중에 박스·회원이 레벨을 고른다.
+   * 지금 생성은 Rx 하나와 스케일 한 줄이다. 이 칸은 예전 주와 나중 박스 조정을 위해 남긴다.
+   */
+  levels?: SessionLevels | null;
+  /** Rx 레시피 캡. 잠금 분과 달라도 키만 맞으면 된다. */
+  rx?: { cap_min: number } | null;
+};
+
+export type IntensityLevelNumber = 1 | 2 | 3 | 4 | 5;
+
+export type LevelMovement = {
+  key: string;
+  unit: "reps" | "cal" | "m" | "sec" | "min";
+  amount: number | null;
+  load: { male: string | null; female: string | null } | null;
+  /** 사다리 단계. 코드가 카탈로그에서 읽는다. */
+  step?: number | null;
+  rep_cost?: number | null;
+  risk_level?: "low" | "moderate" | "high" | null;
+  skill_level?: string | null;
+};
+
+export type LevelPrescription = {
+  level: IntensityLevelNumber;
+  cap_min: number | null;
+  rounds: number | null;
+  work_sec: number | null;
+  rest_sec: number | null;
+  sets: number | null;
+  movements: LevelMovement[];
+  derived_sec: number | null;
+  time_source: "derived" | null;
+  status: "pass" | "hidden";
+  hidden_reason: string | null;
+  /** 바로 아래 레벨보다 단계로 올랐는지, 작업량으로 올랐는지. 레벨 1과 숨긴 칸은 null. */
+  progress?: "step" | "work" | "both" | null;
+};
+
+export type SessionLevels = {
+  skeleton: {
+    format: string;
+    movement_keys: string[];
+    block_roles: string[];
+    other_minutes: number;
+  };
+  levels: LevelPrescription[];
+  monotonicity: string[];
+  overrides: { scope: "box" | "member"; scope_id: string; level: number | null }[];
 };
 
 export type ProgrammingIntent = {

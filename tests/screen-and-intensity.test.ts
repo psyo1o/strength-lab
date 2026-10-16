@@ -213,18 +213,18 @@ describe("screen names and class intensity", () => {
   it("stores class intensity and lets a member setting win later", () => {
     expect(parseClassIntensity("3")).toBe(3);
     expect(parseClassIntensity(0)).toBeNull();
-    expect(resolveClassIntensity({})).toBe(3);
+    expect(resolveClassIntensity({})).toBe(4);
     expect(resolveClassIntensity({ classLevel: 4, box: 2, member: 1 })).toBe(1);
     expect(resolveClassIntensity({ classLevel: 5, box: 2 })).toBe(2);
     expect(Object.keys(ENGINE_HELP)).not.toContain("save-class-intensity");
-    expect(ENGINE_INTENSITY_HELP.short).toContain("다음 생성");
-    expect(ENGINE_INTENSITY_HELP.effect).toContain("이미 저장된 주");
+    expect(ENGINE_INTENSITY_HELP.short).toContain("4로 고정");
+    expect(ENGINE_INTENSITY_HELP.effect).toContain("다시 만들지");
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sl-intensity-"));
     process.env.DATABASE_PATH = path.join(dir, "app.db");
     process.env.AUTH_SECRET = "test-secret-at-least-32-characters-long";
     resetDbConnection();
     getSqlite();
-    expect(readStoredClassIntensity()).toBe(3);
+    expect(readStoredClassIntensity()).toBe(4);
     expect(writeStoredClassIntensity(5)).toBe(5);
     expect(readStoredClassIntensity()).toBe(5);
     expect(() => writeStoredClassIntensity(9)).toThrow(/1부터 5/);

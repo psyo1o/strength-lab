@@ -230,14 +230,14 @@ function collect(input: {
   if (fatigueHigh && heavyLower.length) {
     push({
       issue_id: "fatigue-heavy-lower",
-      severity: "MAJOR",
-      priority: "P1",
+      severity: "MINOR",
+      priority: "P3",
       owner: "recovery",
       evidence: [`reported fatigue high`, `heavy lower-body stress on ${heavyLower.join(" ")}`],
-      context: ["athlete state conflicts with today's lower stress"],
+      context: ["피로 상한은 경고이고 채택을 막지 않습니다"],
       fix_cost: "LOW",
-      expected_benefit: "HIGH",
-      action: "ADJUST_SESSION",
+      expected_benefit: "LOW",
+      action: "KEEP_WITH_NOTE",
       days: heavyLower,
       similarity_only: false,
     });

@@ -16,7 +16,9 @@ import {
   type WeekIndex,
 } from "../month-plan/types";
 import { catalogMovement, displayAmount, linkedCatalogKey, movementDisplayName } from "./coaching/movement-catalog";
+import { sessionAtLevel } from "./coaching/intensity-levels";
 import { renderMetconLine } from "./coaching/session-contract";
+import { readStoredClassIntensity } from "./class-intensity";
 import { loadBasisForMethod } from "./strength-methods";
 import { tipFor } from "../tips";
 import type { ConditioningDraft, MovementDraft, SessionDraft, Stimulus, WeekDraft } from "./types";
@@ -102,7 +104,9 @@ function pieceFrom(session: SessionDraft): MetconPiece | null {
     pattern,
     movements,
     signature: pieceSignature(conditioning.format, movements),
-    bodyKo: conditioning.clock
+    bodyKo: conditioning.member_rx
+      ? [conditioning.member_rx, conditioning.member_scale].filter((line): line is string => Boolean(line)).join("\n")
+      : conditioning.clock
       ? renderMetconLine({
           format: conditioning.format,
           clock: conditioning.clock,
@@ -211,7 +215,9 @@ function contractBlocks(session: SessionDraft, strengthMethod: string): SessionB
       ? phases.map((phase) => `${phase.phase === "raise" ? "레이즈" : phase.phase === "mobilise" ? "모빌라이즈" : phase.phase === "activate" ? "액티베이트" : phase.phase === "potentiate" ? "포텐시에이트" : "쿨다운"} · ${tipLines(phase.key, phase.unit, phase.amount)}`)
       : block.movements.map((movement) => tipLines(movement.key, movement.unit, movement.amount));
     const metconLine =
-      block.role === "metcon" && session.conditioning?.clock
+      block.role === "metcon" && session.conditioning?.member_rx
+        ? [session.conditioning.member_rx, session.conditioning.member_scale].filter((line): line is string => Boolean(line)).join("\n")
+        : block.role === "metcon" && session.conditioning?.clock
         ? renderMetconLine({
             format: session.conditioning.format,
             clock: session.conditioning.clock,
@@ -320,13 +326,14 @@ export function projectWeek(
   weekIndex: WeekIndex,
   adapterId: "model" | "rules",
   strengthMethod = "531",
+  displayLevel = readStoredClassIntensity(),
 ): PlannedWeek {
   return {
     weekIndex,
     source: "rules",
     adapterId,
     bodyBudgetMin: BODY_BUDGET_MIN,
-    days: draft.sessions.map((session) => dayFrom(session, strengthMethod)),
+    days: draft.sessions.map((session) => dayFrom(sessionAtLevel(session, displayLevel), strengthMethod)),
   };
 }
 

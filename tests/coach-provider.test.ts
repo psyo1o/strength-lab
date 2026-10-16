@@ -58,6 +58,7 @@ describe("coach provider requests", () => {
       max_completion_tokens: 40,
       temperature: 0.2,
       response_format: schema,
+      prompt_cache_key: "strength-lab-coach",
     });
     expect(request.body.messages).toEqual([
       { role: "developer", content: "system" },
@@ -83,7 +84,7 @@ describe("coach provider requests", () => {
     expect(request.body).toMatchObject({
       model: "claude-sonnet-5",
       max_tokens: 40,
-      system: "system",
+      system: [{ type: "text", text: "system", cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: "{\"day\":\"mon\"}" }],
       output_config: { format: { type: "json_schema", schema: schema.json_schema.schema } },
     });
@@ -174,6 +175,39 @@ describe("coach provider requests", () => {
     expect(() => coachModelForCall("session")).toThrow(MissingProviderModelError);
     process.env.COACH_MODEL_NAME = "gemini-3.8-flash";
     expect(coachModelForCall("session")).toBe("gemini-3.8-flash");
+  });
+
+  it("drops a strict schema once when anthropic says the grammar is too large", async () => {
+    process.env.COACH_MODEL_PROVIDER = "anthropic";
+    process.env.COACH_MODEL_NAME = "claude-haiku-5-5";
+    delete process.env.COACH_REASONING_EFFORT;
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { output_config?: unknown };
+      if (body.output_config) {
+        return new Response(JSON.stringify({
+          type: "error",
+          error: { type: "invalid_request_error", message: "The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools." },
+        }), { status: 400, headers: { "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({
+        stop_reason: "end_turn",
+        content: [{ type: "text", text: "{\"day\":\"mon\"}" }],
+        usage: { input_tokens: 2, output_tokens: 3 },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+    const result = await askCoach({
+      agent: "session",
+      user: { day: "mon" },
+      key: "test-anthropic",
+      fetchImpl,
+      timeoutMs: 1000,
+      maxTokens: 40,
+      promptVersion: "session-coach-v4",
+      runId: "provider-grammar",
+      format: schema,
+    });
+    expect(result.ok).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
   it("counts anthropic tokens through askCoach and does not fetch without a schema retry on http_error", async () => {

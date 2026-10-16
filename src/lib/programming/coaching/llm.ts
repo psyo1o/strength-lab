@@ -4,7 +4,7 @@ import type { FetchLike } from "../model";
 import { JSON_OBJECT, responseFormatFor, schemaBrief, type ResponseFormat } from "./contract";
 import { type CoachAgentName } from "./models";
 import { coachSystemPrompt } from "./prompts";
-import { buildCoachRequest, coachModelForCall, coachProvider, parseCoachPayload } from "./provider";
+import { buildCoachRequest, coachKeyForCall, coachModelForCall, coachProviderForModel, parseCoachPayload } from "./provider";
 import type { TokenUsage } from "./trace";
 
 export type CoachValidation = { ok: true } | { ok: false; errors: string[]; retryExtra?: Record<string, unknown>; retry?: boolean };
@@ -105,10 +105,14 @@ function transportBackoff(retryIndex: number): Promise<void> {
 function addUsage(left: TokenUsage | null, right: TokenUsage | null): TokenUsage | null {
   if (!left) return right;
   if (!right) return left;
+  const cacheRead = left.cache_read_tokens != null || right.cache_read_tokens != null ? (left.cache_read_tokens ?? 0) + (right.cache_read_tokens ?? 0) : undefined;
+  const cacheWrite = left.cache_write_tokens != null || right.cache_write_tokens != null ? (left.cache_write_tokens ?? 0) + (right.cache_write_tokens ?? 0) : undefined;
   return {
     prompt_tokens: left.prompt_tokens + right.prompt_tokens,
     completion_tokens: left.completion_tokens + right.completion_tokens,
     total_tokens: left.total_tokens + right.total_tokens,
+    ...(cacheRead != null ? { cache_read_tokens: cacheRead } : {}),
+    ...(cacheWrite != null ? { cache_write_tokens: cacheWrite } : {}),
   };
 }
 
@@ -126,10 +130,11 @@ async function postOnce(input: {
   seed?: number | null;
 }): Promise<Attempt> {
   const started = Date.now();
-  const provider = coachProvider();
+  const provider = coachProviderForModel(input.model);
+  const key = coachKeyForCall(provider, input.key);
   const request = buildCoachRequest({
     provider,
-    key: input.key,
+    key,
     model: input.model,
     system: input.systemPrompt ?? coachSystemPrompt(input.agent),
     user: JSON.stringify(input.user),
@@ -156,7 +161,7 @@ async function postOnce(input: {
     }
     if (!response.ok) {
       const detail = typeof payload === "string" ? payload : JSON.stringify(payload).slice(0, 400);
-      const schemaRejected = response.status === 400 && /response_format|json_schema|output_config|responseJsonSchema|responseSchema/i.test(detail);
+      const schemaRejected = response.status === 400 && /response_format|json_schema|output_config|responseJsonSchema|responseSchema|compiled grammar|strict tools/i.test(detail);
       const temperatureRejected = response.status === 400 && /temperature/i.test(detail);
       const seedRejected = response.status === 400 && /\bseed\b/i.test(detail);
       return {

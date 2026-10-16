@@ -24,7 +24,9 @@ import {
 } from "../types";
 import { timeDomainFromMinutes } from "./canonical";
 import type { DaySessionLock } from "./session-contract";
-import { clockForFormat, clockPresent, derivedFor, readClock, renderMetconLine, rxNumbers, sameClock } from "./session-contract";
+import { clockForFormat, clockPresent, derivedFor, doseIssues, readClock, renderMetconLine, rxNumbers, sameClock } from "./session-contract";
+import { clockForRecipe } from "./dose-menu";
+import { applyLevelToSession, capFitsSession, judgeLevels, legalCaps } from "./intensity-levels";
 import type { MetconClock } from "../types";
 import { jointsFor, sessionJoints, warmupIssues } from "./warmup-ramp";
 import { LONG_CONDITIONING, NON_LONG_CONDITIONING } from "./contract";
@@ -292,6 +294,26 @@ function zone2FromOption(value: unknown, required: boolean): SessionDraft["zone2
   };
 }
 
+function serverRecipeClock(
+  lock: DaySessionLock,
+  minutes: number,
+  movements: readonly { key: string; unit?: string; amount_value?: number }[],
+  echoed: MetconClock,
+): boolean {
+  const keys = movements.map((movement) => movement.key);
+  if (keys.join("|") !== lock.metcon.map((move) => move.key).join("|")) return false;
+  if (!legalCaps(lock).includes(minutes)) return false;
+  if (!sameClock(echoed, clockForRecipe(lock.format, minutes, echoed.rounds, keys))) return false;
+  const doses: { key: string; unit: "reps" | "cal" | "m" | "sec" | "min"; amount: number }[] = [];
+  for (const movement of movements) {
+    const unit = movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" || movement.unit === "min" ? movement.unit : null;
+    if (!unit || typeof movement.amount_value !== "number") return false;
+    doses.push({ key: movement.key, unit, amount: movement.amount_value });
+  }
+  if (doses.length !== movements.length) return false;
+  return doseIssues({ format: lock.format, minutes, movements: doses, clock: echoed, intensity: "heavy" }).length === 0;
+}
+
 export function sessionFromCoachJson(input: {
   json: unknown;
   intent: DayIntent;
@@ -375,7 +397,11 @@ export function sessionFromCoachJson(input: {
   const strength = strengthFor(lift, input.month, input.weekIndex, input.actual, input.intent.lower_exposure, input.intent.main_movement);
   const warmupText = typeof body.warmup_ko === "string" && body.warmup_ko.trim() ? stripCooldown(body.warmup_ko) : warmup(input.intent.day, strength?.lift === "olympic" ? null : strength?.lift ?? null);
   const echoed = readClock(piece);
-  if (input.lock && !input.lock.rest && clockPresent(piece) && (!echoed || !sameClock(echoed, input.lock.clock))) return null;
+  if (input.lock && !input.lock.rest && clockPresent(piece)) {
+    const matchesLock = echoed != null && sameClock(echoed, input.lock.clock);
+    const matchesServer = echoed != null && serverRecipeClock(input.lock, minutes, movements, echoed);
+    if (!matchesLock && !matchesServer) return null;
+  }
   if (input.intent.zone2 === "day") recipe.format = "zone2";
   let clock = echoed ?? (input.lock && !input.lock.rest ? input.lock.clock : null);
   if (!input.lock && format === "intervals" && typeof piece.interval_work_sec === "number" && typeof piece.interval_rest_sec === "number") {
@@ -384,6 +410,23 @@ export function sessionFromCoachJson(input: {
   }
   const built = conditioningFrom(input.intent.day, recipe, input.intent.benchmark, clock);
   if (!built) return null;
+  if (piece.dose_band === "heavy" && built.clock) {
+    const doses = built.movements.flatMap((movement) => {
+      const unit = movement.unit === "reps" || movement.unit === "cal" || movement.unit === "m" || movement.unit === "sec" || movement.unit === "min" ? movement.unit : null;
+      return unit && typeof movement.amount_value === "number" ? [{ key: movement.key, unit, amount: movement.amount_value }] : [];
+    });
+    const derived = derivedFor(built.format, built.duration_min, doses, built.clock, "heavy");
+    if (derived) {
+      built.derived_sec = derived.sec;
+      built.derived_rounds = derived.rounds;
+      built.time_source = "derived";
+    }
+    built.dose_band = "heavy";
+    if (typeof piece.member_rx === "string") built.member_rx = piece.member_rx;
+    if (typeof piece.member_scale === "string") built.member_scale = piece.member_scale;
+    if (piece.scale_status === "pass" || piece.scale_status === "hidden") built.scale_status = piece.scale_status;
+    if (typeof piece.scale_reason === "string") built.scale_reason = piece.scale_reason;
+  }
   const zone2 =
     input.intent.zone2 === "day"
       ? body.zone2_option == null
@@ -404,6 +447,7 @@ export function sessionFromCoachJson(input: {
     },
     strength ? (input.intent.volume_profile === "low" ? "low" : "moderate") : null,
   );
+  if (built.dose_band === "heavy") session.rx = { cap_min: built.duration_min };
   if (Array.isArray(body.session_blocks)) session.session_blocks = body.session_blocks as SessionDraft["session_blocks"];
   const metconBlock = session.session_blocks?.find((block) => block.role === "metcon");
   if (metconBlock && built.derived_sec != null) {
@@ -411,6 +455,16 @@ export function sessionFromCoachJson(input: {
     metconBlock.time_source = "derived";
   }
   if (Array.isArray(body.warmup_phases)) session.warmup_phases = body.warmup_phases as SessionDraft["warmup_phases"];
+  if (input.lock && !input.lock.steady && input.lock.format !== "zone2" && body.prescription_levels) {
+    const judged = judgeLevels(body.prescription_levels, input.lock);
+    if (judged) {
+      session.levels = judged;
+      const level3 = judged.levels.find((row) => row.level === 3);
+      if (level3?.status === "pass" && level3.cap_min != null && capFitsSession(level3.cap_min, longPiece)) {
+        applyLevelToSession(session, level3);
+      }
+    }
+  }
   const warmupBlock = session.session_blocks?.find((block) => block.role === "warmup");
   if (warmupBlock) session.warmup_min = warmupBlock.minutes;
   if (session.warmup_phases?.length) {

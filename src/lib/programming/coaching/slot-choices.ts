@@ -18,7 +18,9 @@ import {
   standardMovements,
   type CatalogUnit,
 } from "./movement-catalog";
-import { allowedAmounts, cleanDisplayName, clockEcho, clockPresent, intensityLockEnum, readClock, sameClock, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { allowedAmounts, cleanDisplayName, clockEcho, clockPresent, intensityLockEnum, memberRxSentence, memberScaleSentence, readClock, renderMetconLine, sameClock, snapDoseAmount, stimuliMatchingFormat, stimulusLockEnum, type DaySessionLock, type DoseMovement } from "./session-contract";
+import { clockForRecipe, rxRecipes, scaleRecipes, type DoseRecipe, type ScaleRecipe } from "./dose-menu";
+import { levelGuide } from "./intensity-levels";
 import { potentiatePercents, rampSlots, warmupMeta } from "./warmup-ramp";
 
 export type SlotArea = "strength" | "conditioning" | "warmup";
@@ -61,6 +63,10 @@ export type SessionFrame = {
   zone2Slot?: { deload: boolean; previousModality?: string | null; dropRun?: boolean } | null;
   /** 잠긴 세션 계약이 있을 때만 단계·에코·이유를 요구한다. */
   contract?: DaySessionLock | null;
+  /** 강도 4(Rx)에서 최소와 캡을 동시에 통과하는 번호표. */
+  recipes?: DoseRecipe[];
+  /** 그 Rx에 붙는 스케일 번호. 없는 Rx는 빈 목록이다. */
+  scales?: ScaleRecipe[];
 };
 
 /** avoid 날 칸에 남아야 하는 동작·수량 선택지. 이보다 적으면 생성 전에 멈춘다. */
@@ -351,16 +357,27 @@ export function buildSessionFrame(input: {
   avoidHeavyLower?: boolean;
   /** 수업 블록이 잠겨 있으면 그 칸만 연다. */
   sessionLock?: DaySessionLock | null;
+  /** 이번 주 한도를 이미 채운 메트콘 키. 번호표에 넣지 않는다. */
+  omitKeys?: readonly string[] | null;
 }): SessionFrame | null {
   const locked = input.sessionLock && !input.sessionLock.rest ? input.sessionLock : null;
-  const slots = locked
+  let slots = locked
     ? contractSlots(input.area, input.day, locked)
     : input.area === "conditioning"
       ? conditioningSlots(input.day, input.slot, input.skeletonCombo?.deadliftConditioning)
       : input.area === "strength"
         ? strengthSlots(input.day, input.skeletonCombo?.strengthLifts)
         : warmupSlots(input.day);
-  if (!slots.length || slots.some((slot) => slot.movements.length === 0)) return null;
+  if (input.omitKeys?.length && input.area === "conditioning") {
+    const banned = new Set(input.omitKeys);
+    slots = slots.map((slot) => {
+      if (slot.phase && slot.phase !== "metcon") return slot;
+      const kept = slot.movements.filter((movement) => !banned.has(movement.key));
+      return kept.length ? { ...slot, movements: kept } : slot;
+    });
+  }
+  if (!slots.length) return null;
+  if (slots.some((slot) => slot.movements.length === 0) && !input.omitKeys?.length) return null;
   const piece = input.area === "conditioning" ? pieceOf(input.day, input.slot) : null;
   if (piece && locked) {
     piece.format = locked.format;
@@ -373,6 +390,12 @@ export function buildSessionFrame(input: {
     slots,
     piece,
     contract: locked,
+    ...(locked && input.area === "conditioning" && locked.format !== "zone2"
+      ? (() => {
+          const recipes = rxRecipes(locked);
+          return { recipes, scales: scaleRecipes(locked, recipes) };
+        })()
+      : {}),
   };
   if (input.avoidHeavyLower && frame.area === "conditioning" && !frame.contract) return withoutHeavyLowerOptions(frame);
   return frame;
@@ -407,6 +430,31 @@ function branch(slot: FrameSlot, movement: FrameMovement, locked: boolean): Reco
     required.push("load_percent");
   }
   return strictObject(properties, required);
+}
+
+function usesIndexSlots(frame: SessionFrame): boolean {
+  return frame.area === "conditioning" && Boolean(frame.contract) && frame.contract?.format !== "zone2" && !frame.zone2Slot;
+}
+
+export function frameRecipes(frame: SessionFrame): DoseRecipe[] {
+  if (!usesIndexSlots(frame) || !frame.contract) return [];
+  return frame.recipes ?? rxRecipes(frame.contract);
+}
+
+export function frameScales(frame: SessionFrame): ScaleRecipe[] {
+  if (!usesIndexSlots(frame) || !frame.contract) return [];
+  return frame.scales ?? scaleRecipes(frame.contract, frameRecipes(frame));
+}
+
+function indexSlotSchema(slot: FrameSlot): Record<string, unknown> {
+  const qtyMax = Math.max(1, ...slot.movements.map((movement) => movement.options.length));
+  return strictObject(
+    {
+      move: { type: "integer", enum: slot.movements.map((_, index) => index) },
+      qty: { type: "integer", enum: Array.from({ length: qtyMax }, (_, index) => index) },
+    },
+    ["move", "qty"],
+  );
 }
 
 function slotSchema(slot: FrameSlot, locked = false): Record<string, unknown> {
@@ -484,27 +532,41 @@ export function alternateOnlyFormat(spec: { deload: boolean; previousModality?: 
 export function sessionSlotFormat(frame: SessionFrame): ResponseFormat {
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
+  const recipes = frameRecipes(frame);
+  const indexed = usesIndexSlots(frame) && recipes.length > 0;
   for (const slot of frame.slots) {
+    if (indexed && slot.phase === "metcon") continue;
     required.push(slot.id);
-    properties[slot.id] = slotSchema(slot, Boolean(frame.contract));
+    properties[slot.id] = usesIndexSlots(frame) ? indexSlotSchema(slot) : slotSchema(slot, Boolean(frame.contract));
   }
   if (frame.contract) {
     const minutes = (role: DaySessionLock["blocks"][number]["role"]) => frame.contract?.blocks.find((block) => block.role === role)?.minutes ?? 0;
     if (frame.area === "conditioning") {
       const stimuli = stimulusLockEnum(frame.contract, frame.piece?.stimulus);
       const bands = intensityLockEnum(frame.contract, stimuli);
-      for (const key of ["metcon_format", "metcon_minutes", "extra_minutes", "stimulus", "intensity"]) required.push(key);
-      properties.metcon_format = { type: "string", enum: [frame.contract.format] };
-      properties.metcon_minutes = { type: "integer", enum: [frame.contract.metcon_minutes] };
-      properties.extra_minutes = { type: "integer", enum: [minutes("extra_conditioning")] };
-      properties.stimulus = { type: "string", enum: stimuli };
-      properties.intensity = { type: "string", enum: bands };
-      const echo = clockEcho(frame.contract.clock);
-      for (const [key, value] of Object.entries(echo)) {
-        required.push(key);
-        if (value == null) properties[key] = { type: "null" };
-        else if (typeof value === "number") properties[key] = { type: "integer", enum: [value] };
-        else properties[key] = { type: "string", enum: [value] };
+      if (indexed) {
+        const scales = frameScales(frame);
+        required.push("recipe", "scale", "stimulus", "intensity");
+        properties.recipe = { type: "integer", enum: recipes.map((recipe) => recipe.index) };
+        properties.scale = scales.length
+          ? { anyOf: [{ type: "integer", enum: scales.map((scale) => scale.index) }, { type: "null" }] }
+          : { type: "null" };
+        properties.stimulus = { type: "string", enum: stimuli };
+        properties.intensity = { type: "string", enum: bands };
+      } else {
+        for (const key of ["metcon_format", "metcon_minutes", "extra_minutes", "stimulus", "intensity"]) required.push(key);
+        properties.metcon_format = { type: "string", enum: [frame.contract.format] };
+        properties.metcon_minutes = { type: "integer", enum: [frame.contract.metcon_minutes] };
+        properties.extra_minutes = { type: "integer", enum: [minutes("extra_conditioning")] };
+        properties.stimulus = { type: "string", enum: stimuli };
+        properties.intensity = { type: "string", enum: bands };
+        const echo = clockEcho(frame.contract.clock);
+        for (const [key, value] of Object.entries(echo)) {
+          required.push(key);
+          if (value == null) properties[key] = { type: "null" };
+          else if (typeof value === "number") properties[key] = { type: "integer", enum: [value] };
+          else properties[key] = { type: "string", enum: [value] };
+        }
       }
     } else if (frame.area === "warmup") {
       for (const key of ["warmup_minutes", "cooldown_minutes"]) required.push(key);
@@ -534,6 +596,7 @@ export function slotChoiceUser(frame: SessionFrame): unknown {
   return {
     slots: frame.slots.map((slot) => ({
       slot: slot.id,
+      phase: slot.phase ?? "metcon",
       ...(slot.phase === "main" ? { main_lift: slot.movements.map((movement) => movement.key) } : {}),
       movements: slot.movements.map((movement) => ({
         movement_id: movement.key,
@@ -542,7 +605,35 @@ export function slotChoiceUser(frame: SessionFrame): unknown {
       })),
     })),
     ...(frame.contract && frame.area === "conditioning"
-      ? { format: frame.contract.format, stimulus: stimulusLockEnum(frame.contract, frame.piece?.stimulus) }
+      ? {
+          format: frame.contract.format,
+          stimulus: stimulusLockEnum(frame.contract, frame.piece?.stimulus),
+          ...(usesIndexSlots(frame)
+            ? {
+                movement_count: "3-6; chipper up to 8",
+                rules: levelGuide(frame.contract),
+                intensity: intensityLockEnum(frame.contract, stimulusLockEnum(frame.contract, frame.piece?.stimulus)),
+                recipes: frameRecipes(frame).map((recipe) => ({
+                  index: recipe.index,
+                  cap: recipe.cap,
+                  rounds: recipe.rounds,
+                  slots: recipe.slots.map((slot) => ({ key: slot.key, amount: slot.amount, unit: slot.unit })),
+                })),
+                scales: frameScales(frame).map((scale) => ({
+                  index: scale.index,
+                  recipe: scale.rxIndex,
+                  cap: scale.cap,
+                  rounds: scale.rounds,
+                  slots: scale.slots.map((slot) => ({
+                    key: slot.key,
+                    amount: slot.amount,
+                    unit: slot.unit,
+                    load: slot.load,
+                  })),
+                })),
+              }
+            : {}),
+        }
       : {}),
   };
 }
@@ -741,20 +832,31 @@ function expandContract(
   const lock = frame.contract!;
   const errors: string[] = [];
   const bad = new Set<string>();
+  const recipes = frameRecipes(frame);
+  const scales = frameScales(frame);
+  const recipeIndex = typeof body.recipe === "number" && Number.isInteger(body.recipe) ? body.recipe : null;
+  const recipe = recipeIndex == null ? null : (recipes.find((row) => row.index === recipeIndex) ?? null);
+  const scaleIndex = body.scale === null ? null : typeof body.scale === "number" && Number.isInteger(body.scale) ? body.scale : undefined;
+  const scale = scaleIndex == null ? null : (scales.find((row) => row.index === scaleIndex) ?? null);
+  const useRecipe = usesIndexSlots(frame) && recipeIndex != null;
   const chosen: (SlotPick & { reason: string; load_percent: number | null; phase: string; option: QuantityChoice })[] = [];
   for (const slot of frame.slots) {
+    if (useRecipe && slot.phase === "metcon") continue;
     const cell = asRecord(body[slot.id]);
+    const moveIndex = typeof cell?.move === "number" && Number.isInteger(cell.move) ? cell.move : null;
+    const qtyIndex = typeof cell?.qty === "number" && Number.isInteger(cell.qty) ? cell.qty : null;
     const movementId = typeof cell?.movement_id === "string" ? cell.movement_id : "";
     const quantity = typeof cell?.quantity_option === "string" ? cell.quantity_option : "";
     const reason = typeof cell?.reason === "string" ? cell.reason.trim() : "";
-    const movement = movementOn(frame, slot.id, movementId);
-    const option = movement?.options.find((row) => row.id === quantity) ?? null;
+    const indexed = moveIndex != null || qtyIndex != null;
+    const movement = indexed ? (slot.movements[moveIndex ?? -1] ?? null) : movementOn(frame, slot.id, movementId);
+    const option = indexed ? (movement?.options[qtyIndex ?? -1] ?? null) : (movement?.options.find((row) => row.id === quantity) ?? null);
     if (!movement || !option) {
       errors.push(`${slot.id} is not an allowed movement and quantity`);
       bad.add(slot.id);
       continue;
     }
-    if (reason.length < 8) {
+    if (frame.area !== "conditioning" && reason.length < 8) {
       errors.push(`${slot.id} reason is missing`);
       bad.add(slot.id);
       continue;
@@ -773,16 +875,23 @@ function expandContract(
   }
   const minutesOf = (role: DaySessionLock["blocks"][number]["role"]) => lock.blocks.find((block) => block.role === role)?.minutes ?? 0;
   if (frame.area === "conditioning") {
-    if (echoed(body.metcon_format) !== lock.format) errors.push("metcon_format does not match the lock");
-    if (echoed(body.metcon_minutes) !== String(lock.metcon_minutes)) errors.push("metcon_minutes does not match the lock");
-    if (echoed(body.extra_minutes) !== String(minutesOf("extra_conditioning"))) errors.push("extra_minutes does not match the lock");
+    if (useRecipe && !recipe) errors.push("recipe is not an allowed dose");
+    if (useRecipe && recipe) {
+      const allowed = scales.filter((row) => row.rxIndex === recipe.index);
+      if (allowed.length > 0 && (!scale || scale.rxIndex !== recipe.index)) {
+        errors.push(`scale is not an allowed dose for this recipe; allowed: ${allowed.map((row) => row.index).join(",")}`);
+      }
+    }
+    if (!useRecipe && echoed(body.metcon_format) !== lock.format) errors.push("metcon_format does not match the lock");
+    if (!useRecipe && echoed(body.metcon_minutes) !== String(lock.metcon_minutes)) errors.push("metcon_minutes does not match the lock");
+    if (!useRecipe && echoed(body.extra_minutes) !== String(minutesOf("extra_conditioning"))) errors.push("extra_minutes does not match the lock");
     const stimuli = stimulusLockEnum(lock, frame.piece?.stimulus);
     const bands = intensityLockEnum(lock, stimuli);
     const pickedStimulus = echoed(body.stimulus);
     if (!(stimuli as readonly string[]).includes(pickedStimulus)) errors.push("stimulus is outside the locked ceiling");
     const picked = echoed(body.intensity);
     if (!(bands as readonly string[]).includes(picked)) errors.push("intensity is outside the locked ceiling");
-    if (clockPresent(body)) {
+    if (!useRecipe && clockPresent(body)) {
       const clock = readClock(body);
       if (!clock || !sameClock(clock, lock.clock)) errors.push("metcon clock does not match the lock");
     }
@@ -858,7 +967,31 @@ function expandContract(
   const piece = frame.piece!;
   const pickedStimulus = echoed(body.stimulus);
   const pickedIntensity = echoed(body.intensity);
-  const movements = metcon.map((pick) => movementFrom(pick.movement_id, pick.option));
+  const movements = recipe
+    ? recipe.slots.map((slot) => movementFrom(slot.key, { id: `${slot.unit}:${slot.amount}`, unit: slot.unit, amount: slot.amount, method: false }))
+    : metcon.map((pick) => movementFrom(pick.movement_id, pick.option));
+  const metconMinutes = recipe?.cap ?? lock.metcon_minutes;
+  const metconClock = recipe ? clockForRecipe(lock.format, recipe.cap, recipe.rounds, recipe.slots.map((slot) => slot.key)) : null;
+  const paired = recipe && scale && scale.rxIndex === recipe.index ? scale : null;
+  const scaleHidden = Boolean(recipe) && !paired;
+  const rxLine = recipe && metconClock
+    ? memberRxSentence(renderMetconLine({
+        format: lock.format,
+        clock: metconClock,
+        movements: recipe.slots.map((slot) => ({ key: slot.key, amount: slot.amount, unit: slot.unit, load: slot.load })),
+      }))
+    : null;
+  const scaleClock = paired ? clockForRecipe(lock.format, paired.cap, paired.rounds, paired.slots.map((slot) => slot.key)) : null;
+  const scaleLine = memberScaleSentence(
+    paired && scaleClock
+      ? renderMetconLine({
+          format: lock.format,
+          clock: scaleClock,
+          movements: paired.slots.map((slot) => ({ key: slot.key, amount: slot.amount, unit: slot.unit, load: slot.load })),
+        })
+      : null,
+    scaleHidden,
+  );
   return {
     ok: true,
     picks,
@@ -867,18 +1000,20 @@ function expandContract(
       notes_ko: "카탈로그에서 고른 수량으로 진행합니다.",
       conditioning: {
         format: lock.format,
-        duration_min: lock.metcon_minutes,
+        duration_min: metconMinutes,
         stimulus: pickedStimulus,
         movements,
         volume: piece.volume,
         intensity: pickedIntensity,
         interval_work_sec: lock.format === "intervals" ? 40 : null,
         interval_rest_sec: lock.format === "intervals" ? 20 : null,
-        ...clockEcho(lock.clock),
+        ...(metconClock ? clockEcho(metconClock) : clockEcho(lock.clock)),
+        ...(recipe ? { dose_band: "heavy" as const, member_rx: rxLine, member_scale: scaleLine, scale_status: paired ? ("pass" as const) : ("hidden" as const), scale_reason: paired ? null : "RULE_CONFLICT: no scale meets the same format, cap, pattern, easier step or lighter load, and 0.6–0.85 of Rx" } : {}),
       },
+      ...(lock.format !== "zone2" && body.levels != null ? { prescription_levels: body.levels } : {}),
       contract_part: {
         kind: "conditioning",
-        metcon_minutes: lock.metcon_minutes,
+        metcon_minutes: metconMinutes,
         extra_minutes: minutesOf("extra_conditioning"),
         format: lock.format,
         extra: extra

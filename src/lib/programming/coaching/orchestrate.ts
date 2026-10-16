@@ -6,7 +6,8 @@ import { weeklyTimeoutMs } from "../timeouts";
 import { STIMULI, type DayIntent, type DayPrescriptionRecord, type SessionDraft, type WeekDraft, type WeeklyIntentPlan } from "../types";
 import { classCompletionForCoach, classSummaryForCoach, omitAbsenceSummary, parseWeeklyIntent } from "../weekly-intent";
 import { conditioningDayFormat, durationRuleText, headReviewErrors, headReviewFormat, loadDecisionErrors, LONG_CONDITIONING, NON_LONG_CONDITIONING, recoveryCellFormat, requiredRevisionErrors, schemaBrief, weeklyIntentErrors, type LoadDecisionDraft } from "./contract";
-import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, planWeekContract, resolveSessionMinutes, sessionEstimateIssues, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
+import { hardLevelErrors, ladderRiskRows } from "./intensity-levels";
+import { accessoryContentMinutes, intensityBandsForStimulus, intensityLockEnum, metconKeysAtCap, planWeekContract, resolveSessionMinutes, sessionEstimateIssues, slotCauseFromMessage, stimulusLockEnum, stimuliForCeiling, stimuliMatchingFormat, weekContractIssues, type ContractDayInput, type DaySessionLock, type IntensityCeiling } from "./session-contract";
 import { fatigueReport } from "./fatigue";
 import { askCoach, coachAttemptRecord } from "./llm";
 import { applyLoadDecisions, decisionDays, deterministicLoadDecisions, type LoadDecision } from "./load";
@@ -124,10 +125,14 @@ function zeroUsage(): TokenUsage {
 
 function addUsage(total: TokenUsage, next: TokenUsage | null | undefined): TokenUsage {
   if (!next) return total;
+  const cacheRead = total.cache_read_tokens != null || next.cache_read_tokens != null ? (total.cache_read_tokens ?? 0) + (next.cache_read_tokens ?? 0) : undefined;
+  const cacheWrite = total.cache_write_tokens != null || next.cache_write_tokens != null ? (total.cache_write_tokens ?? 0) + (next.cache_write_tokens ?? 0) : undefined;
   return {
     prompt_tokens: total.prompt_tokens + next.prompt_tokens,
     completion_tokens: total.completion_tokens + next.completion_tokens,
     total_tokens: total.total_tokens + next.total_tokens,
+    ...(cacheRead != null ? { cache_read_tokens: cacheRead } : {}),
+    ...(cacheWrite != null ? { cache_write_tokens: cacheWrite } : {}),
   };
 }
 
@@ -494,6 +499,11 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+/** Level-check text. Slot-id repairs stay on the narrow path; these stay on the one session retry. */
+function levelCheckError(error: string): boolean {
+  return error.startsWith("levels ") || /(?:^|\s)level \d/.test(error);
+}
+
 function outsideArea(body: Record<string, unknown>, banned: readonly string[]): string | null {
   const hit = banned.find((key) => body[key] != null);
   return hit ? `specialist wrote ${hit}` : null;
@@ -570,6 +580,7 @@ function mergeSpecialists(input: {
       notes_ko: conditioning.notes_ko,
       conditioning: conditioning.conditioning,
       ...(conditioning.zone2_option ? { zone2_option: conditioning.zone2_option } : {}),
+      ...(conditioning.prescription_levels ? { prescription_levels: conditioning.prescription_levels } : {}),
       ...(contract ?? {}),
     },
   };
@@ -654,6 +665,15 @@ function affectedDays(days: readonly DayKey[]): DayKey[] {
   return DAY_ORDER.filter((_, index) => indexes.has(index));
 }
 
+function modelMetconKeys(draft: WeekDraft, sources: Record<string, "model" | "fallback">): { day: string; keys: string[] }[] {
+  const rows: { day: string; keys: string[] }[] = [];
+  for (const session of draft.sessions) {
+    if (sources[session.day] !== "model" || session.rest || !session.conditioning || session.conditioning.format === "zone2") continue;
+    rows.push({ day: session.day, keys: [...new Set(session.conditioning.movements.map((movement) => movement.key))] });
+  }
+  return rows;
+}
+
 async function writeSession(input: {
   week: CoachWeekInput;
   plan: WeeklyIntentPlan;
@@ -670,6 +690,8 @@ async function writeSession(input: {
   deferPlacement?: boolean;
   /** Recent-week overlap brief for the one post-swap rewrite of this day. */
   recentOverlap?: ReturnType<typeof recentOverlapPayload> | null;
+  /** Metcon keys already chosen by the model on earlier days of this week. */
+  priorMetconKeys?: readonly { day: string; keys: readonly string[] }[];
 }): Promise<{
   draft: WeekDraft;
   source: "model" | "fallback";
@@ -719,6 +741,7 @@ async function writeSession(input: {
   const areaTraces: AgentTrace[] = [];
   const areaReason = new Map<SpecialistArea, string | null>();
   const areaErrors = new Map<SpecialistArea, string[]>();
+  const slotClosed = new Set<SpecialistArea>();
   const areaInvalid = new Map<SpecialistArea, unknown>();
   let failed: { errors: string[]; retry: number; reason: string | null; json: unknown } | null = null;
   let overlapShown = false;
@@ -773,6 +796,19 @@ async function writeSession(input: {
     });
     normalizations.push(...adopted.normalizations);
     normalizedJson = adopted.json;
+    const presented = asRecord(json);
+    if (
+      adopted.ok &&
+      sessionLock &&
+      !sessionLock.rest &&
+      !sessionLock.steady &&
+      sessionLock.format !== "zone2" &&
+      presented &&
+      Object.prototype.hasOwnProperty.call(presented, "prescription_levels")
+    ) {
+      const levelErrors = adopted.session.levels ? hardLevelErrors(adopted.session) : ["levels 1-5 are missing"];
+      if (levelErrors.length) return { ok: false as const, errors: levelErrors };
+    }
     if (input.deferPlacement) return adopted.ok ? { ok: true as const } : { ok: false as const, errors: adopted.errors };
     const pack = overlapPack(adopted.json, adopted.ok ? adopted.draft : input.draft);
     if (!adopted.ok) {
@@ -798,6 +834,7 @@ async function writeSession(input: {
       skeletonCombo: skeletonComboFor(input.week, input.rules, input.day.day),
       avoidHeavyLower: hardConstraints(input.week.previousActual).heavy_lower_metcon === "avoid",
       sessionLock,
+      omitKeys: area === "conditioning" ? metconKeysAtCap(input.priorMetconKeys ?? [], input.day.day) : [],
     });
     const zone2Spec = zone2SlotSpec({
       zone2: input.day.zone2,
@@ -807,9 +844,20 @@ async function writeSession(input: {
       dropRun: (input.week.weekSkeleton?.zone2?.lowerAdjacent ?? []).includes(input.day.day),
     });
     if (frame && area === "conditioning" && zone2Spec) frame.zone2Slot = zone2Spec;
+    if (frame?.recipes && frame.recipes.length === 0 && !frame.zone2Slot && frame.contract?.format !== "zone2") {
+      areaErrors.set(area, [`${input.day.day} RULE_CONFLICT: no Rx dose fits the minimum and the cap`]);
+      areaReason.set(area, "empty_enum");
+      slotClosed.add(area);
+      continue;
+    }
+    if (frame?.slots.some((slot) => slot.movements.length === 0)) {
+      areaErrors.set(area, [`${input.day.day} metcon list is empty after the weekly movement cap`]);
+      areaReason.set(area, "empty_enum");
+      slotClosed.add(area);
+      continue;
+    }
     if (frame) frames.set(area, frame);
   }
-  const slotClosed = new Set<SpecialistArea>();
   let slotRecovered = false;
   const present = (area: SpecialistArea, json: unknown) => {
     const frame = frames.get(area);
@@ -818,9 +866,15 @@ async function writeSession(input: {
   };
   const validatePresented = (area: SpecialistArea) => (json: unknown) => {
     const ready = present(area, json);
-    if (!ready.ok) return { ok: false as const, errors: ready.errors, retry: false as const };
+    if (!ready.ok) {
+      if (ready.errors.some((error) => error.includes("allowed:"))) return { ok: false as const, errors: ready.errors };
+      return { ok: false as const, errors: ready.errors, retry: false as const };
+    }
     const verdict = validateArea(area)(ready.json);
-    if (!verdict.ok && isSlotPayload(json)) return { ...verdict, retry: false as const };
+    if (!verdict.ok && isSlotPayload(json) && !verdict.errors.some(levelCheckError)) {
+      if (verdict.errors.some((error) => error.includes("allowed:"))) return verdict;
+      return { ...verdict, retry: false as const };
+    }
     return verdict;
   };
   const storeArea = (area: SpecialistArea, json: unknown) => {
@@ -837,6 +891,11 @@ async function writeSession(input: {
     return frame ? { ...user, ...extra, slot_choices: slotChoiceUser(frame) } : { ...user, ...extra };
   };
   for (const area of areas) {
+    if (slotClosed.has(area)) {
+      const errors = areaErrors.get(area) ?? ["empty_enum"];
+      failed ??= { errors, retry: 0, reason: areaReason.get(area) ?? "empty_enum", json: null };
+      continue;
+    }
     const asked = await askSpecialist({
       area,
       user: areaUser(area),
@@ -854,7 +913,9 @@ async function writeSession(input: {
     if (!asked.ok) {
       const errors = asked.trace.validation_errors?.length ? asked.trace.validation_errors : [asked.trace.failure_reason ?? "schema"];
       const frame = frames.get(area);
-      if (frame && isSlotPayload(asked.json)) {
+      if (errors.some(levelCheckError)) {
+        slotClosed.add(area);
+      } else if (frame && isSlotPayload(asked.json)) {
         const ready = present(area, asked.json);
         const picks = ready.ok ? ready.picks : readPicks(asked.json);
         const bad = ready.ok ? slotsForFitErrors(frame, picks, errors) : ready.badSlots;
@@ -1979,6 +2040,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       rules,
       ignoreDays: queue.slice(index + 1).map((row) => row.day),
       deferPlacement: true,
+      priorMetconKeys: modelMetconKeys(draft, daySources),
     });
     traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
     for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);
@@ -2233,6 +2295,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       rules,
       deferPlacement: true,
       recentOverlap: payload,
+      priorMetconKeys: modelMetconKeys(draft, daySources),
     });
     traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
     for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);
@@ -2588,7 +2651,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
           allowed_values: cell.intensity_values ?? [],
         })),
       constitution:
-        "You are called once. Every cell_violations entry must appear once in revisions. Patch each indicated cell with one of its allowed_values. Do not leave an indicated cell unchanged. Fix hard_constraints violations before warnings. On a day whose heavy_lower_metcon is avoid, REVISE only with a movement_id or quantity_option that remains in that day's revisable enum. REVISE only when value is a different movement_id or quantity_option in that cell's enum. If catalog_key is intensity, field is intensity and value is one of that cell's bands. If the enum has no different id, return APPROVE_WITH_NOTE with empty revisions and empty adjustments. Do not use adjustments as a cell edit. The server writes a legal cell and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4.",
+        "You are called once. Every cell_violations entry must appear once in revisions. Patch each indicated cell with one of its allowed_values. Do not leave an indicated cell unchanged. Fix hard_constraints violations before warnings. On a day whose heavy_lower_metcon is avoid, REVISE only with a movement_id or quantity_option that remains in that day's revisable enum. REVISE only when value is a different movement_id or quantity_option in that cell's enum. If catalog_key is intensity, field is intensity and value is one of that cell's bands. If the enum has no different id, return APPROVE_WITH_NOTE with empty revisions and empty adjustments. Do not use adjustments as a cell edit. The server writes a legal cell and does not call you again. Do not BLOCK for wording, explanations, or language. BLOCK only for a safety risk, a collapsed week structure, or a training day with no session. Do not ask for the session to be regenerated. Remaining recent-week overlap is a signal. Similarity threshold stays 4. ladder_risk lists ladder steps and their risk_level. Leave those movements in place and do not strip risk_level.",
       unresolved_days: [...unresolvedDays.entries()].map(([day, errors]) => ({ day, errors })),
       monthly_goal: month.coaching_plan?.block_goal ?? null,
       monthly_method: month.coaching_plan?.strength_method ?? month.strength_method,
@@ -2607,6 +2670,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       integrator: bundle.integrator,
       evidence: stages.evidence,
       risk_classification: stages.risk,
+      ladder_risk: ladderRiskRows(draft.sessions),
       priority_result: stages.priority,
       tradeoff_result: stages.tradeoff,
       action_plan: stages.action,
@@ -2795,7 +2859,8 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
     weekContractIssues({ sessions: [...sessions] }, input.weekIndex, month.strength_method || month.scheme || "531", contractDaysFor(week, plan)).some((message) =>
       /locked dose|locked ceiling|does not match lock|do not match lock/.test(message),
     );
-  const estimateBroken = (sessions: readonly SessionDraft[]) => sessions.some((session) => sessionEstimateIssues(session).length > 0);
+  const estimateBroken = (sessions: readonly SessionDraft[]) =>
+    sessions.some((session) => sessionEstimateIssues(session).length > 0 || hardLevelErrors(session).length > 0);
   const headCells = applyHeadCells(draft.sessions, modelRevisions, {
     avoidHeavyLower,
     accept: (sessions) => !lockStillBroken(sessions) && !estimateBroken(sessions),
@@ -2929,6 +2994,7 @@ export async function coachWeekActive(input: CoachWeekInput): Promise<CoachWeekR
       timeoutMs,
       rules,
       areas: [area],
+      priorMetconKeys: modelMetconKeys(draft, daySources),
     });
     traces.push(...written.selfTraces, ...written.areaTraces, written.trace);
     for (const areaTrace of written.areaTraces) usage = addUsage(usage, areaTrace.token_usage);

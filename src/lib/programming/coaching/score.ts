@@ -81,7 +81,9 @@ export function qualityOf(input: { result: CoachWeekResult; month: MonthDirectio
   if (impossible) critical.push("class impossible");
   if (training.some((session) => (session.conditioning?.movements.length ?? 0) === 0)) critical.push("invalid movement");
   if (input.result.variation.same_week_similarity >= 4) critical.push("duplicate structure");
-  if (input.result.fatigue.reported_fatigue === "high" && heavyLowerCount(input.result.plan) > 1) critical.push("recovery conflict");
+  if (input.result.fatigue.reported_fatigue === "high" && heavyLowerCount(input.result.plan) > 1) {
+    scores.fatigue_management = Math.min(scores.fatigue_management ?? 3, 3);
+  }
   if (input.weekIndex === 4 && input.result.plan.days.some((day) => day.progression_required && (day.strength_lift === "squat" || day.strength_lift === "deadlift"))) {
     critical.push("progression conflict");
   }

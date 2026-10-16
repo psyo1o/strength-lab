@@ -144,7 +144,7 @@ const PRIVATE_KEYS = new Set([
   "phone",
 ]);
 
-const SECRET_ENV = ["MONTH_PLAN_MODEL_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY"] as const;
+const SECRET_ENV = ["MONTH_PLAN_MODEL_KEY", "ANTHROPIC_API_KEY", "XAI_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "DASHSCOPE_API_KEY"] as const;
 
 /** Strips credential values from a log line. The variable names stay out of the text. */
 export function redactSecretText(text: string): string {
@@ -538,6 +538,17 @@ function insertMonthRow(
     logContext: input.logContext,
   });
   return id;
+}
+
+export function listActiveWeekStarts(): string[] {
+  const rows = getSqlite().prepare("SELECT week_start FROM programming_weeks WHERE status = 'active' ORDER BY week_start").all() as { week_start: string }[];
+  return rows.map((row) => row.week_start);
+}
+
+export function saveWeekDisplay(weekStart: string, display: PlannedWeek): void {
+  getSqlite()
+    .prepare("UPDATE programming_weeks SET display_json = ? WHERE week_start = ? AND status = 'active'")
+    .run(JSON.stringify(display), weekStart);
 }
 
 export function getProgrammingWeek(weekStart: string): WeekRow | null {

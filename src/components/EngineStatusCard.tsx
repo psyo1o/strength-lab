@@ -35,6 +35,39 @@ export function EngineStatusCard({ status }: { status: EngineAdminStatus }) {
         <h2 className="text-sm font-bold">다음 행동</h2>
         <p className="mt-1 text-base font-black">{status.nextAction}</p>
       </div>
+      <div>
+        <h2 className="text-sm font-bold">숨긴 스케일</h2>
+        {status.hiddenLevels.length === 0 ? (
+          <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">숨긴 스케일이 없습니다.</p>
+        ) : (
+          <ul className="mt-1 space-y-1 text-sm leading-relaxed">
+            {status.hiddenLevels.map((row) => (
+              <li key={`${row.day}-${row.level}`}>
+                {row.day}: {row.reason}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {status.levelBoard.length > 0 ? (
+        <div>
+          <h2 className="text-sm font-bold">Rx와 스케일</h2>
+          <div className="mt-2 space-y-3">
+            {status.levelBoard.map((day) => (
+              <div key={day.day}>
+                <p className="text-sm font-bold">{day.day}</p>
+                <ul className="mt-1 space-y-1 text-sm leading-relaxed">
+                  {day.cells.map((cell) => (
+                    <li key={`${cell.label ?? cell.level}`}>
+                      {cell.label ?? cell.level}: {cell.hidden ? `숨김 · ${cell.reason ?? ""}` : cell.text}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
